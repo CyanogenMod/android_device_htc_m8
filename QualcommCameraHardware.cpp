@@ -145,8 +145,23 @@ static const camera_size_type preview_sizes[] = {
 };
 #define PREVIEW_SIZE_COUNT (sizeof(preview_sizes)/sizeof(camera_size_type))
 
-static const camera_size_type* picture_sizes;
-static int PICTURE_SIZE_COUNT;
+//static const camera_size_type* picture_sizes;
+//static int PICTURE_SIZE_COUNT;
+/*       TODO
+ * Ideally this should be a populated by lower layers.
+ * But currently this is no API to do that at lower layer.
+ * Hence populating with default sizes for now. This needs
+ * to be changed once the API is supported.
+ */
+static const camera_size_type picture_sizes[] = {
+    { 2592, 1944 }, // 5MP
+    { 2048, 1536 }, // 3MP
+    { 1600, 1200 }, // 2MP
+    { 800, 480 }, // WVGA
+    { 640, 480 }, // VGA
+    { 320, 240 } // QVGA
+};
+static int PICTURE_SIZE_COUNT = sizeof(picture_sizes)/sizeof(camera_size_type);
 
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -645,14 +660,15 @@ bool QualcommCameraHardware::startCamera()
 
     *LINK_mmcamera_jpeg_callback = receive_jpeg_callback;
 
+/* Disabling until support is available.
     *(void **)&LINK_mmcamera_shutter_callback =
         ::dlsym(libmmcamera, "mmcamera_shutter_callback");
 
     *LINK_mmcamera_shutter_callback = receive_shutter_callback;
-
+*/
     *(void**)&LINK_jpeg_encoder_setMainImageQuality =
         ::dlsym(libmmcamera, "jpeg_encoder_setMainImageQuality");
-
+/* Disabling until support is available.
     *(void**)&LINK_jpeg_encoder_setThumbnailQuality =
         ::dlsym(libmmcamera, "jpeg_encoder_setThumbnailQuality");
 
@@ -661,21 +677,24 @@ bool QualcommCameraHardware::startCamera()
 
     *(void**)&LINK_jpeg_encoder_setLocation =
         ::dlsym(libmmcamera, "jpeg_encoder_setLocation");
-
+*/
     *(void **)&LINK_cam_conf =
         ::dlsym(libmmcamera, "cam_conf");
 
+/* Disabling until support is available.
     *(void **)&LINK_default_sensor_get_snapshot_sizes =
         ::dlsym(libmmcamera, "default_sensor_get_snapshot_sizes");
-
+*/
     *(void **)&LINK_launch_cam_conf_thread =
         ::dlsym(libmmcamera, "launch_cam_conf_thread");
 
     *(void **)&LINK_release_cam_conf_thread =
         ::dlsym(libmmcamera, "release_cam_conf_thread");
 
+/* Disabling until support is available.
     *(void **)&LINK_zoom_crop_upscale =
         ::dlsym(libmmcamera, "zoom_crop_upscale");
+*/
 
 #else
     mmcamera_camframe_callback = receive_camframe_callback;
@@ -710,13 +729,13 @@ bool QualcommCameraHardware::startCamera()
     else
         LOGI("%s: camsensor name %s, flash %d", __FUNCTION__,
              mSensorInfo.name, mSensorInfo.flash_enabled);
-
+/* Disabling until support is available.
     picture_sizes = LINK_default_sensor_get_snapshot_sizes(&PICTURE_SIZE_COUNT);
     if (!picture_sizes || !PICTURE_SIZE_COUNT) {
         LOGE("startCamera X: could not get snapshot sizes");
         return false;
     }
-
+*/
     LOGV("startCamera X");
     return true;
 }
@@ -943,19 +962,23 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     if (thumbnail_quality >= 0) {
         LOGV("native_jpeg_encode, current jpeg thumbnail quality =%d",
              thumbnail_quality);
+/* Disabling until support is available.
         if(!LINK_jpeg_encoder_setThumbnailQuality(thumbnail_quality)) {
             LOGE("native_jpeg_encode set thumbnail-quality failed");
             return false;
         }
+*/
     }
 
     int rotation = mParameters.getInt("rotation");
     if (rotation >= 0) {
         LOGV("native_jpeg_encode, rotation = %d", rotation);
+/* Disabling until support is available.
         if(!LINK_jpeg_encoder_setRotation(rotation)) {
             LOGE("native_jpeg_encode set rotation failed");
             return false;
         }
+*/
     }
 
     jpeg_set_location();
@@ -1033,9 +1056,11 @@ void QualcommCameraHardware::jpeg_set_location()
     if (encode_location) {
         LOGD("setting image location ALT %d LAT %lf LON %lf",
              pt.altitude, pt.latitude, pt.longitude);
+/* Disabling until support is available.
         if (!LINK_jpeg_encoder_setLocation(&pt)) {
             LOGE("jpeg_set_location: LINK_jpeg_encoder_setLocation failed.");
         }
+*/
     }
     else LOGV("not setting image location");
 }

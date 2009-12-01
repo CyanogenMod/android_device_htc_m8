@@ -26,6 +26,7 @@ extern "C" {
 #include <linux/android_pmem.h>
 #include <media/msm_camera.h>
 #include <camera.h>
+#include <camera_defs_i.h>
 }
 
 struct str_map {

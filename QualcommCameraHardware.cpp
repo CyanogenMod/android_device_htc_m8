@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cutils/properties.h>
 #if HAVE_ANDROID_OS
 #include <linux/android_pmem.h>
 #endif
@@ -1215,6 +1216,8 @@ void QualcommCameraHardware::deinitPreview(void)
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     int rawWidth, rawHeight;
+    char value[PROPERTY_VALUE_MAX];
+
     mParameters.getPictureSize(&rawWidth, &rawHeight);
     LOGV("initRaw E: picture size=%dx%d", rawWidth, rawHeight);
 
@@ -1235,7 +1238,12 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
-    mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
+    property_get("ro.product.device",value," ");
+
+    if(!strcmp(value,"msm7627_surf"))
+             mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
+    else
+             mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
 
     LOGV("initRaw: initializing mRawHeap.");
     mRawHeap =

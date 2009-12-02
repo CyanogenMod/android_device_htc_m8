@@ -19,7 +19,7 @@ LOCAL_CFLAGS+= -DNUM_PREVIEW_BUFFERS=4 -D_ANDROID_
 LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
 
-LOCAL_SHARED_LIBRARIES:= libutils libui liblog
+LOCAL_SHARED_LIBRARIES:= libutils libui liblog libcutils
 
 LOCAL_SHARED_LIBRARIES+= libbinder
 ifneq ($(DLOPEN_LIBMMCAMERA),1)

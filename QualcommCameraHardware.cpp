@@ -1,5 +1,6 @@
 /*
 ** Copyright 2008, Google Inc.
+** Copyright (c) 2009, Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -461,10 +462,26 @@ static const str_map flash[] = {
     { CameraParameters::FLASH_MODE_ON, LED_MODE_ON }
 };
 
+// from mm-camera/common/camera.h.
+static const str_map iso[] = {
+    { CameraParameters::ISO_AUTO,  CAMERA_ISO_AUTO},
+    { CameraParameters::ISO_HJR,   CAMERA_ISO_DEBLUR},
+    { CameraParameters::ISO_100,   CAMERA_ISO_100},
+    { CameraParameters::ISO_200,   CAMERA_ISO_200},
+    { CameraParameters::ISO_400,   CAMERA_ISO_400},
+    { CameraParameters::ISO_800,   CAMERA_ISO_800 }
+};
+
+
 #define DONT_CARE 0
 static const str_map focus_modes[] = {
     { CameraParameters::FOCUS_MODE_AUTO,     DONT_CARE },
     { CameraParameters::FOCUS_MODE_INFINITY, DONT_CARE }
+};
+
+static const str_map lensshade[] = {
+    { CameraParameters::LENSSHADE_ENABLE, TRUE },
+    { CameraParameters::LENSSHADE_DISABLE, FALSE }
 };
 
 static bool parameter_string_initialized = false;
@@ -475,6 +492,8 @@ static String8 effect_values;
 static String8 whitebalance_values;
 static String8 flash_values;
 static String8 focus_mode_values;
+static String8 iso_values;
+static String8 lensshade_values;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -523,6 +542,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPreviewFrameSize(0),
       mRawSize(0),
       mCameraControlFd(-1),
+      mBrightness(0),
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
       mInPreviewCallback(false),
@@ -558,6 +578,10 @@ void QualcommCameraHardware::initDefaultParameters()
             flash, sizeof(flash) / sizeof(str_map));
         focus_mode_values = create_values_str(
             focus_modes, sizeof(focus_modes) / sizeof(str_map));
+        iso_values = create_values_str(
+            iso,sizeof(iso)/sizeof(str_map));
+        lensshade_values = create_values_str(
+            lensshade,sizeof(lensshade)/sizeof(str_map));
         parameter_string_initialized = true;
     }
 
@@ -608,9 +632,19 @@ void QualcommCameraHardware::initDefaultParameters()
                         flash_values);
     }
 
+    mParameters.set("luma-adaptation", "18");
     mParameters.set("zoom-supported", "true");
     mParameters.set("max-zoom", MAX_ZOOM_LEVEL);
     mParameters.set("zoom", 0);
+
+    mParameters.set(CameraParameters::KEY_ISO_MODE,
+                    CameraParameters::ISO_AUTO);
+    mParameters.set(CameraParameters::KEY_LENSSHADE,
+                    CameraParameters::LENSSHADE_ENABLE);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_ISO_MODES,
+                    iso_values);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_LENSSHADE_MODES,
+                    lensshade_values);
 
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
@@ -1722,6 +1756,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setZoom(params)))         final_rc = rc;
     if ((rc = setFocusMode(params)))    final_rc = rc;
     if ((rc = setOrientation(params)))  final_rc = rc;
+    if ((rc = setBrightness(params)))   final_rc = rc;
+    if ((rc = setLensshadeValue(params)))  final_rc = rc;
+    if ((rc = setISOValue(params)))  final_rc = rc;
 
     LOGV("setParameters: X");
     return final_rc;
@@ -2158,6 +2195,20 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
     return BAD_VALUE;
 }
 
+status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {
+        int brightness = params.getInt("luma-adaptation");
+        if (mBrightness !=  brightness) {
+            LOGV(" new brightness value : %d ", brightness);
+            mBrightness =  brightness;
+
+            bool ret = native_set_parm(CAMERA_SET_PARM_BRIGHTNESS, sizeof(mBrightness),
+                                       (void *)&mBrightness);
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
+        } else {
+            return NO_ERROR;
+        }
+}
+
 status_t QualcommCameraHardware::setWhiteBalance(const CameraParameters& params)
 {
     const char *str = params.get(CameraParameters::KEY_WHITE_BALANCE);
@@ -2215,6 +2266,40 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
     LOGE("Invalid antibanding value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
+
+status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_LENSSHADE);
+    if (str != NULL) {
+        int value = attr_lookup(lensshade,
+                                    sizeof(lensshade) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            int8_t temp = (int8_t)value;
+            mParameters.set(CameraParameters::KEY_LENSSHADE, str);
+            native_set_parm(CAMERA_SET_PARM_ROLLOFF, sizeof(int8_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid lensShade value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t  QualcommCameraHardware::setISOValue(const CameraParameters& params) {
+    const char *str = params.get(CameraParameters::KEY_ISO_MODE);
+    if (str != NULL) {
+        int value = (camera_iso_mode_type)attr_lookup(
+          iso, sizeof(iso) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            camera_iso_mode_type temp = (camera_iso_mode_type) value;
+            mParameters.set(CameraParameters::KEY_ISO_MODE, str);
+            native_set_parm(CAMERA_SET_PARM_ISO, sizeof(camera_iso_mode_type), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid Iso value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
 
 status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
 {

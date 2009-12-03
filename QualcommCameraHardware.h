@@ -1,5 +1,6 @@
 /*
 ** Copyright 2008, Google Inc.
+** Copyright (c) 2009, Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -101,6 +102,7 @@ private:
 
     CameraParameters mParameters;
     unsigned int frame_size;
+    int mBrightness;
     bool mCameraRunning;
     bool mPreviewInitialized;
 
@@ -192,7 +194,10 @@ private:
     status_t setRotation(const CameraParameters& params);
     status_t setZoom(const CameraParameters& params);
     status_t setFocusMode(const CameraParameters& params);
+    status_t setBrightness(const CameraParameters& params);
     status_t setOrientation(const CameraParameters& params);
+    status_t setLensshadeValue(const CameraParameters& params);
+    status_t setISOValue(const CameraParameters& params);
 
     Mutex mLock;
     bool mReleasedRecordingFrame;

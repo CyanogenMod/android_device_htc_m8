@@ -212,6 +212,13 @@ static const str_map effects[] = {
 };
 
 // from qcamera/common/camera.h
+static const str_map autoexposure[] = {
+    { CameraParameters::AUTO_EXPOSURE_FRAME_AVG,  CAMERA_AEC_FRAME_AVERAGE },
+    { CameraParameters::AUTO_EXPOSURE_CENTER_WEIGHTED, CAMERA_AEC_CENTER_WEIGHTED },
+    { CameraParameters::AUTO_EXPOSURE_SPOT_METERING, CAMERA_AEC_SPOT_METERING }
+};
+
+// from qcamera/common/camera.h
 static const str_map antibanding[] = {
     { CameraParameters::ANTIBANDING_OFF,  CAMERA_ANTIBANDING_OFF },
     { CameraParameters::ANTIBANDING_50HZ, CAMERA_ANTIBANDING_50HZ },
@@ -489,6 +496,7 @@ static String8 preview_size_values;
 static String8 picture_size_values;
 static String8 antibanding_values;
 static String8 effect_values;
+static String8 autoexposure_values;
 static String8 whitebalance_values;
 static String8 flash_values;
 static String8 focus_mode_values;
@@ -568,6 +576,8 @@ void QualcommCameraHardware::initDefaultParameters()
             antibanding, sizeof(antibanding) / sizeof(str_map));
         effect_values = create_values_str(
             effects, sizeof(effects) / sizeof(str_map));
+        autoexposure_values = create_values_str(
+            autoexposure, sizeof(autoexposure) / sizeof(str_map));
         whitebalance_values = create_values_str(
             whitebalance, sizeof(whitebalance) / sizeof(str_map));
         preview_size_values = create_sizes_str(
@@ -608,6 +618,8 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::ANTIBANDING_AUTO);
     mParameters.set(CameraParameters::KEY_EFFECT,
                     CameraParameters::EFFECT_NONE);
+    mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE,
+                    CameraParameters::AUTO_EXPOSURE_FRAME_AVG);
     mParameters.set(CameraParameters::KEY_WHITE_BALANCE,
                     CameraParameters::WHITE_BALANCE_AUTO);
     mParameters.set(CameraParameters::KEY_FOCUS_MODE,
@@ -620,6 +632,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_ANTIBANDING,
                     antibanding_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_EFFECTS, effect_values);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_AUTO_EXPOSURE, autoexposure_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE,
                     whitebalance_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
@@ -1749,6 +1762,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
     if ((rc = setEffect(params)))       final_rc = rc;
+    if ((rc = setAutoExposure(params))) final_rc = rc;
     if ((rc = setWhiteBalance(params))) final_rc = rc;
     if ((rc = setFlash(params)))        final_rc = rc;
     if ((rc = setGpsLocation(params)))  final_rc = rc;
@@ -2192,6 +2206,22 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
         }
     }
     LOGE("Invalid effect value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setAutoExposure(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_AUTO_EXPOSURE);
+    if (str != NULL) {
+        int32_t value = attr_lookup(autoexposure, sizeof(autoexposure) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE, str);
+            bool ret = native_set_parm(CAMERA_SET_PARM_EXPOSURE, sizeof(value),
+                                       (void *)&value);
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
+        }
+    }
+    LOGE("Invalid auto exposure value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
 

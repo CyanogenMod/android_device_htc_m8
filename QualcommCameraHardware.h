@@ -162,13 +162,18 @@ private:
     sp<PmemPool> mRawHeap;
     sp<PmemPool> mDisplayHeap;
     sp<AshmemPool> mJpegHeap;
+    sp<PmemPool> mRawSnapShotPmemHeap;
+    sp<AshmemPool> mRawSnapshotAshmemHeap;
     sp<Overlay>  mOverlay;
+
 
     bool startCamera();
     bool initPreview();
     void deinitPreview();
     bool initRaw(bool initJpegHeap);
+    bool initRawSnapshot();
     void deinitRaw();
+    void deinitRawSnapshot();
 
     bool mFrameThreadRunning;
     Mutex mFrameThreadWaitLock;
@@ -184,6 +189,8 @@ private:
     Condition mSnapshotThreadWait;
     friend void *snapshot_thread(void *user);
     void runSnapshotThread(void *data);
+
+    int mSnapshotFormat;
 
     void initDefaultParameters();
     void findSensorType();
@@ -204,11 +211,13 @@ private:
     status_t setOrientation(const CameraParameters& params);
     status_t setLensshadeValue(const CameraParameters& params);
     status_t setISOValue(const CameraParameters& params);
+    status_t setPictureFormat(const CameraParameters& params);
 
     Mutex mLock;
     bool mReleasedRecordingFrame;
 
     void receiveRawPicture(void);
+    void receiveRawSnapshot(void);
 
     Mutex mCallbackLock;
     Mutex mOverlayLock;

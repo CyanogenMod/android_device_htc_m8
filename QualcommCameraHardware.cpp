@@ -189,6 +189,10 @@ static inline unsigned clp2(unsigned x)
 }
 
 namespace android {
+
+static const int PICTURE_FORMAT_JPEG = 1;
+static const int PICTURE_FORMAT_RAW = 2;
+
 // from aeecamera.h
 static const str_map whitebalance[] = {
     { CameraParameters::WHITE_BALANCE_AUTO,            CAMERA_WB_AUTO },
@@ -507,6 +511,11 @@ static SensorType sensorTypes[] = {
 
 static SensorType * sensorType;
 
+static const str_map picture_formats[] = {
+        {CameraParameters::PIXEL_FORMAT_JPEG, PICTURE_FORMAT_JPEG},
+        {CameraParameters::PIXEL_FORMAT_RAW, PICTURE_FORMAT_RAW}
+};
+
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
 static String8 picture_size_values;
@@ -518,6 +527,8 @@ static String8 flash_values;
 static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
+static String8 picture_format_values;
+
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -562,6 +573,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPreviewInitialized(false),
       mFrameThreadRunning(false),
       mSnapshotThreadRunning(false),
+      mSnapshotFormat(0),
       mReleasedRecordingFrame(false),
       mPreviewFrameSize(0),
       mRawSize(0),
@@ -613,6 +625,8 @@ void QualcommCameraHardware::initDefaultParameters()
             iso,sizeof(iso)/sizeof(str_map));
         lensshade_values = create_values_str(
             lensshade,sizeof(lensshade)/sizeof(str_map));
+        picture_format_values = create_values_str(
+            picture_formats, sizeof(picture_formats)/sizeof(str_map));
         parameter_string_initialized = true;
     }
 
@@ -658,6 +672,8 @@ void QualcommCameraHardware::initDefaultParameters()
                     whitebalance_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
                     focus_mode_values);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS,
+                    picture_format_values);
 
     if (mSensorInfo.flash_enabled) {
         mParameters.set(CameraParameters::KEY_FLASH_MODE,
@@ -670,6 +686,8 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set("zoom-supported", "true");
     mParameters.set("max-zoom", MAX_ZOOM_LEVEL);
     mParameters.set("zoom", 0);
+    mParameters.set(CameraParameters::KEY_PICTURE_FORMAT,
+                    CameraParameters::PIXEL_FORMAT_JPEG);
 
     mParameters.set(CameraParameters::KEY_ISO_MODE,
                     CameraParameters::ISO_AUTO);
@@ -866,6 +884,9 @@ status_t QualcommCameraHardware::dump(int fd,
     if (mJpegHeap != 0) {
         mJpegHeap->dump(fd, args);
     }
+    if(mRawSnapshotAshmemHeap != 0 ){
+        mRawSnapshotAshmemHeap->dump(fd, args);
+    }
     mParameters.dump(fd, args);
     return NO_ERROR;
 }
@@ -1017,6 +1038,26 @@ static bool native_start_snapshot(int camfd)
 
     return true;
 }
+
+static bool native_start_raw_snapshot(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+
+    ctrlCmd.timeout_ms = 1000;
+    ctrlCmd.type = CAMERA_START_RAW_SNAPSHOT;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_start_raw_snapshot: ioctl failed. ioctl return value "\
+             "is %d \n", ret);
+        return false;
+    }
+    return true;
+}
+
 
 static bool native_stop_snapshot (int camfd)
 {
@@ -1303,6 +1344,51 @@ void QualcommCameraHardware::deinitPreview(void)
     LOGI("deinitPreview X");
 }
 
+bool QualcommCameraHardware::initRawSnapshot()
+{
+    LOGV("initRawSnapshot E");
+
+    //get width and height from Dimension Object
+    bool ret = native_set_parm(CAMERA_SET_PARM_DIMENSION,
+                               sizeof(cam_ctrl_dimension_t), &mDimension);
+
+    if(!ret){
+        LOGE("initRawSnapshot X: failed to set dimension");
+        return false;
+    }
+    int rawSnapshotSize = mDimension.raw_picture_height *
+                           mDimension.raw_picture_width;
+
+    LOGV("raw_snapshot_buffer_size = %d, raw_picture_height = %d, "\
+         "raw_picture_width = %d",
+          rawSnapshotSize, mDimension.raw_picture_height,
+          mDimension.raw_picture_width);
+
+    if (mRawSnapShotPmemHeap != NULL) {
+        LOGV("initRawSnapshot: clearing old mRawSnapShotPmemHeap.");
+        mRawSnapShotPmemHeap.clear();
+    }
+
+    //Pmem based pool for Camera Driver
+    mRawSnapShotPmemHeap = new PmemPool("/dev/pmem_adsp",
+                                    MemoryHeapBase::READ_ONLY,
+                                    mCameraControlFd,
+                                    MSM_PMEM_RAW_MAINIMG,
+                                    rawSnapshotSize,
+                                    1,
+                                    rawSnapshotSize,
+                                    "raw pmem snapshot camera");
+
+    if (!mRawSnapShotPmemHeap->initialized()) {
+        mRawSnapShotPmemHeap.clear();
+        LOGE("initRawSnapshot X: error initializing mRawSnapshotHeap");
+        return false;
+    }
+    LOGV("initRawSnapshot X");
+    return true;
+
+}
+
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     int rawWidth, rawHeight;
@@ -1409,6 +1495,15 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     return true;
 }
 
+
+void QualcommCameraHardware::deinitRawSnapshot()
+{
+    LOGV("deinitRawSnapshot E");
+    mRawSnapShotPmemHeap.clear();
+    mRawSnapshotAshmemHeap.clear();
+    LOGV("deinitRawSnapshot X");
+}
+
 void QualcommCameraHardware::deinitRaw()
 {
     LOGV("deinitRaw E");
@@ -1450,6 +1545,7 @@ void QualcommCameraHardware::release()
 
     LINK_jpeg_encoder_join();
     deinitRaw();
+    deinitRawSnapshot();
 
     ctrlCmd.timeout_ms = 5000;
     ctrlCmd.length = 0;
@@ -1740,10 +1836,20 @@ status_t QualcommCameraHardware::cancelAutoFocus()
 void QualcommCameraHardware::runSnapshotThread(void *data)
 {
     LOGV("runSnapshotThread E");
-    if (native_start_snapshot(mCameraControlFd))
-        receiveRawPicture();
-    else
-        LOGE("main: native_start_snapshot failed!");
+    if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
+        if (native_start_snapshot(mCameraControlFd))
+            receiveRawPicture();
+        else
+            LOGE("main: native_start_snapshot failed!");
+    } else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
+        if(native_start_raw_snapshot(mCameraControlFd)){
+           receiveRawSnapshot();
+        } else {
+           LOGE("main: native_start_raw_snapshot failed!");
+        }
+    }
+
+    mSnapshotFormat = 0;
 
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
@@ -1778,17 +1884,35 @@ status_t QualcommCameraHardware::takePicture()
         LOGV("takePicture: old snapshot thread completed.");
     }
 
-    if(!native_prepare_snapshot(mCameraControlFd)) {
-        mSnapshotThreadWaitLock.unlock();
-        return UNKNOWN_ERROR;
+    //mSnapshotFormat is protected by mSnapshotThreadWaitLock
+    if(mParameters.getPictureFormat() != 0 &&
+            !strcmp(mParameters.getPictureFormat(),
+                    CameraParameters::PIXEL_FORMAT_RAW))
+        mSnapshotFormat = PICTURE_FORMAT_RAW;
+    else
+        mSnapshotFormat = PICTURE_FORMAT_JPEG;
+
+    if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
+        if(!native_prepare_snapshot(mCameraControlFd)) {
+            mSnapshotThreadWaitLock.unlock();
+            return UNKNOWN_ERROR;
+        }
     }
 
     stopPreviewInternal();
 
-    if (!initRaw(mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))) {
-        LOGE("initRaw failed.  Not taking picture.");
-        mSnapshotThreadWaitLock.unlock();
-        return UNKNOWN_ERROR;
+    if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
+        if (!initRaw(mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))) {
+            LOGE("initRaw failed.  Not taking picture.");
+            mSnapshotThreadWaitLock.unlock();
+            return UNKNOWN_ERROR;
+        }
+    } else if(mSnapshotFormat == PICTURE_FORMAT_RAW ){
+        if(!initRawSnapshot()){
+            LOGE("initRawSnapshot failed. Not taking picture.");
+            mSnapshotThreadWaitLock.unlock();
+            return UNKNOWN_ERROR;
+        }
     }
 
     mShutterLock.lock();
@@ -1840,6 +1964,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setBrightness(params)))   final_rc = rc;
     if ((rc = setLensshadeValue(params)))  final_rc = rc;
     if ((rc = setISOValue(params)))  final_rc = rc;
+    if ((rc = setPictureFormat(params))) final_rc = rc;
 
     LOGV("setParameters: X");
     return final_rc;
@@ -2103,6 +2228,54 @@ static void crop_yuv420(uint32_t width, uint32_t height,
         memcpy(chroma_dst + i * cropped_width,
                chroma_src + width * (y + i) + x,
                cropped_width);
+}
+
+
+void QualcommCameraHardware::receiveRawSnapshot(){
+    LOGV("receiveRawSnapshot E");
+
+    Mutex::Autolock cbLock(&mCallbackLock);
+
+    notifyShutter(&mCrop);
+
+    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+
+        if(native_get_picture(mCameraControlFd, &mCrop) == false) {
+            LOGE("receiveRawSnapshot X: native_get_picture failed!");
+            return;
+        }
+
+        //Create a Ashmem heap to copy data from PMem heap for application layer
+        if(mRawSnapshotAshmemHeap != NULL){
+            LOGV("receiveRawSnapshot: clearing old mRawSnapShotAshmemHeap.");
+            mRawSnapshotAshmemHeap.clear();
+        }
+        mRawSnapshotAshmemHeap = new AshmemPool(
+                                        mRawSnapShotPmemHeap->mBufferSize,
+                                        mRawSnapShotPmemHeap->mNumBuffers,
+                                        mRawSnapShotPmemHeap->mFrameSize,
+                                        "raw ashmem snapshot camera"
+                                        );
+
+        if(!mRawSnapshotAshmemHeap->initialized()){
+            LOGE("receiveRawSnapshot X: error initializing mRawSnapshotHeap");
+            deinitRawSnapshot();
+            return;
+        }
+
+        memcpy(mRawSnapshotAshmemHeap->mHeap->base(),
+                mRawSnapShotPmemHeap->mHeap->base(),
+                mRawSnapShotPmemHeap->mHeap->getSize());
+
+        mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapshotAshmemHeap->mBuffers[0],
+                mCallbackCookie);
+
+    }
+
+    //cleanup
+    deinitRawSnapshot();
+
+    LOGV("receiveRawSnapshot X");
 }
 
 void QualcommCameraHardware::receiveRawPicture()
@@ -2507,6 +2680,23 @@ status_t QualcommCameraHardware::setOrientation(const CameraParameters& params)
             mParameters.set("orientation", str);
         } else {
             LOGE("Invalid orientation value: %s", str);
+            return BAD_VALUE;
+        }
+    }
+    return NO_ERROR;
+}
+
+status_t QualcommCameraHardware::setPictureFormat(const CameraParameters& params)
+{
+    const char * str = params.get(CameraParameters::KEY_PICTURE_FORMAT);
+
+    if(str != NULL){
+        int32_t value = attr_lookup(picture_formats,
+                                    sizeof(picture_formats) / sizeof(str_map), str);
+        if(value != NOT_FOUND){
+            mParameters.set(CameraParameters::KEY_PICTURE_FORMAT, str);
+        } else {
+            LOGE("Invalid Picture Format value: %s", str);
             return BAD_VALUE;
         }
     }

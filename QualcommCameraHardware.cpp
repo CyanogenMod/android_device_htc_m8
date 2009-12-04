@@ -482,14 +482,30 @@ static const str_map iso[] = {
 
 #define DONT_CARE 0
 static const str_map focus_modes[] = {
-    { CameraParameters::FOCUS_MODE_AUTO,     DONT_CARE },
-    { CameraParameters::FOCUS_MODE_INFINITY, DONT_CARE }
+    { CameraParameters::FOCUS_MODE_AUTO,     AF_MODE_AUTO},
+    { CameraParameters::FOCUS_MODE_INFINITY, DONT_CARE },
+    { CameraParameters::FOCUS_MODE_NORMAL,   AF_MODE_NORMAL },
+    { CameraParameters::FOCUS_MODE_MACRO,    AF_MODE_MACRO }
 };
 
 static const str_map lensshade[] = {
     { CameraParameters::LENSSHADE_ENABLE, TRUE },
     { CameraParameters::LENSSHADE_DISABLE, FALSE }
 };
+
+struct SensorType {
+    const char *name;
+    int rawPictureWidth;
+    int rawPictureHeight;
+    bool hasAutoFocusSupport;
+};
+
+static SensorType sensorTypes[] = {
+        { "5mp", 2608, 1960, true },
+        { "3mp", 2064, 1544, false },
+        { "2mp", 3200, 1200, false } };
+
+static SensorType * sensorType;
 
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
@@ -574,6 +590,7 @@ void QualcommCameraHardware::initDefaultParameters()
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
     if (!parameter_string_initialized) {
+        findSensorType();
         antibanding_values = create_values_str(
             antibanding, sizeof(antibanding) / sizeof(str_map));
         effect_values = create_values_str(
@@ -588,8 +605,10 @@ void QualcommCameraHardware::initDefaultParameters()
             picture_sizes, PICTURE_SIZE_COUNT);
         flash_values = create_values_str(
             flash, sizeof(flash) / sizeof(str_map));
-        focus_mode_values = create_values_str(
-            focus_modes, sizeof(focus_modes) / sizeof(str_map));
+        if(sensorType->hasAutoFocusSupport){
+            focus_mode_values = create_values_str(
+                    focus_modes, sizeof(focus_modes) / sizeof(str_map));
+        }
         iso_values = create_values_str(
             iso,sizeof(iso)/sizeof(str_map));
         lensshade_values = create_values_str(
@@ -668,6 +687,26 @@ void QualcommCameraHardware::initDefaultParameters()
     mUseOverlay = useOverlay();
 
     LOGV("initDefaultParameters X");
+}
+
+void QualcommCameraHardware::findSensorType(){
+    mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
+    mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
+    bool ret = native_set_parm(CAMERA_SET_PARM_DIMENSION,
+                    sizeof(cam_ctrl_dimension_t), &mDimension);
+    if (ret) {
+        unsigned int i;
+        for (i = 0; i < sizeof(sensorTypes) / sizeof(SensorType); i++) {
+            if (sensorTypes[i].rawPictureHeight
+                    == mDimension.raw_picture_height) {
+                sensorType = sensorTypes + i;
+                return;
+            }
+        }
+    }
+    //default to 5 mp
+    sensorType = sensorTypes;
+    return;
 }
 
 #define ROUND_TO_PAGE(x)  (((x)+0xfff)&~0xfff)
@@ -1533,6 +1572,7 @@ void QualcommCameraHardware::runAutoFocus()
 {
     bool status = true;
     void *libhandle = NULL;
+    isp3a_af_mode_t afMode;
 
     mAutoFocusThreadLock.lock();
     // Skip autofocus if focus mode is infinity.
@@ -1568,9 +1608,13 @@ void QualcommCameraHardware::runAutoFocus()
     }
 #endif
 
+    afMode = (isp3a_af_mode_t)attr_lookup(focus_modes,
+                                sizeof(focus_modes) / sizeof(str_map),
+                                mParameters.get(CameraParameters::KEY_FOCUS_MODE));
+
     /* This will block until either AF completes or is cancelled. */
-    LOGV("af start (fd %d)", mAutoFocusFd);
-    status = native_set_afmode(mAutoFocusFd, AF_MODE_AUTO);
+    LOGV("af start (fd %d mode %d)", mAutoFocusFd, afMode);
+    status = native_set_afmode(mAutoFocusFd, afMode);
     LOGV("af done: %d", (int)status);
     close(mAutoFocusFd);
     mAutoFocusFd = -1;
@@ -1598,6 +1642,11 @@ done:
 status_t QualcommCameraHardware::cancelAutoFocusInternal()
 {
     LOGV("cancelAutoFocusInternal E");
+
+    if(!sensorType->hasAutoFocusSupport){
+        LOGV("cancelAutoFocusInternal X");
+        return NO_ERROR;
+    }
 
 #if 0
     if (mAutoFocusFd < 0) {
@@ -1630,6 +1679,11 @@ status_t QualcommCameraHardware::autoFocus()
 {
     LOGV("autoFocus E");
     Mutex::Autolock l(&mLock);
+
+    if(!sensorType->hasAutoFocusSupport){
+        LOGV("autoFocus X");
+        return NO_ERROR;
+    }
 
     if (mCameraControlFd < 0) {
         LOGE("not starting autofocus: main control fd %d", mCameraControlFd);

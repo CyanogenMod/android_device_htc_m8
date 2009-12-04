@@ -186,6 +186,7 @@ private:
     void runSnapshotThread(void *data);
 
     void initDefaultParameters();
+    void findSensorType();
 
     status_t setPreviewSize(const CameraParameters& params);
     status_t setPictureSize(const CameraParameters& params);

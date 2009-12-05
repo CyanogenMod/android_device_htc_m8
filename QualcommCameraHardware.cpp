@@ -68,8 +68,8 @@ extern "C" {
 #define THUMBNAIL_HEIGHT       384
 #define THUMBNAIL_WIDTH_STR   "512"
 #define THUMBNAIL_HEIGHT_STR  "384"
-#define DEFAULT_PICTURE_WIDTH  2048
-#define DEFAULT_PICTURE_HEIGHT 1536
+#define DEFAULT_PICTURE_WIDTH  1024
+#define DEFAULT_PICTURE_HEIGHT 768
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define MAX_ZOOM_LEVEL 5
 #define NOT_FOUND -1
@@ -135,9 +135,11 @@ struct camera_size_type {
 };
 #endif
 
-#define DEFAULT_PREVIEW_SETTING 2
+//Default to WVGA
+#define DEFAULT_PREVIEW_SETTING 0
+//1280 720 requires increase in PMEM size and display
 static const camera_size_type preview_sizes[] = {
-    { 1280, 720 }, // 720P, reserved
+//    { 1280, 720 }, // 720P, reserved
     { 800, 480 }, // WVGA
     { 720, 480 },
     { 640, 480 }, // VGA
@@ -159,15 +161,25 @@ static const camera_size_type preview_sizes[] = {
  * Hence populating with default sizes for now. This needs
  * to be changed once the API is supported.
  */
+//sorted on column basis
 static const camera_size_type picture_sizes[] = {
     { 2592, 1944 }, // 5MP
-    { 2048, 1536 }, // 3MP
-    { 1600, 1200 }, // 2MP
+    { 2048, 1536 }, // 3MP QXGA
+    { 1920, 1080 }, //HD1080
+    { 1600, 1200 }, // 2MP UXGA
+    { 1280, 768 }, //WXGA
+    { 1280, 720 }, //HD720
+    { 1024, 768}, // 1MP XGA
+    { 800, 600 }, //SVGA
     { 800, 480 }, // WVGA
     { 640, 480 }, // VGA
-    { 320, 240 } // QVGA
+    { 352, 288 }, //CIF
+    { 320, 240 }, // QVGA
+    { 176, 144 } // QCIF
 };
 static int PICTURE_SIZE_COUNT = sizeof(picture_sizes)/sizeof(camera_size_type);
+static const camera_size_type * picture_sizes_ptr;
+static int supportedPictureSizesCount;
 
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -510,12 +522,15 @@ struct SensorType {
     int rawPictureWidth;
     int rawPictureHeight;
     bool hasAutoFocusSupport;
+    int max_supported_snapshot_width;
+    int max_supported_snapshot_height;
 };
 
 static SensorType sensorTypes[] = {
-        { "5mp", 2608, 1960, true },
-        { "3mp", 2064, 1544, false },
-        { "2mp", 3200, 1200, false } };
+        { "5mp", 2608, 1960, true,  2592, 1944 },
+        { "3mp", 2064, 1544, false, 2048, 1536 },
+        { "2mp", 3200, 1200, false, 1600, 1200 } };
+
 
 static SensorType * sensorType;
 
@@ -604,6 +619,22 @@ QualcommCameraHardware::QualcommCameraHardware()
     LOGV("constructor EX");
 }
 
+
+//filter Picture sizes based on max width and height
+void QualcommCameraHardware::filterPictureSizes(){
+    int i;
+    for(i=0;i<PICTURE_SIZE_COUNT;i++){
+        if(((picture_sizes[i].width <=
+                sensorType->max_supported_snapshot_width) &&
+           (picture_sizes[i].height <=
+                   sensorType->max_supported_snapshot_height))){
+            picture_sizes_ptr = picture_sizes + i;
+            supportedPictureSizesCount = PICTURE_SIZE_COUNT - i  ;
+            return ;
+        }
+    }
+}
+
 void QualcommCameraHardware::initDefaultParameters()
 {
     LOGV("initDefaultParameters E");
@@ -622,8 +653,11 @@ void QualcommCameraHardware::initDefaultParameters()
             whitebalance, sizeof(whitebalance) / sizeof(str_map));
         preview_size_values = create_sizes_str(
             preview_sizes, PREVIEW_SIZE_COUNT);
+        //filter picture sizes
+        filterPictureSizes();
         picture_size_values = create_sizes_str(
-            picture_sizes, PICTURE_SIZE_COUNT);
+                picture_sizes_ptr, supportedPictureSizesCount);
+
         flash_values = create_values_str(
             flash, sizeof(flash) / sizeof(str_map));
         if(sensorType->hasAutoFocusSupport){
@@ -2580,9 +2614,9 @@ status_t QualcommCameraHardware::setPictureSize(const CameraParameters& params)
     LOGV("requested picture size %d x %d", width, height);
 
     // Validate the picture size
-    for (int i = 0; i < PICTURE_SIZE_COUNT; ++i) {
-        if (width == picture_sizes[i].width
-          && height == picture_sizes[i].height) {
+    for (int i = 0; i < supportedPictureSizesCount; ++i) {
+        if (width == picture_sizes_ptr[i].width
+          && height == picture_sizes_ptr[i].height) {
             mParameters.setPictureSize(width, height);
             mDimension.picture_width = width;
             mDimension.picture_height = height;

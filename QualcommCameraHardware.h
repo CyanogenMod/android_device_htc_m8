@@ -190,6 +190,7 @@ private:
     void runSnapshotThread(void *data);
 
     int mSnapshotFormat;
+    void filterPictureSizes();
 
     void initDefaultParameters();
     void findSensorType();

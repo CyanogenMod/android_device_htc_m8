@@ -558,7 +558,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       mNotifyCallback(0),
       mDataCallback(0),
       mDataCallbackTimestamp(0),
-      mCallbackCookie(0)
+      mCallbackCookie(0),
+      mOverlay(0),
+      mUseOverlay(0)
 {
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
@@ -662,6 +664,8 @@ void QualcommCameraHardware::initDefaultParameters()
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
+
+    mUseOverlay = useOverlay();
 
     LOGV("initDefaultParameters X");
 }
@@ -1476,6 +1480,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
     if(!mCameraRunning) {
         deinitPreview();
         mPreviewInitialized = false;
+        mOverlay = NULL;
         LOGE("startPreview X: native_start_preview failed!");
         return UNKNOWN_ERROR;
     }
@@ -1881,6 +1886,18 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     offset /= mPreviewHeap->mAlignedBufferSize;
 
     mInPreviewCallback = true;
+    if((mUseOverlay == true) && (mOverlay != NULL) ) {
+        ssize_t offset_addr =
+            (ssize_t)frame->buffer - (ssize_t)mPreviewHeap->mHeap->base();
+        mOverlayLock.lock();
+        mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
+        mOverlay->queueBuffer((void *)offset_addr);
+        mOverlayLock.unlock();
+        LOGV(" Queueing buffer %x from HAL for display ", offset_addr );
+    }
+    /* In case of Overlay, the MSG_PREVIEW_FRAME will be disabled
+     * second frame onwards. Hence we can keep this piece of code
+     * in overlay case as well. */
     if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
         pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
             pdata);
@@ -2723,4 +2740,32 @@ bool QualcommCameraHardware::msgTypeEnabled(int32_t msgType)
     return (mMsgEnabled & msgType);
 }
 
+bool QualcommCameraHardware::useOverlay(void)
+{
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ro.product.device",value," ");
+
+    if(!strcmp(value,"msm7630_surf")) {
+        /* Only 7x30 supports Overlay */
+        mUseOverlay = TRUE;
+    } else
+        mUseOverlay = FALSE;
+
+    LOGV(" Using Overlay : %s ", mUseOverlay ? "YES" : "NO" );
+    return mUseOverlay;
+}
+
+status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
+{
+    if( Overlay != NULL) {
+        LOGV(" Valid overlay object ");
+        mOverlayLock.lock();
+        mOverlay = Overlay;
+        mOverlayLock.unlock();
+    } else {
+        LOGE(" Overlay object NULL. returning ");
+        return UNKNOWN_ERROR;
+    }
+    return NO_ERROR;
+}
 }; // namespace android

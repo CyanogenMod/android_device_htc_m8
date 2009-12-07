@@ -22,6 +22,7 @@
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <stdint.h>
+#include <ui/Overlay.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -68,6 +69,8 @@ public:
     virtual status_t sendCommand(int32_t command, int32_t arg1, int32_t arg2);
 
     virtual void release();
+    virtual bool useOverlay();
+    virtual status_t setOverlay(const sp<Overlay> &overlay);
 
     static sp<CameraHardwareInterface> createInstance();
     static sp<QualcommCameraHardware> getInstance();
@@ -159,6 +162,7 @@ private:
     sp<PmemPool> mRawHeap;
     sp<PmemPool> mDisplayHeap;
     sp<AshmemPool> mJpegHeap;
+    sp<Overlay>  mOverlay;
 
     bool startCamera();
     bool initPreview();
@@ -206,6 +210,7 @@ private:
     void receiveRawPicture(void);
 
     Mutex mCallbackLock;
+    Mutex mOverlayLock;
 	Mutex mRecordLock;
 	Mutex mRecordFrameLock;
 	Condition mRecordWait;
@@ -238,6 +243,7 @@ private:
 
     struct msm_frame frames[kPreviewBufferCount];
     bool mInPreviewCallback;
+    bool mUseOverlay;
 
     int32_t mMsgEnabled;    // camera msg to be handled
     notify_callback mNotifyCallback;

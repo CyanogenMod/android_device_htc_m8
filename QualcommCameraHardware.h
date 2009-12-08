@@ -80,6 +80,7 @@ public:
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
     void notifyShutter(common_crop_t *crop);
+    void receive_camframetimeout();
 
 private:
     QualcommCameraHardware();
@@ -105,7 +106,6 @@ private:
 
     CameraParameters mParameters;
     unsigned int frame_size;
-    int mBrightness;
     bool mCameraRunning;
     bool mPreviewInitialized;
 
@@ -164,7 +164,6 @@ private:
     sp<AshmemPool> mJpegHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<AshmemPool> mRawSnapshotAshmemHeap;
-    sp<Overlay>  mOverlay;
 
 
     bool startCamera();
@@ -215,6 +214,8 @@ private:
     void setGpsParameters();
 
     Mutex mLock;
+    Mutex mCamframeTimeoutLock;
+    bool camframe_timeout_flag;
     bool mReleasedRecordingFrame;
 
     void receiveRawPicture(void);
@@ -252,9 +253,11 @@ private:
 
     common_crop_t mCrop;
 
+    int mBrightness;
     struct msm_frame frames[kPreviewBufferCount];
     bool mInPreviewCallback;
     bool mUseOverlay;
+    sp<Overlay>  mOverlay;
 
     int32_t mMsgEnabled;    // camera msg to be handled
     notify_callback mNotifyCallback;

@@ -103,6 +103,7 @@ void  (**LINK_mmcamera_jpegfragment_callback)(uint8_t *buff_ptr,
                                               uint32_t buff_size);
 void  (**LINK_mmcamera_jpeg_callback)(jpeg_event_t status);
 void  (**LINK_mmcamera_shutter_callback)(common_crop_t *crop);
+void  (**LINK_camframe_timeout_callback)(void);
 #else
 #define LINK_cam_conf cam_conf
 #define LINK_cam_frame cam_frame
@@ -573,6 +574,7 @@ static void receive_camframe_callback(struct msm_frame *frame);
 static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size);
 static void receive_jpeg_callback(jpeg_event_t status);
 static void receive_shutter_callback(common_crop_t *crop);
+static void receive_camframetimeout_callback(void);
 
 QualcommCameraHardware::QualcommCameraHardware()
     : mParameters(),
@@ -585,17 +587,17 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPreviewFrameSize(0),
       mRawSize(0),
       mCameraControlFd(-1),
-      mBrightness(0),
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
+      mBrightness(0),
       mInPreviewCallback(false),
+      mUseOverlay(0),
+      mOverlay(0),
       mMsgEnabled(0),
       mNotifyCallback(0),
       mDataCallback(0),
       mDataCallbackTimestamp(0),
-      mCallbackCookie(0),
-      mOverlay(0),
-      mUseOverlay(0)
+      mCallbackCookie(0)
 {
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
@@ -711,6 +713,10 @@ void QualcommCameraHardware::initDefaultParameters()
 
     mUseOverlay = useOverlay();
 
+    /* Initialize the camframe_timeout_flag*/
+    Mutex::Autolock l(&mCamframeTimeoutLock);
+    camframe_timeout_flag = FALSE;
+
     LOGV("initDefaultParameters X");
 }
 
@@ -775,6 +781,11 @@ bool QualcommCameraHardware::startCamera()
         ::dlsym(libmmcamera, "mmcamera_jpeg_callback");
 
     *LINK_mmcamera_jpeg_callback = receive_jpeg_callback;
+
+    *(void **)&LINK_camframe_timeout_callback =
+        ::dlsym(libmmcamera, "camframe_timeout_callback");
+
+    *LINK_camframe_timeout_callback = receive_camframetimeout_callback;
 
 /* Disabling until support is available.
     *(void **)&LINK_mmcamera_shutter_callback =
@@ -1687,17 +1698,21 @@ void QualcommCameraHardware::release()
     LINK_jpeg_encoder_join();
     deinitRaw();
     deinitRawSnapshot();
+    {
+	Mutex::Autolock l(&mCamframeTimeoutLock);
+	if(!camframe_timeout_flag) {
 
-    ctrlCmd.timeout_ms = 5000;
-    ctrlCmd.length = 0;
-    ctrlCmd.type = (uint16_t)CAMERA_EXIT;
-    ctrlCmd.resp_fd = mCameraControlFd; // FIXME: this will be put in by the kernel
-    if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) < 0)
-        LOGE("ioctl CAMERA_EXIT fd %d error %s",
-             mCameraControlFd, strerror(errno));
+	    ctrlCmd.timeout_ms = 5000;
+	    ctrlCmd.length = 0;
+	    ctrlCmd.type = (uint16_t)CAMERA_EXIT;
+	    ctrlCmd.resp_fd = mCameraControlFd; // FIXME: this will be put in by the kernel
+	    if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) < 0)
+		LOGE("ioctl CAMERA_EXIT fd %d error %s",
+			mCameraControlFd, strerror(errno));
 
-    LINK_release_cam_conf_thread();
-
+	    LINK_release_cam_conf_thread();
+	}
+    }
     close(mCameraControlFd);
     mCameraControlFd = -1;
 
@@ -1784,13 +1799,23 @@ void QualcommCameraHardware::stopPreviewInternal()
                 cancelAutoFocusInternal();
             }
         }
-
-        mCameraRunning = !native_stop_preview(mCameraControlFd);
-        if (!mCameraRunning && mPreviewInitialized) {
-            deinitPreview();
-            mPreviewInitialized = false;
-        }
-        else LOGE("stopPreviewInternal: failed to stop preview");
+        Mutex::Autolock l(&mCamframeTimeoutLock);
+	if(!camframe_timeout_flag) {
+	    mCameraRunning = !native_stop_preview(mCameraControlFd);
+	    if (!mCameraRunning && mPreviewInitialized) {
+		deinitPreview();
+		mPreviewInitialized = false;
+	    }
+	    else LOGE("stopPreviewInternal: failed to stop preview");
+	} else {
+	    /* This means that the camframetimeout was issued.
+	     * But we did not issue native_stop_preview(), so we
+	     * need to update mCameraRunning & mPreviewInitialized
+	     * to indicate that Camera is no longer running.
+	     */
+	    mCameraRunning = 0;
+	    mPreviewInitialized = false;
+	}
     }
     LOGV("stopPreviewInternal X: %d", mCameraRunning);
 }
@@ -3187,5 +3212,19 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
         return UNKNOWN_ERROR;
     }
     return NO_ERROR;
+}
+
+void QualcommCameraHardware::receive_camframetimeout(void) {
+    LOGV("receive_camframetimeout: E");
+    Mutex::Autolock l(&mCamframeTimeoutLock);
+    camframe_timeout_flag = TRUE;
+    LOGV("receive_camframetimeout: X");
+}
+
+static void receive_camframetimeout_callback(void) {
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+    if (obj != 0) {
+        obj->receive_camframetimeout();
+    }
 }
 }; // namespace android

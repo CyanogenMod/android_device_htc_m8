@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <cutils/properties.h>
+#include <math.h>
 #if HAVE_ANDROID_OS
 #include <linux/android_pmem.h>
 #endif
@@ -61,6 +62,7 @@ extern "C" {
 #include <camera.h>
 #include <camframe.h>
 #include <mm-still/jpeg/jpege.h>
+#include <jpeg_encoder.h>
 
 #define THUMBNAIL_WIDTH        512
 #define THUMBNAIL_HEIGHT       384
@@ -82,7 +84,8 @@ void  (*LINK_jpeg_encoder_join)();
 bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
                                   const uint8_t *thumbnailbuf, int thumbnailfd,
                                   const uint8_t *snapshotbuf, int snapshotfd,
-                                  common_crop_t *scaling_parms);
+                                  common_crop_t *scaling_parms, exif_tags_info_t *exif_data,
+                                  int exif_table_numEntries);
 int  (*LINK_camframe_terminate)(void);
 int8_t (*LINK_jpeg_encoder_setMainImageQuality)(uint32_t quality);
 int8_t (*LINK_jpeg_encoder_setThumbnailQuality)(uint32_t quality);
@@ -187,6 +190,10 @@ static inline unsigned clp2(unsigned x)
     x = x | (x >>16);
     return x + 1;
 }
+
+static int exif_table_numEntries = 0;
+#define MAX_EXIF_TABLE_ENTRIES 7
+exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 
 namespace android {
 
@@ -1078,6 +1085,129 @@ static bool native_stop_snapshot (int camfd)
     return true;
 }
 
+static rat_t latitude[3];
+static rat_t longitude[3];
+static char lonref[2];
+static char latref[2];
+static char dateTime[20];
+static rat_t altitude;
+
+static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
+                        uint32_t count, uint8_t copy, void *data) {
+
+    if(exif_table_numEntries == MAX_EXIF_TABLE_ENTRIES) {
+        LOGE("Number of entries exceeded limit");
+        return;
+    }
+
+    int index = exif_table_numEntries;
+    exif_data[index].tag_id = tagid;
+	exif_data[index].tag_entry.type = type;
+	exif_data[index].tag_entry.count = count;
+	exif_data[index].tag_entry.copy = copy;
+    if((type == EXIF_RATIONAL) && (count > 1))
+        exif_data[index].tag_entry.data._rats = (rat_t *)data;
+    if((type == EXIF_RATIONAL) && (count == 1))
+        exif_data[index].tag_entry.data._rat = *(rat_t *)data;
+    else if(type == EXIF_ASCII)
+        exif_data[index].tag_entry.data._ascii = (char *)data;
+    else if(type == EXIF_BYTE)
+        exif_data[index].tag_entry.data._byte = *(uint8_t *)data;
+
+    // Increase number of entries
+    exif_table_numEntries++;
+}
+
+static void parseLatLong(const char *latlonString, int *pDegrees,
+                           int *pMinutes, int *pSeconds ) {
+
+    double value = atof(latlonString);
+    value = fabs(value);
+    int degrees = (int) value;
+
+    double remainder = value - degrees;
+    int minutes = (int) (remainder * 60);
+    int seconds = (int) (((remainder * 60) - minutes) * 60 * 1000);
+
+    *pDegrees = degrees;
+    *pMinutes = minutes;
+    *pSeconds = seconds;
+}
+
+static void setLatLon(exif_tag_id_t tag, const char *latlonString) {
+
+    int degrees, minutes, seconds;
+
+    parseLatLong(latlonString, &degrees, &minutes, &seconds);
+
+    rat_t value[3] = { {degrees, 1},
+                       {minutes, 1},
+                       {seconds, 1000} };
+
+    if(tag == EXIFTAGID_GPS_LATITUDE) {
+        memcpy(latitude, value, sizeof(latitude));
+        addExifTag(EXIFTAGID_GPS_LATITUDE, EXIF_RATIONAL, 3,
+                    1, (void *)latitude);
+    } else {
+        memcpy(longitude, value, sizeof(longitude));
+        addExifTag(EXIFTAGID_GPS_LONGITUDE, EXIF_RATIONAL, 3,
+                    1, (void *)longitude);
+    }
+}
+
+void QualcommCameraHardware::setGpsParameters() {
+    const char *str = NULL;
+
+    //Set Latitude
+    str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE);
+    if(str != NULL) {
+        setLatLon(EXIFTAGID_GPS_LATITUDE, str);
+        //set Latitude Ref
+        str = NULL;
+        str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE_REF);
+        if(str != NULL) {
+            strncpy(latref, str, 1);
+            latref[1] = '\0';
+            addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
+                        1, (void *)latref);
+        }
+    }
+
+    //set Longitude
+    str = NULL;
+    str = mParameters.get(CameraParameters::KEY_GPS_LONGITUDE);
+    if(str != NULL) {
+        setLatLon(EXIFTAGID_GPS_LONGITUDE, str);
+        //set Longitude Ref
+        str = NULL;
+        str = mParameters.get(CameraParameters::KEY_GPS_LONGITUDE_REF);
+        if(str != NULL) {
+            strncpy(lonref, str, 1);
+            lonref[1] = '\0';
+            addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
+                        1, (void *)lonref);
+	}
+    }
+
+    //set Altitude
+    str = NULL;
+    str = mParameters.get(CameraParameters::KEY_GPS_ALTITUDE);
+    if(str != NULL) {
+        int value = atoi(str);
+        rat_t alt_value = {value, 1000};
+        memcpy(&altitude, &alt_value, sizeof(altitude));
+        addExifTag(EXIFTAGID_GPS_ALTITUDE, EXIF_RATIONAL, 1,
+                    1, (void *)&altitude);
+        //set AltitudeRef
+        int ref = mParameters.getInt(CameraParameters::KEY_GPS_ALTITUDE_REF);
+        if( !(ref < 0 || ref > 1) )
+            addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1,
+                        1, (void *)&ref);
+    }
+
+
+}
+
 bool QualcommCameraHardware::native_jpeg_encode(void)
 {
     int jpeg_quality = mParameters.getInt("jpeg-quality");
@@ -1113,14 +1243,25 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
 */
     }
 
-    jpeg_set_location();
+//    jpeg_set_location();
+    if(mParameters.getInt(CameraParameters::KEY_GPS_STATUS) == 1) {
+	   setGpsParameters();
+	}
+    //set TimeStamp
+    const char *str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
+    if(str != NULL) {
+      strncpy(dateTime, str, 19);
+      dateTime[19] = '\0';
+      addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
+                  20, 1, (void *)dateTime);
+    }
 
     if (!LINK_jpeg_encoder_encode(&mDimension,
                                   (uint8_t *)mThumbnailHeap->mHeap->base(),
                                   mThumbnailHeap->mHeap->getHeapID(),
                                   (uint8_t *)mRawHeap->mHeap->base(),
                                   mRawHeap->mHeap->getHeapID(),
-                                  &mCrop)) {
+                                  &mCrop, exif_data, exif_table_numEntries)) {
         LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
         return false;
     }
@@ -1620,6 +1761,8 @@ status_t QualcommCameraHardware::startPreviewInternal()
         return UNKNOWN_ERROR;
     }
 
+    //Reset the Gps Information
+    exif_table_numEntries = 0;
     LOGV("startPreview X");
     return NO_ERROR;
 }
@@ -2590,14 +2733,39 @@ status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE, latitude);
     }
 
+    const char *latitudeRef = params.get(CameraParameters::KEY_GPS_LATITUDE_REF);
+    if (latitudeRef) {
+        mParameters.set(CameraParameters::KEY_GPS_LATITUDE_REF, latitudeRef);
+    }
+
     const char *longitude = params.get(CameraParameters::KEY_GPS_LONGITUDE);
     if (longitude) {
         mParameters.set(CameraParameters::KEY_GPS_LONGITUDE, longitude);
     }
 
+    const char *longitudeRef = params.get(CameraParameters::KEY_GPS_LONGITUDE_REF);
+    if (longitudeRef) {
+        mParameters.set(CameraParameters::KEY_GPS_LONGITUDE_REF, longitudeRef);
+    }
+
+    const char *altitudeRef = params.get(CameraParameters::KEY_GPS_ALTITUDE_REF);
+    if (altitudeRef) {
+        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, altitudeRef);
+    }
+
     const char *altitude = params.get(CameraParameters::KEY_GPS_ALTITUDE);
     if (altitude) {
         mParameters.set(CameraParameters::KEY_GPS_ALTITUDE, altitude);
+    }
+
+    const char *status = params.get(CameraParameters::KEY_GPS_STATUS);
+    if (status) {
+        mParameters.set(CameraParameters::KEY_GPS_STATUS, status);
+    }
+
+    const char *dateTime = params.get(CameraParameters::KEY_EXIF_DATETIME);
+    if (dateTime) {
+        mParameters.set(CameraParameters::KEY_EXIF_DATETIME, dateTime);
     }
 
     const char *timestamp = params.get(CameraParameters::KEY_GPS_TIMESTAMP);

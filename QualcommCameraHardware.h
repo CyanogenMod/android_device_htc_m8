@@ -212,6 +212,7 @@ private:
     status_t setLensshadeValue(const CameraParameters& params);
     status_t setISOValue(const CameraParameters& params);
     status_t setPictureFormat(const CameraParameters& params);
+    void setGpsParameters();
 
     Mutex mLock;
     bool mReleasedRecordingFrame;

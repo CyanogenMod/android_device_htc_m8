@@ -2653,6 +2653,12 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
     if (str != NULL) {
         int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
+            if(!strcmp(sensorType->name, "2mp") && (value != CAMERA_EFFECT_OFF)
+               &&(value != CAMERA_EFFECT_MONO) && (value != CAMERA_EFFECT_NEGATIVE)
+               &&(value != CAMERA_EFFECT_SOLARIZE) && (value != CAMERA_EFFECT_SEPIA)) {
+                LOGE("Special effect parameter is not supported for this sensor");
+                return NO_ERROR;
+            }
             mParameters.set(CameraParameters::KEY_EFFECT, str);
             bool ret = native_set_parm(CAMERA_SET_PARM_EFFECT, sizeof(value),
                                        (void *)&value);
@@ -2665,6 +2671,10 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setAutoExposure(const CameraParameters& params)
 {
+    if(!strcmp(sensorType->name, "2mp")) {
+        LOGE("Auto Exposure not supported for this sensor");
+        return NO_ERROR;
+    }
     const char *str = params.get(CameraParameters::KEY_AUTO_EXPOSURE);
     if (str != NULL) {
         int32_t value = attr_lookup(autoexposure, sizeof(autoexposure) / sizeof(str_map), str);
@@ -2753,6 +2763,10 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
 {
+    if(!strcmp(sensorType->name, "2mp")) {
+        LOGE("Parameter Rolloff is not supported for this sensor");
+        return NO_ERROR;
+    }
     const char *str = params.get(CameraParameters::KEY_LENSSHADE);
     if (str != NULL) {
         int value = attr_lookup(lensshade,

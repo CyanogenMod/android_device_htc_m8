@@ -136,10 +136,9 @@ struct camera_size_type {
 #endif
 
 //Default to WVGA
-#define DEFAULT_PREVIEW_SETTING 0
-//1280 720 requires increase in PMEM size and display
+#define DEFAULT_PREVIEW_SETTING 1
 static const camera_size_type preview_sizes[] = {
-//    { 1280, 720 }, // 720P, reserved
+    { 1280, 720 }, // 720P, reserved
     { 800, 480 }, // WVGA
     { 720, 480 },
     { 640, 480 }, // VGA

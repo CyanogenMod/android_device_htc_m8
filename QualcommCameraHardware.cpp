@@ -1925,8 +1925,8 @@ void QualcommCameraHardware::release()
 		LOGE("ioctl CAMERA_EXIT fd %d error %s",
 			mCameraControlFd, strerror(errno));
 
-	    LINK_release_cam_conf_thread();
 	}
+	LINK_release_cam_conf_thread();
     }
     close(mCameraControlFd);
     mCameraControlFd = -1;
@@ -2032,20 +2032,18 @@ void QualcommCameraHardware::stopPreviewInternal()
         Mutex::Autolock l(&mCamframeTimeoutLock);
 	if(!camframe_timeout_flag) {
 	    mCameraRunning = !native_stop_preview(mCameraControlFd);
-	    if (!mCameraRunning && mPreviewInitialized) {
-		deinitPreview();
-		mPreviewInitialized = false;
-	    }
-	    else LOGE("stopPreviewInternal: failed to stop preview");
 	} else {
 	    /* This means that the camframetimeout was issued.
 	     * But we did not issue native_stop_preview(), so we
-	     * need to update mCameraRunning & mPreviewInitialized
-	     * to indicate that Camera is no longer running.
-	     */
+	     * need to update mCameraRunning to indicate that
+	     * Camera is no longer running. */
 	    mCameraRunning = 0;
+	}
+	if (!mCameraRunning && mPreviewInitialized) {
+	    deinitPreview();
 	    mPreviewInitialized = false;
 	}
+	else LOGE("stopPreviewInternal: failed to stop preview");
     }
     LOGV("stopPreviewInternal X: %d", mCameraRunning);
 }

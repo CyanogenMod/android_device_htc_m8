@@ -64,10 +64,6 @@ extern "C" {
 #include <mm-still/jpeg/jpege.h>
 #include <jpeg_encoder.h>
 
-#define THUMBNAIL_WIDTH        512
-#define THUMBNAIL_HEIGHT       384
-#define THUMBNAIL_WIDTH_STR   "512"
-#define THUMBNAIL_HEIGHT_STR  "384"
 #define DEFAULT_PICTURE_WIDTH  1024
 #define DEFAULT_PICTURE_HEIGHT 768
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
@@ -179,6 +175,30 @@ static const camera_size_type picture_sizes[] = {
 static int PICTURE_SIZE_COUNT = sizeof(picture_sizes)/sizeof(camera_size_type);
 static const camera_size_type * picture_sizes_ptr;
 static int supportedPictureSizesCount;
+
+#ifdef Q12
+#undef Q12
+#endif
+
+#define Q12 4096
+
+typedef struct {
+    uint32_t aspect_ratio;
+    uint32_t width;
+    uint32_t height;
+} thumbnail_size_type;
+
+static thumbnail_size_type thumbnail_sizes[] = {
+    { 7281, 512, 288 }, //1.777778
+    { 6826, 480, 288 }, //1.666667
+    { 5461, 512, 384 }, //1.333333
+    { 5006, 352, 288 }, //1.222222
+};
+#define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
+#define DEFAULT_THUMBNAIL_SETTING 2
+#define THUMBNAIL_WIDTH_STR "512"
+#define THUMBNAIL_HEIGHT_STR "384"
+#define THUMBNAIL_SMALL_HEIGHT 144
 
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -687,8 +707,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     THUMBNAIL_WIDTH_STR); // informative
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT,
                     THUMBNAIL_HEIGHT_STR); // informative
-    mDimension.ui_thumbnail_width = THUMBNAIL_WIDTH;
-    mDimension.ui_thumbnail_height = THUMBNAIL_HEIGHT;
+    mDimension.ui_thumbnail_width =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
+    mDimension.ui_thumbnail_height =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
 
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
@@ -1582,6 +1604,38 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     mParameters.getPictureSize(&rawWidth, &rawHeight);
     LOGV("initRaw E: picture size=%dx%d", rawWidth, rawHeight);
 
+    int thumbnailBufferSize;
+    //Thumbnail height should be smaller than Picture height
+    if (rawHeight > thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height){
+        mDimension.ui_thumbnail_width =
+                thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
+        mDimension.ui_thumbnail_height =
+                thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
+        uint32_t pictureAspectRatio = (uint32_t)((rawWidth * Q12) / rawHeight);
+        uint32_t i;
+        for(i = 0; i < THUMBNAIL_SIZE_COUNT; i++ )
+        {
+            if(thumbnail_sizes[i].aspect_ratio == pictureAspectRatio)
+            {
+                mDimension.ui_thumbnail_width = thumbnail_sizes[i].width;
+                mDimension.ui_thumbnail_height = thumbnail_sizes[i].height;
+                break;
+            }
+        }
+    }
+    else{
+        mDimension.ui_thumbnail_height = THUMBNAIL_SMALL_HEIGHT;
+        mDimension.ui_thumbnail_width =
+                (THUMBNAIL_SMALL_HEIGHT * rawWidth)/ rawHeight;
+    }
+
+    LOGV("Thumbnail Size Width %d Height %d",
+            mDimension.ui_thumbnail_width,
+            mDimension.ui_thumbnail_height);
+
+    thumbnailBufferSize = mDimension.ui_thumbnail_width *
+                          mDimension.ui_thumbnail_height * 3 / 2;
+
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -1662,9 +1716,9 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          MemoryHeapBase::READ_ONLY,
                          mCameraControlFd,
                          MSM_PMEM_THUMBNAIL,
-                         THUMBNAIL_BUFFER_SIZE,
+                         thumbnailBufferSize,
                          1,
-                         THUMBNAIL_BUFFER_SIZE,
+                         thumbnailBufferSize,
                          "thumbnail");
 
         if (!mThumbnailHeap->initialized()) {

@@ -777,6 +777,14 @@ static bool native_get_maxzoom(int camfd, void *pZm);
 
 static int dstOffset = 0;
 
+static int camerafd;
+pthread_t w_thread;
+
+void *opencamerafd(void *data) {
+    camerafd = open(MSM_CAMERA_CONTROL, O_RDWR);
+    return NULL;
+}
+
 /* When using MDP zoom, double the preview buffers. The usage of these
  * buffers is as follows:
  * 1. As all the buffers comes under a single FD, and at initial registration,
@@ -819,6 +827,15 @@ QualcommCameraHardware::QualcommCameraHardware()
       mCallbackCookie(0),
       mDebugFps(0)
 {
+
+    // Start opening camera device in a separate thread/ Since this
+    // initializes the sensor hardware, this can take a long time. So,
+    // start the process here so it will be ready by the time it's
+    // needed.
+    if ((pthread_create(&w_thread, NULL, opencamerafd, NULL)) != 0) {
+        LOGE("Camera open thread creation failed");
+    }
+
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
     memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
@@ -1110,7 +1127,12 @@ bool QualcommCameraHardware::startCamera()
 #endif // DLOPEN_LIBMMCAMERA
 
     /* The control thread is in libcamera itself. */
-    mCameraControlFd = open(MSM_CAMERA_CONTROL, O_RDWR);
+    if (pthread_join(w_thread, NULL) != 0) {
+        LOGE("Camera open thread exit failed");
+        return false;
+    }
+    mCameraControlFd = camerafd;
+
     if (mCameraControlFd < 0) {
         LOGE("startCamera X: %s open failed: %s!",
              MSM_CAMERA_CONTROL,

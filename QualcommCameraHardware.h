@@ -215,6 +215,9 @@ private:
     status_t setLensshadeValue(const CameraParameters& params);
     status_t setISOValue(const CameraParameters& params);
     status_t setPictureFormat(const CameraParameters& params);
+    status_t setSharpness(const CameraParameters& params);
+    status_t setContrast(const CameraParameters& params);
+    status_t setSaturation(const CameraParameters& params);
     void setGpsParameters();
     void storePreviewFrameForPostview();
 
@@ -259,6 +262,9 @@ private:
     common_crop_t mCrop;
 
     int mBrightness;
+    int mSharpness;
+    int mContrast;
+    int mSaturation;
     struct msm_frame frames[kPreviewBufferCount];
     bool mInPreviewCallback;
     bool mUseOverlay;

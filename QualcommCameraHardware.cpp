@@ -2795,19 +2795,26 @@ status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
 {
+    if(!strcmp(sensorType->name, "2mp")) {
+        LOGE("Parameter AntiBanding is not supported for this sensor");
+        return NO_ERROR;
+    }
     const char *str = params.get(CameraParameters::KEY_ANTIBANDING);
     if (str != NULL) {
         int value = (camera_antibanding_type)attr_lookup(
           antibanding, sizeof(antibanding) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             camera_antibanding_type temp = (camera_antibanding_type) value;
-            // We don't have auto antibanding now, and simply set the frequency by country.
-            if (temp == CAMERA_ANTIBANDING_AUTO) {
-                temp = camera_get_location();
-            }
             mParameters.set(CameraParameters::KEY_ANTIBANDING, str);
-            native_set_parm(CAMERA_SET_PARM_ANTIBANDING, sizeof(camera_antibanding_type), (void *)&temp);
-            return NO_ERROR;
+            bool ret;
+            if (temp == CAMERA_ANTIBANDING_AUTO) {
+                ret = native_set_parm(CAMERA_ENABLE_AFD,
+                            0, NULL);
+            } else {
+                ret = native_set_parm(CAMERA_SET_PARM_ANTIBANDING,
+                            sizeof(camera_antibanding_type), (void *)&temp);
+            }
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
         }
     }
     LOGE("Invalid antibanding value: %s", (str == NULL) ? "NULL" : str);

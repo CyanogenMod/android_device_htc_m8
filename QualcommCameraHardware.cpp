@@ -875,13 +875,14 @@ bool QualcommCameraHardware::startCamera()
 */
     *(void**)&LINK_jpeg_encoder_setMainImageQuality =
         ::dlsym(libmmcamera, "jpeg_encoder_setMainImageQuality");
-/* Disabling until support is available.
+
     *(void**)&LINK_jpeg_encoder_setThumbnailQuality =
         ::dlsym(libmmcamera, "jpeg_encoder_setThumbnailQuality");
 
     *(void**)&LINK_jpeg_encoder_setRotation =
         ::dlsym(libmmcamera, "jpeg_encoder_setRotation");
 
+/* Disabling until support is available.
     *(void**)&LINK_jpeg_encoder_setLocation =
         ::dlsym(libmmcamera, "jpeg_encoder_setLocation");
 */
@@ -1360,23 +1361,19 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     if (thumbnail_quality >= 0) {
         LOGV("native_jpeg_encode, current jpeg thumbnail quality =%d",
              thumbnail_quality);
-/* Disabling until support is available.
         if(!LINK_jpeg_encoder_setThumbnailQuality(thumbnail_quality)) {
             LOGE("native_jpeg_encode set thumbnail-quality failed");
             return false;
         }
-*/
     }
 
     int rotation = mParameters.getInt("rotation");
     if (rotation >= 0) {
         LOGV("native_jpeg_encode, rotation = %d", rotation);
-/* Disabling until support is available.
         if(!LINK_jpeg_encoder_setRotation(rotation)) {
             LOGE("native_jpeg_encode set rotation failed");
             return false;
         }
-*/
     }
 
 //    jpeg_set_location();

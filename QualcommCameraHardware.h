@@ -93,6 +93,7 @@ private:
     bool native_set_dimension (int camfd);
     bool native_jpeg_encode (void);
     bool native_set_parm(cam_ctrl_type type, uint16_t length, void *value);
+    bool native_zoom_image(int srcFd, int dstFd, int offset, common_crop_t *crop);
 
     static wp<QualcommCameraHardware> singleton;
 
@@ -157,6 +158,7 @@ private:
         struct pmem_region mSize;
     };
 
+    sp<PmemPool> mCameraPreviewHeap;
     sp<PmemPool> mPreviewHeap;
     sp<PmemPool> mThumbnailHeap;
     sp<PmemPool> mRawHeap;

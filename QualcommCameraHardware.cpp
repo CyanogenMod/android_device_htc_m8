@@ -36,6 +36,9 @@
 #include <linux/ioctl.h>
 #include <ui/CameraParameters.h>
 
+#include "linux/msm_mdp.h"
+#include <linux/fb.h>
+
 #define LIKELY(exp)   __builtin_expect(!!(exp), 1)
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
 
@@ -130,6 +133,13 @@ struct camera_size_type {
     int height;
 };
 #endif
+
+static char mDeviceName[PROPERTY_VALUE_MAX];
+union
+{
+    char d[sizeof(struct mdp_blit_req_list) + sizeof(struct mdp_blit_req) * 1];
+    struct mdp_blit_req_list list;
+} zoomImage;
 
 //Default to WVGA
 #define DEFAULT_PREVIEW_SETTING 1
@@ -609,6 +619,9 @@ static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size
 static void receive_jpeg_callback(jpeg_event_t status);
 static void receive_shutter_callback(common_crop_t *crop);
 static void receive_camframetimeout_callback(void);
+static int fb_fd = -1;
+static int32_t mMaxZoom = 0;
+static bool native_get_maxzoom(int camfd, void *pZm);
 
 QualcommCameraHardware::QualcommCameraHardware()
     : mParameters(),
@@ -635,6 +648,7 @@ QualcommCameraHardware::QualcommCameraHardware()
 {
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
+    property_get("ro.product.device",mDeviceName," ");
     LOGV("constructor EX");
 }
 
@@ -894,6 +908,14 @@ bool QualcommCameraHardware::startCamera()
         return false;
     }
 
+    if(strncmp(mDeviceName,"msm7630", 7)){
+        fb_fd = open("/dev/graphics/fb0", O_RDWR);
+        if (fb_fd < 0) {
+            LOGE("startCamera: fb0 open failed: %s!", strerror(errno));
+            return FALSE;
+        }
+    }
+
     /* This will block until the control thread is launched. After that, sensor
      * information becomes available.
      */
@@ -948,8 +970,8 @@ status_t QualcommCameraHardware::dump(int fd,
     write(fd, result.string(), result.size());
 
     // Dump internal objects.
-    if (mPreviewHeap != 0) {
-        mPreviewHeap->dump(fd, args);
+    if (mCameraPreviewHeap != 0) {
+        mCameraPreviewHeap->dump(fd, args);
     }
     if (mRawHeap != 0) {
         mRawHeap->dump(fd, args);
@@ -962,6 +984,32 @@ status_t QualcommCameraHardware::dump(int fd,
     }
     mParameters.dump(fd, args);
     return NO_ERROR;
+}
+
+static bool native_get_maxzoom(int camfd, void *pZm)
+{
+    LOGV("native_get_maxzoom E");
+
+    struct msm_ctrl_cmd ctrlCmd;
+    int32_t *pZoom = (int32_t *)pZm;
+
+    ctrlCmd.type       = CAMERA_GET_PARM_MAXZOOM;
+    ctrlCmd.timeout_ms = 5000;
+    ctrlCmd.length     = sizeof(int32_t);
+    ctrlCmd.value      = pZoom;
+    ctrlCmd.resp_fd    = camfd;
+
+    if (ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) < 0) {
+        LOGE("native_get_maxzoom: ioctl fd %d error %s",
+             camfd,
+             strerror(errno));
+        return false;
+    }
+    LOGE("ctrlCmd.value = %d", *(int32_t *)ctrlCmd.value);
+    memcpy(pZoom, (int32_t *)ctrlCmd.value, sizeof(int32_t));
+
+    LOGV("native_get_maxzoom X");
+    return true;
 }
 
 static bool native_set_afmode(int camfd, isp3a_af_mode_t af_type)
@@ -1426,6 +1474,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
         LINK_cam_frame(data);
     }
 
+    mCameraPreviewHeap.clear();
     mPreviewHeap.clear();
 
 #if DLOPEN_LIBMMCAMERA
@@ -1480,6 +1529,21 @@ bool QualcommCameraHardware::initPreview()
 
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
+    mCameraPreviewHeap = new PmemPool("/dev/pmem_adsp",
+                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                mCameraControlFd,
+                                MSM_PMEM_OUTPUT2,
+                                mPreviewFrameSize,
+                                kPreviewBufferCount,
+                                mPreviewFrameSize,
+                                "Camera preview");
+
+    if (!mCameraPreviewHeap->initialized()) {
+        mCameraPreviewHeap.clear();
+        LOGE("initPreview X: could not initialize Camera preview heap.");
+        return false;
+    }
+
     mPreviewHeap = new PmemPool("/dev/pmem_adsp",
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
@@ -1503,9 +1567,9 @@ bool QualcommCameraHardware::initPreview()
 
     if (ret) {
         for (cnt = 0; cnt < kPreviewBufferCount; cnt++) {
-            frames[cnt].fd = mPreviewHeap->mHeap->getHeapID();
+            frames[cnt].fd = mCameraPreviewHeap->mHeap->getHeapID();
             frames[cnt].buffer =
-                (uint32_t)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt;
+                (uint32_t)mCameraPreviewHeap->mHeap->base() + mCameraPreviewHeap->mAlignedBufferSize * cnt;
             frames[cnt].y_off = 0;
             frames[cnt].cbcr_off = previewWidth * previewHeight;
             frames[cnt].path = MSM_FRAME_ENC;
@@ -1599,7 +1663,6 @@ bool QualcommCameraHardware::initRawSnapshot()
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     int rawWidth, rawHeight;
-    char value[PROPERTY_VALUE_MAX];
 
     mParameters.getPictureSize(&rawWidth, &rawHeight);
     LOGV("initRaw E: picture size=%dx%d", rawWidth, rawHeight);
@@ -1653,9 +1716,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
-    property_get("ro.product.device",value," ");
 
-    if(!strcmp(value,"msm7627_surf"))
+    if(!strcmp(mDeviceName,"msm7627_surf"))
              mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
     else
              mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
@@ -1802,7 +1864,10 @@ void QualcommCameraHardware::release()
     }
     close(mCameraControlFd);
     mCameraControlFd = -1;
-
+    if(fb_fd >= 0) {
+        close(fb_fd);
+        fb_fd = -1;
+    }
 #if DLOPEN_LIBMMCAMERA
     if (libmmcamera) {
         ::dlclose(libmmcamera);
@@ -1865,6 +1930,17 @@ status_t QualcommCameraHardware::startPreviewInternal()
 
     //Reset the Gps Information
     exif_table_numEntries = 0;
+
+    if(native_get_maxzoom(mCameraControlFd, (void *)&mMaxZoom) == true){
+        LOGE("Maximum zoom value is %d", mMaxZoom);
+        mParameters.set("zoom-supported", "true");
+    } else {
+        LOGE("Failed to get maximum zoom value...setting max zoom to zero");
+        mParameters.set("zoom-supported", "false");
+        mMaxZoom = 0;
+    }
+    mParameters.set("max-zoom",mMaxZoom);
+
     LOGV("startPreview X");
     return NO_ERROR;
 }
@@ -2305,6 +2381,64 @@ sp<QualcommCameraHardware> QualcommCameraHardware::getInstance()
     }
 }
 
+bool QualcommCameraHardware::native_zoom_image(int srcFd, int dstFd, int offSet, common_crop_t *crop)
+{
+    int result = 0;
+    struct mdp_blit_req *e;
+    struct timeval td1, td2;
+
+    int previewWidth, previewHeight;
+    mParameters.getPreviewSize(&previewWidth, &previewHeight);
+
+    /* Initialize yuv structure */
+    zoomImage.list.count = 1;
+
+    e = &zoomImage.list.req[0];
+
+    e->src.width = previewWidth;
+    e->src.height = previewHeight;
+    e->src.format = MDP_Y_CBCR_H2V2;
+    e->src.offset = offSet;
+    e->src.memory_id = srcFd;
+
+    e->dst.width = previewWidth;
+    e->dst.height = previewHeight;
+    e->dst.format = MDP_Y_CBCR_H2V2;
+    e->dst.offset = offSet;
+    e->dst.memory_id = dstFd;
+
+    LOGV(" Source FD = %d, Destination FD = %d offSet = %d",srcFd, dstFd, offSet);
+
+    e->transp_mask = 0xffffffff;
+    e->flags = 0;
+    e->alpha = 0xff;
+    if (crop->in2_w != 0 || crop->in2_h != 0) {
+        e->src_rect.x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
+        e->src_rect.y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
+        e->src_rect.w = crop->in2_w;
+        e->src_rect.h = crop->in2_h;
+    } else {
+        e->src_rect.x = 0;
+        e->src_rect.y = 0;
+        e->src_rect.w = previewWidth;
+        e->src_rect.h = previewHeight;
+    }
+    LOGV(" native_zoom : SRC_RECT : x,y = %d,%d \t w,h = %d, %d",
+            e->src_rect.x, e->src_rect.y, e->src_rect.w, e->src_rect.h);
+
+    e->dst_rect.x = 0;
+    e->dst_rect.y = 0;
+    e->dst_rect.w = previewWidth;
+    e->dst_rect.h = previewHeight;
+
+    result = ioctl(fb_fd, MSMFB_BLIT, &zoomImage.list);
+    if (result < 0) {
+        LOGE("MSM_FBIOBLT failed! line=%d\n", __LINE__);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
 //    LOGV("receivePreviewFrame E");
@@ -2323,29 +2457,42 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     mCallbackLock.unlock();
 
     // Find the offset within the heap of the current buffer.
-    ssize_t offset =
-        (ssize_t)frame->buffer - (ssize_t)mPreviewHeap->mHeap->base();
-    offset /= mPreviewHeap->mAlignedBufferSize;
+    ssize_t offset_addr =
+        (ssize_t)frame->buffer - (ssize_t)mCameraPreviewHeap->mHeap->base();
+    ssize_t offset = offset_addr / mCameraPreviewHeap->mAlignedBufferSize;
+
+    common_crop_t *crop = (common_crop_t *) (frame->cropinfo);
 
     mInPreviewCallback = true;
     if((mUseOverlay == true) && (mOverlay != NULL) ) {
-        ssize_t offset_addr =
-            (ssize_t)frame->buffer - (ssize_t)mPreviewHeap->mHeap->base();
         mOverlayLock.lock();
-        mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
+        mOverlay->setFd(mCameraPreviewHeap->mHeap->getHeapID());
+        if (crop->in2_w != 0 || crop->in2_h != 0) {
+            uint32_t crop_x, crop_y, crop_w, crop_h;
+            crop_x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
+            crop_y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
+            crop_w = crop->in2_w;
+            crop_h = crop->in2_h;
+            mOverlay->setCrop(crop_x, crop_y, crop_w, crop_h);
+        }
         mOverlay->queueBuffer((void *)offset_addr);
         mOverlayLock.unlock();
         LOGV(" Queueing buffer %x from HAL for display ", offset_addr );
+        if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
+            pcb(CAMERA_MSG_PREVIEW_FRAME, mCameraPreviewHeap->mBuffers[offset],
+                pdata);
+    } else {
+        if( !native_zoom_image(mCameraPreviewHeap->mHeap->getHeapID(),
+                                mPreviewHeap->mHeap->getHeapID(),
+                                 offset_addr, crop)) {
+            LOGE(" Error while doing MDP zoom ");
+        }
+        if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
+            pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
+                pdata);
     }
-    /* In case of Overlay, the MSG_PREVIEW_FRAME will be disabled
-     * second frame onwards. Hence we can keep this piece of code
-     * in overlay case as well. */
-    if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
-        pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
-            pdata);
-
     if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-        rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewHeap->mBuffers[offset], rdata);
+        rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mCameraPreviewHeap->mBuffers[offset], rdata);
         Mutex::Autolock rLock(&mRecordFrameLock);
         if (mReleasedRecordingFrame != true) {
             LOGV("block waiting for frame release");
@@ -2936,11 +3083,11 @@ status_t QualcommCameraHardware::setZoom(const CameraParameters& params)
     // size is. Ex: zoom level 1 is always 1.2x, zoom level 2 is 1.44x, etc. So,
     // we need to have a fixed maximum zoom value and do read it from the
     // driver.
-    static const int ZOOM_STEP = 6;
+    static const int ZOOM_STEP = 1;
     int32_t zoom_level = params.getInt("zoom");
 
-    LOGI("Set zoom=%d", zoom_level);
-    if(zoom_level >= 0 && zoom_level <= MAX_ZOOM_LEVEL) {
+    LOGV("Set zoom=%d", zoom_level);
+    if(zoom_level >= 0 && zoom_level <= mMaxZoom) {
         mParameters.set("zoom", zoom_level);
         int32_t zoom_value = ZOOM_STEP * zoom_level;
         bool ret = native_set_parm(CAMERA_SET_PARM_ZOOM,
@@ -3124,11 +3271,12 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
              pmem_pool,
              mFd,
              mSize.len);
-		LOGD("mBufferSize=%d, mAlignedBufferSize=%d\n", mBufferSize, mAlignedBufferSize);
+        LOGD("mBufferSize=%d, mAlignedBufferSize=%d\n", mBufferSize, mAlignedBufferSize);
         // Unregister preview buffers with the camera drivers.  Allow the VFE to write
         // to all preview buffers except for the last one.
-        for (int cnt = 0; cnt < num_buffers; ++cnt) {
-            register_buf(mCameraControlFd,
+        if(strcmp("preview", mName)){
+            for (int cnt = 0; cnt < num_buffers; ++cnt) {
+                register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,
                          mHeap->getHeapID(),
@@ -3136,6 +3284,7 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
                          pmem_type,
                          !(cnt == num_buffers - 1 && pmem_type == MSM_PMEM_OUTPUT2));
+            }
         }
 
         completeInitialization();
@@ -3149,8 +3298,9 @@ QualcommCameraHardware::PmemPool::~PmemPool()
     LOGV("%s: %s E", __FUNCTION__, mName);
     if (mHeap != NULL) {
         // Unregister preview buffers with the camera drivers.
-        for (int cnt = 0; cnt < mNumBuffers; ++cnt) {
-            register_buf(mCameraControlFd,
+        if(strcmp("preview", mName)){
+            for (int cnt = 0; cnt < mNumBuffers; ++cnt) {
+                register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,
                          mHeap->getHeapID(),
@@ -3159,6 +3309,7 @@ QualcommCameraHardware::PmemPool::~PmemPool()
                          mPmemType,
                          false,
                          false /* unregister */);
+            }
         }
     }
     LOGV("destroying PmemPool %s: closing control fd %d",
@@ -3299,10 +3450,7 @@ bool QualcommCameraHardware::msgTypeEnabled(int32_t msgType)
 
 bool QualcommCameraHardware::useOverlay(void)
 {
-    char value[PROPERTY_VALUE_MAX];
-    property_get("ro.product.device",value," ");
-
-    if(!strcmp(value,"msm7630_surf")) {
+    if(!strcmp(mDeviceName,"msm7630_surf")) {
         /* Only 7x30 supports Overlay */
         mUseOverlay = TRUE;
     } else

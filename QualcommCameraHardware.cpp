@@ -142,7 +142,7 @@ typedef struct crop_info_struct {
 } zoom_crop_info;
 
 static char mDeviceName[PROPERTY_VALUE_MAX];
-union
+union zoomimage
 {
     char d[sizeof(struct mdp_blit_req_list) + sizeof(struct mdp_blit_req) * 1];
     struct mdp_blit_req_list list;
@@ -656,12 +656,16 @@ QualcommCameraHardware::QualcommCameraHardware()
       mNotifyCallback(0),
       mDataCallback(0),
       mDataCallbackTimestamp(0),
-      mCallbackCookie(0)
+      mCallbackCookie(0),
+      mDebugFps(0)
 {
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
     memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
     property_get("ro.product.device",mDeviceName," ");
+    char value[PROPERTY_VALUE_MAX];
+    property_get("persist.debug.sf.showfps", value, "0");
+    mDebugFps = atoi(value);
     LOGV("constructor EX");
 }
 
@@ -2503,6 +2507,23 @@ bool QualcommCameraHardware::native_zoom_image(int srcFd, int dstFd, int offSet,
     return TRUE;
 }
 
+void QualcommCameraHardware::debugShowFPS() const
+{
+    static int mFrameCount;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    nsecs_t now = systemTime();
+    nsecs_t diff = now - mLastFpsTime;
+    if (diff > ms2ns(250)) {
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        LOGI("Frames Per Second: %.4f", mFps);
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+    }
+}
+
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
 //    LOGV("receivePreviewFrame E");
@@ -2510,6 +2531,10 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     if (!mCameraRunning) {
         LOGE("ignoring preview callback--camera has been stopped");
         return;
+    }
+
+    if (UNLIKELY(mDebugFps)) {
+        debugShowFPS();
     }
 
     mCallbackLock.lock();

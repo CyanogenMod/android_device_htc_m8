@@ -192,6 +192,8 @@ private:
     friend void *snapshot_thread(void *user);
     void runSnapshotThread(void *data);
 
+    void debugShowFPS() const;
+
     int mSnapshotFormat;
     void filterPictureSizes();
 
@@ -275,6 +277,7 @@ private:
     data_callback mDataCallback;
     data_callback_timestamp mDataCallbackTimestamp;
     void *mCallbackCookie;  // same for all callbacks
+    int mDebugFps;
 
 };
 

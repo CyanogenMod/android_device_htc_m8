@@ -134,6 +134,13 @@ struct camera_size_type {
 };
 #endif
 
+typedef struct crop_info_struct {
+    uint32_t x;
+    uint32_t y;
+    uint32_t w;
+    uint32_t h;
+} zoom_crop_info;
+
 static char mDeviceName[PROPERTY_VALUE_MAX];
 union
 {
@@ -236,6 +243,8 @@ static inline unsigned clp2(unsigned x)
 static int exif_table_numEntries = 0;
 #define MAX_EXIF_TABLE_ENTRIES 7
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
+static zoom_crop_info zoomCropInfo;
+static void *mLastQueuedFrame = NULL;
 
 namespace android {
 
@@ -648,6 +657,7 @@ QualcommCameraHardware::QualcommCameraHardware()
 {
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
+    memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
     property_get("ro.product.device",mDeviceName," ");
     LOGV("constructor EX");
 }
@@ -785,6 +795,7 @@ void QualcommCameraHardware::initDefaultParameters()
     /* Initialize the camframe_timeout_flag*/
     Mutex::Autolock l(&mCamframeTimeoutLock);
     camframe_timeout_flag = FALSE;
+    mPostViewHeap = NULL;
 
     LOGV("initDefaultParameters X");
 }
@@ -1475,8 +1486,9 @@ void QualcommCameraHardware::runFrameThread(void *data)
     }
 
     mCameraPreviewHeap.clear();
-    mPreviewHeap.clear();
-
+    if(strncmp(mDeviceName,"msm7630", 7)) {
+	mPreviewHeap.clear();
+    }
 #if DLOPEN_LIBMMCAMERA
     if (libhandle) {
         ::dlclose(libhandle);
@@ -1543,22 +1555,42 @@ bool QualcommCameraHardware::initPreview()
         LOGE("initPreview X: could not initialize Camera preview heap.");
         return false;
     }
+    if( (!strncmp(mDeviceName,"msm7630", 7))
+     && (mPostViewHeap == NULL)) {
+        mPreviewHeap = NULL;
+        LOGV(" Allocating Postview heap ");
+        /* mPostViewHeap should be declared only for 7630 target */
+	mPostViewHeap =
+	    new PmemPool("/dev/pmem_adsp",
+		    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+		    mCameraControlFd,
+		    MSM_PMEM_OUTPUT2,
+		    mPreviewFrameSize,
+		    1,
+		    mPreviewFrameSize,
+		    "postview");
 
-    mPreviewHeap = new PmemPool("/dev/pmem_adsp",
-                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                                mCameraControlFd,
-                                MSM_PMEM_OUTPUT2,
-                                mPreviewFrameSize,
-                                kPreviewBufferCount,
-                                mPreviewFrameSize,
-                                "preview");
+	if (!mPostViewHeap->initialized()) {
+	    mPostViewHeap.clear();
+	    LOGE(" Failed to initialize Postview Heap");
+	    return false;
+	}
+    } else {
+	mPreviewHeap = new PmemPool("/dev/pmem_adsp",
+		MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+		mCameraControlFd,
+		MSM_PMEM_OUTPUT2,
+		mPreviewFrameSize,
+		kPreviewBufferCount,
+		mPreviewFrameSize,
+		"preview");
 
-    if (!mPreviewHeap->initialized()) {
-        mPreviewHeap.clear();
-        LOGE("initPreview X: could not initialize preview heap.");
-        return false;
+	if (!mPreviewHeap->initialized()) {
+	    mPreviewHeap.clear();
+	    LOGE("initPreview X: could not initialize preview heap.");
+	    return false;
+	}
     }
-
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -1844,6 +1876,10 @@ void QualcommCameraHardware::release()
         stopPreviewInternal();
     }
 
+    if(!strncmp(mDeviceName,"msm7630", 7)) {
+	mPostViewHeap.clear();
+        mPostViewHeap = NULL;
+    }
     LINK_jpeg_encoder_join();
     deinitRaw();
     deinitRawSnapshot();
@@ -1962,6 +1998,7 @@ void QualcommCameraHardware::stopPreviewInternal()
                 cancelAutoFocusInternal();
             }
         }
+
         Mutex::Autolock l(&mCamframeTimeoutLock);
 	if(!camframe_timeout_flag) {
 	    mCameraRunning = !native_stop_preview(mCameraControlFd);
@@ -2215,6 +2252,12 @@ status_t QualcommCameraHardware::takePicture()
         LOGV("takePicture: old snapshot thread completed.");
     }
 
+    if(!strcmp(mDeviceName,"msm7630_surf")) {
+	/* Store the last frame queued for preview. This
+	 * shall be used as postview */
+	storePreviewFrameForPostview();
+    }
+
     //mSnapshotFormat is protected by mSnapshotThreadWaitLock
     if(mParameters.getPictureFormat() != 0 &&
             !strcmp(mParameters.getPictureFormat(),
@@ -2464,20 +2507,22 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     common_crop_t *crop = (common_crop_t *) (frame->cropinfo);
 
     mInPreviewCallback = true;
-    if((mUseOverlay == true) && (mOverlay != NULL) ) {
-        mOverlayLock.lock();
-        mOverlay->setFd(mCameraPreviewHeap->mHeap->getHeapID());
-        if (crop->in2_w != 0 || crop->in2_h != 0) {
-            uint32_t crop_x, crop_y, crop_w, crop_h;
-            crop_x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
-            crop_y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
-            crop_w = crop->in2_w;
-            crop_h = crop->in2_h;
-            mOverlay->setCrop(crop_x, crop_y, crop_w, crop_h);
-        }
-        mOverlay->queueBuffer((void *)offset_addr);
-        mOverlayLock.unlock();
-        LOGV(" Queueing buffer %x from HAL for display ", offset_addr );
+    if(mUseOverlay) {
+	if(mOverlay != NULL) {
+	    mOverlayLock.lock();
+	    mOverlay->setFd(mCameraPreviewHeap->mHeap->getHeapID());
+	    if (crop->in2_w != 0 || crop->in2_h != 0) {
+		zoomCropInfo.x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
+		zoomCropInfo.y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
+		zoomCropInfo.w = crop->in2_w;
+		zoomCropInfo.h = crop->in2_h;
+		mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
+			zoomCropInfo.w, zoomCropInfo.h);
+	    }
+	    mOverlay->queueBuffer((void *)offset_addr);
+            mLastQueuedFrame = (void *)frame->buffer;
+	    mOverlayLock.unlock();
+	}
         if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
             pcb(CAMERA_MSG_PREVIEW_FRAME, mCameraPreviewHeap->mBuffers[offset],
                 pdata);
@@ -2713,6 +2758,17 @@ void QualcommCameraHardware::receiveRawPicture()
             mDimension.thumbnail_height = mCrop.in1_h;
             memset(&mCrop, 0, sizeof(mCrop));
         }
+
+	if( mUseOverlay && (mOverlay != NULL) ) {
+	    mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
+	    if( zoomCropInfo.w !=0 && zoomCropInfo.h !=0) {
+		LOGD(" zoomCropInfo non-zero, setting crop ");
+		mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
+			zoomCropInfo.w, zoomCropInfo.h);
+	    }
+	    LOGD(" Queueing Postview for display ");
+	    mOverlay->queueBuffer((void *)0);
+	}
 
         mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
                             mCallbackCookie);
@@ -3274,7 +3330,9 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
         LOGD("mBufferSize=%d, mAlignedBufferSize=%d\n", mBufferSize, mAlignedBufferSize);
         // Unregister preview buffers with the camera drivers.  Allow the VFE to write
         // to all preview buffers except for the last one.
-        if(strcmp("preview", mName)){
+        // Only Register the preview, snapshot and thumbnail buffers with the kernel.
+        if( (strcmp("preview", mName) != 0)
+         && (strcmp("postview", mName) != 0) ){
             for (int cnt = 0; cnt < num_buffers; ++cnt) {
                 register_buf(mCameraControlFd,
                          mBufferSize,
@@ -3298,7 +3356,10 @@ QualcommCameraHardware::PmemPool::~PmemPool()
     LOGV("%s: %s E", __FUNCTION__, mName);
     if (mHeap != NULL) {
         // Unregister preview buffers with the camera drivers.
-        if(strcmp("preview", mName)){
+        //  Only Unregister the preview, snapshot and thumbnail
+        //  buffers with the kernel.
+        if( (strcmp("preview", mName) != 0)
+         && (strcmp("postview", mName) != 0) ){
             for (int cnt = 0; cnt < mNumBuffers; ++cnt) {
                 register_buf(mCameraControlFd,
                          mBufferSize,
@@ -3486,5 +3547,22 @@ static void receive_camframetimeout_callback(void) {
     if (obj != 0) {
         obj->receive_camframetimeout();
     }
+}
+
+void QualcommCameraHardware::storePreviewFrameForPostview(void) {
+    LOGV(" storePreviewFrameForPostview : E ");
+
+    /* Since there is restriction on the maximum overlay dimensions
+     * that can be created, we use the last preview frame as postview
+     * for 7x30. */
+    LOGV(" Copying the preview buffer to postview buffer %d  ", 
+         mPreviewFrameSize);
+    if( mPostViewHeap != NULL && mLastQueuedFrame != NULL) {
+	memcpy(mPostViewHeap->mHeap->base(),
+		(uint8_t *)mLastQueuedFrame, mPreviewFrameSize );
+    } else
+        LOGE(" Failed to store Preview frame. No Postview ");
+
+    LOGV(" storePreviewFrameForPostview : X ");
 }
 }; // namespace android

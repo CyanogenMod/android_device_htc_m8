@@ -166,6 +166,7 @@ private:
     sp<AshmemPool> mJpegHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<AshmemPool> mRawSnapshotAshmemHeap;
+    sp<PmemPool> mPostViewHeap;
 
 
     bool startCamera();
@@ -215,6 +216,7 @@ private:
     status_t setISOValue(const CameraParameters& params);
     status_t setPictureFormat(const CameraParameters& params);
     void setGpsParameters();
+    void storePreviewFrameForPostview();
 
     Mutex mLock;
     Mutex mCamframeTimeoutLock;

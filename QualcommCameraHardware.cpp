@@ -791,6 +791,13 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_PICTURE_FORMAT,
                     CameraParameters::PIXEL_FORMAT_JPEG);
 
+    mParameters.set(CameraParameters::KEY_SHARPNESS,
+                    CAMERA_DEF_SHARPNESS);
+    mParameters.set(CameraParameters::KEY_CONTRAST,
+                    CAMERA_DEF_CONTRAST);
+    mParameters.set(CameraParameters::KEY_SATURATION,
+                    CAMERA_DEF_SATURATION);
+
     mParameters.set(CameraParameters::KEY_ISO_MODE,
                     CameraParameters::ISO_AUTO);
     mParameters.set(CameraParameters::KEY_LENSSHADE,
@@ -1577,25 +1584,26 @@ bool QualcommCameraHardware::initPreview()
         LOGE("initPreview X: could not initialize Camera preview heap.");
         return false;
     }
-    if( (!strncmp(mDeviceName,"msm7630", 7))
-     && (mPostViewHeap == NULL)) {
-        mPreviewHeap = NULL;
-        LOGV(" Allocating Postview heap ");
-        /* mPostViewHeap should be declared only for 7630 target */
-	mPostViewHeap =
-	    new PmemPool("/dev/pmem_adsp",
-		    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-		    mCameraControlFd,
-		    MSM_PMEM_OUTPUT2,
-		    mPreviewFrameSize,
-		    1,
-		    mPreviewFrameSize,
-		    "postview");
+    if( !strncmp(mDeviceName,"msm7630", 7) ) {
+	mPreviewHeap = NULL;
+	if(mPostViewHeap == NULL) {
+	    LOGV(" Allocating Postview heap ");
+	    /* mPostViewHeap should be declared only for 7630 target */
+	    mPostViewHeap =
+		new PmemPool("/dev/pmem_adsp",
+			MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+			mCameraControlFd,
+			MSM_PMEM_OUTPUT2,
+			mPreviewFrameSize,
+			1,
+			mPreviewFrameSize,
+			"postview");
 
-	if (!mPostViewHeap->initialized()) {
-	    mPostViewHeap.clear();
-	    LOGE(" Failed to initialize Postview Heap");
-	    return false;
+	    if (!mPostViewHeap->initialized()) {
+		mPostViewHeap.clear();
+		LOGE(" Failed to initialize Postview Heap");
+		return false;
+	    }
 	}
     } else {
 	mPreviewHeap = new PmemPool("/dev/pmem_adsp",

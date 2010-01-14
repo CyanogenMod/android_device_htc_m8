@@ -1516,7 +1516,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
 
     mCameraPreviewHeap.clear();
     if(strncmp(mDeviceName,"msm7630", 7)) {
-	mPreviewHeap.clear();
+	//mPreviewHeap.clear();
     }
 #if DLOPEN_LIBMMCAMERA
     if (libhandle) {
@@ -1585,7 +1585,7 @@ bool QualcommCameraHardware::initPreview()
         return false;
     }
     if( !strncmp(mDeviceName,"msm7630", 7) ) {
-	mPreviewHeap = NULL;
+	//mPreviewHeap = NULL;
 	if(mPostViewHeap == NULL) {
 	    LOGV(" Allocating Postview heap ");
 	    /* mPostViewHeap should be declared only for 7630 target */
@@ -1605,7 +1605,7 @@ bool QualcommCameraHardware::initPreview()
 		return false;
 	    }
 	}
-    } else {
+    } /*else {
 	mPreviewHeap = new PmemPool("/dev/pmem_adsp",
 		MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
 		mCameraControlFd,
@@ -1620,7 +1620,7 @@ bool QualcommCameraHardware::initPreview()
 	    LOGE("initPreview X: could not initialize preview heap.");
 	    return false;
 	}
-    }
+    }*/
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -1967,7 +1967,7 @@ sp<IMemoryHeap> QualcommCameraHardware::getRawHeap() const
 sp<IMemoryHeap> QualcommCameraHardware::getPreviewHeap() const
 {
     LOGV("getPreviewHeap");
-    return mPreviewHeap != NULL ? mPreviewHeap->mHeap : NULL;
+    return mCameraPreviewHeap != NULL ? mCameraPreviewHeap->mHeap : NULL;
 }
 
 status_t QualcommCameraHardware::startPreviewInternal()
@@ -2579,13 +2579,13 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
             pcb(CAMERA_MSG_PREVIEW_FRAME, mCameraPreviewHeap->mBuffers[offset],
                 pdata);
     } else {
-        if( !native_zoom_image(mCameraPreviewHeap->mHeap->getHeapID(),
+        /*if( !native_zoom_image(mCameraPreviewHeap->mHeap->getHeapID(),
                                 mPreviewHeap->mHeap->getHeapID(),
                                  offset_addr, crop)) {
             LOGE(" Error while doing MDP zoom ");
-        }
+        }*/
         if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
-            pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
+            pcb(CAMERA_MSG_PREVIEW_FRAME, mCameraPreviewHeap->mBuffers[offset],
                 pdata);
     }
     if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {

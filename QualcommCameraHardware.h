@@ -264,9 +264,6 @@ private:
     common_crop_t mCrop;
 
     int mBrightness;
-    int mSharpness;
-    int mContrast;
-    int mSaturation;
     struct msm_frame frames[kPreviewBufferCount];
     bool mInPreviewCallback;
     bool mUseOverlay;

@@ -646,9 +646,6 @@ QualcommCameraHardware::QualcommCameraHardware()
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
       mBrightness(0),
-      mSharpness(0),
-      mContrast(0),
-      mSaturation(0),
       mInPreviewCallback(false),
       mUseOverlay(0),
       mOverlay(0),
@@ -3007,14 +3004,12 @@ status_t QualcommCameraHardware::setSharpness(const CameraParameters& params)
     if((sharpness < CAMERA_MIN_SHARPNESS
             || sharpness > CAMERA_MAX_SHARPNESS))
         return UNKNOWN_ERROR;
-    if (mSharpness !=  sharpness) {
-        mSharpness = sharpness;
-        bool ret = native_set_parm(CAMERA_SET_PARM_SHARPNESS, sizeof(mSharpness),
-                                   (void *)&mSharpness);
-        return ret ? NO_ERROR : UNKNOWN_ERROR;
-    } else {
-        return NO_ERROR;
-    }
+
+    LOGV("setting sharpness %d", sharpness);
+    mParameters.set(CameraParameters::KEY_SHARPNESS, sharpness);
+    bool ret = native_set_parm(CAMERA_SET_PARM_SHARPNESS, sizeof(sharpness),
+                               (void *)&sharpness);
+    return ret ? NO_ERROR : UNKNOWN_ERROR;
 }
 
 status_t QualcommCameraHardware::setContrast(const CameraParameters& params)
@@ -3027,14 +3022,12 @@ status_t QualcommCameraHardware::setContrast(const CameraParameters& params)
     if((contrast < CAMERA_MIN_CONTRAST)
             || (contrast > CAMERA_MAX_CONTRAST))
         return UNKNOWN_ERROR;
-    if (mContrast !=  contrast) {
-        mContrast = contrast;
-        bool ret = native_set_parm(CAMERA_SET_PARM_CONTRAST, sizeof(mContrast),
-                                   (void *)&mContrast);
-        return ret ? NO_ERROR : UNKNOWN_ERROR;
-    } else {
-        return NO_ERROR;
-    }
+
+    LOGV("setting contrast %d", contrast);
+    mParameters.set(CameraParameters::KEY_CONTRAST, contrast);
+    bool ret = native_set_parm(CAMERA_SET_PARM_CONTRAST, sizeof(contrast),
+                               (void *)&contrast);
+    return ret ? NO_ERROR : UNKNOWN_ERROR;
 }
 
 status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
@@ -3047,14 +3040,12 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
     if((saturation < CAMERA_MIN_SATURATION)
             || (saturation > CAMERA_MAX_SATURATION))
         return UNKNOWN_ERROR;
-    if (mSaturation !=  saturation) {
-        mSaturation = saturation;
-        bool ret = native_set_parm(CAMERA_SET_PARM_SATURATION, sizeof(mSaturation),
-                                   (void *)&mSaturation);
-        return ret ? NO_ERROR : UNKNOWN_ERROR;
-    } else {
-        return NO_ERROR;
-    }
+
+    LOGV("setting saturation %d", saturation);
+    mParameters.set(CameraParameters::KEY_SATURATION, saturation);
+    bool ret = native_set_parm(CAMERA_SET_PARM_SATURATION, sizeof(saturation),
+                               (void *)&saturation);
+    return ret ? NO_ERROR : UNKNOWN_ERROR;
 }
 
 status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {

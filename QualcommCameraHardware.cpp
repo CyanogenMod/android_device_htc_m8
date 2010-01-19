@@ -931,22 +931,11 @@ bool QualcommCameraHardware::startCamera()
 
     /* The control thread is in libcamera itself. */
     mCameraControlFd = open(MSM_CAMERA_CONTROL, O_RDWR);
-    if (mCameraControlFd <= 0) {
-        if( mCameraControlFd == 0 ) {
-            /* This should not happen. But if and when it
-             * happens, we should not be using fd 0 for issuing
-             * any IOCTL calls to camera driver since the
-             * behaviour is undeterministic. Hence adding a
-             * workaround to deal with this issue */
-            LOGD(" Returned FD is 0....open again ");
-            mCameraControlFd = open(MSM_CAMERA_CONTROL, O_RDWR);
-        }
-        if (mCameraControlFd < 0) {
-	    LOGE("startCamera X: %s open failed: %s!",
-		    MSM_CAMERA_CONTROL,
-		    strerror(errno));
-	    return false;
-        }
+    if (mCameraControlFd < 0) {
+        LOGE("startCamera X: %s open failed: %s!",
+             MSM_CAMERA_CONTROL,
+             strerror(errno));
+        return false;
     }
 
     if(strncmp(mDeviceName,"msm7630", 7)){
@@ -3392,16 +3381,6 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
          mName,
          pmem_pool, num_buffers, frame_size,
          buffer_size);
-
-    if( mCameraControlFd == 0 ) {
-          /* This should not happen. But if and when it
-	   * happens, we should not be using fd 0 for issuing
-	   * any IOCTL calls to camera driver since the
-	   * behaviour is undeterministic. Hence adding a
-	   * workaround to deal with this issue */
-            LOGD(" 'dup'ed FD is 0....dup again ");
-            mCameraControlFd = dup(camera_control_fd);
-        }
 
     LOGV("%s: duplicating control fd %d --> %d",
          __FUNCTION__,

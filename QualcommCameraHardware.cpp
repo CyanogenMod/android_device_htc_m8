@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <cutils/properties.h>
 #include <math.h>
 #if HAVE_ANDROID_OS
@@ -73,6 +74,9 @@ extern "C" {
 #define MAX_ZOOM_LEVEL 5
 #define NOT_FOUND -1
 
+// Number of video buffers held by kernal (initially 1,2 &3)
+#define ACTIVE_VIDEO_BUFFERS 3
+
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
@@ -86,6 +90,14 @@ bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
                                   common_crop_t *scaling_parms, exif_tags_info_t *exif_data,
                                   int exif_table_numEntries);
 int  (*LINK_camframe_terminate)(void);
+//for 720p
+// Function to add a video buffer to free Q
+void (*LINK_camframe_free_video)(struct msm_frame *frame);
+// Function pointer , called by camframe when a video frame is available.
+void (**LINK_camframe_video_callback)(struct msm_frame * frame);
+// To flush free Q in cam frame.
+void (*LINK_cam_frame_flush_free_video)(void);
+
 int8_t (*LINK_jpeg_encoder_setMainImageQuality)(uint32_t quality);
 int8_t (*LINK_jpeg_encoder_setThumbnailQuality)(uint32_t quality);
 int8_t (*LINK_jpeg_encoder_setRotation)(uint32_t rotation);
@@ -619,11 +631,121 @@ static String8 create_values_str(const str_map *values, int len) {
     return str;
 }
 
+extern "C" {
+//------------------------------------------------------------------------
+//   : 720p busyQ funcitons
+//   --------------------------------------------------------------------
+static struct fifo_queue g_busy_frame_queue =
+    {0, 0, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+};
+/*===========================================================================
+ * FUNCTION      cam_frame_wait_video
+ *
+ * DESCRIPTION    this function waits a video in the busy queue
+ * ===========================================================================*/
+
+static void cam_frame_wait_video (void)
+{
+    LOGV("cam_frame_wait_video E ");
+    if ((g_busy_frame_queue.num_of_frames) <=0){
+        pthread_cond_wait(&(g_busy_frame_queue.wait), &(g_busy_frame_queue.mut));
+    }
+    LOGV("cam_frame_wait_video X");
+    return;
+}
+
+/*===========================================================================
+ * FUNCTION      cam_frame_flush_video
+ *
+ * DESCRIPTION    this function deletes all the buffers in  busy queue
+ * ===========================================================================*/
+void cam_frame_flush_video (void)
+{
+    LOGV("cam_frame_flush_video: in n = %d\n", g_busy_frame_queue.num_of_frames);
+    pthread_mutex_lock(&(g_busy_frame_queue.mut));
+
+    while (g_busy_frame_queue.front)
+    {
+       //dequeue from the busy queue
+       struct fifo_node *node  = dequeue (&g_busy_frame_queue);
+       if(node)
+           free(node);
+
+       LOGV("cam_frame_flush_video: node \n");
+    }
+    pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+    LOGV("cam_frame_flush_video: out n = %d\n", g_busy_frame_queue.num_of_frames);
+    return ;
+}
+/*===========================================================================
+ * FUNCTION      cam_frame_get_video
+ *
+ * DESCRIPTION    this function returns a video frame from the head
+ * ===========================================================================*/
+static struct msm_frame * cam_frame_get_video()
+{
+    struct msm_frame *p = NULL;
+    LOGV("cam_frame_get_video... in\n");
+    LOGV("cam_frame_get_video... got lock\n");
+    if (g_busy_frame_queue.front)
+    {
+        //dequeue
+       struct fifo_node *node  = dequeue (&g_busy_frame_queue);
+       if (node)
+       {
+           p = (struct msm_frame *)node->f;
+           free (node);
+       }
+       LOGV("cam_frame_get_video... out = %x\n", p->buffer);
+    }
+    return p;
+}
+
+/*===========================================================================
+ * FUNCTION      cam_frame_post_video
+ *
+ * DESCRIPTION    this function add a busy video frame to the busy queue tails
+ * ===========================================================================*/
+static void cam_frame_post_video (struct msm_frame *p)
+{
+    if (!p)
+    {
+        LOGE("post video , buffer is null");
+        return;
+    }
+    LOGV("cam_frame_post_video... in = %x\n", (unsigned int)(p->buffer));
+    pthread_mutex_lock(&(g_busy_frame_queue.mut));
+    LOGV("post_video got lock. q count before enQ %d", g_busy_frame_queue.num_of_frames);
+    //enqueue to busy queue
+    struct fifo_node *node = (struct fifo_node *)malloc (sizeof (struct fifo_node));
+    if (node)
+    {
+        LOGV(" post video , enqueing in busy queue");
+        node->f = p;
+        node->next = NULL;
+        enqueue (&g_busy_frame_queue, node);
+        LOGV("post_video got lock. q count after enQ %d", g_busy_frame_queue.num_of_frames);
+    }
+    else
+    {
+        LOGE("cam_frame_post_video error... out of memory\n");
+    }
+
+    pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+    pthread_cond_signal(&(g_busy_frame_queue.wait));
+
+    LOGV("cam_frame_post_video... out = %x\n", p->buffer);
+
+    return;
+}
+
+//-------------------------------------------------------------------------------------
 static Mutex singleton_lock;
 static bool singleton_releasing;
 static Condition singleton_wait;
 
 static void receive_camframe_callback(struct msm_frame *frame);
+static void receive_camframe_video_callback(struct msm_frame *frame); // 720p
 static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size);
 static void receive_jpeg_callback(jpeg_event_t status);
 static void receive_shutter_callback(common_crop_t *crop);
@@ -682,7 +804,10 @@ QualcommCameraHardware::QualcommCameraHardware()
     char value[PROPERTY_VALUE_MAX];
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
-    kPreviewBufferCountActual = kPreviewBufferCount + NUM_MORE_BUFS;
+    if(!strncmp(mDeviceName,"msm7630", 7))
+        kPreviewBufferCountActual = kPreviewBufferCount;
+    else
+        kPreviewBufferCountActual = kPreviewBufferCount + NUM_MORE_BUFS;
     LOGV("constructor EX");
 }
 
@@ -905,6 +1030,13 @@ bool QualcommCameraHardware::startCamera()
 
     *LINK_camframe_timeout_callback = receive_camframetimeout_callback;
 
+    // 720 p new recording functions
+    *(void **)&LINK_cam_frame_flush_free_video = ::dlsym(libmmcamera, "cam_frame_flush_free_video");
+
+    *(void **)&LINK_camframe_free_video = ::dlsym(libmmcamera, "cam_frame_add_free_video");
+
+    *(void **)&LINK_camframe_video_callback = ::dlsym(libmmcamera, "mmcamera_camframe_videocallback");
+        *LINK_camframe_video_callback = receive_camframe_video_callback;
 /* Disabling until support is available.
     *(void **)&LINK_mmcamera_shutter_callback =
         ::dlsym(libmmcamera, "mmcamera_shutter_callback");
@@ -1248,6 +1380,115 @@ static bool native_stop_snapshot (int camfd)
 
     return true;
 }
+/*===========================================================================
+ * FUNCTION    - native_start_recording -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+static bool native_start_recording(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+
+    ctrlCmd.timeout_ms = 1000;
+    ctrlCmd.type = CAMERA_START_RECORDING;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_start_recording: ioctl failed. ioctl return value "\
+            "is %d \n", ret);
+        return false;
+    }
+    LOGV("native_start_video: ioctl good. ioctl return value is %d \n",ret);
+
+  /* TODO: Check status of postprocessing if there is any,
+   *       PP status should be in  ctrlCmd */
+
+    return true;
+}
+
+/*===========================================================================
+ * FUNCTION    - native_stop_recording -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+static bool native_stop_recording(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+LOGE("in native_stop_recording ");
+    ctrlCmd.timeout_ms = 1000;
+    ctrlCmd.type = CAMERA_STOP_RECORDING;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_stop_video: ioctl failed. ioctl return value is %d \n",
+        ret);
+        return false;
+    }
+    LOGV("in native_stop_recording returned %d", ret);
+    return true;
+}
+/*===========================================================================
+ * FUNCTION    - native_start_video -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+static bool native_start_video(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+
+    ctrlCmd.timeout_ms = 1000;
+    ctrlCmd.type = CAMERA_START_VIDEO;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_start_video: ioctl failed. ioctl return value is %d \n",
+        ret);
+        return false;
+    }
+
+  /* TODO: Check status of postprocessing if there is any,
+   *       PP status should be in  ctrlCmd */
+
+    return true;
+}
+
+/*===========================================================================
+ * FUNCTION    - native_stop_video -
+ *
+ * DESCRIPTION:
+ *==========================================================================*/
+static bool native_stop_video(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+
+    ctrlCmd.timeout_ms = 1000;
+    ctrlCmd.type = CAMERA_STOP_VIDEO;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_stop_video: ioctl failed. ioctl return value is %d \n",
+        ret);
+        return false;
+    }
+
+    return true;
+}
+/*==========================================================================*/
+
+static cam_frame_start_parms frame_parms;
+static int recordingState = 0;
 
 static rat_t latitude[3];
 static rat_t longitude[3];
@@ -1521,6 +1762,9 @@ void QualcommCameraHardware::runFrameThread(void *data)
     }
 
     mPreviewHeap.clear();
+    if(!strncmp(mDeviceName,"msm7630", 7))
+        mRecordHeap.clear();
+
 #if DLOPEN_LIBMMCAMERA
     if (libhandle) {
         ::dlclose(libhandle);
@@ -1534,6 +1778,109 @@ void QualcommCameraHardware::runFrameThread(void *data)
     mFrameThreadWaitLock.unlock();
 
     LOGV("runFrameThread X");
+}
+
+void QualcommCameraHardware::runVideoThread(void *data)
+{
+    LOGD("runVideoThread E");
+    msm_frame* vframe = NULL;
+
+    while(true) {
+        pthread_mutex_lock(&(g_busy_frame_queue.mut));
+
+        LOGE("in video_thread : wait for video frame ");
+        // check if any frames are available in busyQ and give callback to
+        // services/video encoder
+        cam_frame_wait_video();
+        LOGV("video_thread, wait over..");
+
+        // Exit the thread , in case of stop recording..
+        mVideoThreadWaitLock.lock();
+        if(mVideoThreadExit){
+            LOGE("Exiting video thread..");
+            mVideoThreadWaitLock.unlock();
+            pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+            break;
+        }
+        mVideoThreadWaitLock.unlock();
+
+        // Get the video frame to be encoded
+        vframe = cam_frame_get_video ();
+        LOGV("in video_thread : got video frame ");
+
+        if(vframe != NULL) {
+            // Find the offset within the heap of the current buffer.
+            LOGV("Got video frame :  buffer %d base %d ", vframe->buffer, mRecordHeap->mHeap->base());
+            ssize_t offset =
+                (ssize_t)vframe->buffer - (ssize_t)mRecordHeap->mHeap->base();
+            LOGV("offset = %d , alignsize = %d , offset later = %d", offset, mRecordHeap->mAlignedBufferSize, (offset / mRecordHeap->mAlignedBufferSize));
+
+            offset /= mRecordHeap->mAlignedBufferSize;
+
+            // dump frames for test purpose
+#ifdef DUMP_VIDEO_FRAMES
+            static int frameCnt = 0;
+            if (frameCnt >= 11 && frameCnt <= 13 ) {
+                char buf[128];
+                sprintf(buf, "/data/%d_v.yuv", frameCnt);
+                int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+                LOGV("dumping video frame %d", frameCnt);
+                if (file_fd < 0) {
+                    LOGE("cannot open file\n");
+                }
+                else
+                {
+                    write(file_fd, (const void *)vframe->buffer,
+                        vframe->cbcr_off * 3 / 2);
+                }
+                close(file_fd);
+          }
+          frameCnt++;
+#endif
+            // Enable IF block to give frames to encoder , ELSE block for just simulation
+#if 1
+            LOGV("in video_thread : got video frame, before if check giving frame to services/encoder");
+            mCallbackLock.lock();
+            int msgEnabled = mMsgEnabled;
+            data_callback_timestamp rcb = mDataCallbackTimestamp;
+            void *rdata = mCallbackCookie;
+            mCallbackLock.unlock();
+
+            if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME) ) {
+                LOGV("in video_thread : got video frame, giving frame to services/encoder");
+                rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[offset], rdata);
+                Mutex::Autolock rLock(&mRecordFrameLock);
+                if (mReleasedRecordingFrame != true) {
+                    LOGV("block waiting for frame release");
+                    mRecordWait.wait(mRecordFrameLock);
+                    LOGV("video frame released, continuing");
+                }
+                mReleasedRecordingFrame = false;
+            }
+#else
+            // 720p output2  : simulate release frame here:
+            LOGE("in video_thread simulation , releasing the video frame");
+            LINK_camframe_free_video(vframe);
+#endif
+
+        } else LOGE("in video_thread get frame returned null");
+
+        pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+
+    } // end of while loop
+    LOGV("runVideoThread X");
+}
+
+void *video_thread(void *user)
+{
+    LOGV("video_thread E");
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+    if (obj != 0) {
+        obj->runVideoThread(user);
+    }
+    else LOGE("not starting video thread: the object went away!");
+    LOGV("video_thread X");
+    return NULL;
 }
 
 void *frame_thread(void *user)
@@ -1552,8 +1899,21 @@ bool QualcommCameraHardware::initPreview()
 {
     // See comments in deinitPreview() for why we have to wait for the frame
     // thread here, and why we can't use pthread_join().
+    int videoWidth, videoHeight;
     mParameters.getPreviewSize(&previewWidth, &previewHeight);
-    LOGI("initPreview E: preview size=%dx%d", previewWidth, previewHeight);
+
+    videoWidth = previewWidth;  // temporary , should be configurable later
+    videoHeight = previewHeight;
+    LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
+
+    if(!strncmp(mDeviceName,"msm7630", 7)) {
+        mDimension.video_width = videoWidth;
+        mDimension.video_width = CEILING32(mDimension.video_width);
+        mDimension.video_height = videoHeight;
+        LOGV("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, mDimension.video_width, mDimension.video_height );
+    }
+
+
     mFrameThreadWaitLock.lock();
     while (mFrameThreadRunning) {
         LOGV("initPreview: waiting for old frame thread to complete.");
@@ -1576,7 +1936,7 @@ bool QualcommCameraHardware::initPreview()
     mPreviewHeap = new PmemPool("/dev/pmem_adsp",
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
-                                MSM_PMEM_OUTPUT2,
+                                MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
                                 mPreviewFrameSize,
                                 kPreviewBufferCountActual,
                                 mPreviewFrameSize,
@@ -1595,7 +1955,7 @@ bool QualcommCameraHardware::initPreview()
 		new PmemPool("/dev/pmem_adsp",
 			MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
 			mCameraControlFd,
-			MSM_PMEM_OUTPUT2,
+			MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
 			mPreviewFrameSize,
 			1,
 			mPreviewFrameSize,
@@ -1608,6 +1968,10 @@ bool QualcommCameraHardware::initPreview()
 	    }
 	}
     }
+    // Allocate video buffers after allocating preview buffers.
+    if( !strncmp(mDeviceName,"msm7630", 7) )
+        initRecord();
+
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -1621,17 +1985,24 @@ bool QualcommCameraHardware::initPreview()
                 (uint32_t)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt;
             frames[cnt].y_off = 0;
             frames[cnt].cbcr_off = previewWidth * previewHeight;
-            frames[cnt].path = MSM_FRAME_ENC;
+            frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
         }
 
         mFrameThreadWaitLock.lock();
         pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+        frame_parms.frame = frames[kPreviewBufferCount - 1];
+        frame_parms.video_frame =  recordframes[kPreviewBufferCount - 1];
+
+        LOGV ("initpreview before cam_frame thread carete , video frame  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
+          (unsigned long)frame_parms.video_frame.buffer, frame_parms.video_frame.fd, frame_parms.video_frame.y_off,
+          frame_parms.video_frame.cbcr_off);
         mFrameThreadRunning = !pthread_create(&mFrameThread,
                                               &attr,
                                               frame_thread,
-                                              &frames[kPreviewBufferCount-1]);
+                                              (void*)&(frame_parms));
         ret = mFrameThreadRunning;
         mFrameThreadWaitLock.unlock();
     }
@@ -1883,6 +2254,16 @@ void QualcommCameraHardware::release()
     int cnt, rc;
     struct msm_ctrl_cmd ctrlCmd;
 
+    // exit video thread
+    mVideoThreadWaitLock.lock();
+    LOGV("in release : making mVideoThreadExit 1");
+    mVideoThreadExit = 1;
+    mVideoThreadWaitLock.unlock();
+    //  720p : signal the video thread , and check in video thread if stop is called, if so exit video thread.
+    pthread_mutex_lock(&(g_busy_frame_queue.mut));
+    pthread_cond_signal(&(g_busy_frame_queue.wait));
+    pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+
     if (mCameraRunning) {
         if(mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
             mRecordFrameLock.lock();
@@ -1959,6 +2340,7 @@ sp<IMemoryHeap> QualcommCameraHardware::getPreviewHeap() const
 
 status_t QualcommCameraHardware::startPreviewInternal()
 {
+    LOGV("in startPreviewInternal : E");
     if(mCameraRunning) {
         LOGV("startPreview X: preview already running.");
         return NO_ERROR;
@@ -1972,7 +2354,11 @@ status_t QualcommCameraHardware::startPreviewInternal()
         }
     }
 
+    if( strncmp(mDeviceName,"msm7630", 7) )
     mCameraRunning = native_start_preview(mCameraControlFd);
+    else
+        mCameraRunning = native_start_video(mCameraControlFd);
+
     if(!mCameraRunning) {
         deinitPreview();
         mPreviewInitialized = false;
@@ -1994,7 +2380,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
     }
     mParameters.set("max-zoom",mMaxZoom);
 
-    LOGV("startPreview X");
+    LOGV("startPreviewInternal X");
     return NO_ERROR;
 }
 
@@ -2018,7 +2404,11 @@ void QualcommCameraHardware::stopPreviewInternal()
 
         Mutex::Autolock l(&mCamframeTimeoutLock);
 	if(!camframe_timeout_flag) {
-	    mCameraRunning = !native_stop_preview(mCameraControlFd);
+            if ( strncmp(mDeviceName,"msm7630", 7) )
+	        mCameraRunning = !native_stop_preview(mCameraControlFd);
+             else
+                mCameraRunning = !native_stop_video(mCameraControlFd);
+
 	} else {
 	    /* This means that the camframetimeout was issued.
 	     * But we did not issue native_stop_preview(), so we
@@ -2441,6 +2831,18 @@ sp<QualcommCameraHardware> QualcommCameraHardware::getInstance()
         return sp<QualcommCameraHardware>();
     }
 }
+void QualcommCameraHardware::receiveRecordingFrame(struct msm_frame *frame)
+{
+    LOGV("receiveRecordingFrame E");
+    // post busy frame
+    if (frame)
+    {
+        cam_frame_post_video (frame);
+    }
+    else LOGE("in  receiveRecordingFrame frame is NULL");
+    LOGV("receiveRecordingFrame X");
+}
+
 
 bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOffSet, common_crop_t *crop)
 {
@@ -2572,27 +2974,104 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
         pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
             pdata);
 
-    if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-        rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewHeap->mBuffers[offset], rdata);
-        Mutex::Autolock rLock(&mRecordFrameLock);
-        if (mReleasedRecordingFrame != true) {
-            LOGV("block waiting for frame release");
-            mRecordWait.wait(mRecordFrameLock);
-            LOGV("frame released, continuing");
+    // If output2 enabled, Start Recording if recording is enabled by Services
+    if(!strncmp(mDeviceName,"msm7630", 7) && recordingEnabled() ) {
+        if(!recordingState){
+            recordingState = 1; // recording started
+            LOGV(" in receivePreviewframe : recording enabled calling startRecording ");
+            startRecording();
         }
-        mReleasedRecordingFrame = false;
+    }
+
+    // If output  is NOT enabled (targets otherthan 7x30 currently..)
+    if(strncmp(mDeviceName,"msm7630", 7)) {
+        if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
+            rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewHeap->mBuffers[offset], rdata);
+            Mutex::Autolock rLock(&mRecordFrameLock);
+            if (mReleasedRecordingFrame != true) {
+                LOGV("block waiting for frame release");
+                mRecordWait.wait(mRecordFrameLock);
+                LOGV("frame released, continuing");
+            }
+            mReleasedRecordingFrame = false;
+        }
     }
     mInPreviewCallback = false;
 
 //    LOGV("receivePreviewFrame X");
 }
 
+
+bool QualcommCameraHardware::initRecord()
+{
+    LOGV("initREcord E");
+
+    mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
+    mRecordHeap = new PmemPool("/dev/pmem_adsp",
+                               MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                mCameraControlFd,
+                                MSM_PMEM_VIDEO,
+                                mRecordFrameSize,
+                                kRecordBufferCount,
+                                mRecordFrameSize,
+                                "record");
+    if (!mRecordHeap->initialized()) {
+        mRecordHeap.clear();
+        LOGE("initRecord X: could not initialize record heap.");
+        return false;
+    }
+    for (int cnt = 0; cnt < kRecordBufferCount; cnt++) {
+        recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
+        recordframes[cnt].buffer =
+            (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
+        recordframes[cnt].y_off = 0;
+        recordframes[cnt].cbcr_off = mDimension.video_width  * mDimension.video_height;
+        recordframes[cnt].path = OUTPUT_TYPE_V;
+
+        LOGV ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
+          (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
+          recordframes[cnt].cbcr_off);
+    }
+
+    // initial setup : buffers 1,2,3 with kernel , 4 with camframe , 5,6,7,8 in free Q
+    // flush the busy Q
+    cam_frame_flush_video();
+
+    // Start video thread and wait for busy frames to be encoded.
+    mVideoThreadWaitLock.lock();
+    mVideoThreadExit = 0;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&mVideoThread,
+                                              &attr,
+                                              video_thread,
+                                              NULL);
+    mVideoThreadWaitLock.unlock();
+    LOGV("initREcord X");
+
+    return true;
+}
+
 status_t QualcommCameraHardware::startRecording()
 {
     LOGV("startRecording E");
+    int ret;
     Mutex::Autolock l(&mLock);
     mReleasedRecordingFrame = false;
-    return startPreviewInternal();
+    if( (ret=startPreviewInternal())== NO_ERROR){
+        if(!strncmp(mDeviceName,"msm7630", 7)) {
+            // flush free queue and add 5,6,7,8 buffers.
+            LINK_cam_frame_flush_free_video();
+            for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
+                LINK_camframe_free_video(&recordframes[i]);
+
+            LOGV(" in startREcording : calling native_start_recording");
+            native_start_recording(mCameraControlFd);
+            recordingState = 1;
+        }
+    }
+    return ret;
 }
 
 void QualcommCameraHardware::stopRecording()
@@ -2610,8 +3089,17 @@ void QualcommCameraHardware::stopRecording()
             return;
         }
     }
+    // If output2 enabled, exit video thread, invoke stop recording ioctl
+    if(!strncmp(mDeviceName,"msm7630", 7)) {
+        mVideoThreadWaitLock.lock();
+        mVideoThreadExit = 1;
+        mVideoThreadWaitLock.unlock();
+        native_stop_recording(mCameraControlFd);
+    }
+    else  // for other targets where output2 is not enabled
+        stopPreviewInternal();
 
-    stopPreviewInternal();
+    recordingState = 0; // recording not started
     LOGV("stopRecording: X");
 }
 
@@ -2622,6 +3110,37 @@ void QualcommCameraHardware::releaseRecordingFrame(
     Mutex::Autolock rLock(&mRecordFrameLock);
     mReleasedRecordingFrame = true;
     mRecordWait.signal();
+
+    // Ff 7x30 : add the frame to the free camframe queue
+    if(!strcmp(mDeviceName,"msm7630_surf")) {
+        ssize_t offset;
+        size_t size;
+        sp<IMemoryHeap> heap = mem->getMemory(&offset, &size);
+        msm_frame* releaseframe = NULL;
+        LOGV(" in release recording frame :  heap base %d offset %d buffer %d ", heap->base(), offset, heap->base() + offset );
+        int cnt;
+        for (cnt = 0; cnt < kRecordBufferCount; cnt++) {
+            if((unsigned int)recordframes[cnt].buffer == (unsigned int)(heap->base()+ offset)){
+                LOGV("in release recording frame found match , releasing buffer %d", (unsigned int)recordframes[cnt].buffer);
+                releaseframe = &recordframes[cnt];
+                break;
+            }
+        }
+        if(cnt < kRecordBufferCount) {
+            // do this only if frame thread is running
+            mFrameThreadWaitLock.lock();
+            if(mFrameThreadRunning )
+                LINK_camframe_free_video(releaseframe);
+
+            mFrameThreadWaitLock.unlock();
+        } else {
+            LOGE("in release recordingframe XXXXX error , buffer not found");
+            for (int i=0; i< kRecordBufferCount; i++) {
+                 LOGE(" recordframes[%d].buffer = %d", i, (unsigned int)recordframes[i].buffer);
+            }
+        }
+    }
+
     LOGV("releaseRecordingFrame X");
 }
 
@@ -3426,6 +3945,14 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
             if(!strcmp("preview", mName)) num_buf = kPreviewBufferCount;
             LOGE("num_buffers = %d", num_buf);
             for (int cnt = 0; cnt < num_buf; ++cnt) {
+                int active = 1;
+                if(pmem_type == MSM_PMEM_VIDEO){
+                     active = (cnt<ACTIVE_VIDEO_BUFFERS);
+                     LOGV(" pmempool creating video buffers : active %d ", active);
+                }
+                else if (pmem_type == MSM_PMEM_PREVIEW){
+                     active = (cnt < (num_buf-1));
+                }
                 register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,
@@ -3433,7 +3960,7 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                          mAlignedBufferSize * cnt,
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
                          pmem_type,
-                         !(cnt == num_buf - 1 && pmem_type == MSM_PMEM_OUTPUT2));
+                         active);
             }
         }
 
@@ -3571,6 +4098,16 @@ static void receive_jpeg_callback(jpeg_event_t status)
         }
     }
     LOGV("receive_jpeg_callback X");
+}
+// 720p : video frame calbback from camframe
+static void receive_camframe_video_callback(struct msm_frame *frame)
+{
+    LOGV("receive_camframe_video_callback E");
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+    if (obj != 0) {
+			obj->receiveRecordingFrame(frame);
+		 }
+    LOGV("receive_camframe_video_callback X");
 }
 
 void QualcommCameraHardware::setCallbacks(notify_callback notify_cb,

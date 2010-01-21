@@ -76,6 +76,7 @@ public:
     static sp<QualcommCameraHardware> getInstance();
 
     void receivePreviewFrame(struct msm_frame *frame);
+    void receiveRecordingFrame(struct msm_frame *frame);
     void receiveJpegPicture(void);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
@@ -102,6 +103,7 @@ private:
        changes.
     */
     static const int kPreviewBufferCount = NUM_PREVIEW_BUFFERS;
+    static const int kRecordBufferCount = 8; //NUM_RECORD_BUFFERS;
     static const int kRawBufferCount = 1;
     static const int kJpegBufferCount = 1;
 
@@ -159,6 +161,7 @@ private:
     };
 
     sp<PmemPool> mPreviewHeap;
+    sp<PmemPool> mRecordHeap;
     sp<PmemPool> mThumbnailHeap;
     sp<PmemPool> mRawHeap;
     sp<PmemPool> mDisplayHeap;
@@ -170,6 +173,7 @@ private:
 
     bool startCamera();
     bool initPreview();
+    bool initRecord();
     void deinitPreview();
     bool initRaw(bool initJpegHeap);
     bool initRawSnapshot();
@@ -181,6 +185,14 @@ private:
     Condition mFrameThreadWait;
     friend void *frame_thread(void *user);
     void runFrameThread(void *data);
+
+    //720p recording video thread
+    bool mVideoThreadExit;
+    Mutex mVideoThreadWaitLock;
+    Condition mVideoThreadWait;
+    friend void *video_thread(void *user);
+    void runVideoThread(void *data);
+
 
     bool mShutterPending;
     Mutex mShutterLock;
@@ -243,6 +255,7 @@ private:
     */
     uint32_t mJpegSize;
     unsigned int        mPreviewFrameSize;
+    unsigned int        mRecordFrameSize;
     int                 mRawSize;
     int                 mJpegMaxSize;
 
@@ -258,12 +271,14 @@ private:
     int mAutoFocusFd;
 
     pthread_t mFrameThread;
+    pthread_t mVideoThread;
     pthread_t mSnapshotThread;
 
     common_crop_t mCrop;
 
     int mBrightness;
     struct msm_frame frames[kPreviewBufferCount];
+    struct msm_frame recordframes[kRecordBufferCount];
     bool mInPreviewCallback;
     bool mUseOverlay;
     sp<Overlay>  mOverlay;

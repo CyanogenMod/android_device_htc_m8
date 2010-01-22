@@ -950,7 +950,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_MAX_SATURATION,
             CAMERA_MAX_SATURATION);
 
-    mParameters.set("luma-adaptation", "18");
+    mParameters.set("luma-adaptation", "3");
     mParameters.set("zoom-supported", "true");
     mParameters.set("max-zoom", MAX_ZOOM_LEVEL);
     mParameters.set("zoom", 0);

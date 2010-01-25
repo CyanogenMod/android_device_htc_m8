@@ -36,6 +36,19 @@ struct str_map {
     int val;
 };
 
+typedef enum {
+    TARGET_MSM7625,
+    TARGET_MSM7627,
+    TARGET_QSD8250,
+    TARGET_MSM7630,
+    TARGET_MAX
+}targetType;
+
+struct target_map {
+    const char *targetStr;
+    targetType targetEnum;
+};
+
 namespace android {
 
 class QualcommCameraHardware : public CameraHardwareInterface {
@@ -207,6 +220,7 @@ private:
 
     int mSnapshotFormat;
     void filterPictureSizes();
+    void storeTargetType();
 
     void initDefaultParameters();
     void findSensorType();

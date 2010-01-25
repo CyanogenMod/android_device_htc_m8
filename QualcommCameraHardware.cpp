@@ -153,7 +153,6 @@ typedef struct crop_info_struct {
     uint32_t h;
 } zoom_crop_info;
 
-static char mDeviceName[PROPERTY_VALUE_MAX];
 union zoomimage
 {
     char d[sizeof(struct mdp_blit_req_list) + sizeof(struct mdp_blit_req) * 1];
@@ -210,6 +209,14 @@ static int supportedPictureSizesCount;
 #endif
 
 #define Q12 4096
+
+static const target_map targetList [] = {
+    { "msm7625", TARGET_MSM7625 },
+    { "msm7627", TARGET_MSM7627 },
+    { "qsd8250", TARGET_QSD8250 },
+    { "msm7630", TARGET_MSM7630 }
+};
+static targetType mCurrentTarget = TARGET_MAX;
 
 typedef struct {
     uint32_t aspect_ratio;
@@ -739,6 +746,20 @@ static void cam_frame_post_video (struct msm_frame *p)
     return;
 }
 
+void QualcommCameraHardware::storeTargetType(void) {
+    char mDeviceName[PROPERTY_VALUE_MAX];
+    property_get("ro.product.device",mDeviceName," ");
+    mCurrentTarget = TARGET_MAX;
+    for( int i = 0; i < TARGET_MAX ; i++) {
+        if( !strncmp(mDeviceName, targetList[i].targetStr, 7)) {
+            mCurrentTarget = targetList[i].targetEnum;
+            break;
+        }
+    }
+    LOGV(" Storing the current target type as %d ", mCurrentTarget );
+    return;
+}
+
 //-------------------------------------------------------------------------------------
 static Mutex singleton_lock;
 static bool singleton_releasing;
@@ -800,11 +821,11 @@ QualcommCameraHardware::QualcommCameraHardware()
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
     memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
-    property_get("ro.product.device",mDeviceName," ");
+    storeTargetType();
     char value[PROPERTY_VALUE_MAX];
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
-    if(!strncmp(mDeviceName,"msm7630", 7))
+    if( mCurrentTarget == TARGET_MSM7630 )
         kPreviewBufferCountActual = kPreviewBufferCount;
     else
         kPreviewBufferCountActual = kPreviewBufferCount + NUM_MORE_BUFS;
@@ -990,6 +1011,10 @@ void QualcommCameraHardware::findSensorType(){
 bool QualcommCameraHardware::startCamera()
 {
     LOGV("startCamera E");
+    if( mCurrentTarget == TARGET_MAX ) {
+        LOGE(" Unable to determine the target type. Camera will not work ");
+        return false;
+    }
 #if DLOPEN_LIBMMCAMERA
     libmmcamera = ::dlopen("liboemcamera.so", RTLD_NOW);
     LOGV("loading liboemcamera at %p", libmmcamera);
@@ -1092,7 +1117,7 @@ bool QualcommCameraHardware::startCamera()
         return false;
     }
 
-    if(strncmp(mDeviceName,"msm7630", 7)){
+    if( mCurrentTarget != TARGET_MSM7630 ){
         fb_fd = open("/dev/graphics/fb0", O_RDWR);
         if (fb_fd < 0) {
             LOGE("startCamera: fb0 open failed: %s!", strerror(errno));
@@ -1764,7 +1789,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
     }
 
     mPreviewHeap.clear();
-    if(!strncmp(mDeviceName,"msm7630", 7))
+    if( mCurrentTarget == TARGET_MSM7630 )
         mRecordHeap.clear();
 
 #if DLOPEN_LIBMMCAMERA
@@ -1908,7 +1933,7 @@ bool QualcommCameraHardware::initPreview()
     videoHeight = previewHeight;
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
-    if(!strncmp(mDeviceName,"msm7630", 7)) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
         mDimension.video_width = videoWidth;
         mDimension.video_width = CEILING32(mDimension.video_width);
         mDimension.video_height = videoHeight;
@@ -1949,7 +1974,7 @@ bool QualcommCameraHardware::initPreview()
         LOGE("initPreview X: could not initialize Camera preview heap.");
         return false;
     }
-    if( !strncmp(mDeviceName,"msm7630", 7) ) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
 	if(mPostViewHeap == NULL) {
 	    LOGV(" Allocating Postview heap ");
 	    /* mPostViewHeap should be declared only for 7630 target */
@@ -1969,10 +1994,10 @@ bool QualcommCameraHardware::initPreview()
 		return false;
 	    }
 	}
-    }
-    // Allocate video buffers after allocating preview buffers.
-    if( !strncmp(mDeviceName,"msm7630", 7) )
+
+        // Allocate video buffers after allocating preview buffers.
         initRecord();
+    }
 
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
@@ -2091,7 +2116,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     int thumbnailBufferSize;
     //Thumbnail height should be smaller than Picture height
-    if (rawHeight > thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height){
+    if (rawHeight > (int)thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height){
         mDimension.ui_thumbnail_width =
                 thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
         mDimension.ui_thumbnail_height =
@@ -2139,14 +2164,14 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
 
-    if(!strcmp(mDeviceName,"msm7627_surf"))
+    if( mCurrentTarget == TARGET_MSM7627 )
              mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
     else
              mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
 
     LOGV("initRaw: initializing mRawHeap.");
     mRawHeap =
-        new PmemPool("/dev/pmem_camera",
+        new PmemPool("/dev/pmem_adsp",
                      MemoryHeapBase::READ_ONLY,
                      mCameraControlFd,
                      MSM_PMEM_MAINIMG,
@@ -2156,21 +2181,10 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                      "snapshot camera");
 
     if (!mRawHeap->initialized()) {
-        LOGE("initRaw X failed with pmem_camera, trying with pmem_adsp");
-        mRawHeap =
-            new PmemPool("/dev/pmem_adsp",
-                         MemoryHeapBase::READ_ONLY,
-                         mCameraControlFd,
-                         MSM_PMEM_MAINIMG,
-                         mJpegMaxSize,
-                         kRawBufferCount,
-                         mRawSize,
-                         "snapshot camera");
-        if (!mRawHeap->initialized()) {
-            mRawHeap.clear();
-            LOGE("initRaw X: error initializing mRawHeap");
-            return false;
-        }
+	LOGE("initRaw X failed ");
+	mRawHeap.clear();
+	LOGE("initRaw X: error initializing mRawHeap");
+	return false;
     }
 
     LOGV("do_mmap snapshot pbuf = %p, pmem_fd = %d",
@@ -2276,7 +2290,7 @@ void QualcommCameraHardware::release()
         stopPreviewInternal();
     }
 
-    if(!strncmp(mDeviceName,"msm7630", 7)) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
 	mPostViewHeap.clear();
         mPostViewHeap = NULL;
     }
@@ -2349,6 +2363,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
     }
 
     if (!mPreviewInitialized) {
+        mLastQueuedFrame = NULL;
         mPreviewInitialized = initPreview();
         if (!mPreviewInitialized) {
             LOGE("startPreview X initPreview failed.  Not starting preview.");
@@ -2356,8 +2371,8 @@ status_t QualcommCameraHardware::startPreviewInternal()
         }
     }
 
-    if( strncmp(mDeviceName,"msm7630", 7) )
-    mCameraRunning = native_start_preview(mCameraControlFd);
+    if( mCurrentTarget != TARGET_MSM7630 )
+        mCameraRunning = native_start_preview(mCameraControlFd);
     else
         mCameraRunning = native_start_video(mCameraControlFd);
 
@@ -2406,7 +2421,7 @@ void QualcommCameraHardware::stopPreviewInternal()
 
         Mutex::Autolock l(&mCamframeTimeoutLock);
 	if(!camframe_timeout_flag) {
-            if ( strncmp(mDeviceName,"msm7630", 7) )
+            if ( mCurrentTarget != TARGET_MSM7630 )
 	        mCameraRunning = !native_stop_preview(mCameraControlFd);
              else
                 mCameraRunning = !native_stop_video(mCameraControlFd);
@@ -2659,7 +2674,7 @@ status_t QualcommCameraHardware::takePicture()
         LOGV("takePicture: old snapshot thread completed.");
     }
 
-    if(!strcmp(mDeviceName,"msm7630_surf")) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
 	/* Store the last frame queued for preview. This
 	 * shall be used as postview */
 	storePreviewFrameForPostview();
@@ -2956,7 +2971,12 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 		zoomCropInfo.h = crop->in2_h;
 		mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
 			zoomCropInfo.w, zoomCropInfo.h);
-	    }
+	    } else {
+                // Reset zoomCropInfo variables. This will ensure that
+                // stale values wont be used for postview
+                zoomCropInfo.w = crop->in2_w;
+                zoomCropInfo.h = crop->in2_h;
+            }
 	    mOverlay->queueBuffer((void *)offset_addr);
             mLastQueuedFrame = (void *)frame->buffer;
 	    mOverlayLock.unlock();
@@ -2977,7 +2997,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
             pdata);
 
     // If output2 enabled, Start Recording if recording is enabled by Services
-    if(!strncmp(mDeviceName,"msm7630", 7) && recordingEnabled() ) {
+    if( (mCurrentTarget == TARGET_MSM7630) && recordingEnabled() ) {
         if(!recordingState){
             recordingState = 1; // recording started
             LOGV(" in receivePreviewframe : recording enabled calling startRecording ");
@@ -2986,7 +3006,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     }
 
     // If output  is NOT enabled (targets otherthan 7x30 currently..)
-    if(strncmp(mDeviceName,"msm7630", 7)) {
+    if( mCurrentTarget != TARGET_MSM7630 ) {
         if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
             rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewHeap->mBuffers[offset], rdata);
             Mutex::Autolock rLock(&mRecordFrameLock);
@@ -3062,7 +3082,7 @@ status_t QualcommCameraHardware::startRecording()
     Mutex::Autolock l(&mLock);
     mReleasedRecordingFrame = false;
     if( (ret=startPreviewInternal())== NO_ERROR){
-        if(!strncmp(mDeviceName,"msm7630", 7)) {
+        if( mCurrentTarget == TARGET_MSM7630 ) {
             // flush free queue and add 5,6,7,8 buffers.
             LINK_cam_frame_flush_free_video();
             for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
@@ -3092,7 +3112,7 @@ void QualcommCameraHardware::stopRecording()
         }
     }
     // If output2 enabled, exit video thread, invoke stop recording ioctl
-    if(!strncmp(mDeviceName,"msm7630", 7)) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
         mVideoThreadWaitLock.lock();
         mVideoThreadExit = 1;
         mVideoThreadWaitLock.unlock();
@@ -3114,7 +3134,7 @@ void QualcommCameraHardware::releaseRecordingFrame(
     mRecordWait.signal();
 
     // Ff 7x30 : add the frame to the free camframe queue
-    if(!strcmp(mDeviceName,"msm7630_surf")) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
         ssize_t offset;
         size_t size;
         sp<IMemoryHeap> heap = mem->getMemory(&offset, &size);
@@ -4143,7 +4163,7 @@ bool QualcommCameraHardware::msgTypeEnabled(int32_t msgType)
 
 bool QualcommCameraHardware::useOverlay(void)
 {
-    if(!strcmp(mDeviceName,"msm7630_surf")) {
+    if( mCurrentTarget == TARGET_MSM7630 ) {
         /* Only 7x30 supports Overlay */
         mUseOverlay = TRUE;
     } else

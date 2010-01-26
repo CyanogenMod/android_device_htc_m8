@@ -799,6 +799,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mCameraRunning(false),
       mPreviewInitialized(false),
       mFrameThreadRunning(false),
+      mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
       mSnapshotFormat(0),
       mReleasedRecordingFrame(false),
@@ -1895,6 +1896,12 @@ void QualcommCameraHardware::runVideoThread(void *data)
         pthread_mutex_unlock(&(g_busy_frame_queue.mut));
 
     } // end of while loop
+
+    mVideoThreadWaitLock.lock();
+    mVideoThreadRunning = false;
+    mVideoThreadWait.signal();
+    mVideoThreadWaitLock.unlock();
+
     LOGV("runVideoThread X");
 }
 
@@ -2269,17 +2276,6 @@ void QualcommCameraHardware::release()
 
     int cnt, rc;
     struct msm_ctrl_cmd ctrlCmd;
-
-    // exit video thread
-    mVideoThreadWaitLock.lock();
-    LOGV("in release : making mVideoThreadExit 1");
-    mVideoThreadExit = 1;
-    mVideoThreadWaitLock.unlock();
-    //  720p : signal the video thread , and check in video thread if stop is called, if so exit video thread.
-    pthread_mutex_lock(&(g_busy_frame_queue.mut));
-    pthread_cond_signal(&(g_busy_frame_queue.wait));
-    pthread_mutex_unlock(&(g_busy_frame_queue.mut));
-
     if (mCameraRunning) {
         if(mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
             mRecordFrameLock.lock();
@@ -2435,6 +2431,16 @@ void QualcommCameraHardware::stopPreviewInternal()
 	}
 	if (!mCameraRunning && mPreviewInitialized) {
 	    deinitPreview();
+	    if( mCurrentTarget == TARGET_MSM7630 ){
+		mVideoThreadWaitLock.lock();
+		LOGV("in stopPreviewInternal: making mVideoThreadExit 1");
+		mVideoThreadExit = 1;
+		mVideoThreadWaitLock.unlock();
+		//  720p : signal the video thread , and check in video thread if stop is called, if so exit video thread.
+		pthread_mutex_lock(&(g_busy_frame_queue.mut));
+		pthread_cond_signal(&(g_busy_frame_queue.wait));
+		pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+	    }
 	    mPreviewInitialized = false;
 	}
 	else LOGE("stopPreviewInternal: failed to stop preview");
@@ -3059,13 +3065,21 @@ bool QualcommCameraHardware::initRecord()
     // flush the busy Q
     cam_frame_flush_video();
 
+    mVideoThreadWaitLock.lock();
+    while (mVideoThreadRunning) {
+        LOGV("initRecord: waiting for old video thread to complete.");
+        mVideoThreadWait.wait(mVideoThreadWaitLock);
+        LOGV("initRecord : old video thread completed.");
+    }
+    mVideoThreadWaitLock.unlock();
+
     // Start video thread and wait for busy frames to be encoded.
     mVideoThreadWaitLock.lock();
     mVideoThreadExit = 0;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create(&mVideoThread,
+    mVideoThreadRunning = pthread_create(&mVideoThread,
                                               &attr,
                                               video_thread,
                                               NULL);

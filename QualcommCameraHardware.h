@@ -201,6 +201,7 @@ private:
 
     //720p recording video thread
     bool mVideoThreadExit;
+    bool mVideoThreadRunning;
     Mutex mVideoThreadWaitLock;
     Condition mVideoThreadWait;
     friend void *video_thread(void *user);

@@ -3578,16 +3578,28 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
         LOGE("Saturation not supported for this sensor");
         return NO_ERROR;
     }
-    int saturation = params.getInt(CameraParameters::KEY_SATURATION);
-    if((saturation < CAMERA_MIN_SATURATION)
-            || (saturation > CAMERA_MAX_SATURATION))
-        return UNKNOWN_ERROR;
 
-    LOGV("setting saturation %d", saturation);
-    mParameters.set(CameraParameters::KEY_SATURATION, saturation);
-    bool ret = native_set_parm(CAMERA_SET_PARM_SATURATION, sizeof(saturation),
-                               (void *)&saturation);
-    return ret ? NO_ERROR : UNKNOWN_ERROR;
+    const char *str = params.get(CameraParameters::KEY_EFFECT);
+    int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
+
+    if( (value != CAMERA_EFFECT_MONO) && (value != CAMERA_EFFECT_NEGATIVE)
+	    && (value != CAMERA_EFFECT_AQUA) && (value != CAMERA_EFFECT_SEPIA)) {
+
+	int saturation = params.getInt(CameraParameters::KEY_SATURATION);
+	if((saturation < CAMERA_MIN_SATURATION)
+		|| (saturation > CAMERA_MAX_SATURATION))
+	    return UNKNOWN_ERROR;
+
+	LOGV("setting saturation %d", saturation);
+	mParameters.set(CameraParameters::KEY_SATURATION, saturation);
+	bool ret = native_set_parm(CAMERA_SET_PARM_SATURATION, sizeof(saturation),
+		(void *)&saturation);
+	return ret ? NO_ERROR : UNKNOWN_ERROR;
+    } else {
+	LOGE(" Saturation value will not be set " \
+		"when the effect selected is %s", str);
+	return NO_ERROR;
+    }
 }
 
 status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {

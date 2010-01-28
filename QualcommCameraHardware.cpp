@@ -74,7 +74,7 @@ extern "C" {
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define MAX_ZOOM_LEVEL 5
 #define NOT_FOUND -1
-
+#define JPEG_ENCODER_PADDING 8
 // Number of video buffers held by kernal (initially 1,2 &3)
 #define ACTIVE_VIDEO_BUFFERS 3
 
@@ -3311,11 +3311,11 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop)
             }
         } else {
             // Cropped
-            size.width = crop->in2_w & ~1;
-            size.height = crop->in2_h & ~1;
+            size.width = (crop->in2_w + JPEG_ENCODER_PADDING) & ~1;
+            size.height = (crop->in2_h + JPEG_ENCODER_PADDING) & ~1;
             if (size.width > 2048 || size.height > 2048) {
-                size.width = crop->in1_w & ~1;
-                size.height = crop->in1_h & ~1;
+                size.width = (crop->in1_w + JPEG_ENCODER_PADDING) & ~1;
+                size.height = (crop->in1_h + JPEG_ENCODER_PADDING) & ~1;
                 mDisplayHeap = mThumbnailHeap;
             }
         }
@@ -3438,17 +3438,16 @@ void QualcommCameraHardware::receiveRawPicture()
 
         // Crop the image if zoomed.
         if (mCrop.in2_w != 0 && mCrop.in2_h != 0) {
-            crop_yuv420(mCrop.out2_w, mCrop.out2_h, mCrop.in2_w, mCrop.in2_h,
+            crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + JPEG_ENCODER_PADDING), (mCrop.in2_h + JPEG_ENCODER_PADDING),
                  (uint8_t *)mRawHeap->mHeap->base());
-            crop_yuv420(mCrop.out1_w, mCrop.out1_h, mCrop.in1_w, mCrop.in1_h,
+            crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + JPEG_ENCODER_PADDING), (mCrop.in1_h + JPEG_ENCODER_PADDING),
                  (uint8_t *)mThumbnailHeap->mHeap->base());
             // We do not need jpeg encoder to upscale the image. Set the new
             // dimension for encoder.
-            mDimension.orig_picture_dx = mCrop.in2_w;
-            mDimension.orig_picture_dy = mCrop.in2_h;
-            mDimension.thumbnail_width = mCrop.in1_w;
-            mDimension.thumbnail_height = mCrop.in1_h;
-            memset(&mCrop, 0, sizeof(mCrop));
+            mDimension.orig_picture_dx = mCrop.in2_w + JPEG_ENCODER_PADDING;
+            mDimension.orig_picture_dy = mCrop.in2_h + JPEG_ENCODER_PADDING;
+            mDimension.thumbnail_width = mCrop.in1_w + JPEG_ENCODER_PADDING;
+            mDimension.thumbnail_height = mCrop.in1_h + JPEG_ENCODER_PADDING;
         }
 
 	if( mUseOverlay && (mOverlay != NULL) ) {

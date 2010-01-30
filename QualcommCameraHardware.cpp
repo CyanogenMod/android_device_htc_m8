@@ -4119,7 +4119,12 @@ static bool register_buf(int camfd,
     pmemBuf.len      = size;
     pmemBuf.vaddr    = buf;
     pmemBuf.y_off    = 0;
-    pmemBuf.cbcr_off = PAD_TO_WORD(frame_size * 2 / 3);
+
+    if(pmem_type == MSM_PMEM_RAW_MAINIMG)
+        pmemBuf.cbcr_off = 0;
+    else
+        pmemBuf.cbcr_off = PAD_TO_WORD(frame_size * 2 / 3);
+
     pmemBuf.active   = vfe_can_write;
 
     LOGV("register_buf: camfd = %d, reg = %d buffer = %p",

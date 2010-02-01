@@ -89,7 +89,7 @@ bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
                                   const uint8_t *snapshotbuf, int snapshotfd,
                                   common_crop_t *scaling_parms, exif_tags_info_t *exif_data,
                                   int exif_table_numEntries);
-int  (*LINK_camframe_terminate)(void);
+void (*LINK_camframe_terminate)(void);
 //for 720p
 // Function to add a video buffer to free Q
 void (*LINK_camframe_free_video)(struct msm_frame *frame);
@@ -1942,7 +1942,7 @@ bool QualcommCameraHardware::initPreview()
 
     if( mCurrentTarget == TARGET_MSM7630 ) {
         mDimension.video_width = videoWidth;
-        mDimension.video_width = CEILING32(mDimension.video_width);
+        mDimension.video_width = CEILING16(mDimension.video_width);
         mDimension.video_height = videoHeight;
         LOGV("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, mDimension.video_width, mDimension.video_height );
     }
@@ -2063,9 +2063,7 @@ void QualcommCameraHardware::deinitPreview(void)
     // the frame-thread's callback.  This we have to make the frame thread
     // detached, and use a separate mechanism to wait for it to complete.
 
-    if (LINK_camframe_terminate() < 0)
-        LOGE("failed to stop the camframe thread: %s",
-             strerror(errno));
+    LINK_camframe_terminate();
     LOGI("deinitPreview X");
 }
 
@@ -2306,8 +2304,8 @@ void QualcommCameraHardware::release()
 			mCameraControlFd, strerror(errno));
 
 	}
-	LINK_release_cam_conf_thread();
     }
+    LINK_release_cam_conf_thread();
     close(mCameraControlFd);
     mCameraControlFd = -1;
     if(fb_fd >= 0) {
@@ -4217,6 +4215,7 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
 void QualcommCameraHardware::receive_camframetimeout(void) {
     LOGV("receive_camframetimeout: E");
     Mutex::Autolock l(&mCamframeTimeoutLock);
+    LOGD(" Camframe timed out. Not receiving any frames from camera driver ");
     camframe_timeout_flag = TRUE;
     LOGV("receive_camframetimeout: X");
 }

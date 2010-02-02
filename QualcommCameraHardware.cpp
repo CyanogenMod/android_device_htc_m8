@@ -1215,7 +1215,7 @@ static bool native_get_maxzoom(int camfd, void *pZm)
              strerror(errno));
         return false;
     }
-    LOGE("ctrlCmd.value = %d", *(int32_t *)ctrlCmd.value);
+    LOGD("ctrlCmd.value = %d", *(int32_t *)ctrlCmd.value);
     memcpy(pZoom, (int32_t *)ctrlCmd.value, sizeof(int32_t));
 
     LOGV("native_get_maxzoom X");
@@ -2382,7 +2382,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
     exif_table_numEntries = 0;
 
     if(native_get_maxzoom(mCameraControlFd, (void *)&mMaxZoom) == true){
-        LOGE("Maximum zoom value is %d", mMaxZoom);
+        LOGD("Maximum zoom value is %d", mMaxZoom);
         mParameters.set("zoom-supported", "true");
     } else {
         LOGE("Failed to get maximum zoom value...setting max zoom to zero");
@@ -4035,7 +4035,7 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
         if( (strcmp("postview", mName) != 0) ){
             int num_buf = num_buffers;
             if(!strcmp("preview", mName)) num_buf = kPreviewBufferCount;
-            LOGE("num_buffers = %d", num_buf);
+            LOGD("num_buffers = %d", num_buf);
             for (int cnt = 0; cnt < num_buf; ++cnt) {
                 int active = 1;
                 if(pmem_type == MSM_PMEM_VIDEO){

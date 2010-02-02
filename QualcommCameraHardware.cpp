@@ -1429,7 +1429,7 @@ static bool native_start_recording(int camfd)
             "is %d \n", ret);
         return false;
     }
-    LOGV("native_start_video: ioctl good. ioctl return value is %d \n",ret);
+    LOGV("native_start_recording: ioctl good. ioctl return value is %d \n",ret);
 
   /* TODO: Check status of postprocessing if there is any,
    *       PP status should be in  ctrlCmd */
@@ -1790,7 +1790,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
     }
 
     mPreviewHeap.clear();
-    if( mCurrentTarget == TARGET_MSM7630 )
+    if(( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250))
         mRecordHeap.clear();
 
 #if DLOPEN_LIBMMCAMERA
@@ -1940,7 +1940,7 @@ bool QualcommCameraHardware::initPreview()
     videoHeight = previewHeight;
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
-    if( mCurrentTarget == TARGET_MSM7630 ) {
+    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250)) {
         mDimension.video_width = videoWidth;
         mDimension.video_width = CEILING16(mDimension.video_width);
         mDimension.video_height = videoHeight;
@@ -2001,6 +2001,9 @@ bool QualcommCameraHardware::initPreview()
 		return false;
 	    }
 	}
+    }
+
+    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) ) {
 
         // Allocate video buffers after allocating preview buffers.
         initRecord();
@@ -2365,7 +2368,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
         }
     }
 
-    if( mCurrentTarget != TARGET_MSM7630 )
+    if(( mCurrentTarget != TARGET_MSM7630 ) && (mCurrentTarget != TARGET_QSD8250))
         mCameraRunning = native_start_preview(mCameraControlFd);
     else
         mCameraRunning = native_start_video(mCameraControlFd);
@@ -2420,7 +2423,7 @@ void QualcommCameraHardware::stopPreviewInternal()
 
         Mutex::Autolock l(&mCamframeTimeoutLock);
 	if(!camframe_timeout_flag) {
-            if ( mCurrentTarget != TARGET_MSM7630 )
+            if (( mCurrentTarget != TARGET_MSM7630 ) && (mCurrentTarget != TARGET_QSD8250))
 	        mCameraRunning = !native_stop_preview(mCameraControlFd);
              else
                 mCameraRunning = !native_stop_video(mCameraControlFd);
@@ -2434,7 +2437,7 @@ void QualcommCameraHardware::stopPreviewInternal()
 	}
 	if (!mCameraRunning && mPreviewInitialized) {
 	    deinitPreview();
-	    if( mCurrentTarget == TARGET_MSM7630 ){
+	    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250)) {
 		mVideoThreadWaitLock.lock();
 		LOGV("in stopPreviewInternal: making mVideoThreadExit 1");
 		mVideoThreadExit = 1;
@@ -3047,7 +3050,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
             pdata);
 
     // If output2 enabled, Start Recording if recording is enabled by Services
-    if( (mCurrentTarget == TARGET_MSM7630) && recordingEnabled() ) {
+    if( ((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_QSD8250))  && recordingEnabled() ) {
         if(!recordingState){
             recordingState = 1; // recording started
             LOGV(" in receivePreviewframe : recording enabled calling startRecording ");
@@ -3056,7 +3059,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     }
 
     // If output  is NOT enabled (targets otherthan 7x30 currently..)
-    if( mCurrentTarget != TARGET_MSM7630 ) {
+    if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250)) {
         if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
             rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewHeap->mBuffers[offset], rdata);
             Mutex::Autolock rLock(&mRecordFrameLock);
@@ -3140,7 +3143,7 @@ status_t QualcommCameraHardware::startRecording()
     Mutex::Autolock l(&mLock);
     mReleasedRecordingFrame = false;
     if( (ret=startPreviewInternal())== NO_ERROR){
-        if( mCurrentTarget == TARGET_MSM7630 ) {
+        if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250))  {
             // flush free queue and add 5,6,7,8 buffers.
             LINK_cam_frame_flush_free_video();
             for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
@@ -3170,7 +3173,7 @@ void QualcommCameraHardware::stopRecording()
         }
     }
     // If output2 enabled, exit video thread, invoke stop recording ioctl
-    if( mCurrentTarget == TARGET_MSM7630 ) {
+    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250))  {
         mVideoThreadWaitLock.lock();
         mVideoThreadExit = 1;
         mVideoThreadWaitLock.unlock();
@@ -3192,7 +3195,7 @@ void QualcommCameraHardware::releaseRecordingFrame(
     mRecordWait.signal();
 
     // Ff 7x30 : add the frame to the free camframe queue
-    if( mCurrentTarget == TARGET_MSM7630 ) {
+    if( (mCurrentTarget == TARGET_MSM7630 )  || (mCurrentTarget == TARGET_QSD8250)) {
         ssize_t offset;
         size_t size;
         sp<IMemoryHeap> heap = mem->getMemory(&offset, &size);

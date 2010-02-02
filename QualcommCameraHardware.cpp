@@ -897,7 +897,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
     mParameters.setPictureFormat("jpeg"); // informative
 
-    mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "100"); // max quality
+    mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "85"); // max quality
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH,
                     THUMBNAIL_WIDTH_STR); // informative
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT,
@@ -909,7 +909,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
 
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
-                    CameraParameters::ANTIBANDING_AUTO);
+                    CameraParameters::ANTIBANDING_OFF);
     mParameters.set(CameraParameters::KEY_EFFECT,
                     CameraParameters::EFFECT_NONE);
     mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE,

@@ -285,6 +285,14 @@ private:
     Mutex mAutoFocusThreadLock;
     int mAutoFocusFd;
 
+    enum af_state {
+        AF_NOTSTARTED,
+        AF_CANCELLED,
+        AF_STARTED
+    };
+    volatile af_state mAfState;
+    Mutex mAfLock;
+
     pthread_t mFrameThread;
     pthread_t mVideoThread;
     pthread_t mSnapshotThread;

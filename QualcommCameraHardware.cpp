@@ -2391,6 +2391,11 @@ status_t QualcommCameraHardware::startPreviewInternal()
     }
     mParameters.set("max-zoom",mMaxZoom);
 
+    //Initialize AF state to AF_NOTSTARTED
+    mAfLock.lock();
+    mAfState = AF_NOTSTARTED;
+    mAfLock.unlock();
+
     LOGV("startPreviewInternal X");
     return NO_ERROR;
 }
@@ -2504,7 +2509,26 @@ void QualcommCameraHardware::runAutoFocus()
 
     /* This will block until either AF completes or is cancelled. */
     LOGV("af start (fd %d mode %d)", mAutoFocusFd, afMode);
-    status = native_set_afmode(mAutoFocusFd, afMode);
+    status_t err;
+    err = mAfLock.tryLock();
+    if(err == NO_ERROR) {
+        //Got Lock, so start AF if required.
+        if(mAfState != AF_CANCELLED) {
+            mAfState = AF_STARTED;
+            LOGV("Start AF");
+            status = native_set_afmode(mAutoFocusFd, afMode);
+        } else {
+            status = FALSE;
+        }
+        mAfLock.unlock();
+    }
+    else{
+        //AF Cancel would have acquired the lock,
+        //so, no need to perform any AF
+        LOGV("Failed to obtain Lock...is busy");
+        status = FALSE;
+    }
+
     LOGV("af done: %d", (int)status);
     close(mAutoFocusFd);
     mAutoFocusFd = -1;
@@ -2545,9 +2569,25 @@ status_t QualcommCameraHardware::cancelAutoFocusInternal()
     }
 #endif
 
-    status_t rc = native_cancel_afmode(mCameraControlFd, mAutoFocusFd) ?
-        NO_ERROR :
-        UNKNOWN_ERROR;
+    status_t rc = NO_ERROR;
+    status_t err;
+    err = mAfLock.tryLock();
+    if(err == NO_ERROR) {
+        //Got Lock, means either AF hasn't started or
+        // AF is done. So no need to cancel it, just change the state
+        LOGV("Change AF State to Cancelled");
+        mAfState = AF_CANCELLED;
+        mAfLock.unlock();
+    }
+    else {
+        //AF is in Progess, So cancel it
+        LOGV("Lock busy...cancel AF");
+        rc = native_cancel_afmode(mCameraControlFd, mAutoFocusFd) ?
+                NO_ERROR :
+                UNKNOWN_ERROR;
+    }
+
+
 
     LOGV("cancelAutoFocusInternal X: %d", rc);
     return rc;
@@ -2591,6 +2631,12 @@ status_t QualcommCameraHardware::autoFocus()
     {
         mAutoFocusThreadLock.lock();
         if (!mAutoFocusThreadRunning) {
+            if (native_prepare_snapshot(mCameraControlFd) == FALSE) {
+               LOGE("native_prepare_snapshot failed!\n");
+               mAutoFocusThreadLock.unlock();
+               return UNKNOWN_ERROR;
+            }
+
             // Create a detached thread here so that we don't have to wait
             // for it when we cancel AF.
             pthread_t thr;

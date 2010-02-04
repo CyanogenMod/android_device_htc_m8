@@ -217,7 +217,8 @@ private:
     friend void *snapshot_thread(void *user);
     void runSnapshotThread(void *data);
 
-    void debugShowFPS() const;
+    void debugShowPreviewFPS() const;
+    void debugShowVideoFPS() const;
 
     int mSnapshotFormat;
     void filterPictureSizes();

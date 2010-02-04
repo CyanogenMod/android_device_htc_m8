@@ -16,6 +16,7 @@
 */
 
 //#define LOG_NDEBUG 0
+#define LOG_NIDEBUG 0
 #define LOG_TAG "QualcommCameraHardware"
 #include <utils/Log.h>
 
@@ -1861,6 +1862,10 @@ void QualcommCameraHardware::runVideoThread(void *data)
         pthread_mutex_unlock(&(g_busy_frame_queue.mut));
         LOGV("in video_thread : got video frame ");
 
+        if (UNLIKELY(mDebugFps)) {
+            debugShowVideoFPS();
+        }
+
         if(vframe != NULL) {
             // Find the offset within the heap of the current buffer.
             LOGV("Got video frame :  buffer %d base %d ", vframe->buffer, mRecordHeap->mHeap->base());
@@ -2992,7 +2997,7 @@ bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOff
     return TRUE;
 }
 
-void QualcommCameraHardware::debugShowFPS() const
+void QualcommCameraHardware::debugShowPreviewFPS() const
 {
     static int mFrameCount;
     static int mLastFrameCount = 0;
@@ -3003,12 +3008,28 @@ void QualcommCameraHardware::debugShowFPS() const
     nsecs_t diff = now - mLastFpsTime;
     if (diff > ms2ns(250)) {
         mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
-        LOGI("Frames Per Second: %.4f", mFps);
+        LOGI("Preview Frames Per Second: %.4f", mFps);
         mLastFpsTime = now;
         mLastFrameCount = mFrameCount;
     }
 }
 
+void QualcommCameraHardware::debugShowVideoFPS() const
+{
+    static int mFrameCount;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    nsecs_t now = systemTime();
+    nsecs_t diff = now - mLastFpsTime;
+    if (diff > ms2ns(250)) {
+        mFps =  ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        LOGI("Video Frames Per Second: %.4f", mFps);
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+    }
+}
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
 //    LOGV("receivePreviewFrame E");
@@ -3019,7 +3040,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     }
 
     if (UNLIKELY(mDebugFps)) {
-        debugShowFPS();
+        debugShowPreviewFPS();
     }
 
     mCallbackLock.lock();

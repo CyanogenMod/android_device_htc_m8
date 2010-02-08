@@ -3142,17 +3142,10 @@ bool QualcommCameraHardware::initRecord()
     }
     mVideoThreadWaitLock.unlock();
 
-    // Start video thread and wait for busy frames to be encoded.
-    mVideoThreadWaitLock.lock();
-    mVideoThreadExit = 0;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    mVideoThreadRunning = pthread_create(&mVideoThread,
-                                              &attr,
-                                              video_thread,
-                                              NULL);
-    mVideoThreadWaitLock.unlock();
+    // flush free queue and add 5,6,7,8 buffers.
+    LINK_cam_frame_flush_free_video();
+    for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
+        LINK_camframe_free_video(&recordframes[i]);
     LOGV("initREcord X");
 
     return true;
@@ -3166,14 +3159,28 @@ status_t QualcommCameraHardware::startRecording()
     mReleasedRecordingFrame = false;
     if( (ret=startPreviewInternal())== NO_ERROR){
         if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250))  {
-            // flush free queue and add 5,6,7,8 buffers.
-            LINK_cam_frame_flush_free_video();
-            for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
-                LINK_camframe_free_video(&recordframes[i]);
-
             LOGV(" in startREcording : calling native_start_recording");
             native_start_recording(mCameraControlFd);
             recordingState = 1;
+            // Start video thread and wait for busy frames to be encoded, this thread
+            // should be closed in stopRecording
+            mVideoThreadWaitLock.lock();
+            mVideoThreadExit = 0;
+            pthread_attr_t attr;
+            pthread_attr_init(&attr);
+            pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+            mVideoThreadRunning = pthread_create(&mVideoThread,
+                                              &attr,
+                                              video_thread,
+                                              NULL);
+            mVideoThreadWaitLock.unlock();
+            // Remove the left out frames in busy Q and them in free Q.
+            LOGV("frames in busy Q = %d", g_busy_frame_queue.num_of_frames);
+            while((g_busy_frame_queue.num_of_frames) >0){
+                msm_frame* vframe = cam_frame_get_video ();
+                LINK_camframe_free_video(vframe);
+            }
+            LOGV("frames in busy Q = %d after deQueing", g_busy_frame_queue.num_of_frames);
         }
     }
     return ret;
@@ -3189,7 +3196,8 @@ void QualcommCameraHardware::stopRecording()
         mRecordWait.signal();
         mRecordFrameLock.unlock();
 
-        if(mDataCallback && (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)) {
+        if(mDataCallback && !(mCurrentTarget == TARGET_QSD8250) &&
+                         (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME)) {
             LOGV("stopRecording: X, preview still in progress");
             return;
         }

@@ -164,6 +164,7 @@ union zoomimage
 static const camera_size_type preview_sizes[] = {
     { 1280, 720 }, // 720P, reserved
     { 800, 480 }, // WVGA
+    { 768, 432 },
     { 720, 480 },
     { 640, 480 }, // VGA
     { 576, 432 },
@@ -2004,6 +2005,7 @@ bool QualcommCameraHardware::initPreview()
         return false;
     }
     if( mCurrentTarget == TARGET_MSM7630 ) {
+        mPostViewHeap.clear();
 	if(mPostViewHeap == NULL) {
 	    LOGV(" Allocating Postview heap ");
 	    /* mPostViewHeap should be declared only for 7630 target */

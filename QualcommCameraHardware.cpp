@@ -228,6 +228,7 @@ typedef struct {
 static thumbnail_size_type thumbnail_sizes[] = {
     { 7281, 512, 288 }, //1.777778
     { 6826, 480, 288 }, //1.666667
+    { 6144, 432, 288 }, //1.5
     { 5461, 512, 384 }, //1.333333
     { 5006, 352, 288 }, //1.222222
 };
@@ -1469,7 +1470,7 @@ static bool native_stop_recording(int camfd)
 {
     int ret;
     struct msm_ctrl_cmd ctrlCmd;
-LOGE("in native_stop_recording ");
+    LOGV("in native_stop_recording ");
     ctrlCmd.timeout_ms = 1000;
     ctrlCmd.type = CAMERA_STOP_RECORDING;
     ctrlCmd.length = 0;
@@ -1839,7 +1840,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
     while(true) {
         pthread_mutex_lock(&(g_busy_frame_queue.mut));
 
-        LOGE("in video_thread : wait for video frame ");
+        LOGV("in video_thread : wait for video frame ");
         // check if any frames are available in busyQ and give callback to
         // services/video encoder
         cam_frame_wait_video();
@@ -1848,7 +1849,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
         // Exit the thread , in case of stop recording..
         mVideoThreadWaitLock.lock();
         if(mVideoThreadExit){
-            LOGE("Exiting video thread..");
+            LOGV("Exiting video thread..");
             mVideoThreadWaitLock.unlock();
             pthread_mutex_unlock(&(g_busy_frame_queue.mut));
             break;
@@ -3549,7 +3550,17 @@ status_t QualcommCameraHardware::setPictureSize(const CameraParameters& params)
             return NO_ERROR;
         }
     }
-    LOGE("Invalid picture size requested: %dx%d", width, height);
+    /* Dimension not among the ones in the list. Check if
+     * its a valid dimension, if it is, then configure the
+     * camera accordingly. else reject it.
+     */
+    if( isValidDimension(width, height) ) {
+        mParameters.setPictureSize(width, height);
+        mDimension.picture_width = width;
+        mDimension.picture_height = height;
+        return NO_ERROR;
+    } else
+        LOGE("Invalid picture size requested: %dx%d", width, height);
     return BAD_VALUE;
 }
 
@@ -4329,4 +4340,33 @@ void QualcommCameraHardware::storePreviewFrameForPostview(void) {
 
     LOGV(" storePreviewFrameForPostview : X ");
 }
+
+bool QualcommCameraHardware::isValidDimension(int width, int height) {
+    bool retVal = FALSE;
+    /* This function checks if a given resolution is valid or not.
+     * A particular resolution is considered valid if it satisfies
+     * the following conditions:
+     * 1. width & height should be multiple of 16.
+     * 2. width & height should be less than/equal to the dimensions
+     *    supported by the camera sensor.
+     * 3. the aspect ratio is a valid aspect ratio and is among the
+     *    commonly used aspect ratio as determined by the thumbnail_sizes
+     *    data structure.
+     */
+
+    if( (width == CEILING16(width)) && (height == CEILING16(height))
+     && (width <= sensorType->max_supported_snapshot_width)
+     && (height <= sensorType->max_supported_snapshot_height) )
+    {
+        uint32_t pictureAspectRatio = (uint32_t)((width * Q12)/height);
+        for(int i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ) {
+            if(thumbnail_sizes[i].aspect_ratio == pictureAspectRatio) {
+                retVal = TRUE;
+                break;
+            }
+        }
+    }
+    return retVal;
+}
+
 }; // namespace android

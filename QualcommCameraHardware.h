@@ -248,6 +248,7 @@ private:
     status_t setSaturation(const CameraParameters& params);
     void setGpsParameters();
     void storePreviewFrameForPostview();
+    bool isValidDimension(int w, int h);
 
     Mutex mLock;
     Mutex mCamframeTimeoutLock;

@@ -1856,6 +1856,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
 
         // Get the video frame to be encoded
         vframe = cam_frame_get_video ();
+        pthread_mutex_unlock(&(g_busy_frame_queue.mut));
         LOGV("in video_thread : got video frame ");
 
         if(vframe != NULL) {
@@ -1915,7 +1916,6 @@ void QualcommCameraHardware::runVideoThread(void *data)
 
         } else LOGE("in video_thread get frame returned null");
 
-        pthread_mutex_unlock(&(g_busy_frame_queue.mut));
 
     } // end of while loop
 

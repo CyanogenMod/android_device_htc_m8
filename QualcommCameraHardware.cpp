@@ -1952,13 +1952,6 @@ void QualcommCameraHardware::runVideoThread(void *data)
             if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME) ) {
                 LOGV("in video_thread : got video frame, giving frame to services/encoder");
                 rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[offset], rdata);
-                Mutex::Autolock rLock(&mRecordFrameLock);
-                if (mReleasedRecordingFrame != true) {
-                    LOGV("block waiting for frame release");
-                    mRecordWait.wait(mRecordFrameLock);
-                    LOGV("video frame released, continuing");
-                }
-                mReleasedRecordingFrame = false;
             }
 #else
             // 720p output2  : simulate release frame here:

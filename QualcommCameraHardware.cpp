@@ -161,7 +161,14 @@ union zoomimage
 } zoomImage;
 
 //Default to WVGA
-#define DEFAULT_PREVIEW_SETTING 1
+#define DEFAULT_PREVIEW_WIDTH 800
+#define DEFAULT_PREVIEW_HEIGHT 480
+
+/*
+ * Modifying preview size requires modification
+ * in bitmasks for boardproperties
+ */
+
 static const camera_size_type preview_sizes[] = {
     { 1280, 720 }, // 720P, reserved
     { 800, 480 }, // WVGA
@@ -177,6 +184,16 @@ static const camera_size_type preview_sizes[] = {
     { 176, 144 }, // QCIF
 };
 #define PREVIEW_SIZE_COUNT (sizeof(preview_sizes)/sizeof(camera_size_type))
+
+static camera_size_type supportedPreviewSizes[PREVIEW_SIZE_COUNT];
+static unsigned int previewSizeCount;
+
+board_property boardProperties[] = {
+        {TARGET_MSM7625, 0x00000fff},
+        {TARGET_MSM7627, 0x000006ff},
+        {TARGET_MSM7630, 0x00000fff},
+        {TARGET_QSD8250, 0x00000fff}
+};
 
 //static const camera_size_type* picture_sizes;
 //static int PICTURE_SIZE_COUNT;
@@ -854,6 +871,31 @@ QualcommCameraHardware::QualcommCameraHardware()
 }
 
 
+void QualcommCameraHardware::filterPreviewSizes(){
+
+    unsigned int bitMask = 0;
+    int prop = 0;
+    for(prop=0;prop<sizeof(boardProperties)/sizeof(board_property);prop++){
+        if(mCurrentTarget == boardProperties[prop].target){
+            bitMask = boardProperties[prop].previewSizeMask;
+            break;
+        }
+    }
+
+    if(bitMask){
+        unsigned int mask = 1<<(PREVIEW_SIZE_COUNT-1);
+        previewSizeCount=0;
+        unsigned int i = 0;
+        while(mask){
+            if(mask&bitMask)
+                supportedPreviewSizes[previewSizeCount++] =
+                        preview_sizes[i];
+            i++;
+            mask = mask >> 1;
+        }
+    }
+}
+
 //filter Picture sizes based on max width and height
 void QualcommCameraHardware::filterPictureSizes(){
     int i;
@@ -885,8 +927,11 @@ void QualcommCameraHardware::initDefaultParameters()
             autoexposure, sizeof(autoexposure) / sizeof(str_map));
         whitebalance_values = create_values_str(
             whitebalance, sizeof(whitebalance) / sizeof(str_map));
+
+        //filter preview sizes
+        filterPreviewSizes();
         preview_size_values = create_sizes_str(
-            preview_sizes, PREVIEW_SIZE_COUNT);
+            supportedPreviewSizes, previewSizeCount);
         //filter picture sizes
         filterPictureSizes();
         picture_size_values = create_sizes_str(
@@ -907,10 +952,10 @@ void QualcommCameraHardware::initDefaultParameters()
         parameter_string_initialized = true;
     }
 
-    const camera_size_type *ps = &preview_sizes[DEFAULT_PREVIEW_SETTING];
-    mParameters.setPreviewSize(ps->width, ps->height);
-    mDimension.display_width = ps->width;
-    mDimension.display_height = ps->height;
+    mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_HEIGHT);
+    mDimension.display_width = DEFAULT_PREVIEW_WIDTH;
+    mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
+
     mParameters.setPreviewFrameRate(15);
     mParameters.setPreviewFormat("yuv420sp"); // informative
 
@@ -3541,9 +3586,9 @@ status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
     LOGV("requested preview size %d x %d", width, height);
 
     // Validate the preview size
-    for (size_t i = 0; i < PREVIEW_SIZE_COUNT; ++i) {
-        if (width == preview_sizes[i].width
-           && height == preview_sizes[i].height) {
+    for (size_t i = 0; i < previewSizeCount; ++i) {
+        if (width == supportedPreviewSizes[i].width
+           && height == supportedPreviewSizes[i].height) {
             mParameters.setPreviewSize(width, height);
             mDimension.display_width = width;
             mDimension.display_height = height;

@@ -49,6 +49,11 @@ struct target_map {
     targetType targetEnum;
 };
 
+struct board_property{
+    targetType target;
+    unsigned int previewSizeMask;
+};
+
 namespace android {
 
 class QualcommCameraHardware : public CameraHardwareInterface {
@@ -222,6 +227,7 @@ private:
 
     int mSnapshotFormat;
     void filterPictureSizes();
+    void filterPreviewSizes();
     void storeTargetType();
 
     void initDefaultParameters();

@@ -2007,6 +2007,9 @@ bool QualcommCameraHardware::initPreview()
         mDimension.video_width = videoWidth;
         mDimension.video_width = CEILING16(mDimension.video_width);
         mDimension.video_height = videoHeight;
+        // for 720p , preview can be 768X432
+        previewWidth = mDimension.display_width;
+        previewHeight= mDimension.display_height;
         LOGV("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, mDimension.video_width, mDimension.video_height );
     }
 
@@ -3214,6 +3217,16 @@ status_t QualcommCameraHardware::startRecording()
             LOGV(" in startREcording : calling native_start_recording");
             native_start_recording(mCameraControlFd);
             recordingState = 1;
+            // Remove the left out frames in busy Q and them in free Q.
+            // this should be done before starting video_thread so that,
+            // frames in previous recording are flushed out.
+            LOGV("frames in busy Q = %d", g_busy_frame_queue.num_of_frames);
+            while((g_busy_frame_queue.num_of_frames) >0){
+                msm_frame* vframe = cam_frame_get_video ();
+                LINK_camframe_free_video(vframe);
+            }
+            LOGV("frames in busy Q = %d after deQueing", g_busy_frame_queue.num_of_frames);
+
             // Start video thread and wait for busy frames to be encoded, this thread
             // should be closed in stopRecording
             mVideoThreadWaitLock.lock();
@@ -3227,12 +3240,6 @@ status_t QualcommCameraHardware::startRecording()
                                               NULL);
             mVideoThreadWaitLock.unlock();
             // Remove the left out frames in busy Q and them in free Q.
-            LOGV("frames in busy Q = %d", g_busy_frame_queue.num_of_frames);
-            while((g_busy_frame_queue.num_of_frames) >0){
-                msm_frame* vframe = cam_frame_get_video ();
-                LINK_camframe_free_video(vframe);
-            }
-            LOGV("frames in busy Q = %d after deQueing", g_busy_frame_queue.num_of_frames);
         }
     }
     return ret;
@@ -3572,9 +3579,18 @@ status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
     for (size_t i = 0; i < previewSizeCount; ++i) {
         if (width == supportedPreviewSizes[i].width
            && height == supportedPreviewSizes[i].height) {
+            // 720p , preview can be 768X432 (currently for 7x30 and 8k
+            // targets)
+            if(width == 1280 && height == 720 &&
+             ((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_QSD8250))){
+                LOGD("change preview resolution to 768X432 since recording is in 720p");
+                mDimension.display_width = preview_sizes[2].width;
+                mDimension.display_height= preview_sizes[2].height;
+            }else {
+                mDimension.display_width = width;
+                mDimension.display_height= height;
+            }
             mParameters.setPreviewSize(width, height);
-            mDimension.display_width = width;
-            mDimension.display_height = height;
             return NO_ERROR;
         }
     }

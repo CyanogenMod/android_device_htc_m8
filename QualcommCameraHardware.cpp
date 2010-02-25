@@ -2876,9 +2876,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPictureSize(params)))  final_rc = rc;
     if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
-    if ((rc = setEffect(params)))       final_rc = rc;
     if ((rc = setAutoExposure(params))) final_rc = rc;
     if ((rc = setWhiteBalance(params))) final_rc = rc;
+    if ((rc = setEffect(params)))       final_rc = rc;
     if ((rc = setFlash(params)))        final_rc = rc;
     if ((rc = setGpsLocation(params)))  final_rc = rc;
     if ((rc = setRotation(params)))     final_rc = rc;

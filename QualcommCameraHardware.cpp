@@ -1038,10 +1038,6 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_LENSSHADE_MODES,
                     lensshade_values);
 
-    if (setParameters(mParameters) != NO_ERROR) {
-        LOGE("Failed to set default parameters?!");
-    }
-
     mUseOverlay = useOverlay();
 
     /* Initialize the camframe_timeout_flag*/

@@ -2469,11 +2469,6 @@ status_t QualcommCameraHardware::startPreviewInternal()
     }
     mParameters.set("max-zoom",mMaxZoom);
 
-    //Initialize AF state to AF_NOTSTARTED
-    mAfLock.lock();
-    mAfState = AF_NOTSTARTED;
-    mAfLock.unlock();
-
     LOGV("startPreviewInternal X");
     return NO_ERROR;
 }
@@ -2590,20 +2585,15 @@ void QualcommCameraHardware::runAutoFocus()
     status_t err;
     err = mAfLock.tryLock();
     if(err == NO_ERROR) {
-        //Got Lock, so start AF if required.
-        if(mAfState != AF_CANCELLED) {
-            mAfState = AF_STARTED;
-            LOGV("Start AF");
-            status = native_set_afmode(mAutoFocusFd, afMode);
-        } else {
-            status = FALSE;
-        }
+        LOGV("Start AF");
+        status = native_set_afmode(mAutoFocusFd, afMode);
         mAfLock.unlock();
     }
     else{
         //AF Cancel would have acquired the lock,
         //so, no need to perform any AF
-        LOGV("Failed to obtain Lock...is busy");
+        LOGV("As Cancel auto focus is in progress, auto focus request "
+                "is ignored");
         status = FALSE;
     }
 
@@ -2653,8 +2643,8 @@ status_t QualcommCameraHardware::cancelAutoFocusInternal()
     if(err == NO_ERROR) {
         //Got Lock, means either AF hasn't started or
         // AF is done. So no need to cancel it, just change the state
-        LOGV("Change AF State to Cancelled");
-        mAfState = AF_CANCELLED;
+        LOGV("As Auto Focus is not in progress, Cancel Auto Focus "
+                "is ignored");
         mAfLock.unlock();
     }
     else {

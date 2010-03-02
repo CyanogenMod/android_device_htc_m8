@@ -2516,6 +2516,10 @@ void QualcommCameraHardware::stopPreviewInternal()
 		pthread_mutex_lock(&(g_busy_frame_queue.mut));
 		pthread_cond_signal(&(g_busy_frame_queue.wait));
 		pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+                /* Flush the Busy Q */
+                cam_frame_flush_video();
+                /* Flush the Free Q */
+                LINK_cam_frame_flush_free_video();
 	    }
 	    mPreviewInitialized = false;
 	}

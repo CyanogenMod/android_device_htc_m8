@@ -3440,8 +3440,8 @@ void QualcommCameraHardware::receiveRawSnapshot(){
         memcpy(mRawSnapshotAshmemHeap->mHeap->base(),
                 mRawSnapShotPmemHeap->mHeap->base(),
                 mRawSnapShotPmemHeap->mHeap->getSize());
-
-        mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapshotAshmemHeap->mBuffers[0],
+       if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
+           mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapshotAshmemHeap->mBuffers[0],
                 mCallbackCookie);
 
     }
@@ -3495,8 +3495,8 @@ void QualcommCameraHardware::receiveRawPicture()
 	    LOGD(" Queueing Postview for display ");
 	    mOverlay->queueBuffer((void *)0);
 	}
-
-        mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
+   if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
+       mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
                             mCallbackCookie);
     }
     else LOGV("Raw-picture callback was canceled--skipping.");

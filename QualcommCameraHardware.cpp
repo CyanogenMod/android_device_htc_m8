@@ -1128,12 +1128,12 @@ bool QualcommCameraHardware::startCamera()
 
     *(void **)&LINK_camframe_video_callback = ::dlsym(libmmcamera, "mmcamera_camframe_videocallback");
         *LINK_camframe_video_callback = receive_camframe_video_callback;
-/* Disabling until support is available.
+
     *(void **)&LINK_mmcamera_shutter_callback =
         ::dlsym(libmmcamera, "mmcamera_shutter_callback");
 
     *LINK_mmcamera_shutter_callback = receive_shutter_callback;
-*/
+
     *(void**)&LINK_jpeg_encoder_setMainImageQuality =
         ::dlsym(libmmcamera, "jpeg_encoder_setMainImageQuality");
 
@@ -3323,10 +3323,23 @@ bool QualcommCameraHardware::recordingEnabled()
     return mCameraRunning && mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME);
 }
 
-void QualcommCameraHardware::notifyShutter(common_crop_t *crop)
+void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutterSoundOnly)
 {
     mShutterLock.lock();
     image_rect_type size;
+
+    if(mPlayShutterSoundOnly) {
+        /* At this point, invoke Notify Callback to play shutter sound only.
+         * We want to call notify callback again when we have the
+         * yuv picture ready. This is to reduce blanking at the time
+         * of displaying postview frame. Using ext2 to indicate whether
+         * to play shutter sound only or register the postview buffers.
+         */
+        mNotifyCallback(CAMERA_MSG_SHUTTER, 0, mPlayShutterSoundOnly,
+                            mCallbackCookie);
+        mShutterLock.unlock();
+        return;
+    }
 
     if (mShutterPending && mNotifyCallback && (mMsgEnabled & CAMERA_MSG_SHUTTER)) {
         LOGV("out2_w=%d, out2_h=%d, in2_w=%d, in2_h=%d",
@@ -3356,7 +3369,10 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop)
                 mDisplayHeap = mThumbnailHeap;
             }
         }
-
+        /* Now, invoke Notify Callback to unregister preview buffer
+         * and register postview buffer with surface flinger. Set ext2
+         * as 0 to indicate not to play shutter sound.
+         */
         mNotifyCallback(CAMERA_MSG_SHUTTER, (int32_t)&size, 0,
                         mCallbackCookie);
         mShutterPending = false;
@@ -3369,7 +3385,8 @@ static void receive_shutter_callback(common_crop_t *crop)
     LOGV("receive_shutter_callback: E");
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
-        obj->notifyShutter(crop);
+        /* Just play shutter sound at this time */
+        obj->notifyShutter(crop, TRUE);
     }
     LOGV("receive_shutter_callback: X");
 }
@@ -3411,8 +3428,8 @@ void QualcommCameraHardware::receiveRawSnapshot(){
     LOGV("receiveRawSnapshot E");
 
     Mutex::Autolock cbLock(&mCallbackLock);
-
-    notifyShutter(&mCrop);
+    /* Issue notifyShutter with mPlayShutterSoundOnly as TRUE */
+    notifyShutter(&mCrop, TRUE);
 
     if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
 
@@ -3420,6 +3437,13 @@ void QualcommCameraHardware::receiveRawSnapshot(){
             LOGE("receiveRawSnapshot X: native_get_picture failed!");
             return;
         }
+        /* Its necessary to issue another notifyShutter here with
+         * mPlayShutterSoundOnly as FALSE, since that is when the
+         * preview buffers are unregistered with the surface flinger.
+         * That is necessary otherwise the preview memory wont be
+         * deallocated.
+         */
+        notifyShutter(&mCrop, FALSE);
 
         //Create a Ashmem heap to copy data from PMem heap for application layer
         if(mRawSnapshotAshmemHeap != NULL){
@@ -3471,7 +3495,7 @@ void QualcommCameraHardware::receiveRawPicture()
 
         // By the time native_get_picture returns, picture is taken. Call
         // shutter callback if cam config thread has not done that.
-        notifyShutter(&mCrop);
+        notifyShutter(&mCrop, FALSE);
 
         // Crop the image if zoomed.
         if (mCrop.in2_w != 0 && mCrop.in2_h != 0) {

@@ -601,12 +601,13 @@ struct SensorType {
     bool hasAutoFocusSupport;
     int max_supported_snapshot_width;
     int max_supported_snapshot_height;
+    int bitMask;
 };
 
 static SensorType sensorTypes[] = {
-        { "5mp", 2608, 1960, true,  2592, 1944 },
-        { "3mp", 2064, 1544, false, 2048, 1536 },
-        { "2mp", 3200, 1200, false, 1600, 1200 } };
+        { "5mp", 2608, 1960, true,  2592, 1944,0x00000fff },
+        { "3mp", 2064, 1544, false, 2048, 1536,0x000007ff },
+        { "2mp", 3200, 1200, false, 1600, 1200,0x000007ff } };
 
 
 static SensorType * sensorType;
@@ -873,15 +874,16 @@ QualcommCameraHardware::QualcommCameraHardware()
 
 void QualcommCameraHardware::filterPreviewSizes(){
 
-    unsigned int bitMask = 0;
+    unsigned int boardMask = 0;
     int prop = 0;
     for(prop=0;prop<sizeof(boardProperties)/sizeof(board_property);prop++){
         if(mCurrentTarget == boardProperties[prop].target){
-            bitMask = boardProperties[prop].previewSizeMask;
+            boardMask = boardProperties[prop].previewSizeMask;
             break;
         }
     }
 
+    int bitMask = boardMask & sensorType->bitMask;
     if(bitMask){
         unsigned int mask = 1<<(PREVIEW_SIZE_COUNT-1);
         previewSizeCount=0;

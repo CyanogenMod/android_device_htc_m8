@@ -1884,6 +1884,16 @@ void QualcommCameraHardware::runVideoThread(void *data)
     while(true) {
         pthread_mutex_lock(&(g_busy_frame_queue.mut));
 
+        // Exit the thread , in case of stop recording..
+        mVideoThreadWaitLock.lock();
+        if(mVideoThreadExit){
+            LOGV("Exiting video thread..");
+            mVideoThreadWaitLock.unlock();
+            pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+            break;
+        }
+        mVideoThreadWaitLock.unlock();
+
         LOGV("in video_thread : wait for video frame ");
         // check if any frames are available in busyQ and give callback to
         // services/video encoder
@@ -3269,6 +3279,10 @@ void QualcommCameraHardware::stopRecording()
         mVideoThreadExit = 1;
         mVideoThreadWaitLock.unlock();
         native_stop_recording(mCameraControlFd);
+
+        pthread_mutex_lock(&(g_busy_frame_queue.mut));
+        pthread_cond_signal(&(g_busy_frame_queue.wait));
+        pthread_mutex_unlock(&(g_busy_frame_queue.mut));
     }
     else  // for other targets where output2 is not enabled
         stopPreviewInternal();

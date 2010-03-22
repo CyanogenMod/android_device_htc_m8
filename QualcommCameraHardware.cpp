@@ -4461,21 +4461,41 @@ bool QualcommCameraHardware::isValidDimension(int width, int height) {
 status_t QualcommCameraHardware::getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize) {
     status_t ret;
     LOGV(" getBufferInfo : E ");
-    if( mRecordHeap != NULL) {
-        LOGV(" Setting valid buffer information ");
-        Frame = mRecordHeap->mBuffers[0];
-        if( alignedSize != NULL) {
-            *alignedSize = mRecordHeap->mAlignedBufferSize;
-            LOGV(" HAL : alignedSize = %d ", *alignedSize);
-            ret = NO_ERROR;
+    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) )
+    {
+	if( mRecordHeap != NULL){
+		LOGV(" Setting valid buffer information ");
+		Frame = mRecordHeap->mBuffers[0];
+		if( alignedSize != NULL) {
+			*alignedSize = mRecordHeap->mAlignedBufferSize;
+			LOGV(" HAL : alignedSize = %d ", *alignedSize);
+			ret = NO_ERROR;
+		} else {
+	        	LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
+	        	ret = UNKNOWN_ERROR;
+		}
         } else {
-            LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
-            ret = UNKNOWN_ERROR;
-        }
+		LOGE(" RecordHeap is null. Buffer information wont be updated ");
+		Frame = NULL;
+		ret = UNKNOWN_ERROR;
+	}
     } else {
-        LOGE(" RecordHeap is null. Buffer information wont be updated ");
-        Frame = NULL;
-        ret = UNKNOWN_ERROR;
+	if(mPreviewHeap != NULL) {
+		LOGV(" Setting valid buffer information ");
+		Frame = mPreviewHeap->mBuffers[0];
+		if( alignedSize != NULL) {
+			*alignedSize = mPreviewHeap->mAlignedBufferSize;
+		        LOGV(" HAL : alignedSize = %d ", *alignedSize);
+		        ret = NO_ERROR;
+	        } else {
+		        LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
+		        ret = UNKNOWN_ERROR;
+	        }
+	} else {
+	        LOGE(" PreviewHeap is null. Buffer information wont be updated ");
+	        Frame = NULL;
+	        ret = UNKNOWN_ERROR;
+	}
     }
     LOGV(" getBufferInfo : X ");
     return ret;

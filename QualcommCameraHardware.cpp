@@ -3138,15 +3138,6 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
         pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
             pdata);
 
-    // If output2 enabled, Start Recording if recording is enabled by Services
-    if( ((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_QSD8250))  && recordingEnabled() ) {
-        if(!recordingState){
-            recordingState = 1; // recording started
-            LOGV(" in receivePreviewframe : recording enabled calling startRecording ");
-            startRecording();
-        }
-    }
-
     // If output  is NOT enabled (targets otherthan 7x30 currently..)
     if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250)) {
         if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {

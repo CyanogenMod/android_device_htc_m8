@@ -3135,6 +3135,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 	    if( !native_zoom_image(mPreviewHeap->mHeap->getHeapID(),
 			offset_addr, dstOffset_addr, crop)) {
 		LOGE(" Error while doing MDP zoom ");
+                offset = offset_addr / mPreviewHeap->mAlignedBufferSize;
 	    }
 	}
     }

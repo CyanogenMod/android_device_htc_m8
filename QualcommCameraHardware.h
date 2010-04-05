@@ -303,6 +303,7 @@ private:
     common_crop_t mCrop;
 
     int mBrightness;
+    int mHJR;
     struct msm_frame frames[kPreviewBufferCount];
     struct msm_frame recordframes[kRecordBufferCount];
     bool mInPreviewCallback;

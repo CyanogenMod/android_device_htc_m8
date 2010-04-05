@@ -838,6 +838,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
       mBrightness(0),
+      mHJR(0),
       mInPreviewCallback(false),
       mUseOverlay(0),
       mOverlay(0),
@@ -3893,12 +3894,26 @@ status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& param
 }
 
 status_t  QualcommCameraHardware::setISOValue(const CameraParameters& params) {
+    int8_t temp_hjr;
     const char *str = params.get(CameraParameters::KEY_ISO_MODE);
     if (str != NULL) {
         int value = (camera_iso_mode_type)attr_lookup(
           iso, sizeof(iso) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             camera_iso_mode_type temp = (camera_iso_mode_type) value;
+            if (value == CAMERA_ISO_DEBLUR) {
+               temp_hjr = true;
+               native_set_parm(CAMERA_SET_PARM_HJR, sizeof(int8_t), (void*)&temp_hjr);
+               mHJR = value;
+            }
+            else {
+               if (mHJR == CAMERA_ISO_DEBLUR) {
+                   temp_hjr = false;
+                   native_set_parm(CAMERA_SET_PARM_HJR, sizeof(int8_t), (void*)&temp_hjr);
+                   mHJR = value;
+               }
+            }
+
             mParameters.set(CameraParameters::KEY_ISO_MODE, str);
             native_set_parm(CAMERA_SET_PARM_ISO, sizeof(camera_iso_mode_type), (void *)&temp);
             return NO_ERROR;

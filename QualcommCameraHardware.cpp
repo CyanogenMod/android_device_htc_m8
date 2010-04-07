@@ -2452,10 +2452,14 @@ status_t QualcommCameraHardware::startPreviewInternal()
         }
     }
 
-    if(( mCurrentTarget != TARGET_MSM7630 ) && (mCurrentTarget != TARGET_QSD8250))
-        mCameraRunning = native_start_preview(mCameraControlFd);
-    else
-        mCameraRunning = native_start_video(mCameraControlFd);
+    {
+        Mutex::Autolock cameraRunningLock(&mCameraRunningLock);
+        if(( mCurrentTarget != TARGET_MSM7630 ) &&
+                (mCurrentTarget != TARGET_QSD8250))
+            mCameraRunning = native_start_preview(mCameraControlFd);
+        else
+            mCameraRunning = native_start_video(mCameraControlFd);
+    }
 
     if(!mCameraRunning) {
         deinitPreview();
@@ -2501,19 +2505,23 @@ void QualcommCameraHardware::stopPreviewInternal()
         }
 
         Mutex::Autolock l(&mCamframeTimeoutLock);
-	if(!camframe_timeout_flag) {
-            if (( mCurrentTarget != TARGET_MSM7630 ) && (mCurrentTarget != TARGET_QSD8250))
-	        mCameraRunning = !native_stop_preview(mCameraControlFd);
-             else
-                mCameraRunning = !native_stop_video(mCameraControlFd);
+        {
+            Mutex::Autolock cameraRunningLock(&mCameraRunningLock);
+            if(!camframe_timeout_flag) {
+                if (( mCurrentTarget != TARGET_MSM7630 ) &&
+                        (mCurrentTarget != TARGET_QSD8250))
+                    mCameraRunning = !native_stop_preview(mCameraControlFd);
+                else
+                    mCameraRunning = !native_stop_video(mCameraControlFd);
+            } else {
+                /* This means that the camframetimeout was issued.
+                 * But we did not issue native_stop_preview(), so we
+                 * need to update mCameraRunning to indicate that
+                 * Camera is no longer running. */
+                mCameraRunning = 0;
+            }
+        }
 
-	} else {
-	    /* This means that the camframetimeout was issued.
-	     * But we did not issue native_stop_preview(), so we
-	     * need to update mCameraRunning to indicate that
-	     * Camera is no longer running. */
-	    mCameraRunning = 0;
-	}
 	if (!mCameraRunning && mPreviewInitialized) {
 	    deinitPreview();
 	    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250)) {
@@ -2557,8 +2565,9 @@ void QualcommCameraHardware::runAutoFocus()
 
     mAutoFocusThreadLock.lock();
     // Skip autofocus if focus mode is infinity.
-    if (strcmp(mParameters.get(CameraParameters::KEY_FOCUS_MODE),
-               CameraParameters::FOCUS_MODE_INFINITY) == 0) {
+    if ((mParameters.get(CameraParameters::KEY_FOCUS_MODE) == 0)
+           || (strcmp(mParameters.get(CameraParameters::KEY_FOCUS_MODE),
+               CameraParameters::FOCUS_MODE_INFINITY) == 0)) {
         goto done;
     }
 
@@ -2598,8 +2607,16 @@ void QualcommCameraHardware::runAutoFocus()
     status_t err;
     err = mAfLock.tryLock();
     if(err == NO_ERROR) {
-        LOGV("Start AF");
-        status = native_set_afmode(mAutoFocusFd, afMode);
+        {
+            Mutex::Autolock cameraRunningLock(&mCameraRunningLock);
+            if(mCameraRunning){
+                LOGV("Start AF");
+                status = native_set_afmode(mAutoFocusFd, afMode);
+            }else{
+                LOGV("As Camera preview is not running, AF not issued");
+                status = false;
+            }
+        }
         mAfLock.unlock();
     }
     else{

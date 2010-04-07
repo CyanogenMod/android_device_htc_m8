@@ -129,6 +129,7 @@ private:
     CameraParameters mParameters;
     unsigned int frame_size;
     bool mCameraRunning;
+    Mutex mCameraRunningLock;
     bool mPreviewInitialized;
 
     // This class represents a heap which maintains several contiguous

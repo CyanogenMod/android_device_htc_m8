@@ -3687,7 +3687,11 @@ status_t QualcommCameraHardware::setJpegQuality(const CameraParameters& params) 
 
 status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
 {
+
+    const char *str_wb = mParameters.get(CameraParameters::KEY_WHITE_BALANCE);
+    int32_t value_wb = attr_lookup(whitebalance, sizeof(whitebalance) / sizeof(str_map), str_wb);
     const char *str = params.get(CameraParameters::KEY_EFFECT);
+
     if (str != NULL) {
         int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
@@ -3697,10 +3701,20 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
                 LOGE("Special effect parameter is not supported for this sensor");
                 return NO_ERROR;
             }
-            mParameters.set(CameraParameters::KEY_EFFECT, str);
-            bool ret = native_set_parm(CAMERA_SET_PARM_EFFECT, sizeof(value),
-                                       (void *)&value);
-            return ret ? NO_ERROR : UNKNOWN_ERROR;
+
+           if(((value == CAMERA_EFFECT_MONO) || (value == CAMERA_EFFECT_NEGATIVE)
+           || (value == CAMERA_EFFECT_AQUA) || (value == CAMERA_EFFECT_SEPIA))
+               && (value_wb != CAMERA_WB_AUTO)) {
+               LOGE("Color Effect value will not be set " \
+               "when the whitebalance selected is %s", str_wb);
+               return NO_ERROR;
+           }
+           else {
+               mParameters.set(CameraParameters::KEY_EFFECT, str);
+               bool ret = native_set_parm(CAMERA_SET_PARM_EFFECT, sizeof(value),
+                                           (void *)&value);
+               return ret ? NO_ERROR : UNKNOWN_ERROR;
+          }
         }
     }
     LOGE("Invalid effect value: %s", (str == NULL) ? "NULL" : str);
@@ -3809,18 +3823,30 @@ status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {
 
 status_t QualcommCameraHardware::setWhiteBalance(const CameraParameters& params)
 {
-    const char *str = params.get(CameraParameters::KEY_WHITE_BALANCE);
-    if (str != NULL) {
-        int32_t value = attr_lookup(whitebalance, sizeof(whitebalance) / sizeof(str_map), str);
-        if (value != NOT_FOUND) {
-            mParameters.set(CameraParameters::KEY_WHITE_BALANCE, str);
-            bool ret = native_set_parm(CAMERA_SET_PARM_WB, sizeof(value),
-                                       (void *)&value);
-            return ret ? NO_ERROR : UNKNOWN_ERROR;
+
+    const char *str_effect = mParameters.get(CameraParameters::KEY_EFFECT);
+    int32_t value_effect = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str_effect);
+
+    if( (value_effect != CAMERA_EFFECT_MONO) && (value_effect != CAMERA_EFFECT_NEGATIVE)
+    && (value_effect != CAMERA_EFFECT_AQUA) && (value_effect != CAMERA_EFFECT_SEPIA)) {
+        const char *str = params.get(CameraParameters::KEY_WHITE_BALANCE);
+
+        if (str != NULL) {
+            int32_t value = attr_lookup(whitebalance, sizeof(whitebalance) / sizeof(str_map), str);
+            if (value != NOT_FOUND) {
+                mParameters.set(CameraParameters::KEY_WHITE_BALANCE, str);
+                bool ret = native_set_parm(CAMERA_SET_PARM_WB, sizeof(value),
+                                           (void *)&value);
+                return ret ? NO_ERROR : UNKNOWN_ERROR;
+            }
         }
+        LOGE("Invalid whitebalance value: %s", (str == NULL) ? "NULL" : str);
+        return BAD_VALUE;
+    } else {
+            LOGE("Whitebalance value will not be set " \
+            "when the effect selected is %s", str_effect);
+            return NO_ERROR;
     }
-    LOGE("Invalid whitebalance value: %s", (str == NULL) ? "NULL" : str);
-    return BAD_VALUE;
 }
 
 status_t QualcommCameraHardware::setFlash(const CameraParameters& params)

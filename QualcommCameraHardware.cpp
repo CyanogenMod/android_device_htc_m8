@@ -74,7 +74,6 @@ extern "C" {
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define MAX_ZOOM_LEVEL 5
 #define NOT_FOUND -1
-#define JPEG_ENCODER_PADDING 8
 // Number of video buffers held by kernal (initially 1,2 &3)
 #define ACTIVE_VIDEO_BUFFERS 3
 
@@ -89,7 +88,7 @@ bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
                                   const uint8_t *thumbnailbuf, int thumbnailfd,
                                   const uint8_t *snapshotbuf, int snapshotfd,
                                   common_crop_t *scaling_parms, exif_tags_info_t *exif_data,
-                                  int exif_table_numEntries);
+                                  int exif_table_numEntries, int jpegPadding);
 void (*LINK_camframe_terminate)(void);
 //for 720p
 // Function to add a video buffer to free Q
@@ -634,7 +633,6 @@ static String8 iso_values;
 static String8 lensshade_values;
 static String8 picture_format_values;
 
-
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
     char buffer[32];
@@ -880,6 +878,19 @@ QualcommCameraHardware::QualcommCameraHardware()
             kRecordBufferCount = RECORD_BUFFERS_8x50;
             recordframes = new msm_frame[kRecordBufferCount];
         }
+    }
+
+    switch(mCurrentTarget){
+        case TARGET_MSM7627:
+            jpegPadding = 8;
+            break;
+        case TARGET_QSD8250:
+        case TARGET_MSM7630:
+            jpegPadding = 0;
+            break;
+        default:
+            jpegPadding = 0;
+            break;
     }
     LOGV("constructor EX");
 }
@@ -1775,7 +1786,8 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
                                   mThumbnailHeap->mHeap->getHeapID(),
                                   (uint8_t *)mRawHeap->mHeap->base(),
                                   mRawHeap->mHeap->getHeapID(),
-                                  &mCrop, exif_data, exif_table_numEntries)) {
+                                  &mCrop, exif_data, exif_table_numEntries,
+                                  jpegPadding/2)) {
         LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
         return false;
     }
@@ -3419,11 +3431,11 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
             }
         } else {
             // Cropped
-            size.width = (crop->in2_w + JPEG_ENCODER_PADDING) & ~1;
-            size.height = (crop->in2_h + JPEG_ENCODER_PADDING) & ~1;
+            size.width = (crop->in2_w + jpegPadding) & ~1;
+            size.height = (crop->in2_h + jpegPadding) & ~1;
             if (size.width > 2048 || size.height > 2048) {
-                size.width = (crop->in1_w + JPEG_ENCODER_PADDING) & ~1;
-                size.height = (crop->in1_h + JPEG_ENCODER_PADDING) & ~1;
+                size.width = (crop->in1_w + jpegPadding) & ~1;
+                size.height = (crop->in1_h + jpegPadding) & ~1;
                 mDisplayHeap = mThumbnailHeap;
             }
         }
@@ -3551,22 +3563,33 @@ void QualcommCameraHardware::receiveRawPicture()
         mCrop.in2_w &= ~1;
         mCrop.in2_h &= ~1;
 
-        // By the time native_get_picture returns, picture is taken. Call
-        // shutter callback if cam config thread has not done that.
-        notifyShutter(&mCrop, FALSE);
 
         // Crop the image if zoomed.
-        if (mCrop.in2_w != 0 && mCrop.in2_h != 0) {
-            crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + JPEG_ENCODER_PADDING), (mCrop.in2_h + JPEG_ENCODER_PADDING),
+        if (mCrop.in2_w != 0 && mCrop.in2_h != 0 &&
+                ((mCrop.in2_w + jpegPadding) < mCrop.out2_w) &&
+                ((mCrop.in2_h + jpegPadding) < mCrop.out2_h) &&
+                ((mCrop.in1_w + jpegPadding) < mCrop.out1_w)  &&
+                ((mCrop.in1_h + jpegPadding) < mCrop.out1_h) ) {
+
+            // By the time native_get_picture returns, picture is taken. Call
+            // shutter callback if cam config thread has not done that.
+            notifyShutter(&mCrop, FALSE);
+            crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + jpegPadding), (mCrop.in2_h + jpegPadding),
                  (uint8_t *)mRawHeap->mHeap->base());
-            crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + JPEG_ENCODER_PADDING), (mCrop.in1_h + JPEG_ENCODER_PADDING),
+            crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + jpegPadding), (mCrop.in1_h + jpegPadding),
                  (uint8_t *)mThumbnailHeap->mHeap->base());
+
             // We do not need jpeg encoder to upscale the image. Set the new
             // dimension for encoder.
-            mDimension.orig_picture_dx = mCrop.in2_w + JPEG_ENCODER_PADDING;
-            mDimension.orig_picture_dy = mCrop.in2_h + JPEG_ENCODER_PADDING;
-            mDimension.thumbnail_width = mCrop.in1_w + JPEG_ENCODER_PADDING;
-            mDimension.thumbnail_height = mCrop.in1_h + JPEG_ENCODER_PADDING;
+            mDimension.orig_picture_dx = mCrop.in2_w + jpegPadding;
+            mDimension.orig_picture_dy = mCrop.in2_h + jpegPadding;
+            mDimension.thumbnail_width = mCrop.in1_w + jpegPadding;
+            mDimension.thumbnail_height = mCrop.in1_h + jpegPadding;
+        }else {
+            memset(&mCrop, 0 ,sizeof(mCrop));
+            // By the time native_get_picture returns, picture is taken. Call
+            // shutter callback if cam config thread has not done that.
+            notifyShutter(&mCrop, FALSE);
         }
 
 	if( mUseOverlay && (mOverlay != NULL) ) {

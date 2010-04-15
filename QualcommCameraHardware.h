@@ -125,6 +125,8 @@ private:
     static const int kRawBufferCount = 1;
     static const int kJpegBufferCount = 1;
 
+    int jpegPadding;
+
     CameraParameters mParameters;
     unsigned int frame_size;
     bool mCameraRunning;

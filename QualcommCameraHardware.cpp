@@ -284,6 +284,10 @@ static int exif_table_numEntries = 0;
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
+#define RECORD_BUFFERS_7x30 8
+#define RECORD_BUFFERS_8x50 6
+static int kRecordBufferCount;
+
 
 namespace android {
 
@@ -865,10 +869,18 @@ QualcommCameraHardware::QualcommCameraHardware()
     char value[PROPERTY_VALUE_MAX];
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
-    if( mCurrentTarget == TARGET_MSM7630 )
+    if( mCurrentTarget == TARGET_MSM7630 ) {
         kPreviewBufferCountActual = kPreviewBufferCount;
-    else
+        kRecordBufferCount = RECORD_BUFFERS_7x30;
+        recordframes = new msm_frame[kRecordBufferCount];
+    }
+    else {
         kPreviewBufferCountActual = kPreviewBufferCount + NUM_MORE_BUFS;
+        if( mCurrentTarget == TARGET_QSD8250 ) {
+            kRecordBufferCount = RECORD_BUFFERS_8x50;
+            recordframes = new msm_frame[kRecordBufferCount];
+        }
+    }
     LOGV("constructor EX");
 }
 
@@ -2115,7 +2127,11 @@ bool QualcommCameraHardware::initPreview()
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
         frame_parms.frame = frames[kPreviewBufferCount - 1];
-        frame_parms.video_frame =  recordframes[kPreviewBufferCount - 1];
+
+        if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 )
+            frame_parms.video_frame =  recordframes[kPreviewBufferCount - 1];
+        else
+            frame_parms.video_frame =  frames[kPreviewBufferCount - 1];
 
         LOGV ("initpreview before cam_frame thread carete , video frame  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
           (unsigned long)frame_parms.video_frame.buffer, frame_parms.video_frame.fd, frame_parms.video_frame.y_off,
@@ -2417,6 +2433,11 @@ QualcommCameraHardware::~QualcommCameraHardware()
 {
     LOGD("~QualcommCameraHardware E");
     Mutex::Autolock lock(&singleton_lock);
+
+    if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 ) {
+        delete [] recordframes;
+        recordframes = NULL;
+    }
     singleton.clear();
     singleton_releasing = false;
     singleton_wait.signal();
@@ -3182,10 +3203,18 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 
 bool QualcommCameraHardware::initRecord()
 {
+    char *pmem_region;
+
     LOGV("initREcord E");
 
     mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
-    mRecordHeap = new PmemPool("/dev/pmem_adsp",
+
+    if( mCurrentTarget == TARGET_QSD8250 )
+        pmem_region = "/dev/pmem_smipool";
+    else
+        pmem_region = "/dev/pmem_adsp";
+
+    mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
                                 MSM_PMEM_VIDEO,
@@ -3193,6 +3222,7 @@ bool QualcommCameraHardware::initRecord()
                                 kRecordBufferCount,
                                 mRecordFrameSize,
                                 "record");
+
     if (!mRecordHeap->initialized()) {
         mRecordHeap.clear();
         LOGE("initRecord X: could not initialize record heap.");
@@ -4460,7 +4490,7 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
         mOverlay = Overlay;
         mOverlayLock.unlock();
     } else {
-        LOGE(" Overlay object NULL. returning ");
+        LOGV(" Overlay object NULL. returning ");
         mOverlay = NULL;
         return UNKNOWN_ERROR;
     }

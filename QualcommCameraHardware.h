@@ -122,7 +122,6 @@ private:
        changes.
     */
     static const int kPreviewBufferCount = NUM_PREVIEW_BUFFERS;
-    static const int kRecordBufferCount = 8; //NUM_RECORD_BUFFERS;
     static const int kRawBufferCount = 1;
     static const int kJpegBufferCount = 1;
 
@@ -306,7 +305,7 @@ private:
     int mBrightness;
     int mHJR;
     struct msm_frame frames[kPreviewBufferCount];
-    struct msm_frame recordframes[kRecordBufferCount];
+    struct msm_frame *recordframes;
     bool mInPreviewCallback;
     bool mUseOverlay;
     sp<Overlay>  mOverlay;

@@ -2181,7 +2181,7 @@ bool QualcommCameraHardware::initRawSnapshot()
 
     //Pmem based pool for Camera Driver
     mRawSnapShotPmemHeap = new PmemPool("/dev/pmem_adsp",
-                                    MemoryHeapBase::READ_ONLY,
+                                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                     mCameraControlFd,
                                     MSM_PMEM_RAW_MAINIMG,
                                     rawSnapshotSize,
@@ -2264,7 +2264,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     LOGV("initRaw: initializing mRawHeap.");
     mRawHeap =
         new PmemPool("/dev/pmem_adsp",
-                     MemoryHeapBase::READ_ONLY,
+                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                      mCameraControlFd,
                      MSM_PMEM_MAINIMG,
                      mJpegMaxSize,
@@ -2303,7 +2303,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
         mThumbnailHeap =
             new PmemPool("/dev/pmem_adsp",
-                         MemoryHeapBase::READ_ONLY,
+                         MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          mCameraControlFd,
                          MSM_PMEM_THUMBNAIL,
                          thumbnailBufferSize,

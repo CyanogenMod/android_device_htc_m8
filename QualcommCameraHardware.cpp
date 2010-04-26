@@ -3947,7 +3947,9 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
 {
-    if(!strcmp(sensorType->name, "2mp")) {
+    if( (!strcmp(sensorType->name, "2mp")) ||
+        (!strcmp(mSensorInfo.name, "vx6953")) ||
+	(!strcmp(mSensorInfo.name, "VX6953")) ) {
         LOGE("Parameter Rolloff is not supported for this sensor");
         return NO_ERROR;
     }

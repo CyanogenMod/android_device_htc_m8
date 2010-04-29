@@ -580,7 +580,8 @@ static const str_map iso[] = {
     { CameraParameters::ISO_100,   CAMERA_ISO_100},
     { CameraParameters::ISO_200,   CAMERA_ISO_200},
     { CameraParameters::ISO_400,   CAMERA_ISO_400},
-    { CameraParameters::ISO_800,   CAMERA_ISO_800 }
+    { CameraParameters::ISO_800,   CAMERA_ISO_800 },
+    { CameraParameters::ISO_1600,  CAMERA_ISO_1600 }
 };
 
 

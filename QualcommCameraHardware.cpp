@@ -1957,6 +1957,8 @@ void QualcommCameraHardware::runVideoThread(void *data)
             LOGV("offset = %d , alignsize = %d , offset later = %d", offset, mRecordHeap->mAlignedBufferSize, (offset / mRecordHeap->mAlignedBufferSize));
 
             offset /= mRecordHeap->mAlignedBufferSize;
+            /* Extract the timestamp of this frame */
+            nsecs_t timeStamp = nsecs_t(vframe->ts.tv_sec)*1000000000LL + vframe->ts.tv_nsec;
 
             // dump frames for test purpose
 #ifdef DUMP_VIDEO_FRAMES
@@ -1989,7 +1991,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
 
             if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME) ) {
                 LOGV("in video_thread : got video frame, giving frame to services/encoder");
-                rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[offset], rdata);
+                rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[offset], rdata);
             }
 #else
             // 720p output2  : simulate release frame here:
@@ -3974,7 +3976,7 @@ status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& param
     if( (!strcmp(sensorType->name, "2mp")) ||
         (!strcmp(mSensorInfo.name, "vx6953")) ||
 	(!strcmp(mSensorInfo.name, "VX6953")) ) {
-        LOGE("Parameter Rolloff is not supported for this sensor");
+        LOGI("Parameter Rolloff is not supported for this sensor");
         return NO_ERROR;
     }
     const char *str = params.get(CameraParameters::KEY_LENSSHADE);
@@ -4526,7 +4528,7 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
 void QualcommCameraHardware::receive_camframetimeout(void) {
     LOGV("receive_camframetimeout: E");
     Mutex::Autolock l(&mCamframeTimeoutLock);
-    LOGD(" Camframe timed out. Not receiving any frames from camera driver ");
+    LOGE(" Camframe timed out. Not receiving any frames from camera driver ");
     camframe_timeout_flag = TRUE;
     LOGV("receive_camframetimeout: X");
 }

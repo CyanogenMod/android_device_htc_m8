@@ -3676,7 +3676,14 @@ void QualcommCameraHardware::receiveJpegPicture(void)
 
 bool QualcommCameraHardware::previewEnabled()
 {
-    return mCameraRunning && mDataCallback && (mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME);
+    /* If overlay is used the message CAMERA_MSG_PREVIEW_FRAME would
+     * be disabled at CameraService layer. Hence previewEnabled would
+     * return FALSE even though preview is running. Hence check for
+     * mOverlay not being NULL to ensure that previewEnabled returns
+     * accurate information.
+     */
+    return mCameraRunning && mDataCallback &&
+           ((mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) || (mOverlay != NULL));
 }
 
 status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)

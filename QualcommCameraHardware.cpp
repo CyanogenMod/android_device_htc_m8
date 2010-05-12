@@ -2409,20 +2409,15 @@ void QualcommCameraHardware::release()
     LINK_jpeg_encoder_join();
     deinitRaw();
     deinitRawSnapshot();
-    {
-	Mutex::Autolock l(&mCamframeTimeoutLock);
-	if(!camframe_timeout_flag) {
+    
+    ctrlCmd.timeout_ms = 5000;
+    ctrlCmd.length = 0;
+    ctrlCmd.type = (uint16_t)CAMERA_EXIT;
+    ctrlCmd.resp_fd = mCameraControlFd; // FIXME: this will be put in by the kernel
+    if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) < 0)
+          LOGE("ioctl CAMERA_EXIT fd %d error %s",
+              mCameraControlFd, strerror(errno));
 
-	    ctrlCmd.timeout_ms = 5000;
-	    ctrlCmd.length = 0;
-	    ctrlCmd.type = (uint16_t)CAMERA_EXIT;
-	    ctrlCmd.resp_fd = mCameraControlFd; // FIXME: this will be put in by the kernel
-	    if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) < 0)
-		LOGE("ioctl CAMERA_EXIT fd %d error %s",
-			mCameraControlFd, strerror(errno));
-
-	}
-    }
     LINK_release_cam_conf_thread();
     close(mCameraControlFd);
     mCameraControlFd = -1;

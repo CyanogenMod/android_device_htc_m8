@@ -1,6 +1,6 @@
 /*
 ** Copyright 2008, Google Inc.
-** Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+** Copyright (c) 2009-2010 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -536,6 +536,27 @@ static struct country_map country_numeric[] = {
     { 750, CAMERA_ANTIBANDING_50HZ }, // Falkland Islands
 };
 
+
+static const str_map scenemode[] = {
+    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_ACTION,         CAMERA_BESTSHOT_ACTION },
+    { CameraParameters::SCENE_MODE_PORTRAIT,       CAMERA_BESTSHOT_PORTRAIT },
+    { CameraParameters::SCENE_MODE_LANDSCAPE,      CAMERA_BESTSHOT_LANDSCAPE },
+    { CameraParameters::SCENE_MODE_NIGHT,          CAMERA_BESTSHOT_NIGHT },
+    { CameraParameters::SCENE_MODE_NIGHT_PORTRAIT, CAMERA_BESTSHOT_NIGHT_PORTRAIT },
+    { CameraParameters::SCENE_MODE_THEATRE,        CAMERA_BESTSHOT_THEATRE },
+    { CameraParameters::SCENE_MODE_BEACH,          CAMERA_BESTSHOT_BEACH },
+    { CameraParameters::SCENE_MODE_SNOW,           CAMERA_BESTSHOT_SNOW },
+    { CameraParameters::SCENE_MODE_SUNSET,         CAMERA_BESTSHOT_SUNSET },
+    { CameraParameters::SCENE_MODE_STEADYPHOTO,    CAMERA_BESTSHOT_ANTISHAKE },
+    { CameraParameters::SCENE_MODE_FIREWORKS ,     CAMERA_BESTSHOT_FIREWORKS },
+    { CameraParameters::SCENE_MODE_SPORTS ,        CAMERA_BESTSHOT_SPORTS },
+    { CameraParameters::SCENE_MODE_PARTY,          CAMERA_BESTSHOT_PARTY },
+    { CameraParameters::SCENE_MODE_CANDLELIGHT,    CAMERA_BESTSHOT_CANDLELIGHT },
+    { CameraParameters::SCENE_MODE_BACKLIGHT,      CAMERA_BESTSHOT_BACKLIGHT },
+    { CameraParameters::SCENE_MODE_FLOWERS,        CAMERA_BESTSHOT_FLOWERS },
+};
+
 #define country_number (sizeof(country_numeric) / sizeof(country_map))
 
 /* Look up pre-sorted antibanding_type table by current MCC. */
@@ -644,6 +665,7 @@ static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
 static String8 picture_format_values;
+static String8 scenemode_values;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -993,6 +1015,9 @@ void QualcommCameraHardware::initDefaultParameters()
         picture_format_values = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
         parameter_string_initialized = true;
+
+        scenemode_values = create_values_str(
+            scenemode, sizeof(scenemode) / sizeof(str_map));
     }
 
     mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_HEIGHT);
@@ -1093,7 +1118,11 @@ void QualcommCameraHardware::initDefaultParameters()
                     iso_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_LENSSHADE_MODES,
                     lensshade_values);
+    mParameters.set(CameraParameters::KEY_SCENE_MODE,
+                    CameraParameters::SCENE_MODE_AUTO);
 
+    mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,
+                    scenemode_values);
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
@@ -3006,8 +3035,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setISOValue(params)))  final_rc = rc;
     if ((rc = setPictureFormat(params))) final_rc = rc;
     if ((rc = setSharpness(params)))    final_rc = rc;
-    if ((rc = setContrast(params)))     final_rc = rc;
     if ((rc = setSaturation(params)))   final_rc = rc;
+    if ((rc = setSceneMode(params)))    final_rc = rc;
+    if ((rc = setContrast(params)))     final_rc = rc;
 
     LOGV("setParameters: X");
     return final_rc;
@@ -3960,16 +3990,26 @@ status_t QualcommCameraHardware::setContrast(const CameraParameters& params)
         LOGE("Contrast not supported for this sensor");
         return NO_ERROR;
     }
-    int contrast = params.getInt(CameraParameters::KEY_CONTRAST);
-    if((contrast < CAMERA_MIN_CONTRAST)
-            || (contrast > CAMERA_MAX_CONTRAST))
-        return UNKNOWN_ERROR;
 
-    LOGV("setting contrast %d", contrast);
-    mParameters.set(CameraParameters::KEY_CONTRAST, contrast);
-    bool ret = native_set_parm(CAMERA_SET_PARM_CONTRAST, sizeof(contrast),
-                               (void *)&contrast);
-    return ret ? NO_ERROR : UNKNOWN_ERROR;
+    const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
+    int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
+
+    if(value == CAMERA_BESTSHOT_OFF) {
+        int contrast = params.getInt(CameraParameters::KEY_CONTRAST);
+        if((contrast < CAMERA_MIN_CONTRAST)
+                || (contrast > CAMERA_MAX_CONTRAST))
+            return UNKNOWN_ERROR;
+
+        LOGV("setting contrast %d", contrast);
+        mParameters.set(CameraParameters::KEY_CONTRAST, contrast);
+        bool ret = native_set_parm(CAMERA_SET_PARM_CONTRAST, sizeof(contrast),
+                                   (void *)&contrast);
+        return ret ? NO_ERROR : UNKNOWN_ERROR;
+    } else {
+          LOGE(" Contrast value will not be set " \
+          "when the scenemode selected is %s", str);
+    return NO_ERROR;
+    }
 }
 
 status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
@@ -3990,7 +4030,7 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
 		|| (saturation > CAMERA_MAX_SATURATION))
 	    return UNKNOWN_ERROR;
 
-	LOGV("setting saturation %d", saturation);
+	LOGV("Setting saturation %d", saturation);
 	mParameters.set(CameraParameters::KEY_SATURATION, saturation);
 	bool ret = native_set_parm(CAMERA_SET_PARM_SATURATION, sizeof(saturation),
 		(void *)&saturation);
@@ -4147,6 +4187,22 @@ status_t  QualcommCameraHardware::setISOValue(const CameraParameters& params) {
 }
 
 
+status_t QualcommCameraHardware::setSceneMode(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
+
+    if (str != NULL) {
+        int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            mParameters.set(CameraParameters::KEY_SCENE_MODE, str);
+            bool ret = native_set_parm(CAMERA_SET_PARM_BESTSHOT_MODE, sizeof(value),
+                                       (void *)&value);
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
+        }
+    }
+    LOGE("Invalid scenemode value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
 status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
 {
     const char *latitude = params.get(CameraParameters::KEY_GPS_LATITUDE);

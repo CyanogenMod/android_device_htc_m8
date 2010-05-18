@@ -2433,8 +2433,9 @@ void QualcommCameraHardware::release()
     }
 #endif
 
-    Mutex::Autolock lock(&singleton_lock);
+    singleton_lock.lock();
     singleton_releasing = true;
+    singleton_lock.unlock();
 
     LOGD("release X");
 }
@@ -2442,7 +2443,7 @@ void QualcommCameraHardware::release()
 QualcommCameraHardware::~QualcommCameraHardware()
 {
     LOGD("~QualcommCameraHardware E");
-    Mutex::Autolock lock(&singleton_lock);
+    singleton_lock.lock();
 
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 ) {
         delete [] recordframes;
@@ -2451,6 +2452,7 @@ QualcommCameraHardware::~QualcommCameraHardware()
     singleton.clear();
     singleton_releasing = false;
     singleton_wait.signal();
+    singleton_lock.unlock();
     LOGD("~QualcommCameraHardware X");
 }
 
@@ -2976,7 +2978,7 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
 {
     LOGD("createInstance: E");
 
-    Mutex::Autolock lock(&singleton_lock);
+    singleton_lock.lock();
 
     // Wait until the previous release is done.
     while (singleton_releasing) {
@@ -2988,6 +2990,7 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
         sp<CameraHardwareInterface> hardware = singleton.promote();
         if (hardware != 0) {
             LOGD("createInstance: X return existing hardware=%p", &(*hardware));
+            singleton_lock.unlock();
             return hardware;
         }
     }
@@ -2997,6 +3000,7 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
         int rc = stat("/dev/oncrpc", &st);
         if (rc < 0) {
             LOGD("createInstance: X failed to create hardware: %s", strerror(errno));
+            singleton_lock.unlock();
             return NULL;
         }
     }
@@ -3007,11 +3011,13 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
 
     if (!cam->startCamera()) {
         LOGE("%s: startCamera failed!", __FUNCTION__);
+        singleton_lock.unlock();
         return NULL;
     }
 
     cam->initDefaultParameters();
     LOGD("createInstance: X created hardware=%p", &(*hardware));
+    singleton_lock.unlock();
     return hardware;
 }
 

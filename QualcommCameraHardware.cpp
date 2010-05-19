@@ -4532,6 +4532,8 @@ void QualcommCameraHardware::receive_camframetimeout(void) {
     Mutex::Autolock l(&mCamframeTimeoutLock);
     LOGE(" Camframe timed out. Not receiving any frames from camera driver ");
     camframe_timeout_flag = TRUE;
+    mNotifyCallback(CAMERA_MSG_ERROR, CAMERA_ERROR_UKNOWN, 0,
+                    mCallbackCookie);
     LOGV("receive_camframetimeout: X");
 }
 

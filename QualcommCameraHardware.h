@@ -260,6 +260,7 @@ private:
     status_t setContrast(const CameraParameters& params);
     status_t setSaturation(const CameraParameters& params);
     status_t setSceneMode(const CameraParameters& params);
+    status_t setContinuousAf(const CameraParameters& params);
 
     void setGpsParameters();
     void storePreviewFrameForPostview();

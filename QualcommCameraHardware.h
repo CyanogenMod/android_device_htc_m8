@@ -53,6 +53,7 @@ struct target_map {
 struct board_property{
     targetType target;
     unsigned int previewSizeMask;
+    bool hasSceneDetect;
 };
 
 namespace android {
@@ -242,6 +243,7 @@ private:
     void filterPictureSizes();
     void filterPreviewSizes();
     void storeTargetType();
+    bool supportsSceneDetection();
 
     void initDefaultParameters();
     void findSensorType();
@@ -273,6 +275,7 @@ private:
     status_t setSceneMode(const CameraParameters& params);
     status_t setContinuousAf(const CameraParameters& params);
     status_t setTouchAfAec(const CameraParameters& params);
+    status_t setSceneDetect(const CameraParameters& params);
 
     void setGpsParameters();
     void storePreviewFrameForPostview();

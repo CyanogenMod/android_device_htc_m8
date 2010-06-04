@@ -224,6 +224,7 @@ private:
     Condition mSnapshotThreadWait;
     friend void *snapshot_thread(void *user);
     void runSnapshotThread(void *data);
+    Mutex mRawPictureHeapLock;
 
     void debugShowPreviewFPS() const;
     void debugShowVideoFPS() const;

@@ -2407,8 +2407,12 @@ void QualcommCameraHardware::release()
         mPostViewHeap = NULL;
     }
     LINK_jpeg_encoder_join();
-    deinitRaw();
+    {
+        Mutex::Autolock l (&mRawPictureHeapLock);
+        deinitRaw();
+    }
     deinitRawSnapshot();
+
     
     ctrlCmd.timeout_ms = 5000;
     ctrlCmd.length = 0;
@@ -3578,10 +3582,15 @@ void QualcommCameraHardware::receiveRawPicture()
             // By the time native_get_picture returns, picture is taken. Call
             // shutter callback if cam config thread has not done that.
             notifyShutter(&mCrop, FALSE);
-            crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + jpegPadding), (mCrop.in2_h + jpegPadding),
-                 (uint8_t *)mRawHeap->mHeap->base());
-            crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + jpegPadding), (mCrop.in1_h + jpegPadding),
-                 (uint8_t *)mThumbnailHeap->mHeap->base());
+            {
+                Mutex::Autolock l(&mRawPictureHeapLock);
+                if(mRawHeap != NULL)
+                    crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + jpegPadding), (mCrop.in2_h + jpegPadding),
+                            (uint8_t *)mRawHeap->mHeap->base());
+                if(mThumbnailHeap != NULL)
+                    crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + jpegPadding), (mCrop.in1_h + jpegPadding),
+                            (uint8_t *)mThumbnailHeap->mHeap->base());
+            }
 
             // We do not need jpeg encoder to upscale the image. Set the new
             // dimension for encoder.

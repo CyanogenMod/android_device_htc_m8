@@ -269,6 +269,7 @@ private:
     status_t setSaturation(const CameraParameters& params);
     status_t setSceneMode(const CameraParameters& params);
     status_t setContinuousAf(const CameraParameters& params);
+    status_t setTouchAfAec(const CameraParameters& params);
 
     void setGpsParameters();
     void storePreviewFrameForPostview();

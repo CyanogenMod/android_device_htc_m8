@@ -633,6 +633,12 @@ static const str_map continuous_af[] = {
     { CameraParameters::CONTINUOUS_AF_ON, TRUE }
 };
 
+#define DONT_CARE_COORDINATE -1
+static const str_map touchafaec[] = {
+    { CameraParameters::TOUCH_AF_AEC_OFF, FALSE },
+    { CameraParameters::TOUCH_AF_AEC_ON, TRUE }
+};
+
 struct SensorType {
     const char *name;
     int rawPictureWidth;
@@ -679,6 +685,7 @@ static String8 flash_values;
 static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
+static String8 touchafaec_values;
 static String8 picture_format_values;
 static String8 scenemode_values;
 static String8 continuous_af_values;
@@ -1031,6 +1038,10 @@ void QualcommCameraHardware::initDefaultParameters()
             iso,sizeof(iso)/sizeof(str_map));
         lensshade_values = create_values_str(
             lensshade,sizeof(lensshade)/sizeof(str_map));
+
+        touchafaec_values = create_values_str(
+            touchafaec,sizeof(touchafaec)/sizeof(str_map));
+
         picture_format_values = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
 
@@ -1151,6 +1162,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::CONTINUOUS_AF_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_CONTINUOUS_AF,
                     continuous_af_values);
+    mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
+                    CameraParameters::TOUCH_AF_AEC_OFF);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_TOUCH_AF_AEC,
+                    touchafaec_values);
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
@@ -3126,6 +3141,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setSharpness(params)))    final_rc = rc;
     if ((rc = setSaturation(params)))   final_rc = rc;
     if ((rc = setContinuousAf(params)))  final_rc = rc;
+    if ((rc = setTouchAfAec(params)))   final_rc = rc;
     if ((rc = setSceneMode(params)))    final_rc = rc;
     if ((rc = setContrast(params)))     final_rc = rc;
 
@@ -4295,6 +4311,43 @@ status_t QualcommCameraHardware::setContinuousAf(const CameraParameters& params)
         }
     }
     LOGE("Invalid continuous Af value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
+{
+    int x, y;
+
+    params.getTouchIndexAec(&x, &y);
+    const char *str = params.get(CameraParameters::KEY_TOUCH_AF_AEC);
+
+    if (str != NULL) {
+        int value = attr_lookup(touchafaec,
+                                    sizeof(touchafaec) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC, str);
+
+            //If touch AF/AEC is enabled and touch event has occured then
+            //call the ioctl with valid values.
+
+            cam_set_aec_roi_t aec_roi_value;
+            if (value == true && x >= 0 && y >= 0) {
+                aec_roi_value.aec_roi_enable = AEC_ROI_ON;
+                aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
+                aec_roi_value.aec_roi_position.coordinate.x = x;
+                aec_roi_value.aec_roi_position.coordinate.y = y;
+            }
+            else {
+                aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
+                aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
+                aec_roi_value.aec_roi_position.coordinate.x = DONT_CARE_COORDINATE;
+                aec_roi_value.aec_roi_position.coordinate.y = DONT_CARE_COORDINATE;
+            }
+            native_set_parm(CAMERA_SET_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
+        }
+        return NO_ERROR;
+    }
+    LOGE("Invalid touchafaec value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
 

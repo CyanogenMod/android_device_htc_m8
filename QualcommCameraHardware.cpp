@@ -787,6 +787,9 @@ void QualcommCameraHardware::storeTargetType(void) {
 //-------------------------------------------------------------------------------------
 static Mutex singleton_lock;
 static bool singleton_releasing;
+static nsecs_t singleton_releasing_start_time;
+static const nsecs_t SINGLETON_RELEASING_WAIT_TIME = seconds_to_nanoseconds(5);
+static const nsecs_t SINGLETON_RELEASING_RECHECK_TIMEOUT = seconds_to_nanoseconds(1);
 static Condition singleton_wait;
 
 static void receive_camframe_callback(struct msm_frame *frame);
@@ -2439,6 +2442,7 @@ void QualcommCameraHardware::release()
 
     singleton_lock.lock();
     singleton_releasing = true;
+    singleton_releasing_start_time = systemTime();
     singleton_lock.unlock();
 
     LOGD("release X");
@@ -2455,6 +2459,7 @@ QualcommCameraHardware::~QualcommCameraHardware()
     }
     singleton.clear();
     singleton_releasing = false;
+    singleton_releasing_start_time = 0;
     singleton_wait.signal();
     singleton_lock.unlock();
     LOGD("~QualcommCameraHardware X");
@@ -2986,8 +2991,17 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
 
     // Wait until the previous release is done.
     while (singleton_releasing) {
-        LOGD("Wait for previous release.");
-        singleton_wait.wait(singleton_lock);
+        if((singleton_releasing_start_time != 0) &&
+                (systemTime() - singleton_releasing_start_time) > SINGLETON_RELEASING_WAIT_TIME){
+            LOGV("in createinstance system time is %lld %lld %lld ",
+                    systemTime(), singleton_releasing_start_time, SINGLETON_RELEASING_WAIT_TIME);
+            singleton_lock.unlock();
+            LOGE("Previous singleton is busy and time out exceeded. Returning null");
+            return NULL;
+        }
+        LOGI("Wait for previous release.");
+        singleton_wait.waitRelative(singleton_lock, SINGLETON_RELEASING_RECHECK_TIMEOUT);
+        LOGI("out of Wait for previous release.");
     }
 
     if (singleton != 0) {

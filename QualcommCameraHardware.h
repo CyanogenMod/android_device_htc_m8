@@ -309,6 +309,7 @@ private:
     int mHJR;
     struct msm_frame frames[kPreviewBufferCount];
     struct msm_frame *recordframes;
+    bool *record_buffers_tracking_flag;
     bool mInPreviewCallback;
     bool mUseOverlay;
     sp<Overlay>  mOverlay;

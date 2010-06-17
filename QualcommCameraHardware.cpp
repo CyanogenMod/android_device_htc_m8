@@ -875,12 +875,14 @@ QualcommCameraHardware::QualcommCameraHardware()
         kPreviewBufferCountActual = kPreviewBufferCount;
         kRecordBufferCount = RECORD_BUFFERS_7x30;
         recordframes = new msm_frame[kRecordBufferCount];
+        record_buffers_tracking_flag = new bool[kRecordBufferCount];
     }
     else {
         kPreviewBufferCountActual = kPreviewBufferCount + NUM_MORE_BUFS;
         if( mCurrentTarget == TARGET_QSD8250 ) {
             kRecordBufferCount = RECORD_BUFFERS_8x50;
             recordframes = new msm_frame[kRecordBufferCount];
+            record_buffers_tracking_flag = new bool[kRecordBufferCount];
         }
     }
 
@@ -1960,6 +1962,10 @@ void QualcommCameraHardware::runVideoThread(void *data)
             LOGV("offset = %d , alignsize = %d , offset later = %d", offset, mRecordHeap->mAlignedBufferSize, (offset / mRecordHeap->mAlignedBufferSize));
 
             offset /= mRecordHeap->mAlignedBufferSize;
+
+            //set the track flag to true for this video buffer
+            record_buffers_tracking_flag[offset] = true;
+
             /* Extract the timestamp of this frame */
             nsecs_t timeStamp = nsecs_t(vframe->ts.tv_sec)*1000000000LL + vframe->ts.tv_nsec;
 
@@ -2456,6 +2462,8 @@ QualcommCameraHardware::~QualcommCameraHardware()
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 ) {
         delete [] recordframes;
         recordframes = NULL;
+        delete [] record_buffers_tracking_flag;
+        record_buffers_tracking_flag = NULL;
     }
     singleton.clear();
     singleton_releasing = false;
@@ -3269,7 +3277,7 @@ bool QualcommCameraHardware::initRecord()
         recordframes[cnt].y_off = 0;
         recordframes[cnt].cbcr_off = mDimension.video_width  * mDimension.video_height;
         recordframes[cnt].path = OUTPUT_TYPE_V;
-
+        record_buffers_tracking_flag[cnt] = false;
         LOGV ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
           (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
           recordframes[cnt].cbcr_off);
@@ -3316,6 +3324,15 @@ status_t QualcommCameraHardware::startRecording()
                 LINK_camframe_free_video(vframe);
             }
             LOGV("frames in busy Q = %d after deQueing", g_busy_frame_queue.num_of_frames);
+
+            //Clear the dangling buffers and put them in free queue
+            for(int cnt = 0; cnt < kRecordBufferCount; cnt++) {
+                if(record_buffers_tracking_flag[cnt] == true) {
+                    LOGI("Dangling buffer: offset = %d, buffer = %d", cnt, recordframes[cnt].buffer);
+                    LINK_camframe_free_video(&recordframes[cnt]);
+                    record_buffers_tracking_flag[cnt] = false;
+                }
+            }
 
             // Start video thread and wait for busy frames to be encoded, this thread
             // should be closed in stopRecording
@@ -3395,8 +3412,11 @@ void QualcommCameraHardware::releaseRecordingFrame(
         if(cnt < kRecordBufferCount) {
             // do this only if frame thread is running
             mFrameThreadWaitLock.lock();
-            if(mFrameThreadRunning )
+            if(mFrameThreadRunning ) {
+                //Reset the track flag for this frame buffer
+                record_buffers_tracking_flag[cnt] = false;
                 LINK_camframe_free_video(releaseframe);
+            }
 
             mFrameThreadWaitLock.unlock();
         } else {

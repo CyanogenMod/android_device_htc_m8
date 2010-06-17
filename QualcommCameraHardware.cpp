@@ -279,7 +279,7 @@ static inline unsigned clp2(unsigned x)
 }
 
 static int exif_table_numEntries = 0;
-#define MAX_EXIF_TABLE_ENTRIES 7
+#define MAX_EXIF_TABLE_ENTRIES 8
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
@@ -1649,9 +1649,9 @@ static rat_t latitude[3];
 static rat_t longitude[3];
 static char lonref[2];
 static char latref[2];
-static char dateTime[20];
 static rat_t altitude;
-
+static rat_t gpsTimestamp[3];
+static char dateTime[20];
 static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
                         uint32_t count, uint8_t copy, void *data) {
 
@@ -1765,6 +1765,26 @@ void QualcommCameraHardware::setGpsParameters() {
                         1, (void *)&ref);
     }
 
+    //set Gps TimeStamp
+    str = NULL;
+    str = mParameters.get(CameraParameters::KEY_GPS_TIMESTAMP);
+    if(str != NULL) {
+
+      long value = atol(str);
+      time_t unixTime;
+      struct tm *UTCTimestamp;
+
+      unixTime = (time_t)value;
+      UTCTimestamp = gmtime(&unixTime);
+
+      rat_t time_value[3] = { {UTCTimestamp->tm_hour, 1},
+                              {UTCTimestamp->tm_min, 1},
+                              {UTCTimestamp->tm_sec, 1} };
+
+      memcpy(&gpsTimestamp, &time_value, sizeof(gpsTimestamp));
+      addExifTag(EXIFTAGID_GPS_TIMESTAMP, EXIF_RATIONAL,
+                  3, 1, (void *)&gpsTimestamp);
+    }
 
 }
 
@@ -1799,10 +1819,8 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         }
     }
 
-//    jpeg_set_location();
-    if(mParameters.getInt(CameraParameters::KEY_GPS_STATUS) == 1) {
-	   setGpsParameters();
-	}
+    jpeg_set_location();
+
     //set TimeStamp
     const char *str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
     if(str != NULL) {
@@ -1886,11 +1904,13 @@ void QualcommCameraHardware::jpeg_set_location()
     if (encode_location) {
         LOGD("setting image location ALT %d LAT %lf LON %lf",
              pt.altitude, pt.latitude, pt.longitude);
-/* Disabling until support is available.
+
+        setGpsParameters();
+        /* Disabling until support is available.
         if (!LINK_jpeg_encoder_setLocation(&pt)) {
             LOGE("jpeg_set_location: LINK_jpeg_encoder_setLocation failed.");
         }
-*/
+        */
     }
     else LOGV("not setting image location");
 }

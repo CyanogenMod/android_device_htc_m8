@@ -172,11 +172,13 @@ private:
         PmemPool(const char *pmem_pool,
                  int control_camera_fd, int flags, int pmem_type,
                  int buffer_size, int num_buffers,
-                 int frame_size,
-                 const char *name);
+                 int frame_size, int cbcr_offset,
+                 int yoffset, const char *name);
         virtual ~PmemPool();
         int mFd;
         int mPmemType;
+        int mCbCrOffset;
+        int myOffset;
         int mCameraControlFd;
         uint32_t mAlignedSize;
         struct pmem_region mSize;

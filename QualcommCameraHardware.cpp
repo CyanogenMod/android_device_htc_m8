@@ -101,6 +101,10 @@ void (*LINK_cam_frame_flush_free_video)(void);
 int8_t (*LINK_jpeg_encoder_setMainImageQuality)(uint32_t quality);
 int8_t (*LINK_jpeg_encoder_setThumbnailQuality)(uint32_t quality);
 int8_t (*LINK_jpeg_encoder_setRotation)(uint32_t rotation);
+int8_t (*LINK_jpeg_encoder_get_buffer_offset)(uint32_t width, uint32_t height,
+                                               uint32_t* p_y_offset,
+                                                uint32_t* p_cbcr_offset,
+                                                 uint32_t* p_buf_size);
 int8_t (*LINK_jpeg_encoder_setLocation)(const camera_position_type *location);
 const struct camera_size_type *(*LINK_default_sensor_get_snapshot_sizes)(int *len);
 int (*LINK_launch_cam_conf_thread)(void);
@@ -125,6 +129,7 @@ void  (**LINK_camframe_timeout_callback)(void);
 #define LINK_jpeg_encoder_setMainImageQuality jpeg_encoder_setMainImageQuality
 #define LINK_jpeg_encoder_setThumbnailQuality jpeg_encoder_setThumbnailQuality
 #define LINK_jpeg_encoder_setRotation jpeg_encoder_setRotation
+#define LINK_jpeg_encoder_get_buffer_offset jpeg_encoder_get_buffer_offset
 #define LINK_jpeg_encoder_setLocation jpeg_encoder_setLocation
 #define LINK_default_sensor_get_snapshot_sizes default_sensor_get_snapshot_sizes
 #define LINK_launch_cam_conf_thread launch_cam_conf_thread
@@ -1251,6 +1256,9 @@ bool QualcommCameraHardware::startCamera()
     *(void**)&LINK_jpeg_encoder_setRotation =
         ::dlsym(libmmcamera, "jpeg_encoder_setRotation");
 
+    *(void**)&LINK_jpeg_encoder_get_buffer_offset =
+        ::dlsym(libmmcamera, "jpeg_encoder_get_buffer_offset");
+
 /* Disabling until support is available.
     *(void**)&LINK_jpeg_encoder_setLocation =
         ::dlsym(libmmcamera, "jpeg_encoder_setLocation");
@@ -1859,12 +1867,14 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         }
     }
 
-    int rotation = mParameters.getInt("rotation");
-    if (rotation >= 0) {
-        LOGV("native_jpeg_encode, rotation = %d", rotation);
-        if(!LINK_jpeg_encoder_setRotation(rotation)) {
-            LOGE("native_jpeg_encode set rotation failed");
-            return false;
+    if(mCurrentTarget != TARGET_MSM7630) {
+        int rotation = mParameters.getInt("rotation");
+        if (rotation >= 0) {
+            LOGV("native_jpeg_encode, rotation = %d", rotation);
+            if(!LINK_jpeg_encoder_setRotation(rotation)) {
+                LOGE("native_jpeg_encode set rotation failed");
+                return false;
+            }
         }
     }
 
@@ -2179,6 +2189,7 @@ bool QualcommCameraHardware::initPreview()
 
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
+    int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
     dstOffset = 0;
     mPreviewHeap = new PmemPool("/dev/pmem_adsp",
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -2187,6 +2198,8 @@ bool QualcommCameraHardware::initPreview()
                                 mPreviewFrameSize,
                                 kPreviewBufferCountActual,
                                 mPreviewFrameSize,
+                                CbCrOffset,
+                                0,
                                 "preview");
 
     if (!mPreviewHeap->initialized()) {
@@ -2207,6 +2220,8 @@ bool QualcommCameraHardware::initPreview()
 			mPreviewFrameSize,
 			1,
 			mPreviewFrameSize,
+                        CbCrOffset,
+                        0,
 			"postview");
 
 	    if (!mPostViewHeap->initialized()) {
@@ -2235,7 +2250,7 @@ bool QualcommCameraHardware::initPreview()
             frames[cnt].buffer =
                 (uint32_t)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt;
             frames[cnt].y_off = 0;
-            frames[cnt].cbcr_off = previewWidth * previewHeight;
+            frames[cnt].cbcr_off = CbCrOffset;
             frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
         }
 
@@ -2321,6 +2336,8 @@ bool QualcommCameraHardware::initRawSnapshot()
                                     rawSnapshotSize,
                                     1,
                                     rawSnapshotSize,
+                                    0,
+                                    0,
                                     "raw pmem snapshot camera");
 
     if (!mRawSnapShotPmemHeap->initialized()) {
@@ -2371,7 +2388,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     thumbnailBufferSize = mDimension.ui_thumbnail_width *
                           mDimension.ui_thumbnail_height * 3 / 2;
-
+    int CbCrOffsetThumb = PAD_TO_WORD(mDimension.ui_thumbnail_width *
+                          mDimension.ui_thumbnail_height);
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -2389,11 +2407,31 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
+    int CbCrOffsetRaw = PAD_TO_WORD(rawWidth * rawHeight);
 
     if( mCurrentTarget == TARGET_MSM7627 )
              mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
     else
              mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
+
+    //For offline jpeg hw encoder, jpeg encoder will provide us the
+    //required offsets and buffer size depending on the rotation.
+    int yOffset = 0;
+    if( mCurrentTarget == TARGET_MSM7630 ) {
+        int rotation = mParameters.getInt("rotation");
+        if (rotation >= 0) {
+            LOGV("initRaw, jpeg_rotation = %d", rotation);
+            if(!LINK_jpeg_encoder_setRotation(rotation)) {
+                LOGE("native_jpeg_encode set rotation failed");
+                return false;
+            }
+        }
+        LINK_jpeg_encoder_get_buffer_offset(rawWidth, rawHeight, (uint32_t *)&yOffset,
+                                        (uint32_t *)&CbCrOffsetRaw, (uint32_t *)&mRawSize);
+        LOGV("initRaw: yOffset = %d, CbCrOffsetRaw = %d, mRawSize = %d",
+                         yOffset, CbCrOffsetRaw, mRawSize);
+        mJpegMaxSize = mRawSize;
+    }
 
     LOGV("initRaw: initializing mRawHeap.");
     mRawHeap =
@@ -2404,6 +2442,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                      mJpegMaxSize,
                      kRawBufferCount,
                      mRawSize,
+                     CbCrOffsetRaw,
+                     yOffset,
                      "snapshot camera");
 
     if (!mRawHeap->initialized()) {
@@ -2443,6 +2483,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          thumbnailBufferSize,
                          1,
                          thumbnailBufferSize,
+                         CbCrOffsetThumb,
+                         0,
                          "thumbnail");
 
         if (!mThumbnailHeap->initialized()) {
@@ -3375,6 +3417,7 @@ bool QualcommCameraHardware::initRecord()
     else
         pmem_region = "/dev/pmem_adsp";
 
+    int CbCrOffset = PAD_TO_WORD(mDimension.video_width  * mDimension.video_height);
     mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
@@ -3382,6 +3425,8 @@ bool QualcommCameraHardware::initRecord()
                                 mRecordFrameSize,
                                 kRecordBufferCount,
                                 mRecordFrameSize,
+                                CbCrOffset,
+                                0,
                                 "record");
 
     if (!mRecordHeap->initialized()) {
@@ -4466,6 +4511,8 @@ QualcommCameraHardware::AshmemPool::AshmemPool(int buffer_size, int num_buffers,
 static bool register_buf(int camfd,
                          int size,
                          int frame_size,
+                         int cbcr_offset,
+                         int yoffset,
                          int pmempreviewfd,
                          uint32_t offset,
                          uint8_t *buf,
@@ -4478,13 +4525,15 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                                            int camera_control_fd,
                                            int pmem_type,
                                            int buffer_size, int num_buffers,
-                                           int frame_size,
-                                           const char *name) :
+                                           int frame_size, int cbcr_offset,
+                                           int yOffset, const char *name) :
     QualcommCameraHardware::MemPool(buffer_size,
                                     num_buffers,
                                     frame_size,
                                     name),
     mPmemType(pmem_type),
+    mCbCrOffset(cbcr_offset),
+    myOffset(yOffset),
     mCameraControlFd(dup(camera_control_fd))
 {
     LOGV("constructing MemPool %s backed by pmem pool %s: "
@@ -4549,7 +4598,7 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                 }
                 register_buf(mCameraControlFd,
                          mBufferSize,
-                         mFrameSize,
+                         mFrameSize, mCbCrOffset, myOffset,
                          mHeap->getHeapID(),
                          mAlignedBufferSize * cnt,
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
@@ -4578,6 +4627,8 @@ QualcommCameraHardware::PmemPool::~PmemPool()
                 register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,
+                         mCbCrOffset,
+                         myOffset,
                          mHeap->getHeapID(),
                          mAlignedBufferSize * cnt,
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
@@ -4606,6 +4657,8 @@ QualcommCameraHardware::MemPool::~MemPool()
 static bool register_buf(int camfd,
                          int size,
                          int frame_size,
+                         int cbcr_offset,
+                         int yoffset,
                          int pmempreviewfd,
                          uint32_t offset,
                          uint8_t *buf,
@@ -4620,12 +4673,8 @@ static bool register_buf(int camfd,
     pmemBuf.offset   = offset;
     pmemBuf.len      = size;
     pmemBuf.vaddr    = buf;
-    pmemBuf.y_off    = 0;
-
-    if(pmem_type == MSM_PMEM_RAW_MAINIMG)
-        pmemBuf.cbcr_off = 0;
-    else
-        pmemBuf.cbcr_off = PAD_TO_WORD(frame_size * 2 / 3);
+    pmemBuf.y_off    = yoffset;
+    pmemBuf.cbcr_off = cbcr_offset;
 
     pmemBuf.active   = vfe_can_write;
 

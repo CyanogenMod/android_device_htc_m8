@@ -884,6 +884,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mFrameThreadRunning(false),
       mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
+      mInSnapshotMode(false),
+      mJpegThreadRunning(false),
       mSnapshotFormat(0),
       mReleasedRecordingFrame(false),
       mPreviewFrameSize(0),
@@ -1888,7 +1890,6 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
       addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                   20, 1, (void *)dateTime);
     }
-
     if (!LINK_jpeg_encoder_encode(&mDimension,
                                   (uint8_t *)mThumbnailHeap->mHeap->base(),
                                   mThumbnailHeap->mHeap->getHeapID(),
@@ -2179,13 +2180,13 @@ bool QualcommCameraHardware::initPreview()
     }
     mFrameThreadWaitLock.unlock();
 
-    mSnapshotThreadWaitLock.lock();
-    while (mSnapshotThreadRunning) {
-        LOGV("initPreview: waiting for old snapshot thread to complete.");
-        mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
-        LOGV("initPreview: old snapshot thread completed.");
+    mInSnapshotModeWaitLock.lock();
+    while (mInSnapshotMode) {
+        LOGV("initPreview: waiting for snapshot mode to complete.");
+        mInSnapshotModeWait.wait(mInSnapshotModeWaitLock);
+        LOGV("initPreview: snapshot mode completed.");
     }
-    mSnapshotThreadWaitLock.unlock();
+    mInSnapshotModeWaitLock.unlock();
 
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
@@ -2556,6 +2557,12 @@ void QualcommCameraHardware::release()
         Mutex::Autolock l (&mRawPictureHeapLock);
         deinitRaw();
     }
+    //Signal the snapshot thread
+    mJpegThreadWaitLock.lock();
+    mJpegThreadRunning = false;
+    mJpegThreadWait.signal();
+    mJpegThreadWaitLock.unlock();
+
     deinitRawSnapshot();
 
     
@@ -2972,8 +2979,23 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
            LOGE("main: native_start_raw_snapshot failed!");
         }
     }
+    mInSnapshotModeWaitLock.lock();
+    mInSnapshotMode = false;
+    mInSnapshotModeWait.signal();
+    mInSnapshotModeWaitLock.unlock();
 
     mSnapshotFormat = 0;
+
+    mJpegThreadWaitLock.lock();
+    while (mJpegThreadRunning) {
+        LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
+        mJpegThreadWait.wait(mJpegThreadWaitLock);
+        LOGV("runSnapshotThread: jpeg thread completed.");
+    }
+    mJpegThreadWaitLock.unlock();
+    //clear the resources
+    LINK_jpeg_encoder_join();
+    deinitRaw();
 
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
@@ -3057,6 +3079,10 @@ status_t QualcommCameraHardware::takePicture()
                                              snapshot_thread,
                                              NULL);
     mSnapshotThreadWaitLock.unlock();
+
+    mInSnapshotModeWaitLock.lock();
+    mInSnapshotMode = true;
+    mInSnapshotModeWaitLock.unlock();
 
     LOGV("takePicture: X");
     return mSnapshotThreadRunning ? NO_ERROR : UNKNOWN_ERROR;
@@ -3821,14 +3847,20 @@ void QualcommCameraHardware::receiveRawPicture()
 
     if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
         mJpegSize = 0;
+        mJpegThreadWaitLock.lock();
         if (LINK_jpeg_encoder_init()) {
+            mJpegThreadRunning = true;
+            mJpegThreadWaitLock.unlock();
             if(native_jpeg_encode()) {
                 LOGV("receiveRawPicture: X (success)");
                 return;
             }
             LOGE("jpeg encoding failed");
         }
-        else LOGE("receiveRawPicture X: jpeg_encoder_init failed.");
+        else {
+            LOGE("receiveRawPicture X: jpeg_encoder_init failed.");
+            mJpegThreadWaitLock.unlock();
+        }
     }
     else LOGV("JPEG callback is NULL, not encoding image.");
     deinitRaw();
@@ -3876,8 +3908,10 @@ void QualcommCameraHardware::receiveJpegPicture(void)
     }
     else LOGV("JPEG callback was cancelled--not delivering image.");
 
-    LINK_jpeg_encoder_join();
-    deinitRaw();
+    mJpegThreadWaitLock.lock();
+    mJpegThreadRunning = false;
+    mJpegThreadWait.signal();
+    mJpegThreadWaitLock.unlock();
 
     LOGV("receiveJpegPicture: X callback done.");
 }

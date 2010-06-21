@@ -228,6 +228,12 @@ private:
     friend void *snapshot_thread(void *user);
     void runSnapshotThread(void *data);
     Mutex mRawPictureHeapLock;
+    bool mJpegThreadRunning;
+    Mutex mJpegThreadWaitLock;
+    Condition mJpegThreadWait;
+    bool mInSnapshotMode;
+    Mutex mInSnapshotModeWaitLock;
+    Condition mInSnapshotModeWait;
 
     void debugShowPreviewFPS() const;
     void debugShowVideoFPS() const;

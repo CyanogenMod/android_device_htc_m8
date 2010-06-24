@@ -36,7 +36,7 @@
 #include <linux/android_pmem.h>
 #endif
 #include <linux/ioctl.h>
-#include <ui/CameraParameters.h>
+#include <camera/CameraParameters.h>
 
 #include "linux/msm_mdp.h"
 #include <linux/fb.h>
@@ -79,6 +79,8 @@ extern "C" {
 
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
+
+#define LOGV LOGE
 
 void* (*LINK_cam_conf)(void *data);
 void* (*LINK_cam_frame)(void *data);
@@ -1115,6 +1117,8 @@ bool QualcommCameraHardware::startCamera()
     }
 #if DLOPEN_LIBMMCAMERA
     libmmcamera = ::dlopen("liboemcamera.so", RTLD_NOW);
+
+    LOGE("opening mm camera");
     LOGV("loading liboemcamera at %p", libmmcamera);
     if (!libmmcamera) {
         LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
@@ -3190,7 +3194,8 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
     if(mUseOverlay) {
 	if(mOverlay != NULL) {
 	    mOverlayLock.lock();
-	    mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
+            //TODO overlay changes not yet merged
+            //mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
 	    if (crop->in2_w != 0 || crop->in2_h != 0) {
 		zoomCropInfo.x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
 		zoomCropInfo.y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
@@ -3640,7 +3645,8 @@ void QualcommCameraHardware::receiveRawPicture()
         }
 
 	if( mUseOverlay && (mOverlay != NULL) ) {
-	    mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
+            //TODO overlay changes not yet merged
+            //mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
 	    if( zoomCropInfo.w !=0 && zoomCropInfo.h !=0) {
 		LOGD(" zoomCropInfo non-zero, setting crop ");
 		mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,

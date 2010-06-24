@@ -21,7 +21,7 @@ LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
-LOCAL_SHARED_LIBRARIES:= libutils libui liblog libcutils
+LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils
 
 LOCAL_SHARED_LIBRARIES+= libbinder
 ifneq ($(DLOPEN_LIBMMCAMERA),1)

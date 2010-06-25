@@ -247,6 +247,7 @@ private:
     void findSensorType();
 
     status_t setPreviewSize(const CameraParameters& params);
+    status_t setPreviewFrameRate(const CameraParameters& params);
     status_t setPictureSize(const CameraParameters& params);
     status_t setJpegQuality(const CameraParameters& params);
     status_t setAntibanding(const CameraParameters& params);
@@ -318,6 +319,8 @@ private:
     pthread_t mSnapshotThread;
 
     common_crop_t mCrop;
+
+    bool mInitialized;
 
     int mBrightness;
     int mHJR;

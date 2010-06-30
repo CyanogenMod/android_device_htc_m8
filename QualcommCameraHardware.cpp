@@ -80,8 +80,6 @@ extern "C" {
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
-#define LOGV LOGE
-
 void* (*LINK_cam_conf)(void *data);
 void* (*LINK_cam_frame)(void *data);
 bool  (*LINK_jpeg_encoder_init)();
@@ -610,6 +608,17 @@ struct SensorType {
     int bitMask;
 };
 
+
+/*
+ * Values based on aec.c
+ */
+
+#define EXPOSURE_COMPENSATION_MAXIMUM_NUMERATOR 12
+#define EXPOSURE_COMPENSATION_MINIMUM_NUMERATOR -12
+#define EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR 0
+#define EXPOSURE_COMPENSATION_DENOMINATOR 6
+#define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
+
 static SensorType sensorTypes[] = {
         { "5mp", 2608, 1960, true,  2592, 1944,0x00000fff },
         { "3mp", 2064, 1544, false, 2048, 1536,0x000007ff },
@@ -1049,6 +1058,19 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_MAX_SATURATION,
             CAMERA_MAX_SATURATION);
 
+    mParameters.set(
+            CameraParameters::KEY_MAX_EXPOSURE_COMPENSATION,
+            EXPOSURE_COMPENSATION_MAXIMUM_NUMERATOR);
+    mParameters.set(
+            CameraParameters::KEY_MIN_EXPOSURE_COMPENSATION,
+            EXPOSURE_COMPENSATION_MINIMUM_NUMERATOR);
+    mParameters.set(
+            CameraParameters::KEY_EXPOSURE_COMPENSATION,
+            EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR);
+    mParameters.setFloat(
+            CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP,
+            EXPOSURE_COMPENSATION_STEP);
+
     mParameters.set("luma-adaptation", "3");
     mParameters.set("zoom-supported", "true");
     mParameters.set("max-zoom", MAX_ZOOM_LEVEL);
@@ -1118,7 +1140,6 @@ bool QualcommCameraHardware::startCamera()
 #if DLOPEN_LIBMMCAMERA
     libmmcamera = ::dlopen("liboemcamera.so", RTLD_NOW);
 
-    LOGE("opening mm camera");
     LOGV("loading liboemcamera at %p", libmmcamera);
     if (!libmmcamera) {
         LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
@@ -2950,6 +2971,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPictureSize(params)))  final_rc = rc;
     if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
+    if ((rc = setExposureCompensation(params))) final_rc = rc;
     if ((rc = setAutoExposure(params))) final_rc = rc;
     if ((rc = setWhiteBalance(params))) final_rc = rc;
     if ((rc = setEffect(params)))       final_rc = rc;
@@ -3846,6 +3868,31 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
         }
     }
     LOGE("Invalid effect value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setExposureCompensation(
+        const CameraParameters & params){
+
+    if(!strcmp(sensorType->name, "2mp")) {
+        LOGE("Exposure Compensation is not supported for this sensor");
+        return NO_ERROR;
+    }
+
+    int numerator = params.getInt(CameraParameters::KEY_EXPOSURE_COMPENSATION);
+    if(EXPOSURE_COMPENSATION_MINIMUM_NUMERATOR <= numerator &&
+            numerator <= EXPOSURE_COMPENSATION_MAXIMUM_NUMERATOR){
+        int16_t  numerator16 = (int16_t)(numerator & 0x0000ffff);
+        uint16_t denominator16 = EXPOSURE_COMPENSATION_DENOMINATOR;
+        uint32_t  value = 0;
+        value = numerator16 << 16 | denominator16;
+
+        mParameters.set(CameraParameters::KEY_EXPOSURE_COMPENSATION,
+                            numerator);
+        bool ret = native_set_parm(CAMERA_SET_PARM_EXPOSURE_COMPENSATION,
+                                    sizeof(value), (void *)&value);
+        return ret ? NO_ERROR : UNKNOWN_ERROR;
+    }
     return BAD_VALUE;
 }
 

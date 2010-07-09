@@ -599,7 +599,8 @@ static camera_antibanding_type camera_get_location(void) {
 static const str_map flash[] = {
     { CameraParameters::FLASH_MODE_OFF,  LED_MODE_OFF },
     { CameraParameters::FLASH_MODE_AUTO, LED_MODE_AUTO },
-    { CameraParameters::FLASH_MODE_ON, LED_MODE_ON }
+    { CameraParameters::FLASH_MODE_ON, LED_MODE_ON },
+    { CameraParameters::FLASH_MODE_TORCH, LED_MODE_TORCH}
 };
 
 // from mm-camera/common/camera.h.

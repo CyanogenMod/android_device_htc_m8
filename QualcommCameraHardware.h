@@ -41,6 +41,7 @@ typedef enum {
     TARGET_MSM7627,
     TARGET_QSD8250,
     TARGET_MSM7630,
+    TARGET_MSM8660,
     TARGET_MAX
 }targetType;
 

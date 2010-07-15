@@ -346,6 +346,11 @@ private:
     int kPreviewBufferCountActual;
     int previewWidth, previewHeight;
     bool mSnapshotDone;
+    int videoWidth, videoHeight;
+
+    bool mDisEnabled;
+    int mRotation;
+    status_t setVpeParameters();
 };
 
 }; // namespace android

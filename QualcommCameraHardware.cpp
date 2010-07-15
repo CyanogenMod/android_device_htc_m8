@@ -302,6 +302,12 @@ static void *mLastQueuedFrame = NULL;
 #define RECORD_BUFFERS 8
 #define RECORD_BUFFERS_8x50 8
 static int kRecordBufferCount;
+/* controls whether VPE is avialable for the target
+ * under consideration.
+ * 1: VPE support is available
+ * 0: VPE support is not available (default)
+ */
+static bool mVpeEnabled;
 
 
 namespace android {
@@ -976,7 +982,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       mCallbackCookie(0),
       mInitialized(false),
       mDebugFps(0),
-      mSnapshotDone(0)
+      mSnapshotDone(0),
+      mDisEnabled(0),
+      mRotation(0)
 {
 
     // Start opening camera device in a separate thread/ Since this
@@ -1032,6 +1040,14 @@ QualcommCameraHardware::QualcommCameraHardware()
 
     mDimension.main_img_format = CAMERA_YUV_420_NV21;
     mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+
+    if( mCurrentTarget == TARGET_MSM7630 ){
+        /* DIS is enabled all the time in VPE support targets.
+         * No provision for the user to control this.
+         */
+        mDisEnabled = 1;
+        mVpeEnabled = 1;
+    }
 
     LOGV("constructor EX");
 }
@@ -1215,6 +1231,12 @@ void QualcommCameraHardware::initDefaultParameters()
                             zoom_ratio_values);
     } else {
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "false");
+    }
+    /* Enable zoom support for video application if VPE enabled */
+    if(zoomSupported && mVpeEnabled) {
+        mParameters.set("video-zoom-support", "true");
+    } else {
+        mParameters.set("video-zoom-support", "false");
     }
 
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
@@ -2380,7 +2402,6 @@ bool QualcommCameraHardware::initPreview()
 {
     // See comments in deinitPreview() for why we have to wait for the frame
     // thread here, and why we can't use pthread_join().
-    int videoWidth, videoHeight;
     const char * pmem_region;
     mParameters.getPreviewSize(&previewWidth, &previewHeight);
 
@@ -2423,8 +2444,12 @@ bool QualcommCameraHardware::initPreview()
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
-        mDimension.video_width = videoWidth;
-        mDimension.video_width = CEILING16(mDimension.video_width);
+        mDimension.video_width = CEILING16(videoWidth);
+        /* Backup the video dimensions, as video dimensions in mDimension
+         * will be modified when DIS is supported. Need the actual values
+         * to pass ap part of VPE config
+         */
+        videoWidth = mDimension.video_width;
         mDimension.video_height = videoHeight;
         LOGV("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, mDimension.video_width, mDimension.video_height );
     }
@@ -3616,11 +3641,11 @@ bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOff
     e->transp_mask = 0xffffffff;
     e->flags = 0;
     e->alpha = 0xff;
-    if (crop->in2_w != 0 || crop->in2_h != 0) {
-        e->src_rect.x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
-        e->src_rect.y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
-        e->src_rect.w = crop->in2_w;
-        e->src_rect.h = crop->in2_h;
+    if (crop->in1_w != 0 || crop->in1_h != 0) {
+        e->src_rect.x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
+        e->src_rect.y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
+        e->src_rect.w = crop->in1_w;
+        e->src_rect.h = crop->in1_h;
     } else {
         e->src_rect.x = 0;
         e->src_rect.y = 0;
@@ -3731,33 +3756,33 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
         if(mOverlay != NULL) {
             mOverlayLock.lock();
             mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
-            if (crop->in2_w != 0 || crop->in2_h != 0) {
-                zoomCropInfo.x = (crop->out2_w - crop->in2_w + 1) / 2 - 1;
-                zoomCropInfo.y = (crop->out2_h - crop->in2_h + 1) / 2 - 1;
-                zoomCropInfo.w = crop->in2_w;
-                zoomCropInfo.h = crop->in2_h;
+            if (crop->in1_w != 0 || crop->in1_h != 0) {
+                zoomCropInfo.x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
+                zoomCropInfo.y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
+                zoomCropInfo.w = crop->in1_w;
+                zoomCropInfo.h = crop->in1_h;
                 mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
-                        zoomCropInfo.w, zoomCropInfo.h);
+                    zoomCropInfo.w, zoomCropInfo.h);
             } else {
                 // Reset zoomCropInfo variables. This will ensure that
                 // stale values wont be used for postview
-                zoomCropInfo.w = crop->in2_w;
-                zoomCropInfo.h = crop->in2_h;
+                zoomCropInfo.w = crop->in1_w;
+                zoomCropInfo.h = crop->in1_h;
             }
             mOverlay->queueBuffer((void *)offset_addr);
             mLastQueuedFrame = (void *)frame->buffer;
             mOverlayLock.unlock();
         }
     } else {
-	    if (crop->in2_w != 0 || crop->in2_h != 0) {
-	        dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;
-	        offset = kPreviewBufferCount + dstOffset;
-	        ssize_t dstOffset_addr = offset * mPreviewHeap->mAlignedBufferSize;
-	        if( !native_zoom_image(mPreviewHeap->mHeap->getHeapID(),
-			  offset_addr, dstOffset_addr, crop)) {
-		        LOGE(" Error while doing MDP zoom ");
+        if (crop->in1_w != 0 || crop->in1_h != 0) {
+            dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;
+            offset = kPreviewBufferCount + dstOffset;
+            ssize_t dstOffset_addr = offset * mPreviewHeap->mAlignedBufferSize;
+            if( !native_zoom_image(mPreviewHeap->mHeap->getHeapID(),
+                offset_addr, dstOffset_addr, crop)) {
+                LOGE(" Error while doing MDP zoom ");
                 offset = offset_addr / mPreviewHeap->mAlignedBufferSize;
-	        }
+            }
         }
         if (mCurrentTarget == TARGET_MSM7627) {
             mLastQueuedFrame = (void *)mPreviewHeap->mBuffers[offset]->pointer();
@@ -3790,8 +3815,20 @@ bool QualcommCameraHardware::initRecord()
 {
     const char *pmem_region;
     int CbCrOffset;
+    int recordBufferSize;
 
     LOGV("initREcord E");
+
+    /* when DIS is ON, video dimensions should be increased,
+     * as a requirement from VFE-VPE operations. This logic will be
+     * moved down to camera stack coming forward.
+     */
+    if(mVpeEnabled && mDisEnabled) {
+        int width = mDimension.video_width *1.1;
+        mDimension.video_width = CEILING32(width);
+        int height = mDimension.video_height *1.1;
+        mDimension.video_height = CEILING32(height);
+    }
 
     if(mCurrentTarget == TARGET_MSM8660)
         pmem_region = "/dev/pmem_smipool";
@@ -3801,16 +3838,27 @@ bool QualcommCameraHardware::initRecord()
     // for 8x60 the Encoder expects the CbCr offset should be aligned to 2K.
     if(mCurrentTarget == TARGET_MSM8660) {
         CbCrOffset = PAD_TO_2K(mDimension.video_width  * mDimension.video_height);
-        mRecordFrameSize = CbCrOffset + PAD_TO_2K((mDimension.video_width * mDimension.video_height)/2);
+        recordBufferSize = CbCrOffset + PAD_TO_2K((mDimension.video_width * mDimension.video_height)/2);
     } else {
         CbCrOffset = PAD_TO_WORD(mDimension.video_width  * mDimension.video_height);
-        mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
+        recordBufferSize = (mDimension.video_width  * mDimension.video_height *3)/2;
     }
+    LOGV("initRecord: mDimension.video_width = %d mDimension.video_height = %d", mDimension.video_width, mDimension.video_height);
+    LOGV("mRecordFrameSize = %d", mRecordFrameSize);
+
+    /* Buffersize and frameSize will be different when DIS is ON.
+     * We need to pass the actual framesize with video heap, as the same
+     * is used at camera MIO when negotiating with encoder.
+     */
+    mRecordFrameSize = recordBufferSize;
+    if(mVpeEnabled && mDisEnabled)
+        mRecordFrameSize = videoWidth * videoHeight * 3 / 2;
+
     mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
                                 MSM_PMEM_VIDEO,
-                                mRecordFrameSize,
+                                recordBufferSize,
                                 kRecordBufferCount,
                                 mRecordFrameSize,
                                 CbCrOffset,
@@ -3849,11 +3897,45 @@ bool QualcommCameraHardware::initRecord()
 
     // flush free queue and add 5,6,7,8 buffers.
     LINK_cam_frame_flush_free_video();
-    for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
-        LINK_camframe_free_video(&recordframes[i]);
+    if(mVpeEnabled) {
+        //If VPE is enabled, the VPE buffer shouldn't be added to Free Q initally.
+        for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount-1; i++)
+            LINK_camframe_free_video(&recordframes[i]);
+    } else {
+        for(int i=ACTIVE_VIDEO_BUFFERS+1;i <kRecordBufferCount; i++)
+            LINK_camframe_free_video(&recordframes[i]);
+    }
     LOGV("initREcord X");
 
     return true;
+}
+
+status_t QualcommCameraHardware::setVpeParameters()
+{
+    LOGV("setVpeParameters E");
+
+    video_dis_param_ctrl_t disCtrl;
+    video_rotation_param_ctrl_t rotCtrl;
+    bool ret;
+    LOGV("mDisEnabled = %d", mDisEnabled);
+    LOGV("videoWidth = %d, videoHeight = %d", videoWidth, videoHeight);
+    if(mDisEnabled) {
+       disCtrl.dis_enable = mDisEnabled;
+       disCtrl.video_rec_width = videoWidth;
+       disCtrl.video_rec_height = videoHeight;
+       ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
+                               sizeof(disCtrl), &disCtrl);
+    }
+    rotCtrl.rotation = (mRotation == 0) ? ROT_NONE :
+                       ((mRotation == 90) ? ROT_CLOCKWISE_90 :
+                  ((mRotation == 180) ? ROT_CLOCKWISE_180 : ROT_CLOCKWISE_270));
+
+    LOGV("rotCtrl.rotation = %d", rotCtrl.rotation);
+    ret = native_set_parm(CAMERA_SET_VIDEO_ROT_PARAMS,
+                               sizeof(rotCtrl), &rotCtrl);
+
+    LOGV("setVpeParameters X (%d)", ret);
+    return ret ? NO_ERROR : UNKNOWN_ERROR;
 }
 
 status_t QualcommCameraHardware::startRecording()
@@ -3863,6 +3945,14 @@ status_t QualcommCameraHardware::startRecording()
     Mutex::Autolock l(&mLock);
     mReleasedRecordingFrame = false;
     if( (ret=startPreviewInternal())== NO_ERROR){
+        if(mVpeEnabled){
+            LOGI("startRecording: VPE enabled, setting vpe parameters");
+            bool status = setVpeParameters();
+            if(status) {
+                LOGE("Failed to set VPE parameters");
+                return status;
+            }
+        }
         if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660))  {
             LOGV(" in startREcording : calling native_start_recording");
             native_start_recording(mCameraControlFd);
@@ -5006,6 +5096,7 @@ status_t QualcommCameraHardware::setRotation(const CameraParameters& params)
         if (rotation == 0 || rotation == 90 || rotation == 180
             || rotation == 270) {
           mParameters.set(CameraParameters::KEY_ROTATION, rotation);
+          mRotation = rotation;
         } else {
             LOGE("Invalid rotation value: %d", rotation);
             rc = BAD_VALUE;
@@ -5230,6 +5321,13 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                 int active = 1;
                 if(pmem_type == MSM_PMEM_VIDEO){
                      active = (cnt<ACTIVE_VIDEO_BUFFERS);
+                     //When VPE is enabled, set the last record
+                     //buffer as active and pmem type as PMEM_VIDEO_VPE
+                     //as this is a requirement from VPE operation.
+                     if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
+                         active = 1;
+                         pmem_type = MSM_PMEM_VIDEO_VPE;
+                     }
                      LOGV(" pmempool creating video buffers : active %d ", active);
                 }
                 else if (pmem_type == MSM_PMEM_PREVIEW){
@@ -5263,6 +5361,10 @@ QualcommCameraHardware::PmemPool::~PmemPool()
             int num_buffers = mNumBuffers;
             if(!strcmp("preview", mName)) num_buffers = kPreviewBufferCount;
             for (int cnt = 0; cnt < num_buffers; ++cnt) {
+                if( (mVpeEnabled) && (mPmemType == MSM_PMEM_VIDEO)
+                    && (cnt == kRecordBufferCount-1) ) {
+                    mPmemType = MSM_PMEM_VIDEO_VPE;
+                }
                 register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,

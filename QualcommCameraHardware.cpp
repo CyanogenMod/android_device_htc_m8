@@ -691,6 +691,12 @@ static const str_map frame_rate_modes[] = {
         {CameraParameters::KEY_PREVIEW_FRAME_RATE_FIXED_MODE, FPS_MODE_FIXED}
 };
 
+static int mPreviewFormat;
+static const str_map preview_formats[] = {
+        {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
+        {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO}
+};
+
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
 static String8 picture_size_values;
@@ -710,6 +716,7 @@ static String8 zoom_ratio_values;
 static String8 preview_frame_rate_values;
 static String8 frame_rate_mode_values;
 static String8 scenedetect_values;
+static String8 preview_format_values;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -1015,6 +1022,17 @@ QualcommCameraHardware::QualcommCameraHardware()
             jpegPadding = 0;
             break;
     }
+    // Initialize with default format values. The format values can be
+    // overriden when application requests.
+    mDimension.prev_format     = CAMERA_YUV_420_NV21;
+    mPreviewFormat             = CAMERA_YUV_420_NV21;
+    mDimension.enc_format      = CAMERA_YUV_420_NV21;
+    if( mCurrentTarget == TARGET_MSM7630 )
+        mDimension.enc_format  = CAMERA_YUV_420_NV12;
+
+    mDimension.main_img_format = CAMERA_YUV_420_NV21;
+    mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+
     LOGV("constructor EX");
 }
 
@@ -1209,8 +1227,16 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::WHITE_BALANCE_AUTO);
     mParameters.set(CameraParameters::KEY_FOCUS_MODE,
                     CameraParameters::FOCUS_MODE_AUTO);
+    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250) ) {
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
                     "yuv420sp");
+    }
+    else {
+        preview_format_values = create_values_str(
+            preview_formats, sizeof(preview_formats) / sizeof(str_map));
+        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
+                preview_format_values.string());
+    }
 
     frame_rate_mode_values = create_values_str(
             frame_rate_modes, sizeof(frame_rate_modes) / sizeof(str_map));
@@ -1286,6 +1312,8 @@ void QualcommCameraHardware::initDefaultParameters()
                     lensshade_values);
     mParameters.set(CameraParameters::KEY_SCENE_MODE,
                     CameraParameters::SCENE_MODE_AUTO);
+    mParameters.set("strtextures", "OFF");
+
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,
                     scenemode_values);
     mParameters.set(CameraParameters::KEY_CONTINUOUS_AF,
@@ -2428,6 +2456,30 @@ bool QualcommCameraHardware::initPreview()
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
     int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+
+    //Pass the yuv formats, display dimensions,
+    //so that vfe will be initialized accordingly.
+    mDimension.display_luma_width = previewWidth;
+    mDimension.display_luma_height = previewHeight;
+    mDimension.display_chroma_width = previewWidth;
+    mDimension.display_chroma_height = previewHeight;
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        mPreviewFrameSize = PAD_TO_4K(CEILING32(previewWidth) * CEILING32(previewHeight)) +
+                                     2 * (CEILING32(previewWidth/2) * CEILING32(previewHeight/2));
+        CbCrOffset = PAD_TO_4K(CEILING32(previewWidth) * CEILING32(previewHeight));
+        mDimension.prev_format = CAMERA_YUV_420_NV21_ADRENO;
+        mDimension.display_luma_width = CEILING32(previewWidth);
+        mDimension.display_luma_height = CEILING32(previewHeight);
+        mDimension.display_chroma_width = 2 * CEILING32(previewWidth/2);
+        //Chroma Height is not needed as of now. Just sending with other dimensions.
+        mDimension.display_chroma_height = CEILING32(previewHeight/2);
+    }
+    LOGV("mDimension.prev_format = %d", mDimension.prev_format);
+    LOGV("mDimension.display_luma_width = %d", mDimension.display_luma_width);
+    LOGV("mDimension.display_luma_height = %d", mDimension.display_luma_height);
+    LOGV("mDimension.display_chroma_width = %d", mDimension.display_chroma_width);
+    LOGV("mDimension.display_chroma_height = %d", mDimension.display_chroma_height);
+
     dstOffset = 0;
     mPreviewHeap = new PmemPool(pmem_region,
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -2636,6 +2688,14 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                           mDimension.ui_thumbnail_height * 3 / 2;
     int CbCrOffsetThumb = PAD_TO_WORD(mDimension.ui_thumbnail_width *
                           mDimension.ui_thumbnail_height);
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
+        thumbnailBufferSize = PAD_TO_4K(CEILING32(mDimension.ui_thumbnail_width) *
+                              CEILING32(mDimension.ui_thumbnail_height)) +
+                              2 * (CEILING32(mDimension.ui_thumbnail_width/2) *
+                                CEILING32(mDimension.ui_thumbnail_height/2));
+        CbCrOffsetThumb = PAD_TO_4K(CEILING32(mDimension.ui_thumbnail_width) *
+                              CEILING32(mDimension.ui_thumbnail_height));
+    }
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
@@ -2654,11 +2714,21 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
     int CbCrOffsetRaw = PAD_TO_WORD(rawWidth * rawHeight);
-
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        mRawSize = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight)) +
+                            2 * (CEILING32(rawWidth/2) * CEILING32(rawHeight/2));
+        CbCrOffsetRaw = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight));
+    }
     if( mCurrentTarget == TARGET_MSM7627 )
-             mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
-    else
-             mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
+        mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
+    else {
+        mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
+        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
+            mJpegMaxSize =
+               PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight)) +
+                    2 * (CEILING32(rawWidth/2) * CEILING32(rawHeight/2));
+        }
+    }
 
     //For offline jpeg hw encoder, jpeg encoder will provide us the
     //required offsets and buffer size depending on the rotation.
@@ -3408,6 +3478,8 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setContrast(params)))     final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;
     if ((rc = setSceneDetect(params)))  final_rc = rc;
+    if ((rc = setStrTextures(params)))   final_rc = rc;
+    if ((rc = setPreviewFormat(params)))   final_rc = rc;
 
     LOGV("setParameters: X");
     return final_rc;
@@ -4563,6 +4635,33 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
 		"when the effect selected is %s", str);
 	return NO_ERROR;
     }
+}
+
+status_t QualcommCameraHardware::setPreviewFormat(const CameraParameters& params) {
+    const char *str = params.getPreviewFormat();
+    int32_t previewFormat = attr_lookup(preview_formats, sizeof(preview_formats) / sizeof(str_map), str);
+    if(previewFormat != NOT_FOUND) {
+        mParameters.set(CameraParameters::KEY_PREVIEW_FORMAT, str);
+        mPreviewFormat = previewFormat;
+        return NO_ERROR;
+    }
+    LOGI("Invalid preview format value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setStrTextures(const CameraParameters& params) {
+    const char *str = params.get("strtextures");
+    if(str != NULL) {
+        LOGI("strtextures = %s", str);
+        mParameters.set("strtextures", str);
+        if(mUseOverlay) {
+            if(!strncmp(str, "on", 2) || !strncmp(str, "ON", 2)) {
+                LOGI("Resetting mUseOverlay to false");
+                mUseOverlay = false;
+            }
+        }
+    }
+    return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {

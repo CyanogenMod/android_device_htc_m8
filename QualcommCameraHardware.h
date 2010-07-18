@@ -276,7 +276,8 @@ private:
     status_t setContinuousAf(const CameraParameters& params);
     status_t setTouchAfAec(const CameraParameters& params);
     status_t setSceneDetect(const CameraParameters& params);
-
+    status_t setStrTextures(const CameraParameters& params);
+    status_t setPreviewFormat(const CameraParameters& params);
     void setGpsParameters();
     void storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);

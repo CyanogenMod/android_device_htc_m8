@@ -91,7 +91,7 @@ bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
                                   const uint8_t *thumbnailbuf, int thumbnailfd,
                                   const uint8_t *snapshotbuf, int snapshotfd,
                                   common_crop_t *scaling_parms, exif_tags_info_t *exif_data,
-                                  int exif_table_numEntries, int jpegPadding);
+                                  int exif_table_numEntries, int jpegPadding, const int32_t cbcroffset);
 void (*LINK_camframe_terminate)(void);
 //for 720p
 // Function to add a video buffer to free Q
@@ -961,12 +961,14 @@ QualcommCameraHardware::QualcommCameraHardware()
       mFrameThreadRunning(false),
       mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
+      mEncodePending(false),
       mJpegThreadRunning(false),
       mInSnapshotMode(false),
       mSnapshotFormat(0),
       mReleasedRecordingFrame(false),
       mPreviewFrameSize(0),
       mRawSize(0),
+      mCbCrOffsetRaw(0),
       mCameraControlFd(-1),
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
@@ -2125,15 +2127,40 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
       addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                   20, 1, (void *)dateTime);
     }
+
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        // Pass the main image as thumbnail buffer, so that jpeg encoder will
+        // generate thumbnail based on main image.
+        // Set the input and output dimensions for thumbnail generation to main
+        // image dimensions and required thumbanail size repectively, for the
+        // encoder to do downscaling of the main image accordingly.
+        mCrop.in1_w  = mDimension.orig_picture_dx;
+        mCrop.in1_h  = mDimension.orig_picture_dy;
+        mCrop.out1_w = mDimension.thumbnail_width;
+        mCrop.out1_h = mDimension.thumbnail_height;
+        mDimension.thumbnail_width = mDimension.orig_picture_dx;
+        mDimension.thumbnail_height = mDimension.orig_picture_dy;
+        if (!LINK_jpeg_encoder_encode(&mDimension,
+                                      (uint8_t *)mRawHeap->mHeap->base(),
+                                      mRawHeap->mHeap->getHeapID(),
+                                      (uint8_t *)mRawHeap->mHeap->base(),
+                                      mRawHeap->mHeap->getHeapID(),
+                                      &mCrop, exif_data, exif_table_numEntries,
+                                      jpegPadding/2, mCbCrOffsetRaw)) {
+            LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
+            return false;
+        }
+    } else {
     if (!LINK_jpeg_encoder_encode(&mDimension,
                                   (uint8_t *)mThumbnailHeap->mHeap->base(),
                                   mThumbnailHeap->mHeap->getHeapID(),
                                   (uint8_t *)mRawHeap->mHeap->base(),
                                   mRawHeap->mHeap->getHeapID(),
                                   &mCrop, exif_data, exif_table_numEntries,
-                                  jpegPadding/2)) {
+                                      jpegPadding/2, -1)) {
         LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
         return false;
+    }
     }
     return true;
 }
@@ -2719,6 +2746,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     int CbCrOffsetThumb = PAD_TO_WORD(mDimension.ui_thumbnail_width *
                           mDimension.ui_thumbnail_height);
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
+        mDimension.main_img_format = CAMERA_YUV_420_NV21_ADRENO;
+        mDimension.thumb_format = CAMERA_YUV_420_NV21_ADRENO;
         thumbnailBufferSize = PAD_TO_4K(CEILING32(mDimension.ui_thumbnail_width) *
                               CEILING32(mDimension.ui_thumbnail_height)) +
                               2 * (CEILING32(mDimension.ui_thumbnail_width/2) *
@@ -2743,11 +2772,11 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     // Snapshot
     mRawSize = rawWidth * rawHeight * 3 / 2;
-    int CbCrOffsetRaw = PAD_TO_WORD(rawWidth * rawHeight);
+    mCbCrOffsetRaw = PAD_TO_WORD(rawWidth * rawHeight);
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
         mRawSize = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight)) +
                             2 * (CEILING32(rawWidth/2) * CEILING32(rawHeight/2));
-        CbCrOffsetRaw = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight));
+        mCbCrOffsetRaw = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight));
     }
     if( mCurrentTarget == TARGET_MSM7627 )
         mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
@@ -2772,11 +2801,15 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                 return false;
             }
         }
+        //Don't call the get_buffer_offset() for ADRENO, as the width and height
+        //for Adreno format will be of CEILING32.
+        if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
         LINK_jpeg_encoder_get_buffer_offset(rawWidth, rawHeight, (uint32_t *)&yOffset,
-                                        (uint32_t *)&CbCrOffsetRaw, (uint32_t *)&mRawSize);
-        LOGV("initRaw: yOffset = %d, CbCrOffsetRaw = %d, mRawSize = %d",
-                         yOffset, CbCrOffsetRaw, mRawSize);
+                                            (uint32_t *)&mCbCrOffsetRaw, (uint32_t *)&mRawSize);
         mJpegMaxSize = mRawSize;
+    }
+        LOGV("initRaw: yOffset = %d, mCbCrOffsetRaw = %d, mRawSize = %d",
+                     yOffset, mCbCrOffsetRaw, mRawSize);
     }
 
     if(mCurrentTarget == TARGET_MSM8660)
@@ -2794,7 +2827,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                      mJpegMaxSize,
                      kRawBufferCount,
                      mRawSize,
-                     CbCrOffsetRaw,
+                     mCbCrOffsetRaw,
                      yOffset,
                      "snapshot camera");
 
@@ -2804,6 +2837,13 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 	LOGE("initRaw X: error initializing mRawHeap");
 	return false;
     }
+
+    //This is kind of workaround for the GPU limitation, as it can't
+    //output in line to correct NV21 adreno formula for some snapshot
+    //sizes (like 3264x2448). This change of cbcr offset will ensure that
+    //chroma plane always starts at the beginning of a row.
+    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
+        mCbCrOffsetRaw = CEILING32(rawWidth) * CEILING32(rawHeight);
 
     LOGV("do_mmap snapshot pbuf = %p, pmem_fd = %d",
          (uint8_t *)mRawHeap->mHeap->base(), mRawHeap->mHeap->getHeapID());
@@ -3339,21 +3379,23 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mInSnapshotModeWaitLock.unlock();
 
     mSnapshotFormat = 0;
-    mJpegThreadWaitLock.lock();
-    while (mJpegThreadRunning) {
-        LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
-        mJpegThreadWait.wait(mJpegThreadWaitLock);
-        LOGV("runSnapshotThread: jpeg thread completed.");
-    }
-    mJpegThreadWaitLock.unlock();
-    //clear the resources
+    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO ) {
+        mJpegThreadWaitLock.lock();
+        while (mJpegThreadRunning) {
+            LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
+            mJpegThreadWait.wait(mJpegThreadWaitLock);
+            LOGV("runSnapshotThread: jpeg thread completed.");
+        }
+        mJpegThreadWaitLock.unlock();
+        //clear the resources
 #if DLOPEN_LIBMMCAMERA
-    if(libhandle)
+        if(libhandle)
 #endif
-    {
-        LINK_jpeg_encoder_join();
+        {
+            LINK_jpeg_encoder_join();
+        }
+        deinitRaw();
     }
-    deinitRaw();
 
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
@@ -3385,6 +3427,16 @@ status_t QualcommCameraHardware::takePicture()
 {
     LOGV("takePicture(%d)", mMsgEnabled);
     Mutex::Autolock l(&mLock);
+
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
+        mEncodePendingWaitLock.lock();
+        while(mEncodePending) {
+            LOGE("takePicture: Frame given to application, waiting for encode call");
+            mEncodePendingWait.wait(mEncodePendingWaitLock);
+            LOGE("takePicture: Encode of the application data is done");
+        }
+        mEncodePendingWaitLock.unlock();
+    }
 
     // Wait for old snapshot thread to complete.
     mSnapshotThreadWaitLock.lock();
@@ -4180,6 +4232,10 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
                 }
             }
         }
+        //For Adreno format, we need to pass the main image in all the cases.
+        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
+            mDisplayHeap = mRawHeap;
+
         /* Now, invoke Notify Callback to unregister preview buffer
          * and register postview buffer with surface flinger. Set ext2
          * as 0 to indicate not to play shutter sound.
@@ -4375,28 +4431,36 @@ void QualcommCameraHardware::receiveRawPicture()
    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
        mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
                             mCallbackCookie);
+       if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+           LOGE("Raw Data given to app for processing...will wait for jpeg encode call");
+           mEncodePendingWaitLock.lock();
+           mEncodePending = true;
+           mEncodePendingWaitLock.unlock();
+       }
     }
     else LOGV("Raw-picture callback was canceled--skipping.");
 
-    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        mJpegSize = 0;
-        mJpegThreadWaitLock.lock();
-        if (LINK_jpeg_encoder_init()) {
-            mJpegThreadRunning = true;
-            mJpegThreadWaitLock.unlock();
-            if(native_jpeg_encode()) {
-                LOGV("receiveRawPicture: X (success)");
-                return;
+    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
+        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+            mJpegSize = 0;
+            mJpegThreadWaitLock.lock();
+            if (LINK_jpeg_encoder_init()) {
+                mJpegThreadRunning = true;
+                mJpegThreadWaitLock.unlock();
+                if(native_jpeg_encode()) {
+                    LOGV("receiveRawPicture: X (success)");
+                    return;
+                }
+                LOGE("jpeg encoding failed");
             }
-            LOGE("jpeg encoding failed");
+            else {
+                LOGE("receiveRawPicture X: jpeg_encoder_init failed.");
+                mJpegThreadWaitLock.unlock();
+            }
         }
-        else {
-            LOGE("receiveRawPicture X: jpeg_encoder_init failed.");
-            mJpegThreadWaitLock.unlock();
-        }
+        else LOGV("JPEG callback is NULL, not encoding image.");
+        deinitRaw();
     }
-    else LOGV("JPEG callback is NULL, not encoding image.");
-    deinitRaw();
     LOGV("receiveRawPicture: X");
 }
 
@@ -5697,6 +5761,48 @@ status_t QualcommCameraHardware::getBufferInfo(sp<IMemory>& Frame, size_t *align
     }
     LOGV(" getBufferInfo : X ");
     return ret;
+}
+
+void QualcommCameraHardware::encodeData() {
+    LOGV("encodeData: E");
+
+    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+        mJpegSize = 0;
+        mJpegThreadWaitLock.lock();
+        if (LINK_jpeg_encoder_init()) {
+            mJpegThreadRunning = true;
+            mJpegThreadWaitLock.unlock();
+            if(native_jpeg_encode()) {
+                LOGV("encodeData: X (success)");
+                //Wait until jpeg encoding is done and call jpeg join
+                //in this context. Also clear the resources.
+                mJpegThreadWaitLock.lock();
+                while (mJpegThreadRunning) {
+                    LOGV("encodeData: waiting for jpeg thread to complete.");
+                    mJpegThreadWait.wait(mJpegThreadWaitLock);
+                    LOGV("encodeData: jpeg thread completed.");
+                }
+                mJpegThreadWaitLock.unlock();
+                //Call jpeg join in this thread context
+                LINK_jpeg_encoder_join();
+            }
+            LOGE("encodeData: jpeg encoding failed");
+        }
+        else {
+            LOGE("encodeData X: jpeg_encoder_init failed.");
+            mJpegThreadWaitLock.unlock();
+        }
+    }
+    else LOGV("encodeData: JPEG callback is NULL, not encoding image.");
+    //clear the resources
+    deinitRaw();
+    //Encoding is done.
+    mEncodePendingWaitLock.lock();
+    mEncodePending = false;
+    mEncodePendingWait.signal();
+    mEncodePendingWaitLock.unlock();
+
+    LOGV("encodeData: X");
 }
 
 }; // namespace android

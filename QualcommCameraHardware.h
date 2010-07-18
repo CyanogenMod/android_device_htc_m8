@@ -88,6 +88,7 @@ public:
     virtual CameraParameters getParameters() const;
     virtual status_t sendCommand(int32_t command, int32_t arg1, int32_t arg2);
     virtual status_t getBufferInfo( sp<IMemory>& Frame, size_t *alignedSize);
+    virtual void encodeData( );
 
     virtual void release();
     virtual bool useOverlay();
@@ -235,6 +236,9 @@ private:
     bool mInSnapshotMode;
     Mutex mInSnapshotModeWaitLock;
     Condition mInSnapshotModeWait;
+    bool mEncodePending;
+    Mutex mEncodePendingWaitLock;
+    Condition mEncodePendingWait;
 
     void debugShowPreviewFPS() const;
     void debugShowVideoFPS() const;
@@ -305,6 +309,7 @@ private:
     unsigned int        mPreviewFrameSize;
     unsigned int        mRecordFrameSize;
     int                 mRawSize;
+    int                 mCbCrOffsetRaw;
     int                 mJpegMaxSize;
 
 #if DLOPEN_LIBMMCAMERA

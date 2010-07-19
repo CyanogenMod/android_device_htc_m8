@@ -884,8 +884,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mFrameThreadRunning(false),
       mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
-      mInSnapshotMode(false),
       mJpegThreadRunning(false),
+      mInSnapshotMode(false),
       mSnapshotFormat(0),
       mReleasedRecordingFrame(false),
       mPreviewFrameSize(0),
@@ -956,7 +956,7 @@ QualcommCameraHardware::QualcommCameraHardware()
 void QualcommCameraHardware::filterPreviewSizes(){
 
     unsigned int boardMask = 0;
-    int prop = 0;
+    unsigned int prop = 0;
     for(prop=0;prop<sizeof(boardProperties)/sizeof(board_property);prop++){
         if(mCurrentTarget == boardProperties[prop].target){
             boardMask = boardProperties[prop].previewSizeMask;
@@ -1869,7 +1869,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         }
     }
 
-    if(mCurrentTarget != TARGET_MSM7630) {
+    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_MSM7627) ) {
         int rotation = mParameters.getInt("rotation");
         if (rotation >= 0) {
             LOGV("native_jpeg_encode, rotation = %d", rotation);
@@ -2418,7 +2418,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     //For offline jpeg hw encoder, jpeg encoder will provide us the
     //required offsets and buffer size depending on the rotation.
     int yOffset = 0;
-    if( mCurrentTarget == TARGET_MSM7630 ) {
+    if( (mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM7627) ) {
         int rotation = mParameters.getInt("rotation");
         if (rotation >= 0) {
             LOGV("initRaw, jpeg_rotation = %d", rotation);
@@ -3432,7 +3432,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 
 bool QualcommCameraHardware::initRecord()
 {
-    char *pmem_region;
+    const char *pmem_region;
 
     LOGV("initREcord E");
 
@@ -3518,7 +3518,7 @@ status_t QualcommCameraHardware::startRecording()
             //Clear the dangling buffers and put them in free queue
             for(int cnt = 0; cnt < kRecordBufferCount; cnt++) {
                 if(record_buffers_tracking_flag[cnt] == true) {
-                    LOGI("Dangling buffer: offset = %d, buffer = %d", cnt, recordframes[cnt].buffer);
+                    LOGI("Dangling buffer: offset = %d, buffer = %d", cnt, (unsigned int)recordframes[cnt].buffer);
                     LINK_camframe_free_video(&recordframes[cnt]);
                     record_buffers_tracking_flag[cnt] = false;
                 }
@@ -3593,7 +3593,7 @@ void QualcommCameraHardware::releaseRecordingFrame(
         LOGV(" in release recording frame :  heap base %d offset %d buffer %d ", heap->base(), offset, heap->base() + offset );
         int cnt;
         for (cnt = 0; cnt < kRecordBufferCount; cnt++) {
-            if((unsigned int)recordframes[cnt].buffer == (unsigned int)(heap->base()+ offset)){
+            if((unsigned int)recordframes[cnt].buffer == ((unsigned int)heap->base()+ offset)){
                 LOGV("in release recording frame found match , releasing buffer %d", (unsigned int)recordframes[cnt].buffer);
                 releaseframe = &recordframes[cnt];
                 break;
@@ -4900,7 +4900,7 @@ bool QualcommCameraHardware::isValidDimension(int width, int height) {
      && (height <= sensorType->max_supported_snapshot_height) )
     {
         uint32_t pictureAspectRatio = (uint32_t)((width * Q12)/height);
-        for(int i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ) {
+        for(uint32_t i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ) {
             if(thumbnail_sizes[i].aspect_ratio == pictureAspectRatio) {
                 retVal = TRUE;
                 break;

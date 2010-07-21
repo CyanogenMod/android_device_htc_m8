@@ -679,6 +679,11 @@ static const str_map picture_formats[] = {
         {CameraParameters::PIXEL_FORMAT_RAW, PICTURE_FORMAT_RAW}
 };
 
+static const str_map frame_rate_modes[] = {
+        {CameraParameters::KEY_PREVIEW_FRAME_RATE_AUTO_MODE, FPS_MODE_AUTO},
+        {CameraParameters::KEY_PREVIEW_FRAME_RATE_FIXED_MODE, FPS_MODE_FIXED}
+};
+
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
 static String8 picture_size_values;
@@ -696,6 +701,7 @@ static String8 scenemode_values;
 static String8 continuous_af_values;
 static String8 zoom_ratio_values;
 static String8 preview_frame_rate_values;
+static String8 frame_rate_mode_values;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -1138,6 +1144,7 @@ void QualcommCameraHardware::initDefaultParameters()
             CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
             preview_frame_rate_values.string());
     }
+    mParameters.setPreviewFrameRateMode("frame-rate-auto");
     mParameters.setPreviewFormat("yuv420sp"); // informative
 
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
@@ -1176,6 +1183,14 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::FOCUS_MODE_AUTO);
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
                     "yuv420sp");
+
+    frame_rate_mode_values = create_values_str(
+            frame_rate_modes, sizeof(frame_rate_modes) / sizeof(str_map));
+    if((strcmp(mSensorInfo.name, "vx6953")) &&
+        (strcmp(mSensorInfo.name, "VX6953"))){
+        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATE_MODES,
+                    frame_rate_mode_values.string());
+    }
 
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
                     preview_size_values.string());
@@ -3240,6 +3255,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
 
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setPreviewFrameRate(params))) final_rc = rc;
+    if ((rc = setPreviewFrameRateMode(params))) final_rc = rc;
     if ((rc = setPictureSize(params)))  final_rc = rc;
     if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
@@ -4117,7 +4133,40 @@ status_t QualcommCameraHardware::setPreviewFrameRate(const CameraParameters& par
         return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     return BAD_VALUE;
+}
 
+status_t QualcommCameraHardware::setPreviewFrameRateMode(const CameraParameters& params) {
+    //Temporary check for mipi sensor
+    if((!strcmp(mSensorInfo.name, "vx6953")) ||
+        (!strcmp(mSensorInfo.name, "VX6953"))){
+        LOGI("set fps mode is not supported for this sensor");
+        return NO_ERROR;
+    }
+    const char *previousMode = mParameters.getPreviewFrameRateMode();
+    const char *str = params.getPreviewFrameRateMode();
+    if( mInitialized && !strcmp(previousMode, str)) {
+        LOGV("frame rate mode same as previous mode %s", previousMode);
+        return NO_ERROR;
+    }
+    int32_t frameRateMode = attr_lookup(frame_rate_modes, sizeof(frame_rate_modes) / sizeof(str_map),str);
+    if(frameRateMode != NOT_FOUND) {
+        LOGV("setPreviewFrameRateMode: %s ", str);
+        mParameters.setPreviewFrameRateMode(str);
+        bool ret = native_set_parm(CAMERA_SET_FPS_MODE, sizeof(frameRateMode), (void *)&frameRateMode);
+        if(!ret) return ret;
+        //set the fps value when chaging modes
+        int16_t fps = (uint16_t)params.getPreviewFrameRate();
+        if(MINIMUM_FPS <= fps && fps <=MAXIMUM_FPS){
+            mParameters.setPreviewFrameRate(fps);
+            ret = native_set_parm(CAMERA_SET_PARM_FPS,
+                                        sizeof(fps), (void *)&fps);
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
+        }
+        LOGI("Invalid preview frame rate value: %d", fps);
+        return BAD_VALUE;
+    }
+    LOGI("Invalid preview frame rate mode value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
 }
 
 status_t QualcommCameraHardware::setPictureSize(const CameraParameters& params)

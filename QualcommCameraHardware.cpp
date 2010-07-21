@@ -299,7 +299,7 @@ exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
 #define RECORD_BUFFERS 8
-#define RECORD_BUFFERS_8x50 6
+#define RECORD_BUFFERS_8x50 8
 static int kRecordBufferCount;
 
 
@@ -3677,7 +3677,7 @@ bool QualcommCameraHardware::initRecord()
 
     LOGV("initREcord E");
 
-    if((mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660))
+    if(mCurrentTarget == TARGET_MSM8660)
         pmem_region = "/dev/pmem_smipool";
     else
         pmem_region = "/dev/pmem_adsp";

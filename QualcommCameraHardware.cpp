@@ -1132,9 +1132,12 @@ void QualcommCameraHardware::initDefaultParameters()
     mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
 
     mParameters.setPreviewFrameRate(DEFAULT_FPS);
-    mParameters.set(
+     if((strcmp(mSensorInfo.name, "vx6953")) &&
+              (strcmp(mSensorInfo.name, "VX6953"))){
+        mParameters.set(
             CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
             preview_frame_rate_values.string());
+    }
     mParameters.setPreviewFormat("yuv420sp"); // informative
 
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
@@ -4079,6 +4082,12 @@ status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setPreviewFrameRate(const CameraParameters& params)
 {
+    //Temporary check for mipi sensor
+    if((!strcmp(mSensorInfo.name, "vx6953")) ||
+        (!strcmp(mSensorInfo.name, "VX6953"))){
+       LOGI("set fps is not supported for this sensor");
+       return NO_ERROR;
+    }
     uint16_t previousFps = (uint16_t)mParameters.getPreviewFrameRate();
     uint16_t fps = (uint16_t)params.getPreviewFrameRate();
     LOGV("requested preview frame rate  is %u", fps);

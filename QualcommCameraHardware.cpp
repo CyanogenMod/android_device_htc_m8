@@ -2438,6 +2438,7 @@ void QualcommCameraHardware::deinitPreview(void)
 bool QualcommCameraHardware::initRawSnapshot()
 {
     LOGV("initRawSnapshot E");
+    const char * pmem_region;
 
     //get width and height from Dimension Object
     bool ret = native_set_parm(CAMERA_SET_PARM_DIMENSION,
@@ -2459,9 +2460,14 @@ bool QualcommCameraHardware::initRawSnapshot()
         LOGV("initRawSnapshot: clearing old mRawSnapShotPmemHeap.");
         mRawSnapShotPmemHeap.clear();
     }
+    if(mCurrentTarget == TARGET_MSM8660)
+        pmem_region = "/dev/pmem_smipool";
+    else
+        pmem_region = "/dev/pmem_adsp";
+
 
     //Pmem based pool for Camera Driver
-    mRawSnapShotPmemHeap = new PmemPool("/dev/pmem_adsp",
+    mRawSnapShotPmemHeap = new PmemPool(pmem_region,
                                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                     mCameraControlFd,
                                     MSM_PMEM_RAW_MAINIMG,
@@ -2485,6 +2491,7 @@ bool QualcommCameraHardware::initRawSnapshot()
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     int rawWidth, rawHeight;
+    const char * pmem_region;
 
     mParameters.getPictureSize(&rawWidth, &rawHeight);
     LOGV("initRaw E: picture size=%dx%d", rawWidth, rawHeight);
@@ -2565,9 +2572,15 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         mJpegMaxSize = mRawSize;
     }
 
+    if(mCurrentTarget == TARGET_MSM8660)
+        pmem_region = "/dev/pmem_smipool";
+    else
+        pmem_region = "/dev/pmem_adsp";
+
+
     LOGV("initRaw: initializing mRawHeap.");
     mRawHeap =
-        new PmemPool("/dev/pmem_adsp",
+        new PmemPool(pmem_region,
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                      mCameraControlFd,
                      MSM_PMEM_MAINIMG,
@@ -2608,7 +2621,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         // Thumbnails
 
         mThumbnailHeap =
-            new PmemPool("/dev/pmem_adsp",
+            new PmemPool(pmem_region,
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          mCameraControlFd,
                          MSM_PMEM_THUMBNAIL,
@@ -3561,7 +3574,7 @@ bool QualcommCameraHardware::initRecord()
 
     mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
 
-    if( mCurrentTarget == TARGET_QSD8250 )
+    if((mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660))
         pmem_region = "/dev/pmem_smipool";
     else
         pmem_region = "/dev/pmem_adsp";

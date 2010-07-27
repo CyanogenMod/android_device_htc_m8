@@ -77,6 +77,8 @@ extern "C" {
 // Number of video buffers held by kernal (initially 1,2 &3)
 #define ACTIVE_VIDEO_BUFFERS 3
 
+#define PAD_TO_2K(x) ((x+2047)& ~2047)
+
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
@@ -3585,17 +3587,23 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 bool QualcommCameraHardware::initRecord()
 {
     const char *pmem_region;
+    int CbCrOffset;
 
     LOGV("initREcord E");
-
-    mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
 
     if((mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660))
         pmem_region = "/dev/pmem_smipool";
     else
         pmem_region = "/dev/pmem_adsp";
 
-    int CbCrOffset = PAD_TO_WORD(mDimension.video_width  * mDimension.video_height);
+    // for 8x60 the Encoder expects the CbCr offset should be aligned to 2K.
+    if(mCurrentTarget == TARGET_MSM8660) {
+        CbCrOffset = PAD_TO_2K(mDimension.video_width  * mDimension.video_height);
+        mRecordFrameSize = PAD_TO_2K(mDimension.video_width  * mDimension.video_height) + (mDimension.video_width  * mDimension.video_height)/2;
+    } else {
+        CbCrOffset = PAD_TO_WORD(mDimension.video_width  * mDimension.video_height);
+        mRecordFrameSize = (mDimension.video_width  * mDimension.video_height *3)/2;
+    }
     mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 mCameraControlFd,
@@ -3617,7 +3625,7 @@ bool QualcommCameraHardware::initRecord()
         recordframes[cnt].buffer =
             (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
         recordframes[cnt].y_off = 0;
-        recordframes[cnt].cbcr_off = mDimension.video_width  * mDimension.video_height;
+        recordframes[cnt].cbcr_off = CbCrOffset;
         recordframes[cnt].path = OUTPUT_TYPE_V;
         record_buffers_tracking_flag[cnt] = false;
         LOGV ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",

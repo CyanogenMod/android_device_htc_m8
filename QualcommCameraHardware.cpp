@@ -962,7 +962,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mDataCallbackTimestamp(0),
       mCallbackCookie(0),
       mInitialized(false),
-      mDebugFps(0)
+      mDebugFps(0),
+      mSnapshotDone(0)
 {
 
     // Start opening camera device in a separate thread/ Since this
@@ -3294,7 +3295,18 @@ status_t QualcommCameraHardware::cancelPicture()
 {
     status_t rc;
     LOGV("cancelPicture: E");
+    if (mCurrentTarget == TARGET_MSM7627) {
+        mSnapshotDone = TRUE;
+        mSnapshotThreadWaitLock.lock();
+        while (mSnapshotThreadRunning) {
+            LOGV("cancelPicture: waiting for snapshot thread to complete.");
+            mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
+            LOGV("cancelPicture: snapshot thread completed.");
+        }
+        mSnapshotThreadWaitLock.unlock();
+    }
     rc = native_stop_snapshot(mCameraControlFd) ? NO_ERROR : UNKNOWN_ERROR;
+    mSnapshotDone = FALSE;
     LOGV("cancelPicture: X: %d", rc);
     return rc;
 }
@@ -3997,11 +4009,12 @@ void QualcommCameraHardware::receiveRawPicture()
     LOGV("receiveRawPicture: E");
 
     Mutex::Autolock cbLock(&mCallbackLock);
-    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE)) {
+    if (mDataCallback && ((mMsgEnabled & CAMERA_MSG_RAW_IMAGE) || mSnapshotDone)) {
         if(native_get_picture(mCameraControlFd, &mCrop) == false) {
             LOGE("getPicture failed!");
             return;
         }
+        mSnapshotDone = FALSE;
         mCrop.in1_w &= ~1;
         mCrop.in1_h &= ~1;
         mCrop.in2_w &= ~1;

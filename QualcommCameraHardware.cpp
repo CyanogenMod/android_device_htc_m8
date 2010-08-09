@@ -300,7 +300,7 @@ static int exif_table_numEntries = 0;
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
-#define RECORD_BUFFERS 8
+#define RECORD_BUFFERS 9
 #define RECORD_BUFFERS_8x50 8
 static int kRecordBufferCount;
 /* controls whether VPE is avialable for the target

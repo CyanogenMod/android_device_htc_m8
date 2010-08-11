@@ -4020,12 +4020,6 @@ static void crop_yuv420(uint32_t width, uint32_t height,
     x &= ~1;
     y &= ~1;
 
-    // Copy luma component.
-    for(i = 0; i < cropped_height; i++)
-        memcpy(image + yOffsetDst + i * cropped_width,
-               image + yOffsetSrc + width * (y + i) + x,
-               cropped_width);
-
     if((mCurrentTarget == TARGET_MSM7627)
        || (mCurrentTarget == TARGET_MSM7630)) {
         if (!strcmp("snapshot camera", name)) {
@@ -4034,12 +4028,19 @@ static void crop_yuv420(uint32_t width, uint32_t height,
         } else {
             chroma_src = image + width * height;
             chroma_dst = image + cropped_width * cropped_height;
+            yOffsetSrc = 0;
+            yOffsetDst = 0;
         }
     } else {
        chroma_src = image + CbCrOffsetSrc;
        chroma_dst = image + CbCrOffsetDst;
     }
 
+    // Copy luma component.
+    for(i = 0; i < cropped_height; i++)
+        memcpy(image + yOffsetDst + i * cropped_width,
+               image + yOffsetSrc + width * (y + i) + x,
+               cropped_width);
     // Copy chroma components.
     cropped_height /= 2;
     y /= 2;

@@ -284,7 +284,16 @@ static thumbnail_size_type thumbnail_sizes[] = {
 #define THUMBNAIL_WIDTH_STR "512"
 #define THUMBNAIL_HEIGHT_STR "384"
 #define THUMBNAIL_SMALL_HEIGHT 144
+static camera_size_type jpeg_thumbnail_sizes[]  = {
+    { 512, 288 },
+    { 480, 288 },
+    { 432, 288 },
+    { 512, 384 },
+    { 352, 288 },
+    {0,0}
+};
 
+#define JPEG_THUMBNAIL_SIZE_COUNT (sizeof(jpeg_thumbnail_sizes)/sizeof(camera_size_type))
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
     if (name) {
@@ -598,6 +607,12 @@ static const str_map scenedetect[] = {
 };
 
 #define country_number (sizeof(country_numeric) / sizeof(country_map))
+/* TODO : setting dummy values as of now, need to query for correct
+ * values from sensor in future
+ */
+#define CAMERA_FOCAL_LENGTH_DEFAULT 4.31
+#define CAMERA_HORIZONTAL_VIEW_ANGLE_DEFAULT 54.8
+#define CAMERA_VERTICAL_VIEW_ANGLE_DEFAULT  42.5
 
 /* Look up pre-sorted antibanding_type table by current MCC. */
 static camera_antibanding_type camera_get_location(void) {
@@ -721,6 +736,7 @@ static const str_map preview_formats[] = {
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
 static String8 picture_size_values;
+static String8 jpeg_thumbnail_size_values;
 static String8 antibanding_values;
 static String8 effect_values;
 static String8 autoexposure_values;
@@ -1210,6 +1226,7 @@ void QualcommCameraHardware::initDefaultParameters()
 
         scenemode_values = create_values_str(
             scenemode, sizeof(scenemode) / sizeof(str_map));
+
         if(supportsSceneDetection()) {
             scenedetect_values = create_values_str(
                 scenedetect, sizeof(scenedetect) / sizeof(str_map));
@@ -1229,7 +1246,11 @@ void QualcommCameraHardware::initDefaultParameters()
         mParameters.set(
             CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
             preview_frame_rate_values.string());
-    }
+     } else {
+        mParameters.set(
+            CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
+            DEFAULT_FPS);
+     }
     mParameters.setPreviewFrameRateMode("frame-rate-auto");
     mParameters.setPreviewFormat("yuv420sp"); // informative
 
@@ -1246,6 +1267,10 @@ void QualcommCameraHardware::initDefaultParameters()
     mDimension.ui_thumbnail_height =
             thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
+
+    String8 valuesStr = create_sizes_str(jpeg_thumbnail_sizes, JPEG_THUMBNAIL_SIZE_COUNT);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES,
+                valuesStr.string());
 
     if(zoomSupported){
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
@@ -1303,8 +1328,15 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_AUTO_EXPOSURE, autoexposure_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE,
                     whitebalance_values);
-    mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
+    if((strcmp(mSensorInfo.name, "vx6953")) &&
+        (strcmp(mSensorInfo.name, "VX6953")))
+
+       mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
                     focus_mode_values);
+    else
+       mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
+                   CameraParameters::FOCUS_MODE_INFINITY);
+
     mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS,
                     picture_format_values);
 
@@ -1376,6 +1408,13 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::SCENE_DETECT_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_DETECT,
                     scenedetect_values);
+    mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
+                    CAMERA_FOCAL_LENGTH_DEFAULT);
+    mParameters.setFloat(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE,
+                    CAMERA_HORIZONTAL_VIEW_ANGLE_DEFAULT);
+    mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
+                    CAMERA_VERTICAL_VIEW_ANGLE_DEFAULT);
+
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
@@ -2173,6 +2212,27 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
                   20, 1, (void *)dateTime);
     }
 
+    uint8_t * thumbnailHeap = NULL;
+    int thumbfd = -1;
+
+    int width = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    int height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+
+    LOGV("width %d and height %d", width , height);
+
+    if(width != 0 && height != 0){
+        if (mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+            thumbnailHeap = (uint8_t *)mRawHeap->mHeap->base();
+            thumbfd =  mRawHeap->mHeap->getHeapID();
+        } else {
+            thumbnailHeap = (uint8_t *)mThumbnailHeap->mHeap->base();
+            thumbfd =  mThumbnailHeap->mHeap->getHeapID();
+        }
+    }else {
+        thumbnailHeap = NULL;
+        thumbfd = 0;
+    }
+
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
         // Pass the main image as thumbnail buffer, so that jpeg encoder will
         // generate thumbnail based on main image.
@@ -2186,8 +2246,8 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         mDimension.thumbnail_width = mDimension.orig_picture_dx;
         mDimension.thumbnail_height = mDimension.orig_picture_dy;
         if (!LINK_jpeg_encoder_encode(&mDimension,
-                                      (uint8_t *)mRawHeap->mHeap->base(),
-                                      mRawHeap->mHeap->getHeapID(),
+                                      thumbnailHeap,
+                                      thumbfd,
                                       (uint8_t *)mRawHeap->mHeap->base(),
                                       mRawHeap->mHeap->getHeapID(),
                                       &mCrop, exif_data, exif_table_numEntries,
@@ -2196,16 +2256,16 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
             return false;
         }
     } else {
-    if (!LINK_jpeg_encoder_encode(&mDimension,
-                                  (uint8_t *)mThumbnailHeap->mHeap->base(),
-                                  mThumbnailHeap->mHeap->getHeapID(),
-                                  (uint8_t *)mRawHeap->mHeap->base(),
-                                  mRawHeap->mHeap->getHeapID(),
-                                  &mCrop, exif_data, exif_table_numEntries,
-                                      jpegPadding/2, -1)) {
-        LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
-        return false;
-    }
+        if (!LINK_jpeg_encoder_encode(&mDimension,
+                    thumbnailHeap,
+                    thumbfd,
+                    (uint8_t *)mRawHeap->mHeap->base(),
+                    mRawHeap->mHeap->getHeapID(),
+                    &mCrop, exif_data, exif_table_numEntries,
+                    jpegPadding/2, -1)) {
+            LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
+            return false;
+        }
     }
     return true;
 }
@@ -3674,6 +3734,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
 
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setPictureSize(params)))  final_rc = rc;
+    if ((rc = setJpegThumbnailSize(params))) final_rc = rc;
     if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setEffect(params)))       final_rc = rc;
     if ((rc = setGpsLocation(params)))  final_rc = rc;
@@ -4890,6 +4951,23 @@ status_t QualcommCameraHardware::setPreviewFrameRateMode(const CameraParameters&
         return BAD_VALUE;
     }
     LOGI("Invalid preview frame rate mode value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setJpegThumbnailSize(const CameraParameters& params){
+    int width = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    int height = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    LOGV("requested jpeg thumbnail size %d x %d", width, height);
+
+    // Validate the picture size
+    for (int i = 0; i < JPEG_THUMBNAIL_SIZE_COUNT; ++i) {
+       if (width == jpeg_thumbnail_sizes[i].width
+         && height == jpeg_thumbnail_sizes[i].height) {
+           mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, width);
+           mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, height);
+           return NO_ERROR;
+       }
+    }
     return BAD_VALUE;
 }
 

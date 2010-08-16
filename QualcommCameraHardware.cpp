@@ -318,7 +318,7 @@ static inline unsigned clp2(unsigned x)
 }
 
 static int exif_table_numEntries = 0;
-#define MAX_EXIF_TABLE_ENTRIES 8
+#define MAX_EXIF_TABLE_ENTRIES 11
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
@@ -2025,13 +2025,25 @@ static bool native_stop_video(int camfd)
 static cam_frame_start_parms frame_parms;
 static int recordingState = 0;
 
+#define GPS_PROCESSING_METHOD_SIZE  101
+#define FOCAL_LENGTH_DECIMAL_PRECISON 100
+
+static const char ExifAsciiPrefix[] = { 0x41, 0x53, 0x43, 0x49, 0x49, 0x0, 0x0, 0x0 };
+#define EXIF_ASCII_PREFIX_SIZE (sizeof(ExifAsciiPrefix))
+
 static rat_t latitude[3];
 static rat_t longitude[3];
 static char lonref[2];
 static char latref[2];
 static rat_t altitude;
 static rat_t gpsTimestamp[3];
+static char gpsDatestamp[20];
 static char dateTime[20];
+static rat_t focalLength;
+static char gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE];
+
+
+
 static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
                         uint32_t count, uint8_t copy, void *data) {
 
@@ -2098,19 +2110,34 @@ static void setLatLon(exif_tag_id_t tag, const char *latlonString) {
 void QualcommCameraHardware::setGpsParameters() {
     const char *str = NULL;
 
+    str = mParameters.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
+
+    if(str!=NULL ){
+       memcpy(gpsProcessingMethod, ExifAsciiPrefix, EXIF_ASCII_PREFIX_SIZE);
+       strncpy(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE, str,
+           GPS_PROCESSING_METHOD_SIZE-1);
+       gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE-1] = '\0';
+       addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
+           EXIF_ASCII_PREFIX_SIZE + strlen(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE) + 1,
+           1, (void *)gpsProcessingMethod);
+    }
+
+    str = NULL;
+
     //Set Latitude
     str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE);
     if(str != NULL) {
         setLatLon(EXIFTAGID_GPS_LATITUDE, str);
         //set Latitude Ref
-        str = NULL;
-        str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE_REF);
-        if(str != NULL) {
-            strncpy(latref, str, 1);
-            latref[1] = '\0';
-            addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
-                        1, (void *)latref);
+        float latitudeValue = mParameters.getFloat(CameraParameters::KEY_GPS_LATITUDE);
+        latref[0] = 'N';
+        if(latitudeValue < 0 ){
+            latref[0] = 'S';
         }
+        latref[1] = '\0';
+        mParameters.set(CameraParameters::KEY_GPS_LATITUDE_REF, latref);
+        addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
+                                1, (void *)latref);
     }
 
     //set Longitude
@@ -2119,14 +2146,15 @@ void QualcommCameraHardware::setGpsParameters() {
     if(str != NULL) {
         setLatLon(EXIFTAGID_GPS_LONGITUDE, str);
         //set Longitude Ref
-        str = NULL;
-        str = mParameters.get(CameraParameters::KEY_GPS_LONGITUDE_REF);
-        if(str != NULL) {
-            strncpy(lonref, str, 1);
-            lonref[1] = '\0';
-            addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
-                        1, (void *)lonref);
-	}
+        float longitudeValue = mParameters.getFloat(CameraParameters::KEY_GPS_LONGITUDE);
+        lonref[0] = 'E';
+        if(longitudeValue < 0){
+            lonref[0] = 'W';
+        }
+        lonref[1] = '\0';
+        mParameters.set(CameraParameters::KEY_GPS_LONGITUDE_REF, lonref);
+        addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
+                                1, (void *)lonref);
     }
 
     //set Altitude
@@ -2134,15 +2162,19 @@ void QualcommCameraHardware::setGpsParameters() {
     str = mParameters.get(CameraParameters::KEY_GPS_ALTITUDE);
     if(str != NULL) {
         int value = atoi(str);
+        int ref = 0;
+        if(value < 0){
+            ref = 1;
+            value = -value;
+        }
         rat_t alt_value = {value, 1000};
         memcpy(&altitude, &alt_value, sizeof(altitude));
         addExifTag(EXIFTAGID_GPS_ALTITUDE, EXIF_RATIONAL, 1,
                     1, (void *)&altitude);
         //set AltitudeRef
-        int ref = mParameters.getInt(CameraParameters::KEY_GPS_ALTITUDE_REF);
-        if( !(ref < 0 || ref > 1) )
-            addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1,
-                        1, (void *)&ref);
+        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, ref);
+        addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1,
+                    1, (void *)&ref);
     }
 
     //set Gps TimeStamp
@@ -2157,9 +2189,14 @@ void QualcommCameraHardware::setGpsParameters() {
       unixTime = (time_t)value;
       UTCTimestamp = gmtime(&unixTime);
 
+      strftime(gpsDatestamp, sizeof(gpsDatestamp), "%Y:%m:%d", UTCTimestamp);
+      addExifTag(EXIFTAGID_GPS_DATESTAMP, EXIF_ASCII,
+                          strlen(gpsDatestamp)+1 , 1, (void *)&gpsDatestamp);
+
       rat_t time_value[3] = { {UTCTimestamp->tm_hour, 1},
                               {UTCTimestamp->tm_min, 1},
                               {UTCTimestamp->tm_sec, 1} };
+
 
       memcpy(&gpsTimestamp, &time_value, sizeof(gpsTimestamp));
       addExifTag(EXIFTAGID_GPS_TIMESTAMP, EXIF_RATIONAL,
@@ -2211,6 +2248,13 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
       addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                   20, 1, (void *)dateTime);
     }
+
+    int focalLengthValue = (int) (mParameters.getFloat(
+                CameraParameters::KEY_FOCAL_LENGTH) * FOCAL_LENGTH_DECIMAL_PRECISON);
+    rat_t focalLengthRational = {focalLengthValue, FOCAL_LENGTH_DECIMAL_PRECISON};
+    memcpy(&focalLength, &focalLengthRational, sizeof(focalLengthRational));
+    addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1,
+                1, (void *)&focalLength);
 
     uint8_t * thumbnailHeap = NULL;
     int thumbfd = -1;
@@ -5496,6 +5540,11 @@ status_t QualcommCameraHardware::setSceneMode(const CameraParameters& params)
 }
 status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
 {
+    const char *method = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
+    if (method) {
+        mParameters.set(CameraParameters::KEY_GPS_PROCESSING_METHOD, method);
+    }
+
     const char *latitude = params.get(CameraParameters::KEY_GPS_LATITUDE);
     if (latitude) {
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE, latitude);

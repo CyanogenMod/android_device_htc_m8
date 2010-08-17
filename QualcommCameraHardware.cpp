@@ -182,6 +182,7 @@ union zoomimage
  */
 
 static const camera_size_type preview_sizes[] = {
+    { 1920, 1088 }, //1080p
     { 1280, 720 }, // 720P, reserved
     { 800, 480 }, // WVGA
     { 768, 432 },
@@ -204,7 +205,7 @@ board_property boardProperties[] = {
         {TARGET_MSM7625, 0x00000fff, false},
         {TARGET_MSM7627, 0x000006ff, false},
         {TARGET_MSM7630, 0x00000fff, true},
-        {TARGET_MSM8660, 0x00000fff, true},
+        {TARGET_MSM8660, 0x00001fff, true},
         {TARGET_QSD8250, 0x00000fff, true}
 };
 
@@ -679,7 +680,7 @@ struct SensorType {
 #define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
 
 static SensorType sensorTypes[] = {
-        { "12mp", 4096, 3120, false, 4096, 3120,0x00000fff },
+        { "12mp", 4096, 3120, false, 4096, 3120,0x00001fff },
         { "5mp", 2608, 1960, true,  2592, 1944,0x00000fff },
         { "3mp", 2064, 1544, false, 2048, 1536,0x000007ff },
         { "2mp", 3200, 1200, false, 1600, 1200,0x000007ff } };

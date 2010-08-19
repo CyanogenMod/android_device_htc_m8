@@ -1046,6 +1046,11 @@ QualcommCameraHardware::QualcommCameraHardware()
          * No provision for the user to control this.
          */
         mDisEnabled = 1;
+        /* Get the DIS value from properties, to check whether
+         * DIS is disabled or not
+         */
+        property_get("persist.camera.hal.dis", value, "1");
+        mDisEnabled = atoi(value);
         mVpeEnabled = 1;
     }
 
@@ -3824,10 +3829,19 @@ bool QualcommCameraHardware::initRecord()
      * moved down to camera stack coming forward.
      */
     if(mVpeEnabled && mDisEnabled) {
-        int width = mDimension.video_width *1.1;
-        mDimension.video_width = CEILING32(width);
-        int height = mDimension.video_height *1.1;
-        mDimension.video_height = CEILING32(height);
+        /* As 5MP sensor, in QTR mode can't output frame of size greater than 1280,
+         * don't request for bigger buffer
+         */
+        if( (mDimension.video_width == 1280 && mDimension.video_height == 720)
+            && !strcmp(sensorType->name, "5mp") ) {
+            LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
+                   mDimension.video_width, mDimension.video_height, sensorType->name);
+        } else {
+            int width = mDimension.video_width *1.1;
+            mDimension.video_width = CEILING32(width);
+            int height = mDimension.video_height *1.1;
+            mDimension.video_height = CEILING32(height);
+        }
     }
 
     if(mCurrentTarget == TARGET_MSM8660)
@@ -3916,23 +3930,49 @@ status_t QualcommCameraHardware::setVpeParameters()
 
     video_dis_param_ctrl_t disCtrl;
     video_rotation_param_ctrl_t rotCtrl;
-    bool ret;
+    bool ret = true;
     LOGV("mDisEnabled = %d", mDisEnabled);
     LOGV("videoWidth = %d, videoHeight = %d", videoWidth, videoHeight);
     if(mDisEnabled) {
-       disCtrl.dis_enable = mDisEnabled;
-       disCtrl.video_rec_width = videoWidth;
-       disCtrl.video_rec_height = videoHeight;
-       ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
+        /* As 5MP sensor, in QTR mode can't output frame of size greater than 1280,
+         * don't set DIS to ON.
+         */
+        if( (mDimension.video_width == 1280 && mDimension.video_height == 720)
+            && !strcmp(sensorType->name, "5mp") ) {
+            LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
+                   mDimension.video_width, mDimension.video_height, sensorType->name);
+            disCtrl.dis_enable = 0;
+            disCtrl.video_rec_width = videoWidth;
+            disCtrl.video_rec_height = videoHeight;
+            ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
                                sizeof(disCtrl), &disCtrl);
+        } else {
+            disCtrl.dis_enable = mDisEnabled;
+            disCtrl.video_rec_width = videoWidth;
+            disCtrl.video_rec_height = videoHeight;
+            ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
+                               sizeof(disCtrl), &disCtrl);
+        }
     }
     rotCtrl.rotation = (mRotation == 0) ? ROT_NONE :
                        ((mRotation == 90) ? ROT_CLOCKWISE_90 :
                   ((mRotation == 180) ? ROT_CLOCKWISE_180 : ROT_CLOCKWISE_270));
 
     LOGV("rotCtrl.rotation = %d", rotCtrl.rotation);
-    ret = native_set_parm(CAMERA_SET_VIDEO_ROT_PARAMS,
+    if( ((videoWidth == 1280 && videoHeight == 720) || (videoWidth == 800 && videoHeight == 480))
+        && (mRotation == 90 || mRotation == 270) ){
+        /* Due to a limitation at video core to support heights greater than 720, adding this check.
+         * This is a temporary hack, need to be removed once video core support is available
+         */
+        LOGI("video resolution (%dx%d) with rotation (%d) is not supported",
+            videoWidth, videoHeight, mRotation);
+        rotCtrl.rotation = ROT_NONE;
+        ret = native_set_parm(CAMERA_SET_VIDEO_ROT_PARAMS,
                                sizeof(rotCtrl), &rotCtrl);
+    } else {
+        ret = native_set_parm(CAMERA_SET_VIDEO_ROT_PARAMS,
+                               sizeof(rotCtrl), &rotCtrl);
+    }
 
     LOGV("setVpeParameters X (%d)", ret);
     return ret ? NO_ERROR : UNKNOWN_ERROR;

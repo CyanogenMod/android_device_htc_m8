@@ -988,7 +988,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mDisEnabled(0),
       mRotation(0)
 {
-
+    LOGI("QualcommCameraHardware constructor E");
     // Start opening camera device in a separate thread/ Since this
     // initializes the sensor hardware, this can take a long time. So,
     // start the process here so it will be ready by the time it's
@@ -1114,7 +1114,7 @@ bool QualcommCameraHardware::supportsSceneDetection() {
 
 void QualcommCameraHardware::initDefaultParameters()
 {
-    LOGV("initDefaultParameters E");
+    LOGI("initDefaultParameters E");
 
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
@@ -1372,7 +1372,7 @@ void QualcommCameraHardware::initDefaultParameters()
 
     mInitialized = true;
 
-    LOGV("initDefaultParameters X");
+    LOGI("initDefaultParameters X");
 }
 
 void QualcommCameraHardware::findSensorType(){
@@ -2473,6 +2473,9 @@ bool QualcommCameraHardware::initPreview()
         }
     }
 
+    mDimension.display_width = previewWidth;
+    mDimension.display_height= previewHeight;
+
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
@@ -2915,7 +2918,7 @@ void QualcommCameraHardware::deinitRaw()
 
 void QualcommCameraHardware::release()
 {
-    LOGD("release E");
+    LOGI("release E");
     Mutex::Autolock l(&mLock);
 
 #if DLOPEN_LIBMMCAMERA
@@ -2929,6 +2932,7 @@ void QualcommCameraHardware::release()
 
     int cnt, rc;
     struct msm_ctrl_cmd ctrlCmd;
+    LOGI("release: mCameraRunning = %d", mCameraRunning);
     if (mCameraRunning) {
         if(mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
             mRecordFrameLock.lock();
@@ -2937,6 +2941,7 @@ void QualcommCameraHardware::release()
             mRecordFrameLock.unlock();
         }
         stopPreviewInternal();
+        LOGI("release: stopPreviewInternal done.");
     }
 
     if( (mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660)
@@ -2956,6 +2961,7 @@ void QualcommCameraHardware::release()
     mJpegThreadWaitLock.unlock();
 
     deinitRawSnapshot();
+    LOGI("release: clearing resources done.");
 
     
     ctrlCmd.timeout_ms = 5000;
@@ -2966,6 +2972,7 @@ void QualcommCameraHardware::release()
           LOGE("ioctl CAMERA_EXIT fd %d error %s",
               mCameraControlFd, strerror(errno));
 
+    LOGI("release: CAMERA_EXIT done.");
     LINK_release_cam_conf_thread();
     close(mCameraControlFd);
     mCameraControlFd = -1;
@@ -2986,12 +2993,14 @@ void QualcommCameraHardware::release()
     singleton_releasing_start_time = systemTime();
     singleton_lock.unlock();
 
-    LOGD("release X");
+    LOGI("release X: mCameraRunning = %d, mFrameThreadRunning = %d", mCameraRunning, mFrameThreadRunning);
+    LOGI("mVideoThreadRunning = %d, mSnapshotThreadRunning = %d, mJpegThreadRunning = %d", mVideoThreadRunning, mSnapshotThreadRunning, mJpegThreadRunning);
+    LOGI("camframe_timeout_flag = %d, mAutoFocusThreadRunning = %d", camframe_timeout_flag, mAutoFocusThreadRunning);
 }
 
 QualcommCameraHardware::~QualcommCameraHardware()
 {
-    LOGD("~QualcommCameraHardware E");
+    LOGI("~QualcommCameraHardware E");
     singleton_lock.lock();
 
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 || mCurrentTarget == TARGET_MSM8660 ) {
@@ -3005,7 +3014,7 @@ QualcommCameraHardware::~QualcommCameraHardware()
     singleton_releasing_start_time = 0;
     singleton_wait.signal();
     singleton_lock.unlock();
-    LOGD("~QualcommCameraHardware X");
+    LOGI("~QualcommCameraHardware X");
 }
 
 sp<IMemoryHeap> QualcommCameraHardware::getRawHeap() const
@@ -3070,7 +3079,7 @@ status_t QualcommCameraHardware::startPreview()
 
 void QualcommCameraHardware::stopPreviewInternal()
 {
-    LOGV("stopPreviewInternal E: %d", mCameraRunning);
+    LOGI("stopPreviewInternal E: %d", mCameraRunning);
     if (mCameraRunning) {
         // Cancel auto focus.
         {
@@ -3117,7 +3126,7 @@ void QualcommCameraHardware::stopPreviewInternal()
 	}
 	else LOGE("stopPreviewInternal: failed to stop preview");
     }
-    LOGV("stopPreviewInternal X: %d", mCameraRunning);
+    LOGI("stopPreviewInternal X: %d", mCameraRunning);
 }
 
 void QualcommCameraHardware::stopPreview()
@@ -3582,7 +3591,7 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
 
 extern "C" sp<CameraHardwareInterface> openCameraHardware()
 {
-    LOGV("openCameraHardware: call createInstance");
+    LOGI("openCameraHardware: call createInstance");
     return QualcommCameraHardware::createInstance();
 }
 
@@ -3593,7 +3602,7 @@ wp<QualcommCameraHardware> QualcommCameraHardware::singleton;
 // and return it.
 sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
 {
-    LOGD("createInstance: E");
+    LOGI("createInstance: E");
 
     singleton_lock.lock();
 
@@ -3635,6 +3644,7 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
     sp<QualcommCameraHardware> hardware(cam);
     singleton = hardware;
 
+    LOGI("createInstance: created hardware=%p", &(*hardware));
     if (!cam->startCamera()) {
         LOGE("%s: startCamera failed!", __FUNCTION__);
         singleton_lock.unlock();
@@ -3642,8 +3652,8 @@ sp<CameraHardwareInterface> QualcommCameraHardware::createInstance()
     }
 
     cam->initDefaultParameters();
-    LOGD("createInstance: X created hardware=%p", &(*hardware));
     singleton_lock.unlock();
+    LOGI("createInstance: X");
     return hardware;
 }
 

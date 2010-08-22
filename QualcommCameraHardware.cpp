@@ -1038,7 +1038,7 @@ QualcommCameraHardware::QualcommCameraHardware()
     mDimension.prev_format     = CAMERA_YUV_420_NV21;
     mPreviewFormat             = CAMERA_YUV_420_NV21;
     mDimension.enc_format      = CAMERA_YUV_420_NV21;
-    if( mCurrentTarget == TARGET_MSM7630 )
+    if((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660))
         mDimension.enc_format  = CAMERA_YUV_420_NV12;
 
     mDimension.main_img_format = CAMERA_YUV_420_NV21;
@@ -5439,6 +5439,12 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                      //When VPE is enabled, set the last record
                      //buffer as active and pmem type as PMEM_VIDEO_VPE
                      //as this is a requirement from VPE operation.
+                     //No need to set this pmem type to VIDEO_VPE while unregistering,
+                     //because as per camera stack design: "the VPE AXI is also configured
+                     //when VFE is configured for VIDEO, which is as part of preview
+                     //initialization/start. So during this VPE AXI config camera stack
+                     //will lookup the PMEM_VIDEO_VPE buffer and give it as o/p of VPE and
+                     //change it's type to PMEM_VIDEO".
                      if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
                          active = 1;
                          pmem_type = MSM_PMEM_VIDEO_VPE;
@@ -5476,10 +5482,6 @@ QualcommCameraHardware::PmemPool::~PmemPool()
             int num_buffers = mNumBuffers;
             if(!strcmp("preview", mName)) num_buffers = kPreviewBufferCount;
             for (int cnt = 0; cnt < num_buffers; ++cnt) {
-                if( (mVpeEnabled) && (mPmemType == MSM_PMEM_VIDEO)
-                    && (cnt == kRecordBufferCount-1) ) {
-                    mPmemType = MSM_PMEM_VIDEO_VPE;
-                }
                 register_buf(mCameraControlFd,
                          mBufferSize,
                          mFrameSize,

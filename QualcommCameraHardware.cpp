@@ -1117,10 +1117,10 @@ void QualcommCameraHardware::initDefaultParameters()
 {
     LOGI("initDefaultParameters E");
 
+    findSensorType();
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
     if (!parameter_string_initialized) {
-        findSensorType();
         antibanding_values = create_values_str(
             antibanding, sizeof(antibanding) / sizeof(str_map));
         effect_values = create_values_str(

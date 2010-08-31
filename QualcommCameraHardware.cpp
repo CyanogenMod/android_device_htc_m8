@@ -3717,7 +3717,7 @@ bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOff
     e->transp_mask = 0xffffffff;
     e->flags = 0;
     e->alpha = 0xff;
-    if (crop->in1_w != 0 || crop->in1_h != 0) {
+    if (crop->in1_w != 0 && crop->in1_h != 0) {
         e->src_rect.x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
         e->src_rect.y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
         e->src_rect.w = crop->in1_w;
@@ -3832,7 +3832,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
         if(mOverlay != NULL) {
             mOverlayLock.lock();
             mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
-            if (crop->in1_w != 0 || crop->in1_h != 0) {
+            if (crop->in1_w != 0 && crop->in1_h != 0) {
                 zoomCropInfo.x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
                 zoomCropInfo.y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
                 zoomCropInfo.w = crop->in1_w;
@@ -3850,7 +3850,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
             mOverlayLock.unlock();
         }
     } else {
-        if (crop->in1_w != 0 || crop->in1_h != 0) {
+        if (crop->in1_w != 0 && crop->in1_h != 0) {
             dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;
             offset = kPreviewBufferCount + dstOffset;
             ssize_t dstOffset_addr = offset * mPreviewHeap->mAlignedBufferSize;

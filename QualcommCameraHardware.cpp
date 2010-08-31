@@ -682,8 +682,8 @@ struct SensorType {
 #define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
 
 static SensorType sensorTypes[] = {
+        { "12mp", 5464, 3120, true, 4000, 3000,0x00001fff },
         { "12mp_sn12m0pz",4032, 3024, true,  4000, 3000,0x00000fff },
-        { "12mp", 5464, 3120, false, 4000, 3000,0x00001fff },
         { "5mp", 2608, 1960, true,  2592, 1944,0x00000fff },
         { "3mp", 2064, 1544, false, 2048, 1536,0x000007ff },
         { "2mp", 3200, 1200, false, 1600, 1200,0x000007ff } };

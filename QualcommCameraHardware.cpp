@@ -3903,8 +3903,8 @@ bool QualcommCameraHardware::initRecord()
         /* As 5MP sensor, in QTR mode can't output frame of size greater than 1280,
          * don't request for bigger buffer
          */
-        if( (mDimension.video_width == 1280 && mDimension.video_height == 720)
-            && !strcmp(sensorType->name, "5mp") ) {
+        if(((mDimension.video_width == 1280 && mDimension.video_height == 720)
+          && !strcmp(sensorType->name, "5mp")) || (mDimension.video_width == 1920 && mDimension.video_height == 1088)) {
             LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
                    mDimension.video_width, mDimension.video_height, sensorType->name);
         } else {
@@ -4024,8 +4024,8 @@ status_t QualcommCameraHardware::setVpeParameters()
         disCtrl.video_rec_height = videoHeight;
         disCtrl.output_cbcr_offset = video_frame_cbcroffset;
 
-        if( (videoWidth == 1280 && videoHeight == 720)
-            && !strcmp(sensorType->name, "5mp") ) {
+        if(((videoWidth == 1280 && videoHeight == 720)
+            && !strcmp(sensorType->name, "5mp"))||(videoWidth == 1920 && videoHeight == 1088)) {
             LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
                    mDimension.video_width, mDimension.video_height, sensorType->name);
             disCtrl.dis_enable = 0;

@@ -3160,6 +3160,20 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         }
 
         // Thumbnails
+        /* With the recent jpeg encoder downscaling changes for thumbnail padding,
+         *  HAL needs to call this API to get the offsets and buffer size.
+         */
+        int yOffsetThumb = 0;
+        if((mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
+            && (mCurrentTarget != TARGET_MSM7630)
+            && (mCurrentTarget != TARGET_MSM8660)) {
+            LINK_jpeg_encoder_get_buffer_offset(mDimension.thumbnail_width,
+                                                 mDimension.thumbnail_height,
+                                                  (uint32_t *)&yOffsetThumb,
+                                                   (uint32_t *)&CbCrOffsetThumb,
+                                                    (uint32_t *)&thumbnailBufferSize);
+        }
+
         mThumbnailHeap =
             new PmemPool(pmem_region,
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3169,7 +3183,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          1,
                          thumbnailBufferSize,
                          CbCrOffsetThumb,
-                         0,
+                         yOffsetThumb,
                          "thumbnail");
 
         if (!mThumbnailHeap->initialized()) {

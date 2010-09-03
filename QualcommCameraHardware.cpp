@@ -38,6 +38,7 @@
 #endif
 #include <linux/ioctl.h>
 #include <camera/CameraParameters.h>
+#include <media/mediarecorder.h>
 
 #include "linux/msm_mdp.h"
 #include <linux/fb.h>
@@ -67,8 +68,11 @@ extern "C" {
 
 #include <camera.h>
 #include <camframe.h>
+#include <liveshot.h>
 #include <mm-still/jpeg/jpege.h>
 #include <jpeg_encoder.h>
+
+#define DUMP_LIVESHOT_JPEG_FILE 0
 
 #define DEFAULT_PICTURE_WIDTH  1024
 #define DEFAULT_PICTURE_HEIGHT 768
@@ -122,6 +126,10 @@ void  (**LINK_mmcamera_jpegfragment_callback)(uint8_t *buff_ptr,
 void  (**LINK_mmcamera_jpeg_callback)(jpeg_event_t status);
 void  (**LINK_mmcamera_shutter_callback)(common_crop_t *crop);
 void  (**LINK_camframe_timeout_callback)(void);
+void  (**LINK_mmcamera_liveshot_callback)(liveshot_status status, uint32_t jpeg_size);
+void  (**LINK_cancel_liveshot)(void);
+int8_t  (*LINK_set_liveshot_params)(uint32_t a_width, uint32_t a_height, exif_tags_info_t *a_exif_data,
+                         int a_exif_numEntries, uint8_t* a_out_buffer, uint32_t a_outbuffer_size);
 #else
 #define LINK_cam_conf cam_conf
 #define LINK_cam_frame cam_frame
@@ -143,6 +151,8 @@ extern void (*mmcamera_jpegfragment_callback)(uint8_t *buff_ptr,
                                       uint32_t buff_size);
 extern void (*mmcamera_jpeg_callback)(jpeg_event_t status);
 extern void (*mmcamera_shutter_callback)(common_crop_t *crop);
+extern void (*mmcamera_liveshot_callback)(liveshot_status status, uint32_t jpeg_size);
+#define LINK_set_liveshot_params set_liveshot_params
 #endif
 
 } // extern "C"
@@ -238,6 +248,7 @@ static const camera_size_type picture_sizes[] = {
 static int PICTURE_SIZE_COUNT = sizeof(picture_sizes)/sizeof(camera_size_type);
 static const camera_size_type * picture_sizes_ptr;
 static int supportedPictureSizesCount;
+static liveshotState liveshot_state = LIVESHOT_DONE;
 
 #ifdef Q12
 #undef Q12
@@ -920,6 +931,7 @@ static const nsecs_t SINGLETON_RELEASING_RECHECK_TIMEOUT = seconds_to_nanosecond
 static Condition singleton_wait;
 
 static void receive_camframe_callback(struct msm_frame *frame);
+static void receive_liveshot_callback(liveshot_status status, uint32_t jpeg_size);
 static void receive_camframe_video_callback(struct msm_frame *frame); // 720p
 static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size);
 static void receive_jpeg_callback(jpeg_event_t status);
@@ -1494,6 +1506,17 @@ bool QualcommCameraHardware::startCamera()
     *(void **)&LINK_release_cam_conf_thread =
         ::dlsym(libmmcamera, "release_cam_conf_thread");
 
+    *(void **)&LINK_mmcamera_liveshot_callback =
+        ::dlsym(libmmcamera, "mmcamera_liveshot_callback");
+
+    *LINK_mmcamera_liveshot_callback = receive_liveshot_callback;
+
+    *(void **)&LINK_cancel_liveshot =
+        ::dlsym(libmmcamera, "cancel_liveshot");
+
+    *(void **)&LINK_set_liveshot_params =
+        ::dlsym(libmmcamera, "set_liveshot_params");
+
 /* Disabling until support is available.
     *(void **)&LINK_zoom_crop_upscale =
         ::dlsym(libmmcamera, "zoom_crop_upscale");
@@ -1504,6 +1527,7 @@ bool QualcommCameraHardware::startCamera()
     mmcamera_jpegfragment_callback = receive_jpeg_fragment_callback;
     mmcamera_jpeg_callback = receive_jpeg_callback;
     mmcamera_shutter_callback = receive_shutter_callback;
+    mmcamera_liveshot_callback = receive_liveshot_callback;
 #endif // DLOPEN_LIBMMCAMERA
 
     /* The control thread is in libcamera itself. */
@@ -1795,6 +1819,22 @@ static bool native_start_snapshot(int camfd)
         return false;
     }
 
+    return true;
+}
+
+static bool native_start_liveshot(int camfd)
+{
+    int ret;
+    struct msm_ctrl_cmd ctrlCmd;
+    ctrlCmd.timeout_ms = 5000;
+    ctrlCmd.type = CAMERA_START_LIVESHOT;
+    ctrlCmd.length = 0;
+    ctrlCmd.value = NULL;
+    ctrlCmd.resp_fd = camfd;
+    if ((ret = ioctl(camfd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd)) < 0) {
+        LOGE("native_start_liveshot: ioctl failed. ioctl return value is %d ", ret);
+        return false;
+    }
     return true;
 }
 
@@ -3519,6 +3559,92 @@ status_t QualcommCameraHardware::takePicture()
     return mSnapshotThreadRunning ? NO_ERROR : UNKNOWN_ERROR;
 }
 
+void QualcommCameraHardware::set_liveshot_exifinfo()
+{
+    setGpsParameters();
+    //set TimeStamp
+    const char *str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
+    if(str != NULL) {
+        strncpy(dateTime, str, 19);
+        dateTime[19] = '\0';
+        addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
+                   20, 1, (void *)dateTime);
+    }
+}
+
+status_t QualcommCameraHardware::takeLiveSnapshot()
+{
+    LOGV("takeLiveSnapshot: E ");
+    Mutex::Autolock l(&mLock);
+
+    if(liveshot_state == LIVESHOT_IN_PROGRESS || !recordingState) {
+        return NO_ERROR;
+    }
+
+    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_MSM8660)) {
+        LOGI("LiveSnapshot not supported on this target");
+        liveshot_state = LIVESHOT_STOPPED;
+        return NO_ERROR;
+    }
+
+    liveshot_state = LIVESHOT_IN_PROGRESS;
+
+    if (!initLiveSnapshot(videoWidth, videoHeight)) {
+        LOGE("takeLiveSnapshot: Jpeg Heap Memory allocation failed.  Not taking Live Snapshot.");
+        liveshot_state = LIVESHOT_STOPPED;
+        return UNKNOWN_ERROR;
+    }
+
+    uint32_t maxjpegsize = videoWidth * videoHeight *1.5;
+    set_liveshot_exifinfo();
+    if(!LINK_set_liveshot_params(videoWidth, videoHeight,
+                                exif_data, exif_table_numEntries,
+                                (uint8_t *)mJpegHeap->mHeap->base(), maxjpegsize)) {
+        LOGE("Link_set_liveshot_params failed.");
+        mJpegHeap.clear();
+        return NO_ERROR;
+    }
+
+    if(!native_start_liveshot(mCameraControlFd)) {
+        LOGE("native_start_liveshot failed");
+        liveshot_state = LIVESHOT_STOPPED;
+        mJpegHeap.clear();
+        return UNKNOWN_ERROR;
+    }
+
+    LOGV("takeLiveSnapshot: X");
+    return NO_ERROR;
+}
+
+bool QualcommCameraHardware::initLiveSnapshot(int videowidth, int videoheight)
+{
+    LOGV("initLiveSnapshot E");
+
+    if (mJpegHeap != NULL) {
+        LOGV("initLiveSnapshot: clearing old mJpegHeap.");
+        mJpegHeap.clear();
+    }
+
+    mJpegMaxSize = videowidth * videoheight * 1.5;
+
+    LOGV("initLiveSnapshot: initializing mJpegHeap.");
+    mJpegHeap =
+        new AshmemPool(mJpegMaxSize,
+                       kJpegBufferCount,
+                       0, // we do not know how big the picture will be
+                       "jpeg");
+
+    if (!mJpegHeap->initialized()) {
+        mJpegHeap.clear();
+        LOGE("initLiveSnapshot X failed: error initializing mJpegHeap.");
+        return false;
+    }
+
+    LOGV("initLiveSnapshot X");
+    return true;
+}
+
+
 status_t QualcommCameraHardware::cancelPicture()
 {
     status_t rc;
@@ -3778,6 +3904,44 @@ void QualcommCameraHardware::debugShowVideoFPS() const
         mLastFrameCount = mFrameCount;
     }
 }
+
+void QualcommCameraHardware::receiveLiveSnapshot(uint32_t jpeg_size)
+{
+    LOGV("receiveLiveSnapshot E");
+
+#ifdef DUMP_LIVESHOT_JPEG_FILE
+    int file_fd = open("/data/LiveSnapshot.jpg", O_RDWR | O_CREAT, 0777);
+    LOGV("dumping live shot image in /data/LiveSnapshot.jpg");
+    if (file_fd < 0) {
+        LOGE("cannot open file\n");
+    }
+    else
+    {
+        write(file_fd, (uint8_t *)mJpegHeap->mHeap->base(),jpeg_size);
+    }
+    close(file_fd);
+#endif
+
+    Mutex::Autolock cbLock(&mCallbackLock);
+    if (mDataCallback && (mMsgEnabled & MEDIA_RECORDER_MSG_COMPRESSED_IMAGE)) {
+        sp<MemoryBase> buffer = new
+            MemoryBase(mJpegHeap->mHeap,
+                       0,
+                       jpeg_size);
+        mDataCallback(MEDIA_RECORDER_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
+        buffer = NULL;
+    }
+    else LOGV("JPEG callback was cancelled--not delivering image.");
+
+    //Reset the Gps Information & relieve memory
+    exif_table_numEntries = 0;
+    mJpegHeap.clear();
+
+    liveshot_state = LIVESHOT_DONE;
+
+    LOGV("receiveLiveSnapshot X");
+}
+
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
 //    LOGV("receivePreviewFrame E");
@@ -4158,6 +4322,10 @@ void QualcommCameraHardware::stopRecording()
     else  // for other targets where output2 is not enabled
         stopPreviewInternal();
 
+    if (mJpegHeap != NULL) {
+        LOGV("stopRecording: clearing old mJpegHeap.");
+        mJpegHeap.clear();
+    }
     recordingState = 0; // recording not started
     LOGV("stopRecording: X");
 }
@@ -4568,11 +4736,11 @@ void QualcommCameraHardware::receiveRawPicture()
 void QualcommCameraHardware::receiveJpegPictureFragment(
     uint8_t *buff_ptr, uint32_t buff_size)
 {
+    LOGV("receiveJpegPictureFragment size %d", buff_size);
     uint32_t remaining = mJpegHeap->mHeap->virtualSize();
     remaining -= mJpegSize;
     uint8_t *base = (uint8_t *)mJpegHeap->mHeap->base();
 
-    LOGV("receiveJpegPictureFragment size %d", buff_size);
     if (buff_size > remaining) {
         LOGE("receiveJpegPictureFragment: size %d exceeds what "
              "remains in JPEG heap (%d), truncating",
@@ -5674,6 +5842,19 @@ static void receive_camframe_callback(struct msm_frame *frame)
     }
 }
 
+static void receive_liveshot_callback(liveshot_status status, uint32_t jpeg_size)
+{
+    if(status == LIVESHOT_SUCCESS) {
+        sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+        if (obj != 0) {
+            obj->receiveLiveSnapshot(jpeg_size);
+        }
+    }
+    else
+        LOGE("Liveshot not succesful");
+}
+
+
 static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size)
 {
     LOGV("receive_jpeg_fragment_callback E");
@@ -5909,3 +6090,4 @@ void QualcommCameraHardware::encodeData() {
 }
 
 }; // namespace android
+

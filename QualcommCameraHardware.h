@@ -45,6 +45,12 @@ typedef enum {
     TARGET_MAX
 }targetType;
 
+typedef enum {
+    LIVESHOT_DONE,
+    LIVESHOT_IN_PROGRESS,
+    LIVESHOT_STOPPED
+}liveshotState;
+
 struct target_map {
     const char *targetStr;
     targetType targetEnum;
@@ -83,6 +89,8 @@ public:
     virtual status_t autoFocus();
     virtual status_t cancelAutoFocus();
     virtual status_t takePicture();
+    virtual status_t takeLiveSnapshot();
+    void set_liveshot_exifinfo();
     virtual status_t cancelPicture();
     virtual status_t setParameters(const CameraParameters& params);
     virtual CameraParameters getParameters() const;
@@ -98,6 +106,7 @@ public:
     static sp<QualcommCameraHardware> getInstance();
 
     void receivePreviewFrame(struct msm_frame *frame);
+    void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveRecordingFrame(struct msm_frame *frame);
     void receiveJpegPicture(void);
     void jpeg_set_location();
@@ -202,6 +211,7 @@ private:
     bool initRecord();
     void deinitPreview();
     bool initRaw(bool initJpegHeap);
+    bool initLiveSnapshot(int videowidth, int videoheight);
     bool initRawSnapshot();
     void deinitRaw();
     void deinitRawSnapshot();

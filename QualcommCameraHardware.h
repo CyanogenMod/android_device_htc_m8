@@ -355,6 +355,7 @@ private:
 
     bool mDisEnabled;
     int mRotation;
+    bool mResetOverlayCrop;
     status_t setVpeParameters();
 };
 

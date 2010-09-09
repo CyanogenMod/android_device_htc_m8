@@ -4289,7 +4289,8 @@ static void crop_yuv420(uint32_t width, uint32_t height,
                  uint32_t cropped_width, uint32_t cropped_height,
                  uint8_t *image, const char *name)
 {
-    uint32_t i, x, y;
+    int32_t i;
+    uint32_t x, y;
     uint8_t* chroma_src, *chroma_dst;
     int yOffsetSrc, yOffsetDst, CbCrOffsetSrc, CbCrOffsetDst;
     int mSrcSize, mDstSize;
@@ -4320,24 +4321,81 @@ static void crop_yuv420(uint32_t width, uint32_t height,
             chroma_dst = image + cropped_width * cropped_height;
             yOffsetSrc = 0;
             yOffsetDst = 0;
+            CbCrOffsetSrc = width * height;
+            CbCrOffsetDst = cropped_width * cropped_height;
         }
     } else {
        chroma_src = image + CbCrOffsetSrc;
        chroma_dst = image + CbCrOffsetDst;
     }
 
-    // Copy luma component.
-    for(i = 0; i < cropped_height; i++)
-        memcpy(image + yOffsetDst + i * cropped_width,
-               image + yOffsetSrc + width * (y + i) + x,
-               cropped_width);
+    int32_t bufDst = yOffsetDst;
+    int32_t bufSrc = yOffsetSrc + (width * y) + x;
+
+    if( bufDst > bufSrc ){
+        LOGV("crop yuv Y destination position follows source position");
+        /*
+         * If buffer destination follows buffer source, memcpy
+         * of lines will lead to overwriting subsequent lines. In order
+         * to prevent this, reverse copying of lines is performed
+         * for the set of lines where destination follows source and
+         * forward copying of lines is performed for lines where source
+         * follows destination. To calculate the position to switch,
+         * the initial difference between source and destination is taken
+         * and divided by difference between width and cropped width. For
+         * every line copied the difference between source destination
+         * drops by width - cropped width
+         */
+        //calculating inversion
+        int position = ( bufDst - bufSrc ) / (width - cropped_width);
+        // Copy luma component.
+        for(i=position+1; i < cropped_height; i++){
+            memmove(image + yOffsetDst + i * cropped_width,
+                    image + yOffsetSrc + width * (y + i) + x,
+                    cropped_width);
+        }
+        for(i=position; i>=0; i--){
+            memmove(image + yOffsetDst + i * cropped_width,
+                    image + yOffsetSrc + width * (y + i) + x,
+                    cropped_width);
+        }
+    } else {
+        // Copy luma component.
+        for(i = 0; i < cropped_height; i++)
+            memcpy(image + yOffsetDst + i * cropped_width,
+                   image + yOffsetSrc + width * (y + i) + x,
+                   cropped_width);
+    }
+
     // Copy chroma components.
     cropped_height /= 2;
     y /= 2;
-    for(i = 0; i < cropped_height; i++)
-        memcpy(chroma_dst + i * cropped_width,
-               chroma_src + width * (y + i) + x,
-               cropped_width);
+
+    bufDst = CbCrOffsetDst;
+    bufSrc = CbCrOffsetSrc + (width * y) + x;
+
+    if( bufDst > bufSrc ) {
+        LOGV("crop yuv Chroma destination position follows source position");
+        /*
+         * Similar to y
+         */
+        int position = ( bufDst - bufSrc ) / (width - cropped_width);
+        for(i=position+1; i < cropped_height; i++){
+            memmove(chroma_dst + i * cropped_width,
+                    chroma_src + width * (y + i) + x,
+                    cropped_width);
+        }
+        for(i=position; i >=0; i--){
+            memmove(chroma_dst + i * cropped_width,
+                    chroma_src + width * (y + i) + x,
+                    cropped_width);
+        }
+    } else {
+        for(i = 0; i < cropped_height; i++)
+            memcpy(chroma_dst + i * cropped_width,
+                   chroma_src + width * (y + i) + x,
+                   cropped_width);
+    }
 }
 
 void QualcommCameraHardware::receiveRawSnapshot(){

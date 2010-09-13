@@ -216,7 +216,7 @@ board_property boardProperties[] = {
         {TARGET_MSM7627, 0x000006ff, false},
         {TARGET_MSM7630, 0x00000fff, true},
         {TARGET_MSM8660, 0x00001fff, true},
-        {TARGET_QSD8250, 0x00000fff, true}
+        {TARGET_QSD8250, 0x00000fff, false}
 };
 
 //static const camera_size_type* picture_sizes;
@@ -5360,6 +5360,10 @@ status_t QualcommCameraHardware::setSceneDetect(const CameraParameters& params)
 
     bool retParm1, retParm2;
     if (supportsSceneDetection()) {
+        if(!strcmp(sensorType->name, "2mp")) {
+            LOGI("Parameter Auto Scene Detection is not supported for this sensor");
+            return NO_ERROR;
+        }
         const char *str = params.get(CameraParameters::KEY_SCENE_DETECT);
         if (str != NULL) {
             int32_t value = attr_lookup(scenedetect, sizeof(scenedetect) / sizeof(str_map), str);

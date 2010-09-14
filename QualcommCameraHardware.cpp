@@ -2752,17 +2752,33 @@ bool QualcommCameraHardware::initPreview()
 	}
     }
 
-    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
 
-        // Allocate video buffers after allocating preview buffers.
-        initRecord();
+    //set DIS value to get the updated video width and height to calculate
+    //the required record buffer size
+    if(mVpeEnabled) {
+        bool status = setDIS();
+        if(status) {
+            LOGE("Failed to set DIS");
+            return false;
+        }
     }
+
+    //Pass the original video width and height and get the required width
+    //and height for record buffer allocation
+    mDimension.orig_video_width = videoWidth;
+    mDimension.orig_video_height = videoHeight;
 
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
     bool ret = native_set_parm(CAMERA_SET_PARM_DIMENSION,
                                sizeof(cam_ctrl_dimension_t), &mDimension);
+
+    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
+
+        // Allocate video buffers after allocating preview buffers.
+        initRecord();
+    }
 
     if (ret) {
         for (cnt = 0; cnt < kPreviewBufferCount; cnt++) {
@@ -4319,26 +4335,6 @@ bool QualcommCameraHardware::initRecord()
 
     LOGV("initREcord E");
 
-    /* when DIS is ON, video dimensions should be increased,
-     * as a requirement from VFE-VPE operations. This logic will be
-     * moved down to camera stack coming forward.
-     */
-    if(mVpeEnabled && mDisEnabled) {
-        /* As 5MP sensor, in QTR mode can't output frame of size greater than 1280,
-         * don't request for bigger buffer
-         */
-        if(((mDimension.video_width == 1280 && mDimension.video_height == 720)
-          && !strcmp(sensorType->name, "5mp")) || (mDimension.video_width == 1920 && mDimension.video_height == 1088)) {
-            LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
-                   mDimension.video_width, mDimension.video_height, sensorType->name);
-        } else {
-            int width = mDimension.video_width *1.1;
-            mDimension.video_width = CEILING32(width);
-            int height = mDimension.video_height *1.1;
-            mDimension.video_height = CEILING32(height);
-        }
-    }
-
     if(mCurrentTarget == TARGET_MSM8660)
         pmem_region = "/dev/pmem_smipool";
     else
@@ -4425,39 +4421,37 @@ bool QualcommCameraHardware::initRecord()
     return true;
 }
 
+
+status_t QualcommCameraHardware::setDIS() {
+    LOGV("setDIS E");
+
+    video_dis_param_ctrl_t disCtrl;
+    bool ret = true;
+    LOGI("mDisEnabled = %d", mDisEnabled);
+
+    int video_frame_cbcroffset;
+    video_frame_cbcroffset = PAD_TO_WORD(videoWidth * videoHeight);
+    if(mCurrentTarget == TARGET_MSM8660)
+        video_frame_cbcroffset = PAD_TO_2K(videoWidth * videoHeight);
+
+    disCtrl.dis_enable = mDisEnabled;
+    disCtrl.video_rec_width = videoWidth;
+    disCtrl.video_rec_height = videoHeight;
+    disCtrl.output_cbcr_offset = video_frame_cbcroffset;
+
+    ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
+                       sizeof(disCtrl), &disCtrl);
+    LOGV("setDIS X (%d)", ret);
+    return ret ? NO_ERROR : UNKNOWN_ERROR;
+}
+
 status_t QualcommCameraHardware::setVpeParameters()
 {
     LOGV("setVpeParameters E");
 
-    video_dis_param_ctrl_t disCtrl;
     video_rotation_param_ctrl_t rotCtrl;
     bool ret = true;
-    LOGV("mDisEnabled = %d", mDisEnabled);
     LOGV("videoWidth = %d, videoHeight = %d", videoWidth, videoHeight);
-    if(mDisEnabled) {
-        /* As 5MP sensor, in QTR mode can't output frame of size greater than 1280,
-         * don't set DIS to ON.
-         */
-        int video_frame_cbcroffset;
-        video_frame_cbcroffset = PAD_TO_WORD(videoWidth * videoHeight);
-        if(mCurrentTarget == TARGET_MSM8660)
-            video_frame_cbcroffset = PAD_TO_2K(videoWidth * videoHeight);
-
-        disCtrl.dis_enable = mDisEnabled;
-        disCtrl.video_rec_width = videoWidth;
-        disCtrl.video_rec_height = videoHeight;
-        disCtrl.output_cbcr_offset = video_frame_cbcroffset;
-
-        if(((videoWidth == 1280 && videoHeight == 720)
-            && !strcmp(sensorType->name, "5mp"))||(videoWidth == 1920 && videoHeight == 1088)) {
-            LOGI("video resolution (%dx%d) is not supported for sensor (%s) when DIS is ON",
-                   mDimension.video_width, mDimension.video_height, sensorType->name);
-            disCtrl.dis_enable = 0;
-        }
-        ret = native_set_parm(CAMERA_SET_VIDEO_DIS_PARAMS,
-                           sizeof(disCtrl), &disCtrl);
-    }
-
     rotCtrl.rotation = (mRotation == 0) ? ROT_NONE :
                        ((mRotation == 90) ? ROT_CLOCKWISE_90 :
                   ((mRotation == 180) ? ROT_CLOCKWISE_180 : ROT_CLOCKWISE_270));

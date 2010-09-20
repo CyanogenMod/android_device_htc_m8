@@ -29,6 +29,7 @@ extern "C" {
 #include <media/msm_camera.h>
 #include <camera.h>
 #include <camera_defs_i.h>
+#include <mm_camera_interface.h>
 }
 
 struct str_map {
@@ -107,6 +108,7 @@ public:
 
     void receivePreviewFrame(struct msm_frame *frame);
     void receiveLiveSnapshot(uint32_t jpeg_size);
+    void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
     void receiveJpegPicture(void);
     void jpeg_set_location();
@@ -118,6 +120,8 @@ private:
     QualcommCameraHardware();
     virtual ~QualcommCameraHardware();
     status_t startPreviewInternal();
+    status_t setHistogramOn();
+    status_t setHistogramOff();
     void stopPreviewInternal();
     friend void *auto_focus_thread(void *user);
     void runAutoFocus();
@@ -201,6 +205,7 @@ private:
     sp<PmemPool> mRawHeap;
     sp<PmemPool> mDisplayHeap;
     sp<AshmemPool> mJpegHeap;
+    sp<AshmemPool> mStatHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<AshmemPool> mRawSnapshotAshmemHeap;
     sp<PmemPool> mPostViewHeap;
@@ -229,6 +234,14 @@ private:
     Condition mVideoThreadWait;
     friend void *video_thread(void *user);
     void runVideoThread(void *data);
+
+    // For Histogram
+    int mStatsOn;
+    int mCurrent;
+    bool mSendData;
+    Mutex mStatsWaitLock;
+    Condition mStatsWait;
+
 
 
     bool mShutterPending;
@@ -322,6 +335,7 @@ private:
     int                 mRawSize;
     int                 mCbCrOffsetRaw;
     int                 mJpegMaxSize;
+    int32_t                 mStatSize;
 
 #if DLOPEN_LIBMMCAMERA
     void *libmmcamera;
@@ -362,6 +376,7 @@ private:
     int kPreviewBufferCountActual;
     int previewWidth, previewHeight;
     bool mSnapshotDone;
+    mm_camera_config mCfgControl;
     int videoWidth, videoHeight;
 
     bool mDisEnabled;

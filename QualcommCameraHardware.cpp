@@ -128,7 +128,7 @@ void  (**LINK_mmcamera_jpegfragment_callback)(uint8_t *buff_ptr,
                                               uint32_t buff_size);
 void  (**LINK_mmcamera_jpeg_callback)(jpeg_event_t status);
 void  (**LINK_mmcamera_shutter_callback)(common_crop_t *crop);
-void  (**LINK_camframe_timeout_callback)(void);
+void  (**LINK_camframe_error_callback)(camera_error_type err);
 void  (**LINK_mmcamera_liveshot_callback)(liveshot_status status, uint32_t jpeg_size);
 void  (**LINK_cancel_liveshot)(void);
 int8_t  (*LINK_set_liveshot_params)(uint32_t a_width, uint32_t a_height, exif_tags_info_t *a_exif_data,
@@ -962,7 +962,7 @@ static void receive_camframe_video_callback(struct msm_frame *frame); // 720p
 static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size);
 static void receive_jpeg_callback(jpeg_event_t status);
 static void receive_shutter_callback(common_crop_t *crop);
-static void receive_camframetimeout_callback(void);
+static void receive_camframe_error_callback(camera_error_type err);
 static int fb_fd = -1;
 static int32_t mMaxZoom = 0;
 static bool zoomSupported = false;
@@ -1544,10 +1544,10 @@ bool QualcommCameraHardware::startCamera()
 
     *LINK_mmcamera_jpeg_callback = receive_jpeg_callback;
 
-    *(void **)&LINK_camframe_timeout_callback =
-        ::dlsym(libmmcamera, "camframe_timeout_callback");
+    *(void **)&LINK_camframe_error_callback =
+        ::dlsym(libmmcamera, "camframe_error_callback");
 
-    *LINK_camframe_timeout_callback = receive_camframetimeout_callback;
+    *LINK_camframe_error_callback = receive_camframe_error_callback;
 
     // 720 p new recording functions
     *(void **)&LINK_cam_frame_flush_free_video = ::dlsym(libmmcamera, "cam_frame_flush_free_video");
@@ -6355,20 +6355,26 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
     return NO_ERROR;
 }
 
-void QualcommCameraHardware::receive_camframetimeout(void) {
-    LOGV("receive_camframetimeout: E");
+void QualcommCameraHardware::receive_camframe_error_timeout(void) {
+    LOGI("receive_camframe_error_timeout: E");
     Mutex::Autolock l(&mCamframeTimeoutLock);
     LOGE(" Camframe timed out. Not receiving any frames from camera driver ");
     camframe_timeout_flag = TRUE;
     mNotifyCallback(CAMERA_MSG_ERROR, CAMERA_ERROR_UKNOWN, 0,
                     mCallbackCookie);
-    LOGV("receive_camframetimeout: X");
+    LOGI("receive_camframe_error_timeout: X");
 }
 
-static void receive_camframetimeout_callback(void) {
+static void receive_camframe_error_callback(camera_error_type err) {
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
-        obj->receive_camframetimeout();
+        if ((err == CAMERA_ERROR_TIMEOUT) ||
+            (err == CAMERA_ERROR_ESD)) {
+            /* Handling different error types is dependent on the requirement.
+             * Do the same action by default
+             */
+            obj->receive_camframe_error_timeout();
+        }
     }
 }
 

@@ -115,7 +115,7 @@ public:
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
     void notifyShutter(common_crop_t *crop, bool mPlayShutterSoundOnly);
-    void receive_camframetimeout();
+    void receive_camframe_error_timeout();
 
 private:
     QualcommCameraHardware();

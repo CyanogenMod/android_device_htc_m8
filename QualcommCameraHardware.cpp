@@ -4767,8 +4767,13 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
         }
 
         //For Adreno format, we need to pass the main image in all the cases.
-        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
+        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+            int rawWidth, rawHeight;
+            mParameters.getPictureSize(&rawWidth, &rawHeight);
+            size.width = rawWidth;
+            size.height = rawHeight;
             mDisplayHeap = mRawHeap;
+        }
 
         /* Now, invoke Notify Callback to unregister preview buffer
          * and register postview buffer with surface flinger. Set ext2

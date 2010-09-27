@@ -670,6 +670,11 @@ static const str_map histogram[] = {
     { CameraParameters::HISTOGRAM_DISABLE, FALSE }
 };
 
+static const str_map skinToneEnhancement[] = {
+    { CameraParameters::SKIN_TONE_ENHANCEMENT_ENABLE, TRUE },
+    { CameraParameters::SKIN_TONE_ENHANCEMENT_DISABLE, FALSE }
+};
+
 static const str_map continuous_af[] = {
     { CameraParameters::CONTINUOUS_AF_OFF, FALSE },
     { CameraParameters::CONTINUOUS_AF_ON, TRUE }
@@ -753,6 +758,7 @@ static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
 static String8 histogram_values;
+static String8 skinToneEnhancement_values;
 static String8 touchafaec_values;
 static String8 picture_format_values;
 static String8 scenemode_values;
@@ -1015,6 +1021,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mAutoFocusThreadRunning(false),
       mAutoFocusFd(-1),
       mBrightness(0),
+      mSkinToneEnhancement(0),
       mHJR(0),
       mInPreviewCallback(false),
       mUseOverlay(0),
@@ -1214,6 +1221,11 @@ void QualcommCameraHardware::initDefaultParameters()
             histogram_values = create_values_str(
                 histogram,sizeof(histogram)/sizeof(str_map));
         }
+        //Currently Enabling Skin Tone Enhancement for 8x60 and 7630
+        if((mCurrentTarget == TARGET_MSM8660)||(mCurrentTarget == TARGET_MSM7630)) {
+            skinToneEnhancement_values = create_values_str(
+                skinToneEnhancement,sizeof(skinToneEnhancement)/sizeof(str_map));
+        }
         if(sensorType->hasAutoFocusSupport){
             touchafaec_values = create_values_str(
                 touchafaec,sizeof(touchafaec)/sizeof(str_map));
@@ -1403,6 +1415,7 @@ void QualcommCameraHardware::initDefaultParameters()
             EXPOSURE_COMPENSATION_STEP);
 
     mParameters.set("luma-adaptation", "3");
+    mParameters.set("skinToneEnhancement", "0");
     mParameters.set("zoom-supported", "true");
     mParameters.set("zoom", 0);
     mParameters.set(CameraParameters::KEY_PICTURE_FORMAT,
@@ -1427,6 +1440,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::HISTOGRAM_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_HISTOGRAM_MODES,
                     histogram_values);
+    mParameters.set(CameraParameters::KEY_SKIN_TONE_ENHANCEMENT,
+                    CameraParameters::SKIN_TONE_ENHANCEMENT_DISABLE);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES,
+                    skinToneEnhancement_values);
     mParameters.set(CameraParameters::KEY_SCENE_MODE,
                     CameraParameters::SCENE_MODE_AUTO);
     mParameters.set("strtextures", "OFF");
@@ -3885,6 +3902,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setSceneDetect(params)))  final_rc = rc;
     if ((rc = setStrTextures(params)))   final_rc = rc;
     if ((rc = setPreviewFormat(params)))   final_rc = rc;
+    if ((rc = setSkinToneEnhancement(params)))   final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -5489,6 +5507,21 @@ status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {
         } else {
             return NO_ERROR;
         }
+}
+
+status_t QualcommCameraHardware::setSkinToneEnhancement(const CameraParameters& params) {
+         int skinToneValue = params.getInt("skinToneEnhancement");
+         if (mSkinToneEnhancement != skinToneValue) {
+              LOGV(" new skinTone correction value : %d ", skinToneValue);
+              mSkinToneEnhancement = skinToneValue;
+              mParameters.set("skinToneEnhancement", skinToneValue);
+
+              bool ret = native_set_parm(CAMERA_SET_SCE_FACTOR, sizeof(mSkinToneEnhancement),
+                             (void *)&mSkinToneEnhancement);
+              return ret ? NO_ERROR : UNKNOWN_ERROR;
+        } else {
+              return NO_ERROR;
+       }
 }
 
 status_t QualcommCameraHardware::setWhiteBalance(const CameraParameters& params)

@@ -4723,6 +4723,15 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
     }
 
     if (mShutterPending && mNotifyCallback && (mMsgEnabled & CAMERA_MSG_SHUTTER)) {
+        if (mSnapshotFormat == PICTURE_FORMAT_RAW)   {
+            size.width = previewWidth;
+            size.height = previewHeight;
+            mNotifyCallback(CAMERA_MSG_SHUTTER, (int32_t)&size, 0,
+                        mCallbackCookie);
+            mShutterPending = false;
+            mShutterLock.unlock();
+            return;
+        }
         LOGV("out2_w=%d, out2_h=%d, in2_w=%d, in2_h=%d",
              crop->out2_w, crop->out2_h, crop->in2_w, crop->in2_h);
         LOGV("out1_w=%d, out1_h=%d, in1_w=%d, in1_h=%d",

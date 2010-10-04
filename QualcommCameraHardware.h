@@ -62,6 +62,7 @@ struct board_property{
     unsigned int previewSizeMask;
     bool hasSceneDetect;
     bool hasSelectableZoneAf;
+    bool hasFaceDetect;
 };
 
 namespace android {
@@ -123,6 +124,9 @@ private:
     status_t startPreviewInternal();
     status_t setHistogramOn();
     status_t setHistogramOff();
+    status_t runFaceDetection();
+    status_t setFaceDetection(const char *str);
+
     void stopPreviewInternal();
     friend void *auto_focus_thread(void *user);
     void runAutoFocus();
@@ -208,6 +212,7 @@ private:
     sp<PmemPool> mDisplayHeap;
     sp<AshmemPool> mJpegHeap;
     sp<AshmemPool> mStatHeap;
+    sp<AshmemPool> mMetaDataHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<PmemPool> mPostViewHeap;
 
@@ -242,7 +247,10 @@ private:
     Mutex mStatsWaitLock;
     Condition mStatsWait;
 
-
+    //For Face Detection
+    int mFaceDetectOn;
+    bool mSendMetaData;
+    Mutex mMetaDataWaitLock;
 
     bool mShutterPending;
     Mutex mShutterLock;
@@ -274,6 +282,7 @@ private:
     void storeTargetType();
     bool supportsSceneDetection();
     bool supportsSelectableZoneAf();
+    bool supportsFaceDetection();
 
     void initDefaultParameters();
     void findSensorType();

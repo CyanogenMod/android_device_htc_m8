@@ -1067,7 +1067,7 @@ QualcommCameraHardware::QualcommCameraHardware()
 
     switch(mCurrentTarget){
         case TARGET_MSM7627:
-            jpegPadding = 8;
+            jpegPadding = 0; // to be checked.
             break;
         case TARGET_QSD8250:
         case TARGET_MSM7630:
@@ -1465,7 +1465,6 @@ void QualcommCameraHardware::initDefaultParameters()
     /* Initialize the camframe_timeout_flag*/
     Mutex::Autolock l(&mCamframeTimeoutLock);
     camframe_timeout_flag = FALSE;
-    mPostViewHeap = NULL;
 
     mInitialized = true;
 
@@ -2319,6 +2318,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     if(width != 0 && height != 0){
         if((mCurrentTarget == TARGET_MSM7630) ||
            (mCurrentTarget == TARGET_MSM8660) ||
+           (mCurrentTarget == TARGET_MSM7627) ||
            (mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)) {
             thumbnailHeap = (uint8_t *)mRawHeap->mHeap->base();
             thumbfd =  mRawHeap->mHeap->getHeapID();
@@ -2333,6 +2333,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
 
     if( (mCurrentTarget == TARGET_MSM7630) ||
         (mCurrentTarget == TARGET_MSM8660) ||
+        (mCurrentTarget == TARGET_MSM7627) ||
         (mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) ) {
         // Pass the main image as thumbnail buffer, so that jpeg encoder will
         // generate thumbnail based on main image.
@@ -2356,6 +2357,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
          * use them here.
          */
         if( (mCurrentTarget == TARGET_MSM7630)||
+            (mCurrentTarget == TARGET_MSM7627) ||
             (mCurrentTarget == TARGET_MSM8660)) {
             mCrop.out1_w = mThumbnailWidth;
             mCrop.out1_h = mThumbnailHeight;
@@ -2787,31 +2789,6 @@ bool QualcommCameraHardware::initPreview()
         LOGE("initPreview X: could not initialize Camera preview heap.");
         return false;
     }
-    if(mCurrentTarget == TARGET_MSM7627) {
-        mPostViewHeap.clear();
-        if(mPostViewHeap == NULL) {
-            LOGV(" Allocating Postview heap ");
-            /* mPostViewHeap should be declared only for 7630 target */
-            mPostViewHeap =
-                new PmemPool("/dev/pmem_adsp",
-                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                        mCameraControlFd,
-                        MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
-                        mPreviewFrameSize,
-                        1,
-                        mPreviewFrameSize,
-                        CbCrOffset,
-                        0,
-                        "postview");
-
-            if (!mPostViewHeap->initialized()) {
-                mPostViewHeap.clear();
-                LOGE(" Failed to initialize Postview Heap");
-                return false;
-            }
-        }
-    }
-
 
     //set DIS value to get the updated video width and height to calculate
     //the required record buffer size
@@ -2986,6 +2963,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     }
 
     if((mCurrentTarget == TARGET_MSM7630) ||
+       (mCurrentTarget == TARGET_MSM7627) ||
        (mCurrentTarget == TARGET_MSM8660)) {
         if(rawHeight < previewHeight) {
             mDimension.ui_thumbnail_height = THUMBNAIL_SMALL_HEIGHT;
@@ -3211,11 +3189,6 @@ void QualcommCameraHardware::release()
         }
         stopPreviewInternal();
         LOGI("release: stopPreviewInternal done.");
-    }
-
-    if(mCurrentTarget == TARGET_MSM7627) {
-        mPostViewHeap.clear();
-        mPostViewHeap = NULL;
     }
     LINK_jpeg_encoder_join();
     {
@@ -3723,13 +3696,6 @@ status_t QualcommCameraHardware::takePicture()
         mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
         LOGV("takePicture: old snapshot thread completed.");
     }
-
-    if(mCurrentTarget == TARGET_MSM7627) {
-        /* Store the last frame queued for preview. This
-         * shall be used as postview */
-        storePreviewFrameForPostview();
-    }
-
     //mSnapshotFormat is protected by mSnapshotThreadWaitLock
     if(mParameters.getPictureFormat() != 0 &&
             !strcmp(mParameters.getPictureFormat(),
@@ -4741,38 +4707,39 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
         // dimension > 2048, we display the thumbnail instead.
 
         if (mCurrentTarget == TARGET_MSM7627)
-            mDisplayHeap = mPostViewHeap;
+            mDisplayHeap = mThumbnailHeap;
         else
             mDisplayHeap = mRawHeap;
 
+       // In case of 7x27, we use output2 for postview , which is of
+       // preview size. Output2 was used for thumbnail previously.
+       // Now thumbnail is generated from main image for 7x27.
         if (crop->in1_w == 0 || crop->in1_h == 0) {
             // Full size
-            size.width = mDimension.picture_width;
-            size.height = mDimension.picture_height;
-            if (size.width > 2048 || size.height > 2048) {
+            if (mCurrentTarget == TARGET_MSM7627) {
                 size.width = mDimension.ui_thumbnail_width;
                 size.height = mDimension.ui_thumbnail_height;
-                mDisplayHeap = mThumbnailHeap;
-            }
-            else {
-                if (mCurrentTarget == TARGET_MSM7627) {
-                    size.width = previewWidth;
-                    size.height = previewHeight;
+            } else {
+                size.width = mDimension.picture_width;
+                size.height = mDimension.picture_height;
+                if (size.width > 2048 || size.height > 2048) {
+                    size.width = mDimension.ui_thumbnail_width;
+                    size.height = mDimension.ui_thumbnail_height;
+                    mDisplayHeap = mThumbnailHeap;
                 }
             }
         } else {
             // Cropped
-            size.width = (crop->in2_w + jpegPadding) & ~1;
-            size.height = (crop->in2_h + jpegPadding) & ~1;
-            if (size.width > 2048 || size.height > 2048) {
+            if (mCurrentTarget == TARGET_MSM7627) {
                 size.width = (crop->in1_w + jpegPadding) & ~1;
                 size.height = (crop->in1_h + jpegPadding) & ~1;
-                mDisplayHeap = mThumbnailHeap;
-            }
-            else {
-                if (mCurrentTarget == TARGET_MSM7627) {
-                    size.width = previewWidth;
-                    size.height = previewHeight;
+            } else {
+                size.width = (crop->in2_w + jpegPadding) & ~1;
+                size.height = (crop->in2_h + jpegPadding) & ~1;
+                if (size.width > 2048 || size.height > 2048) {
+                    size.width = (crop->in1_w + jpegPadding) & ~1;
+                    size.height = (crop->in1_h + jpegPadding) & ~1;
+                    mDisplayHeap = mThumbnailHeap;
                 }
             }
         }
@@ -6385,23 +6352,6 @@ static void receive_camframe_error_callback(camera_error_type err) {
             obj->receive_camframe_error_timeout();
         }
     }
-}
-
-void QualcommCameraHardware::storePreviewFrameForPostview(void) {
-    LOGV(" storePreviewFrameForPostview : E ");
-
-    /* Since there is restriction on the maximum overlay dimensions
-     * that can be created, we use the last preview frame as postview
-     * for 7x30. */
-    LOGV(" Copying the preview buffer to postview buffer %d  ", 
-         mPreviewFrameSize);
-    if( mPostViewHeap != NULL && mLastQueuedFrame != NULL) {
-	memcpy(mPostViewHeap->mHeap->base(),
-		(uint8_t *)mLastQueuedFrame, mPreviewFrameSize );
-    } else
-        LOGE(" Failed to store Preview frame. No Postview ");
-
-    LOGV(" storePreviewFrameForPostview : X ");
 }
 
 bool QualcommCameraHardware::isValidDimension(int width, int height) {

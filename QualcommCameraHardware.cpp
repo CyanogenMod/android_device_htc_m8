@@ -189,7 +189,7 @@ union zoomimage
 
 //Default FPS
 #define MINIMUM_FPS 5
-#define MAXIMUM_FPS 30
+#define MAXIMUM_FPS 31
 #define DEFAULT_FPS MAXIMUM_FPS
 
 /*

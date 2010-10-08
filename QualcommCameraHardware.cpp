@@ -2437,7 +2437,33 @@ bool QualcommCameraHardware::native_set_parm(
     }
     return true;
 }
+//overloaded funtion which takes an extra parameter ie  ctrlCmd.status Value
+bool QualcommCameraHardware::native_set_parm(
+    cam_ctrl_type type, uint16_t length, void *value, int *result)
+{
+    struct msm_ctrl_cmd ctrlCmd;
 
+    ctrlCmd.timeout_ms = 5000;
+    ctrlCmd.type       = (uint16_t)type;
+    ctrlCmd.length     = length;
+    // FIXME: this will be put in by the kernel
+    ctrlCmd.resp_fd    = mCameraControlFd;
+    ctrlCmd.value = value;
+
+    LOGV("%s: fd %d, type %d, length %d", __FUNCTION__,
+         mCameraControlFd, type, length);
+    if (ioctl(mCameraControlFd, MSM_CAM_IOCTL_CTRL_COMMAND, &ctrlCmd) > 0 ||
+        ctrlCmd.status == CAM_CTRL_SUCCESS || ctrlCmd.status == CAM_CTRL_INVALID_PARM)  {
+        *result = ctrlCmd.status ;
+        return true;
+    } else {
+        LOGE("%s: error (%s): fd %d, type %d, length %d, status %d",
+             __FUNCTION__, strerror(errno),
+             mCameraControlFd, type, length, ctrlCmd.status);
+        *result = ctrlCmd.status;
+        return false;
+    }
+}
 void QualcommCameraHardware::jpeg_set_location()
 {
     bool encode_location = true;
@@ -3903,6 +3929,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setStrTextures(params)))   final_rc = rc;
     if ((rc = setPreviewFormat(params)))   final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))   final_rc = rc;
+    if ((rc = setAntibanding(params)))  final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -3910,7 +3937,6 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if((value != NOT_FOUND) && (value == CAMERA_BESTSHOT_OFF)) {
         if ((rc = setPreviewFrameRate(params))) final_rc = rc;
         if ((rc = setPreviewFrameRateMode(params))) final_rc = rc;
-        if ((rc = setAntibanding(params)))  final_rc = rc;
         if ((rc = setAutoExposure(params))) final_rc = rc;
         if ((rc = setExposureCompensation(params))) final_rc = rc;
         if ((rc = setWhiteBalance(params))) final_rc = rc;
@@ -5574,7 +5600,7 @@ status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
 }
 
 status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
-{
+{   int result;
     if((!strcmp(sensorType->name, "2mp")) || (!strcmp(sensorType->name, "ov7692"))) {
         LOGE("Parameter AntiBanding is not supported for this sensor");
         return NO_ERROR;
@@ -5592,7 +5618,10 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
                             0, NULL);
             } else {
                 ret = native_set_parm(CAMERA_SET_PARM_ANTIBANDING,
-                            sizeof(camera_antibanding_type), (void *)&temp);
+                            sizeof(camera_antibanding_type), (void *)&temp ,(int *)&result);
+                if(result == CAM_CTRL_INVALID_PARM) {
+                    LOGE("AntiBanding Value: %s is not supported for the given BestShot Mode", str);
+                }
             }
             return ret ? NO_ERROR : UNKNOWN_ERROR;
         }

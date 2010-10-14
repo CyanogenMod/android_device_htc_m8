@@ -171,10 +171,10 @@ struct camera_size_type {
 #endif
 
 typedef struct crop_info_struct {
-    uint32_t x;
-    uint32_t y;
-    uint32_t w;
-    uint32_t h;
+    int32_t x;
+    int32_t y;
+    int32_t w;
+    int32_t h;
 } zoom_crop_info;
 
 union zoomimage
@@ -4334,6 +4334,12 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
                 zoomCropInfo.y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
                 zoomCropInfo.w = crop->in1_w;
                 zoomCropInfo.h = crop->in1_h;
+                /* There can be scenarios where the in1_wXin1_h and
+                 * out1_wXout1_h are same. In those cases, reset the
+                 * x and y to zero instead of negative for proper zooming
+                 */
+                if(zoomCropInfo.x < 0) zoomCropInfo.x = 0;
+                if(zoomCropInfo.y < 0) zoomCropInfo.y = 0;
                 mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
                     zoomCropInfo.w, zoomCropInfo.h);
                 /* Set mResetOverlayCrop to true, so that when there is
@@ -5085,6 +5091,8 @@ void QualcommCameraHardware::receiveRawPicture()
             if (mCrop.in1_w != 0 && mCrop.in1_h != 0) {
                 cropX = (mCrop.out1_w - mCrop.in1_w + 1) / 2 - 1;
                 cropY = (mCrop.out1_h - mCrop.in1_h + 1) / 2 - 1;
+                if(cropX < 0) cropX = 0;
+                if(cropY < 0) cropY = 0;
                 cropW = mCrop.in1_w;
                 cropH = mCrop.in1_h;
                 mOverlay->setCrop(cropX, cropY, cropW, cropH);

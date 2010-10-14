@@ -5082,12 +5082,13 @@ void QualcommCameraHardware::receiveRawPicture()
             //Caculate the crop dimensions from mCrop.
             //mCrop will have the crop dimensions for VFE's
             //postview output.
-            if (mCrop.in1_w != 0 || mCrop.in1_h != 0) {
+            if (mCrop.in1_w != 0 && mCrop.in1_h != 0) {
                 cropX = (mCrop.out1_w - mCrop.in1_w + 1) / 2 - 1;
                 cropY = (mCrop.out1_h - mCrop.in1_h + 1) / 2 - 1;
                 cropW = mCrop.in1_w;
                 cropH = mCrop.in1_h;
                 mOverlay->setCrop(cropX, cropY, cropW, cropH);
+                mResetOverlayCrop = true;
             }
             LOGV(" Queueing Postview for display ");
             mOverlay->queueBuffer((void *)0);

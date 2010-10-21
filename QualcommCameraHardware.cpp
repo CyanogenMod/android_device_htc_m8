@@ -3257,20 +3257,30 @@ void QualcommCameraHardware::release()
         LOGI("release: stopPreviewInternal done.");
     }
     LINK_jpeg_encoder_join();
-    {
-        Mutex::Autolock l (&mRawPictureHeapLock);
-        deinitRaw();
-    }
     //Signal the snapshot thread
     mJpegThreadWaitLock.lock();
     mJpegThreadRunning = false;
     mJpegThreadWait.signal();
     mJpegThreadWaitLock.unlock();
 
+    // Wait for snapshot thread to complete before clearing the
+    // resources.
+    mSnapshotThreadWaitLock.lock();
+    while (mSnapshotThreadRunning) {
+        LOGV("takePicture: waiting for old snapshot thread to complete.");
+        mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
+        LOGV("takePicture: old snapshot thread completed.");
+    }
+    mSnapshotThreadWaitLock.unlock();
+
+    {
+        Mutex::Autolock l (&mRawPictureHeapLock);
+        deinitRaw();
+    }
+
     deinitRawSnapshot();
     LOGI("release: clearing resources done.");
 
-    
     ctrlCmd.timeout_ms = 5000;
     ctrlCmd.length = 0;
     ctrlCmd.type = (uint16_t)CAMERA_EXIT;

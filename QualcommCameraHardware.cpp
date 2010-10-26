@@ -1726,9 +1726,6 @@ status_t QualcommCameraHardware::dump(int fd,
     if (mJpegHeap != 0) {
         mJpegHeap->dump(fd, args);
     }
-    if(mRawSnapshotAshmemHeap != 0 ){
-        mRawSnapshotAshmemHeap->dump(fd, args);
-    }
     mParameters.dump(fd, args);
     return NO_ERROR;
 }
@@ -3215,7 +3212,6 @@ void QualcommCameraHardware::deinitRawSnapshot()
 {
     LOGV("deinitRawSnapshot E");
     mRawSnapShotPmemHeap.clear();
-    mRawSnapshotAshmemHeap.clear();
     LOGV("deinitRawSnapshot X");
 }
 
@@ -5030,29 +5026,8 @@ void QualcommCameraHardware::receiveRawSnapshot(){
          */
         notifyShutter(&mCrop, FALSE);
 
-        //Create a Ashmem heap to copy data from PMem heap for application layer
-        if(mRawSnapshotAshmemHeap != NULL){
-            LOGV("receiveRawSnapshot: clearing old mRawSnapShotAshmemHeap.");
-            mRawSnapshotAshmemHeap.clear();
-        }
-        mRawSnapshotAshmemHeap = new AshmemPool(
-                                        mRawSnapShotPmemHeap->mBufferSize,
-                                        mRawSnapShotPmemHeap->mNumBuffers,
-                                        mRawSnapShotPmemHeap->mFrameSize,
-                                        "raw ashmem snapshot camera"
-                                        );
-
-        if(!mRawSnapshotAshmemHeap->initialized()){
-            LOGE("receiveRawSnapshot X: error initializing mRawSnapshotHeap");
-            deinitRawSnapshot();
-            return;
-        }
-
-        memcpy(mRawSnapshotAshmemHeap->mHeap->base(),
-                mRawSnapShotPmemHeap->mHeap->base(),
-                mRawSnapShotPmemHeap->mHeap->getSize());
-       if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
-           mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapshotAshmemHeap->mBuffers[0],
+        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
+           mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapShotPmemHeap->mBuffers[0],
                 mCallbackCookie);
 
     }

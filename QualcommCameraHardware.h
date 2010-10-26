@@ -209,7 +209,6 @@ private:
     sp<AshmemPool> mJpegHeap;
     sp<AshmemPool> mStatHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
-    sp<AshmemPool> mRawSnapshotAshmemHeap;
     sp<PmemPool> mPostViewHeap;
 
     bool startCamera();

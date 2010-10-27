@@ -3295,6 +3295,7 @@ status_t QualcommCameraHardware::cancelAutoFocus()
 
 void QualcommCameraHardware::runSnapshotThread(void *data)
 {
+    bool ret = true;
     LOGV("runSnapshotThread E");
 #if DLOPEN_LIBMMCAMERA
     // We need to maintain a reference to libqcamera.so for the duration of the
@@ -3310,14 +3311,17 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
 
     if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
         if (native_start_ops(CAMERA_OPS_SNAPSHOT, NULL))
-            receiveRawPicture();
-        else
+            ret = receiveRawPicture();
+        else {
             LOGE("main: snapshot failed! [CAMERA_OPS_SNAPSHOT]");
+            ret = false;
+        }
     } else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
         if (native_start_ops(CAMERA_OPS_RAW_SNAPSHOT, NULL)) {
-           receiveRawSnapshot();
+           ret = receiveRawSnapshot();
         } else {
            LOGE("main: raw_snapshot failed! [ CAMERA_OPS_RAW_SNAPSHOT]");
+            ret = false;
         }
     }
     mInSnapshotModeWaitLock.lock();
@@ -3354,6 +3358,15 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
         LOGV("SNAPSHOT: dlclose(libqcamera)");
     }
 #endif
+
+    if( (ret == false) && mDataCallback
+        && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+        /* get picture failed. Give jpeg callback with NULL data
+         * to the application to restore to preview mode
+         */
+        LOGE("get picture failed, giving jpeg callback with NULL data");
+        mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
+    }
 
     LOGV("runSnapshotThread X");
 }
@@ -4617,7 +4630,7 @@ static void crop_yuv420(uint32_t width, uint32_t height,
     }
 }
 
-void QualcommCameraHardware::receiveRawSnapshot(){
+bool QualcommCameraHardware::receiveRawSnapshot(){
     LOGV("receiveRawSnapshot E");
 
     Mutex::Autolock cbLock(&mCallbackLock);
@@ -4628,7 +4641,7 @@ void QualcommCameraHardware::receiveRawSnapshot(){
 
           if(native_start_ops(CAMERA_OPS_GET_PICTURE, &mCrop) == false) {
             LOGE("receiveRawSnapshot X: CAMERA_OPS_GET_PICTURE ioctl failed!");
-            return;
+            return false;
         }
         /* Its necessary to issue another notifyShutter here with
          * mPlayShutterSoundOnly as FALSE, since that is when the
@@ -4648,9 +4661,10 @@ void QualcommCameraHardware::receiveRawSnapshot(){
     deinitRawSnapshot();
 
     LOGV("receiveRawSnapshot X");
+    return true;
 }
 
-void QualcommCameraHardware::receiveRawPicture()
+bool QualcommCameraHardware::receiveRawPicture()
 {
     LOGV("receiveRawPicture: E");
 
@@ -4658,7 +4672,7 @@ void QualcommCameraHardware::receiveRawPicture()
     if (mDataCallback && ((mMsgEnabled & CAMERA_MSG_RAW_IMAGE) || mSnapshotDone)) {
         if(native_start_ops(CAMERA_OPS_GET_PICTURE, &mCrop) == false) {
             LOGE("getPicture: CAMERA_OPS_GET_PICTURE ioctl failed!");
-            return;
+            return false;
         }
         mSnapshotDone = FALSE;
         mCrop.in1_w &= ~1;
@@ -4767,7 +4781,7 @@ void QualcommCameraHardware::receiveRawPicture()
                 mJpegThreadWaitLock.unlock();
                 if(native_jpeg_encode()) {
                     LOGV("receiveRawPicture: X (success)");
-                    return;
+                    return true;
                 }
                 LOGE("jpeg encoding failed");
             }
@@ -4778,8 +4792,10 @@ void QualcommCameraHardware::receiveRawPicture()
         }
         else LOGV("JPEG callback is NULL, not encoding image.");
         deinitRaw();
+        return false;
     }
     LOGV("receiveRawPicture: X");
+    return true;
 }
 
 void QualcommCameraHardware::receiveJpegPictureFragment(

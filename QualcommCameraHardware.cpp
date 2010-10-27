@@ -711,6 +711,10 @@ struct SensorType {
 #define CAMERA_HISTOGRAM_DISABLE 0
 #define HISTOGRAM_STATS_SIZE 257
 
+//Dx,Dy should be same as defined in res/layout/camera.xml
+#define FOCUS_RECTANGLE_DX 100
+#define FOCUS_RECTANGLE_DY 100
+
 #define EXPOSURE_COMPENSATION_MAXIMUM_NUMERATOR 12
 #define EXPOSURE_COMPENSATION_MINIMUM_NUMERATOR -12
 #define EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR 0
@@ -5358,22 +5362,29 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                 //If touch AF/AEC is enabled and touch event has occured then
                 //call the ioctl with valid values.
-
                 if (value == true 
                         && (xAec >= 0 && yAec >= 0)
                         && (xAf >= 0 && yAf >= 0)) {
-                    //Set Touch AEC params 
+                    //Set Touch AEC params (Pass the center co-ordinate)
                     aec_roi_value.aec_roi_enable = AEC_ROI_ON;
                     aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
                     aec_roi_value.aec_roi_position.coordinate.x = xAec;
                     aec_roi_value.aec_roi_position.coordinate.y = yAec;
 
-                    //Set Touch AF params
+                    //Set Touch AF params (Pass the top left co-ordinate)
                     af_roi_value.num_roi = 1;
-                    af_roi_value.roi[0].x = xAf;
-                    af_roi_value.roi[0].y = yAf;
-                    af_roi_value.roi[0].dx = 100;
-                    af_roi_value.roi[0].dy = 100;
+                    if ((xAf-50) < 0)
+                        af_roi_value.roi[0].x = 1;
+                    else
+                        af_roi_value.roi[0].x = xAf - (FOCUS_RECTANGLE_DX/2);
+
+                    if ((yAf-50) < 0)
+                        af_roi_value.roi[0].y = 1;
+                    else
+                        af_roi_value.roi[0].y = yAf - (FOCUS_RECTANGLE_DY/2);
+
+                    af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
+                    af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
                 }
                 else {
                     //Set Touch AEC params

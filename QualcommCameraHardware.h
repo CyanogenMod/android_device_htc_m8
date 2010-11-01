@@ -129,8 +129,8 @@ private:
     status_t cancelAutoFocusInternal();
     bool native_set_dimension (int camfd);
     bool native_jpeg_encode (void);
-    bool native_set_parm(cam_ctrl_type type, uint16_t length, void *value);
-    bool native_set_parm(cam_ctrl_type type, uint16_t length, void *value, int *result);
+    bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
+    bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
     bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop);
 
     static wp<QualcommCameraHardware> singleton;
@@ -268,6 +268,7 @@ private:
 
     int mSnapshotFormat;
     bool mFirstFrame;
+    void hasAutoFocusSupport();
     void filterPictureSizes();
     void filterPreviewSizes();
     void storeTargetType();
@@ -350,7 +351,6 @@ private:
     cam_ctrl_dimension_t mDimension;
     bool mAutoFocusThreadRunning;
     Mutex mAutoFocusThreadLock;
-    int mAutoFocusFd;
 
     Mutex mAfLock;
 
@@ -382,6 +382,7 @@ private:
     int previewWidth, previewHeight;
     bool mSnapshotDone;
     bool mSnapshotPrepare;
+    bool mHasAutoFocusSupport;
     mm_camera_config mCfgControl;
     int videoWidth, videoHeight;
 

@@ -2050,6 +2050,8 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         int CbCrOffset = -1;
         if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
             CbCrOffset = mCbCrOffsetRaw;
+        mCrop.in1_w = mDimension.orig_picture_dx - jpegPadding; // when cropping is enabled 
+        mCrop.in1_h = mDimension.orig_picture_dy - jpegPadding; // when cropping is enabled
 
         if (!LINK_jpeg_encoder_encode(&mDimension,
                                       thumbnailHeap,
@@ -4449,6 +4451,7 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
         if (crop->in1_w == 0 || crop->in1_h == 0) {
             // Full size
             if (mCurrentTarget == TARGET_MSM7627) {
+                jpegPadding = 0;
                 size.width = mDimension.ui_thumbnail_width;
                 size.height = mDimension.ui_thumbnail_height;
             } else {
@@ -4463,6 +4466,7 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
         } else {
             // Cropped
             if (mCurrentTarget == TARGET_MSM7627) {
+                jpegPadding = 8;
                 size.width = (crop->in1_w + jpegPadding) & ~1;
                 size.height = (crop->in1_h + jpegPadding) & ~1;
             } else {

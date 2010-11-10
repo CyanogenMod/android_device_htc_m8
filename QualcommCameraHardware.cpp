@@ -1041,7 +1041,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mResetOverlayCrop(false),
       mThumbnailWidth(0),
       mThumbnailHeight(0),
-      mHasAutoFocusSupport(0)
+      mHasAutoFocusSupport(0),
+      strTexturesOn(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     // Start opening camera device in a separate thread/ Since this
@@ -1491,6 +1492,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mThumbnailHeap = NULL;
 
     mInitialized = true;
+    strTexturesOn = false;
 
     LOGI("initDefaultParameters X");
 }
@@ -2002,7 +2004,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         if((mCurrentTarget == TARGET_MSM7630) ||
            (mCurrentTarget == TARGET_MSM8660) ||
            (mCurrentTarget == TARGET_MSM7627) ||
-           (mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)) {
+           (strTexturesOn == true)) {
             thumbnailHeap = (uint8_t *)mRawHeap->mHeap->base();
             thumbfd =  mRawHeap->mHeap->getHeapID();
         } else {
@@ -2017,7 +2019,7 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     if( (mCurrentTarget == TARGET_MSM7630) ||
         (mCurrentTarget == TARGET_MSM8660) ||
         (mCurrentTarget == TARGET_MSM7627) ||
-        (mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) ) {
+        (strTexturesOn == true) ) {
         // Pass the main image as thumbnail buffer, so that jpeg encoder will
         // generate thumbnail based on main image.
         // Set the input and output dimensions for thumbnail generation to main
@@ -3332,7 +3334,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mInSnapshotModeWaitLock.unlock();
 
     mSnapshotFormat = 0;
-    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO ) {
+    if(strTexturesOn != true ) {
         mJpegThreadWaitLock.lock();
         while (mJpegThreadRunning) {
             LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
@@ -3390,7 +3392,7 @@ status_t QualcommCameraHardware::takePicture()
     LOGV("takePicture(%d)", mMsgEnabled);
     Mutex::Autolock l(&mLock);
 
-    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
+    if(strTexturesOn == true){
         mEncodePendingWaitLock.lock();
         while(mEncodePending) {
             LOGE("takePicture: Frame given to application, waiting for encode call");
@@ -4486,8 +4488,8 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
             mDisplayHeap = mThumbnailHeap;
         }
 
-        //For Adreno format, we need to pass the main image in all the cases.
-        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        //For streaming textures, we need to pass the main image in all the cases.
+        if(strTexturesOn == true) {
             int rawWidth, rawHeight;
             mParameters.getPictureSize(&rawWidth, &rawHeight);
             size.width = rawWidth;
@@ -4728,7 +4730,7 @@ bool QualcommCameraHardware::receiveRawPicture()
              * is used to generate thumbnail. These parameters should contain
              * the original thumbnail dimensions.
              */
-            if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
+            if(strTexturesOn != true) {
                 mDimension.thumbnail_width = mCrop.in1_w + jpegPadding;
                 mDimension.thumbnail_height = mCrop.in1_h + jpegPadding;
             }
@@ -4764,7 +4766,7 @@ bool QualcommCameraHardware::receiveRawPicture()
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
             mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
                             mCallbackCookie);
-        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        if(strTexturesOn == true) {
             LOGI("Raw Data given to app for processing...will wait for jpeg encode call");
             mEncodePendingWaitLock.lock();
             mEncodePending = true;
@@ -4773,7 +4775,7 @@ bool QualcommCameraHardware::receiveRawPicture()
     }
     else LOGV("Raw-picture callback was canceled--skipping.");
 
-    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
+    if(strTexturesOn != true) {
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
             mJpegSize = 0;
             mJpegThreadWaitLock.lock();
@@ -5178,11 +5180,14 @@ status_t QualcommCameraHardware::setStrTextures(const CameraParameters& params) 
     if(str != NULL) {
         LOGV("strtextures = %s", str);
         mParameters.set("strtextures", str);
-        if(mUseOverlay) {
-            if(!strncmp(str, "on", 2) || !strncmp(str, "ON", 2)) {
-                LOGI("Resetting mUseOverlay to false");
-                mUseOverlay = false;
-            }
+        if(!strncmp(str, "on", 2) || !strncmp(str, "ON", 2)) {
+            LOGI("Resetting mUseOverlay to false");
+            strTexturesOn = true;
+            mUseOverlay = false;
+        } else if (!strncmp(str, "off", 3) || !strncmp(str, "OFF", 3)) {
+            strTexturesOn = false;
+            if((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660))
+                mUseOverlay = true;
         }
     }
     return NO_ERROR;

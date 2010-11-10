@@ -391,6 +391,7 @@ private:
     int mThumbnailWidth, mThumbnailHeight;
     status_t setVpeParameters();
     status_t setDIS();
+    bool strTexturesOn;
 };
 
 }; // namespace android

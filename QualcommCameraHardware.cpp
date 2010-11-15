@@ -1325,7 +1325,11 @@ void QualcommCameraHardware::initDefaultParameters()
 
     if(zoomSupported){
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
-        LOGV("max zoom is %d", mMaxZoom);
+        LOGV("max zoom is %d", mMaxZoom-1);
+        /* mMaxZoom value that the query interface returns is the size
+         * of zoom table. So the actual max zoom value will be one
+         * less than that value.
+         */
         mParameters.set("max-zoom",mMaxZoom-1);
         mParameters.set(CameraParameters::KEY_ZOOM_RATIOS,
                             zoom_ratio_values);
@@ -2498,7 +2502,11 @@ bool QualcommCameraHardware::initPreview()
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
 
         // Allocate video buffers after allocating preview buffers.
-        initRecord();
+        bool status = initRecord();
+        if(status != true) {
+            LOGE("Failed to allocate video bufers");
+            return false;
+        }
     }
 
     if (ret) {
@@ -5611,7 +5619,7 @@ status_t QualcommCameraHardware::setZoom(const CameraParameters& params)
     // driver.
     static const int ZOOM_STEP = 1;
     int32_t zoom_level = params.getInt("zoom");
-    if(zoom_level >= 0 && zoom_level <= mMaxZoom) {
+    if(zoom_level >= 0 && zoom_level <= mMaxZoom-1) {
         mParameters.set("zoom", zoom_level);
         int32_t zoom_value = ZOOM_STEP * zoom_level;
         bool ret = native_set_parms(CAMERA_PARM_ZOOM,

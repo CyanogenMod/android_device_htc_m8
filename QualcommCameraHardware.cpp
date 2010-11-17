@@ -4869,7 +4869,16 @@ bool QualcommCameraHardware::receiveRawPicture()
                 cropH = mCrop.in1_h;
                 mOverlay->setCrop(cropX, cropY, cropW, cropH);
                 mResetOverlayCrop = true;
+            } else {
+                /* as the VFE second output is being used for postView,
+                 * VPE is doing the necessary cropping. Clear the
+                 * preview cropping information with overlay, so that
+                 * the same  won't be applied to postview.
+                 */
+                 mOverlay->setCrop(0, 0, mDimension.ui_thumbnail_width,
+                                    mDimension.ui_thumbnail_height);
             }
+
             LOGV(" Queueing Postview for display ");
             mOverlay->queueBuffer((void *)0);
         }

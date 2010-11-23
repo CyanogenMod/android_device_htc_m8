@@ -225,6 +225,31 @@ private:
     bool initRawSnapshot();
     void deinitRaw();
     void deinitRawSnapshot();
+    bool mPreviewThreadRunning;
+    Mutex mPreviewThreadWaitLock;
+    Condition mPreviewThreadWait;
+    friend void *preview_thread(void *user);
+    void runPreviewThread(void *data);
+
+    class FrameQueue : public RefBase{
+    private:
+        Mutex mQueueLock;
+        Condition mQueueWait;
+        bool mInitialized;
+
+        Vector<struct msm_frame *> mContainer;
+    public:
+        FrameQueue();
+        virtual ~FrameQueue();
+        bool add(struct msm_frame *element);
+        void flush();
+        struct msm_frame* get();
+        void init();
+        void deinit();
+        bool isInitialized();
+    };
+
+    FrameQueue mPreviewBusyQueue;
 
     bool mFrameThreadRunning;
     Mutex mFrameThreadWaitLock;
@@ -362,6 +387,7 @@ private:
 
     pthread_t mFrameThread;
     pthread_t mVideoThread;
+    pthread_t mPreviewThread;
     pthread_t mSnapshotThread;
 
     common_crop_t mCrop;

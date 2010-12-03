@@ -116,7 +116,8 @@ const struct camera_size_type *(*LINK_default_sensor_get_snapshot_sizes)(int *le
 int (*LINK_launch_cam_conf_thread)(void);
 int (*LINK_release_cam_conf_thread)(void);
 mm_camera_status_t (*LINK_mm_camera_init)(mm_camera_config *, mm_camera_notify*, mm_camera_ops*,uint8_t);
-mm_camera_status_t (*LINK_mm_camera_deinit)(mm_camera_config *, mm_camera_notify*, mm_camera_ops*);
+mm_camera_status_t (*LINK_mm_camera_deinit)();
+mm_camera_status_t (*LINK_mm_camera_destroy)();
 mm_camera_status_t (*LINK_mm_camera_exec)();
 int8_t (*LINK_zoom_crop_upscale)(uint32_t width, uint32_t height,
     uint32_t cropped_width, uint32_t cropped_height, uint8_t *img_buf);
@@ -144,6 +145,7 @@ int8_t  (*LINK_set_liveshot_params)(uint32_t a_width, uint32_t a_height, exif_ta
 #define LINK_zoom_crop_upscale zoom_crop_upscale
 #define LINK_mm_camera_init mm_camera_config_init
 #define LINK_mm_camera_deinit mm_camera_config_deinit
+#define LINK_mm_camera_destroy mm_camera_config_destroy
 #define LINK_mm_camera_exec mm_camera_exec
 extern void (*mmcamera_camframe_callback)(struct msm_frame *frame);
 extern void (*mmcamera_camstats_callback)(camstats_type stype, camera_preview_histogram_info* histinfo);
@@ -1009,7 +1011,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       maxSnapshotHeight(0)
 {
     LOGI("QualcommCameraHardware constructor E");
-
+#if DLOPEN_LIBMMCAMERA
+    libmmcamera = ::dlopen("liboemcamera.so", RTLD_NOW);
+#endif
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
     memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
@@ -1467,7 +1471,6 @@ bool QualcommCameraHardware::startCamera()
         return false;
     }
 #if DLOPEN_LIBMMCAMERA
-    libmmcamera = ::dlopen("liboemcamera.so", RTLD_NOW);
 
     LOGV("loading liboemcamera at %p", libmmcamera);
     if (!libmmcamera) {
@@ -1552,6 +1555,9 @@ bool QualcommCameraHardware::startCamera()
 
     *(void **)&LINK_mm_camera_deinit =
         ::dlsym(libmmcamera, "mm_camera_deinit");
+
+  *(void **)&LINK_mm_camera_destroy =
+        ::dlsym(libmmcamera, "mm_camera_destroy");
 
     *(void **)&LINK_mm_camera_exec =
         ::dlsym(libmmcamera, "mm_camera_exec");
@@ -2855,19 +2861,11 @@ void QualcommCameraHardware::release()
 
     deinitRawSnapshot();
     LOGI("release: clearing resources done.");
-    LINK_mm_camera_deinit(&mCfgControl, &mCamNotify, &mCamOps);
+    LINK_mm_camera_deinit();
     if(fb_fd >= 0) {
         close(fb_fd);
         fb_fd = -1;
     }
-#if DLOPEN_LIBMMCAMERA
-    if (libmmcamera) {
-        ::dlclose(libmmcamera);
-        LOGV("dlclose(libqcamera)");
-        libmmcamera = NULL;
-    }
-#endif
-
     singleton_lock.lock();
     singleton_releasing = true;
     singleton_releasing_start_time = systemTime();
@@ -2881,6 +2879,19 @@ void QualcommCameraHardware::release()
 QualcommCameraHardware::~QualcommCameraHardware()
 {
     LOGI("~QualcommCameraHardware E");
+    LINK_mm_camera_destroy();
+
+#if DLOPEN_LIBMMCAMERA
+    if (libmmcamera) {
+        ::dlclose(libmmcamera);
+        LOGV("dlclose(libqcamera)");
+        libmmcamera = NULL;
+    }
+
+#else
+#warning "Cannot detect multiple release when not dlopen()ing libqcamera!"
+#endif
+
     singleton_lock.lock();
 
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 || mCurrentTarget == TARGET_MSM8660 ) {

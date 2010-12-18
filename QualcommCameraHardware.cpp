@@ -3225,6 +3225,11 @@ status_t QualcommCameraHardware::startPreviewInternal()
 
     if(!mCameraRunning) {
         deinitPreview();
+        /* Flush the Busy Q */
+        cam_frame_flush_video();
+        /* Need to flush the free Qs as these are initalized in initPreview.*/
+        LINK_camframe_release_all_frames(CAM_VIDEO_FRAME);
+        LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
         mPreviewInitialized = false;
         mOverlay = NULL;
         LOGE("startPreview X: native_start_ops: CAMERA_OPS_STREAMING_PREVIEW ioctl failed!");
@@ -3273,7 +3278,7 @@ void QualcommCameraHardware::stopPreviewInternal()
                 mCameraRunning = 0;
             }
         }
-
+    }
 	if (!mCameraRunning && mPreviewInitialized) {
 	    mPreviewBusyQueue.deinit();
 	    deinitPreview();
@@ -3290,12 +3295,10 @@ void QualcommCameraHardware::stopPreviewInternal()
                 cam_frame_flush_video();
                 /* Flush the Free Q */
                 LINK_camframe_release_all_frames(CAM_VIDEO_FRAME);
-
 	    }
 	    mPreviewInitialized = false;
 	}
 	else LOGE("stopPreviewInternal: failed to stop preview");
-    }
 
     LOGI("stopPreviewInternal X: %d", mCameraRunning);
 }

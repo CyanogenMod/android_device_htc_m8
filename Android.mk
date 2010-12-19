@@ -1,3 +1,4 @@
+ifneq ($(USE_CAMERA_STUB),true)
 ifeq ($(strip $(BOARD_USES_QCOM_HARDWARE)), true)
 BUILD_LIBCAMERA:=true
 ifeq ($(BUILD_LIBCAMERA),true)
@@ -36,3 +37,4 @@ include $(BUILD_SHARED_LIBRARY)
 endif # BUILD_TINY_ANDROID
 endif # BUILD_LIBCAMERA
 endif # BOARD_USES_QCOM_HARDWARE
+endif # USE_CAMERA_STUB

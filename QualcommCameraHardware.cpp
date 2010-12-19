@@ -3969,7 +3969,7 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
     return BAD_VALUE;
 }
 
-extern "C" sp<CameraHardwareInterface> openCameraHardware()
+extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
 {
     LOGI("openCameraHardware: call createInstance");
     return QualcommCameraHardware::createInstance();
@@ -4151,6 +4151,7 @@ void QualcommCameraHardware::debugShowVideoFPS() const
 
 void QualcommCameraHardware::receiveLiveSnapshot(uint32_t jpeg_size)
 {
+#if 0
     LOGV("receiveLiveSnapshot E");
 
 #ifdef DUMP_LIVESHOT_JPEG_FILE
@@ -4184,6 +4185,7 @@ void QualcommCameraHardware::receiveLiveSnapshot(uint32_t jpeg_size)
     liveshot_state = LIVESHOT_DONE;
 
     LOGV("receiveLiveSnapshot X");
+#endif
 }
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
@@ -6391,6 +6393,23 @@ void QualcommCameraHardware::encodeData() {
     mEncodePendingWaitLock.unlock();
 
     LOGV("encodeData: X");
+}
+
+extern "C" int HAL_getNumberOfCameras()
+{
+    return 1;
+}
+
+static CameraInfo sCameraInfo[] = {
+    {
+        CAMERA_FACING_BACK,
+        270,  /* orientation */
+    }
+};
+
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
+{
+    memcpy(cameraInfo, &sCameraInfo[cameraId], sizeof(CameraInfo));
 }
 
 }; // namespace android

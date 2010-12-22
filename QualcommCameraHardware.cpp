@@ -122,6 +122,7 @@ mm_camera_status_t (*LINK_mm_camera_init)(mm_camera_config *, mm_camera_notify*,
 mm_camera_status_t (*LINK_mm_camera_deinit)();
 mm_camera_status_t (*LINK_mm_camera_destroy)();
 mm_camera_status_t (*LINK_mm_camera_exec)();
+mm_camera_status_t (*LINK_mm_camera_get_camera_info) (camera_info_t* p_cam_info, int* p_num_cameras);
 
 int8_t (*LINK_zoom_crop_upscale)(uint32_t width, uint32_t height,
     uint32_t cropped_width, uint32_t cropped_height, uint8_t *img_buf);
@@ -153,6 +154,7 @@ int8_t  (*LINK_set_liveshot_params)(uint32_t a_width, uint32_t a_height, exif_ta
 #define LINK_mm_camera_exec mm_camera_exec
 #define LINK_camframe_add_frame camframe_add_frame
 #define LINK_camframe_release_all_frames camframe_release_all_frames
+#define LINK_mm_camera_get_camera_info mm_camera_get_camera_info
 
 extern void (*mmcamera_camframe_callback)(struct msm_frame *frame);
 extern void (*mmcamera_camstats_callback)(camstats_type stype, camera_preview_histogram_info* histinfo);
@@ -307,6 +309,10 @@ static int kRecordBufferCount;
  * 0: VPE support is not available (default)
  */
 static bool mVpeEnabled;
+
+static int HAL_numOfCameras;
+static camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
+static int HAL_currentCameraId;
 
 namespace android {
 
@@ -1658,11 +1664,26 @@ bool QualcommCameraHardware::startCamera()
 
     /* The control thread is in libcamera itself. */
 
-    // Hard coding it to 0 for MSM_CAMERA. Will change with 3D camera support
-    if (MM_CAMERA_SUCCESS != LINK_mm_camera_init(&mCfgControl, &mCamNotify, &mCamOps, 0)) {
+    if (MM_CAMERA_SUCCESS != LINK_mm_camera_init(&mCfgControl, &mCamNotify, &mCamOps, 1)) {
             LOGE("startCamera: mm_camera_init failed:");
             return FALSE;
     }
+
+    uint8_t camera_id8 = (uint8_t)HAL_currentCameraId;
+    bool ret = native_set_parms(CAMERA_PARM_CAMERA_ID, sizeof(uint8_t), &camera_id8);
+    if(!ret){
+        LOGE("setting camera id failed");
+        LINK_mm_camera_deinit();
+        return FALSE;
+    }
+
+    camera_mode_t mode = CAMERA_MODE_2D;
+    if (MM_CAMERA_SUCCESS != mCfgControl.mm_camera_set_parm(CAMERA_PARM_MODE, &mode)) {
+        LOGE("startCamera: CAMERA_PARM_MODE failed:");
+        LINK_mm_camera_deinit();
+        return FALSE;
+    }
+
     if (MM_CAMERA_SUCCESS != LINK_mm_camera_exec()) {
             LOGE("startCamera: mm_camera_exec failed:");
             return FALSE;
@@ -3135,9 +3156,9 @@ void QualcommCameraHardware::release()
     // resources.
     mSnapshotThreadWaitLock.lock();
     while (mSnapshotThreadRunning) {
-        LOGV("takePicture: waiting for old snapshot thread to complete.");
+        LOGV("release: waiting for old snapshot thread to complete.");
         mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
-        LOGV("takePicture: old snapshot thread completed.");
+        LOGV("release: old snapshot thread completed.");
     }
     mSnapshotThreadWaitLock.unlock();
 
@@ -3986,9 +4007,17 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
 
 extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
 {
+    int i;
     LOGI("openCameraHardware: call createInstance");
-    CAMERA_HAL_UNUSED(cameraId);
-    return QualcommCameraHardware::createInstance();
+    for(i = 0; i < HAL_numOfCameras; i++) {
+        if(i == cameraId) {
+            LOGI("openCameraHardware:Valid camera ID %d", cameraId);
+            HAL_currentCameraId = cameraId;
+            return QualcommCameraHardware::createInstance();
+        }
+    }
+    LOGE("openCameraHardware:Invalid camera ID %d", cameraId);
+    return NULL;
 }
 
 wp<QualcommCameraHardware> QualcommCameraHardware::singleton;
@@ -5160,7 +5189,7 @@ status_t QualcommCameraHardware::setPictureSize(const CameraParameters& params)
 status_t QualcommCameraHardware::setJpegQuality(const CameraParameters& params) {
     status_t rc = NO_ERROR;
     int quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
-    if (quality > 0 && quality <= 100) {
+    if (quality >= 0 && quality <= 100) {
         mParameters.set(CameraParameters::KEY_JPEG_QUALITY, quality);
     } else {
         LOGE("Invalid jpeg quality=%d", quality);
@@ -5168,7 +5197,7 @@ status_t QualcommCameraHardware::setJpegQuality(const CameraParameters& params) 
     }
 
     quality = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY);
-    if (quality > 0 && quality <= 100) {
+    if (quality >= 0 && quality <= 100) {
         mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, quality);
     } else {
         LOGE("Invalid jpeg thumbnail quality=%d", quality);
@@ -6412,21 +6441,64 @@ void QualcommCameraHardware::encodeData() {
     LOGV("encodeData: X");
 }
 
-extern "C" int HAL_getNumberOfCameras()
+void QualcommCameraHardware::getCameraInfo()
 {
-    return 1;
+    LOGI("getCameraInfo: IN");
+    mm_camera_status_t status;
+
+#if DLOPEN_LIBMMCAMERA
+    void *libhandle = ::dlopen("liboemcamera.so", RTLD_NOW);
+    LOGI("getCameraInfo: loading libqcamera at %p", libhandle);
+    if (!libhandle) {
+        LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
+    }
+    *(void **)&LINK_mm_camera_get_camera_info =
+        ::dlsym(libhandle, "mm_camera_get_camera_info");
+#endif
+
+    status = LINK_mm_camera_get_camera_info(HAL_cameraInfo, &HAL_numOfCameras);
+    LOGI("getCameraInfo: numOfCameras = %d", HAL_numOfCameras);
+    for(int i = 0; i < HAL_numOfCameras; i++) {
+        LOGI("Camera sensor %d info:", i);
+        LOGI("camera_id: %d", HAL_cameraInfo[i].camera_id);
+        LOGI("modes_supported: %x", HAL_cameraInfo[i].modes_supported);
+        LOGI("position: %d", HAL_cameraInfo[i].position);
+    }
+
+#if DLOPEN_LIBMMCAMERA
+    if (libhandle) {
+        ::dlclose(libhandle);
+        LOGV("getCameraInfo: dlclose(libqcamera)");
+    }
+#endif
+    LOGI("getCameraInfo: OUT");
 }
 
-static CameraInfo sCameraInfo[] = {
-    {
-        CAMERA_FACING_BACK,
-        270,  /* orientation */
-    }
-};
+extern "C" int HAL_getNumberOfCameras()
+{
+    QualcommCameraHardware::getCameraInfo();
+    return HAL_numOfCameras;
+}
 
 extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
 {
-    memcpy(cameraInfo, &sCameraInfo[cameraId], sizeof(CameraInfo));
+    int i;
+    if(cameraInfo == NULL) {
+        LOGE("cameraInfo is NULL");
+        return;
+    }
+
+    for(i = 0; i < HAL_numOfCameras; i++) {
+        if(i == cameraId) {
+            LOGI("Found a matching camera info for ID %d", cameraId);
+            cameraInfo->facing = (HAL_cameraInfo[i].position == BACK_CAMERA)?
+                                   CAMERA_FACING_BACK : CAMERA_FACING_FRONT;
+            /* TODO: Need to get this information from lower layers */
+            cameraInfo->orientation = 270;
+            return;
+        }
+    }
+    LOGE("Unable to find matching camera info for ID %d", cameraId);
 }
 
 }; // namespace android

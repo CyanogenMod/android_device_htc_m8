@@ -26,7 +26,6 @@
 
 extern "C" {
 #include <linux/android_pmem.h>
-#include <media/msm_camera.h>
 #include <camera.h>
 #include <camera_defs_i.h>
 #include <mm_camera_interface.h>
@@ -112,12 +111,13 @@ public:
     void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
-    void receiveJpegPicture(void);
+    void receiveJpegPicture(status_t status, uint32_t size);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
-    void notifyShutter(common_crop_t *crop, bool mPlayShutterSoundOnly);
+    void notifyShutter(bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
+    void receiveRawPicture(status_t status, void *cropp);
 
 private:
     QualcommCameraHardware();
@@ -229,7 +229,8 @@ private:
     sp<AshmemPool> mStatHeap;
     sp<AshmemPool> mMetaDataHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
-    sp<PmemPool> mPostViewHeap;
+    sp<PmemPool> mLastPreviewFrameHeap;
+    sp<PmemPool> mPostviewHeap;
 
 
     sp<MMCameraDL> mMMCameraDLRef;
@@ -329,6 +330,7 @@ private:
     bool supportsFaceDetection();
 
     void initDefaultParameters();
+    bool initImageEncodeParameters(void);
 
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);
@@ -373,8 +375,6 @@ private:
     bool camframe_timeout_flag;
     bool mReleasedRecordingFrame;
 
-    bool receiveRawPicture(void);
-    bool receiveRawSnapshot(void);
 
     Mutex mCallbackLock;
     Mutex mOverlayLock;
@@ -443,6 +443,10 @@ private:
     status_t setVpeParameters();
     status_t setDIS();
     bool strTexturesOn;
+    int mPictureWidth;
+    int mPictureHeight;
+    int mPostviewWidth;
+    int mPostviewHeight;
 };
 
 }; // namespace android

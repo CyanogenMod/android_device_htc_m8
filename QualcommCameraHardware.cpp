@@ -64,7 +64,6 @@ extern "C" {
 #include <sys/time.h>
 #include <stdlib.h>
 
-#include <media/msm_camera.h>
 
 #include <camera.h>
 #include <cam_fifo.h>
@@ -754,6 +753,10 @@ static String8 facedetection_values;
 
 mm_camera_notify mCamNotify;
 mm_camera_ops mCamOps;
+static mm_camera_buffer_t mEncodeOutputBuffer;
+static encode_params_t mImageEncodeParms;
+static capture_params_t mImageCaptureParms;
+static raw_capture_params_t mRawCaptureParms;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -1055,8 +1058,7 @@ static void receive_camframe_callback(struct msm_frame *frame);
 static void receive_liveshot_callback(liveshot_status status, uint32_t jpeg_size);
 static void receive_camstats_callback(camstats_type stype, camera_preview_histogram_info* histinfo);
 static void receive_camframe_video_callback(struct msm_frame *frame); // 720p
-static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size);
-static void receive_jpeg_callback(jpeg_event_t status);
+static int8_t receive_event_callback(mm_camera_event* event);
 static void receive_shutter_callback(common_crop_t *crop);
 static void receive_camframe_error_callback(camera_error_type err);
 static int fb_fd = -1;
@@ -1088,6 +1090,7 @@ QualcommCameraHardware::QualcommCameraHardware()
     : mParameters(),
       mCameraRunning(false),
       mPreviewInitialized(false),
+      mPreviewThreadRunning(false),
       mFrameThreadRunning(false),
       mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
@@ -1123,7 +1126,11 @@ QualcommCameraHardware::QualcommCameraHardware()
       mResetOverlayCrop(false),
       mThumbnailWidth(0),
       mThumbnailHeight(0),
-      strTexturesOn(false)
+      strTexturesOn(false),
+      mPictureWidth(0),
+      mPictureHeight(0),
+      mPostviewWidth(0),
+      mPostviewHeight(0)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -1568,9 +1575,9 @@ void QualcommCameraHardware::initDefaultParameters()
     /* Initialize the camframe_timeout_flag*/
     Mutex::Autolock l(&mCamframeTimeoutLock);
     camframe_timeout_flag = FALSE;
-    mPostViewHeap = NULL;
+    mPostviewHeap = NULL;
     mDisplayHeap = NULL;
-    mThumbnailHeap = NULL;
+    mLastPreviewFrameHeap = NULL;
 
     mInitialized = true;
     strTexturesOn = false;
@@ -1614,9 +1621,7 @@ bool QualcommCameraHardware::startCamera()
 
     mCamNotify.camstats_cb = &receive_camstats_callback;
 
-    mCamNotify.jpegfragment_cb = &receive_jpeg_fragment_callback;
-
-    mCamNotify.on_jpeg_event =  &receive_jpeg_callback;
+    mCamNotify.on_event =  &receive_event_callback;
 
     mCamNotify.on_error_event = &receive_camframe_error_callback;
 
@@ -1682,8 +1687,7 @@ bool QualcommCameraHardware::startCamera()
 #else
     mCamNotify.preview_frame_cb = &receive_camframe_callback;
     mCamNotify.camstats_cb = &receive_camstats_callback;
-    mCamNotify.jpegfragment_cb = &receive_jpeg_fragment_callback;
-    mCamNotify.on_jpeg_event =  &receive_jpeg_callback;
+    mCamNotify.on_event =  &receive_event_callback;
 
     mmcamera_shutter_callback = receive_shutter_callback;
      mCamNotify.on_liveshot_event = &receive_liveshot_callback;
@@ -1966,21 +1970,21 @@ void QualcommCameraHardware::setGpsParameters() {
 
 }
 
-bool QualcommCameraHardware::native_jpeg_encode(void)
+
+bool QualcommCameraHardware::initImageEncodeParameters(void)
 {
+    LOGV("%s: E", __FUNCTION__);
+    memset(&mImageEncodeParms, 0, sizeof(encode_params_t));
     int jpeg_quality = mParameters.getInt("jpeg-quality");
     if (jpeg_quality >= 0) {
-        LOGV("native_jpeg_encode, current jpeg main img quality =%d",
+        LOGV("initJpegParameters, current jpeg main img quality =%d",
              jpeg_quality);
         //Application can pass quality of zero
         //when there is no back sensor connected.
         //as jpeg quality of zero is not accepted at
         //camera stack, pass default value.
         if(jpeg_quality == 0) jpeg_quality = 85;
-        if(!LINK_jpeg_encoder_setMainImageQuality(jpeg_quality)) {
-            LOGE("native_jpeg_encode set jpeg-quality failed");
-            return false;
-        }
+        mImageEncodeParms.quality = jpeg_quality;
     }
 
     int thumbnail_quality = mParameters.getInt("jpeg-thumbnail-quality");
@@ -1990,23 +1994,16 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
         //as quality of zero is not accepted at
         //camera stack, pass default value.
         if(thumbnail_quality == 0) thumbnail_quality = 85;
-        LOGV("native_jpeg_encode, current jpeg thumbnail quality =%d",
+        LOGV("initJpegParameters, current jpeg thumbnail quality =%d",
              thumbnail_quality);
-        if(!LINK_jpeg_encoder_setThumbnailQuality(thumbnail_quality)) {
-            LOGE("native_jpeg_encode set thumbnail-quality failed");
-            return false;
-        }
+        /* TODO: check with mm-camera? */
+        mImageEncodeParms.quality = thumbnail_quality;
     }
 
-    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_MSM7627) && (mCurrentTarget != TARGET_MSM8660) ) {
-        int rotation = mParameters.getInt("rotation");
-        if (rotation >= 0) {
-            LOGV("native_jpeg_encode, rotation = %d", rotation);
-            if(!LINK_jpeg_encoder_setRotation(rotation)) {
-                LOGE("native_jpeg_encode set rotation failed");
-                return false;
-            }
-        }
+    int rotation = mParameters.getInt("rotation");
+    if (rotation >= 0) {
+        LOGV("initJpegParameters, rotation = %d", rotation);
+        mImageEncodeParms.rotation = rotation;
     }
 
     jpeg_set_location();
@@ -2027,94 +2024,20 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1,
                 1, (void *)&focalLength);
 
-    uint8_t * thumbnailHeap = NULL;
-    int thumbfd = -1;
-
-    int width = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-    int height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
-
-    LOGV("width %d and height %d", width , height);
-
-    if(width != 0 && height != 0){
-        if((mCurrentTarget == TARGET_MSM7630) ||
-           (mCurrentTarget == TARGET_MSM8660) ||
-           (mCurrentTarget == TARGET_MSM7627) ||
-           (strTexturesOn == true)) {
-            thumbnailHeap = (uint8_t *)mRawHeap->mHeap->base();
-            thumbfd =  mRawHeap->mHeap->getHeapID();
-        } else {
-            thumbnailHeap = (uint8_t *)mThumbnailHeap->mHeap->base();
-            thumbfd =  mThumbnailHeap->mHeap->getHeapID();
-        }
-    }else {
-        thumbnailHeap = NULL;
-        thumbfd = 0;
-    }
-
-    if( (mCurrentTarget == TARGET_MSM7630) ||
-        (mCurrentTarget == TARGET_MSM8660) ||
-        (mCurrentTarget == TARGET_MSM7627) ||
-        (strTexturesOn == true) ) {
-        // Pass the main image as thumbnail buffer, so that jpeg encoder will
-        // generate thumbnail based on main image.
-        // Set the input and output dimensions for thumbnail generation to main
-        // image dimensions and required thumbanail size repectively, for the
-        // encoder to do downscaling of the main image accordingly.
-        mCrop.in1_w  = mDimension.orig_picture_dx;
-        mCrop.in1_h  = mDimension.orig_picture_dy;
-        /* For Adreno format on targets that don't use VFE other output
-         * for postView, thumbnail_width and thumbnail_height has the
-         * actual thumbnail dimensions.
-         */
-        mCrop.out1_w = mDimension.thumbnail_width;
-        mCrop.out1_h = mDimension.thumbnail_height;
-        /* For targets, that uses VFE other output for postview,
-         * thumbnail_width and thumbnail_height has values based on postView
-         * dimensions(mostly previewWidth X previewHeight), but not based on
-         * required thumbnail dimensions. So, while downscaling, we need to
-         * pass the actual thumbnail dimensions, not the postview dimensions.
-         * mThumbnailWidth/Height has the required thumbnail dimensions, so
-         * use them here.
-         */
-        if( (mCurrentTarget == TARGET_MSM7630)||
-            (mCurrentTarget == TARGET_MSM7627) ||
-            (mCurrentTarget == TARGET_MSM8660)) {
-            mCrop.out1_w = mThumbnailWidth;
-            mCrop.out1_h = mThumbnailHeight;
-        }
-        mDimension.thumbnail_width = mDimension.orig_picture_dx;
-        mDimension.thumbnail_height = mDimension.orig_picture_dy;
-        LOGV("mCrop.in1_w = %d, mCrop.in1_h = %d", mCrop.in1_w, mCrop.in1_h);
-        LOGV("mCrop.out1_w = %d, mCrop.out1_h = %d", mCrop.out1_w, mCrop.out1_h);
-        LOGV("mDimension.thumbnail_width = %d, mDimension.thumbnail_height = %d", mDimension.thumbnail_width, mDimension.thumbnail_height);
-        int CbCrOffset = -1;
-        if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
-            CbCrOffset = mCbCrOffsetRaw;
-        mCrop.in1_w = mDimension.orig_picture_dx - jpegPadding; // when cropping is enabled 
-        mCrop.in1_h = mDimension.orig_picture_dy - jpegPadding; // when cropping is enabled
-
-        if (!LINK_jpeg_encoder_encode(&mDimension,
-                                      thumbnailHeap,
-                                      thumbfd,
-                                      (uint8_t *)mRawHeap->mHeap->base(),
-                                      mRawHeap->mHeap->getHeapID(),
-                                      &mCrop, exif_data, exif_table_numEntries,
-                                      jpegPadding/2, CbCrOffset)) {
-            LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
-            return false;
-        }
-    } else {
-        if (!LINK_jpeg_encoder_encode(&mDimension,
-                                     thumbnailHeap,
-                                     thumbfd,
-                                     (uint8_t *)mRawHeap->mHeap->base(),
-                                     mRawHeap->mHeap->getHeapID(),
-                                     &mCrop, exif_data, exif_table_numEntries,
-                                     jpegPadding/2, -1)) {
-            LOGE("native_jpeg_encode: jpeg_encoder_encode failed.");
-            return false;
-        }
-    }
+    mImageEncodeParms.cbcr_offset = mCbCrOffsetRaw;
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
+        mImageEncodeParms.cbcr_offset = mCbCrOffsetRaw;
+    /* TODO: check this */
+    mImageEncodeParms.y_offset = 0;
+    memset(&mEncodeOutputBuffer, 0, sizeof(mm_camera_buffer_t));
+    mEncodeOutputBuffer.ptr = (uint8_t *)mJpegHeap->mHeap->base();
+    mEncodeOutputBuffer.filled_size = mJpegMaxSize;
+    mEncodeOutputBuffer.size = mJpegMaxSize;
+    mEncodeOutputBuffer.fd = mJpegHeap->mHeap->getHeapID();
+    mEncodeOutputBuffer.offset = 0;
+    mImageEncodeParms.p_output_buffer = &mEncodeOutputBuffer;
+    mImageEncodeParms.exif_data = exif_data;
+    mImageEncodeParms.exif_numEntries = exif_table_numEntries;
 
     return true;
 }
@@ -2319,10 +2242,10 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                    first preview frame is queued to the overlay in 8660 */
                 if ((mCurrentTarget == TARGET_MSM8660)&&(mFirstFrame == true)) {
                     LOGD(" receivePreviewFrame : first frame queued, display heap being deallocated");
-                    mThumbnailHeap.clear();
+                    mLastPreviewFrameHeap.clear();
                     mDisplayHeap.clear();
+                    mPostviewHeap.clear();
                     mFirstFrame = false;
-                    mPostViewHeap.clear();
                 }
                 mLastQueuedFrame = (void *)frame->buffer;
             }
@@ -2855,6 +2778,11 @@ bool QualcommCameraHardware::initRawSnapshot()
         LOGE("initRawSnapshot X: error initializing mRawSnapshotHeap");
         return false;
     }
+
+    mRawCaptureParms.num_captures = 1;
+    mRawCaptureParms.raw_picture_width = mDimension.raw_picture_width;
+    mRawCaptureParms.raw_picture_height = mDimension.raw_picture_height;
+
     LOGV("initRawSnapshot X");
     return true;
 
@@ -2862,73 +2790,57 @@ bool QualcommCameraHardware::initRawSnapshot()
 
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
-    int rawWidth, rawHeight;
     const char * pmem_region;
+    int postViewBufferSize;
+    uint32_t pictureAspectRatio;
+    uint32_t i;
 
-    mParameters.getPictureSize(&rawWidth, &rawHeight);
-    LOGV("initRaw E: picture size=%dx%d", rawWidth, rawHeight);
+    mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
+    LOGV("initRaw E: picture size=%dx%d", mPictureWidth, mPictureHeight);
 
-    int thumbnailBufferSize;
-    //Thumbnail height should be smaller than Picture height
-    if (rawHeight > (int)thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height){
-        mDimension.ui_thumbnail_width =
-                thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
-        mDimension.ui_thumbnail_height =
-                thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
-        uint32_t pictureAspectRatio = (uint32_t)((rawWidth * Q12) / rawHeight);
-        uint32_t i;
-        for(i = 0; i < THUMBNAIL_SIZE_COUNT; i++ )
+    /* use the default thumbnail sizes */
+    mThumbnailHeight = thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
+    mThumbnailWidth = (mThumbnailHeight * mPictureWidth)/ mPictureHeight;
+    /* see if we can get better thumbnail sizes (not mandatory?) */
+    pictureAspectRatio = (uint32_t)((mPictureWidth * Q12) / mPictureHeight);
+    for(i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ){
+        if(thumbnail_sizes[i].aspect_ratio == pictureAspectRatio)
         {
-            if(thumbnail_sizes[i].aspect_ratio == pictureAspectRatio)
-            {
-                mDimension.ui_thumbnail_width = thumbnail_sizes[i].width;
-                mDimension.ui_thumbnail_height = thumbnail_sizes[i].height;
-                break;
-            }
-        }
-    }
-    else{
-        mDimension.ui_thumbnail_height = THUMBNAIL_SMALL_HEIGHT;
-        mDimension.ui_thumbnail_width =
-                (THUMBNAIL_SMALL_HEIGHT * rawWidth)/ rawHeight;
-    }
-
-    if((mCurrentTarget == TARGET_MSM7630) ||
-       (mCurrentTarget == TARGET_MSM7627) ||
-       (mCurrentTarget == TARGET_MSM8660)) {
-        if(rawHeight < previewHeight) {
-            mDimension.ui_thumbnail_height = THUMBNAIL_SMALL_HEIGHT;
-            mDimension.ui_thumbnail_width =
-                    (THUMBNAIL_SMALL_HEIGHT * rawWidth)/ rawHeight;
-        }
-        /* store the thumbanil dimensions which are needed
-         * by the jpeg downscaler to generate thumbnails from
-         * main YUV image.
-         */
-        mThumbnailWidth = mDimension.ui_thumbnail_width;
-        mThumbnailHeight = mDimension.ui_thumbnail_height;
-        /* As thumbnail is generated from main YUV image,
-         * configure and use the VFE other output to get
-         * an image of preview dimensions for postView use.
-         * So, mThumbnailHeap will be used for postview rather than
-         * as thumbnail(Not changing the terminology to keep changes minimum).
-         */
-        if((rawHeight >= previewHeight) &&
-           (mCurrentTarget != TARGET_MSM7627)) {
-            mDimension.ui_thumbnail_height = previewHeight;
-            mDimension.ui_thumbnail_width =
-                        (previewHeight * rawWidth) / rawHeight;
+            mThumbnailWidth = thumbnail_sizes[i].width;
+            mThumbnailHeight = thumbnail_sizes[i].height;
+            break;
         }
     }
 
-    LOGV("Thumbnail Size Width %d Height %d",
-            mDimension.ui_thumbnail_width,
-            mDimension.ui_thumbnail_height);
+    /* calculate postView size */
+    mPostviewWidth = mThumbnailWidth;
+    mPostviewHeight = mThumbnailHeight;
+    /* Try to keep the postview dimensions near to preview for better
+     * performance and userexperience. If the postview and preview dimensions
+     * are same, then we can try to use the same overlay of preview for
+     * postview also. If not, we need to reset the overlay for postview.
+     * we will be getting the same dimensions for preview and postview
+     * in most of the cases. The only exception is for applications
+     * which won't use optimalPreviewSize based on picture size.
+    */
+    if((mPictureHeight >= previewHeight) &&
+       (mCurrentTarget != TARGET_MSM7627)) {
+        mPostviewHeight = previewHeight;
+        mPostviewWidth = (previewHeight * mPictureWidth) / mPictureHeight;
+    }else if(mPictureHeight < mThumbnailHeight){
+        mPostviewHeight = THUMBNAIL_SMALL_HEIGHT;
+        mPostviewWidth = (THUMBNAIL_SMALL_HEIGHT * mPictureWidth)/ mPictureHeight;
+        mThumbnailWidth = mPostviewWidth;
+        mThumbnailHeight = mPostviewHeight;
+    }
 
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
         mDimension.main_img_format = CAMERA_YUV_420_NV21_ADRENO;
         mDimension.thumb_format = CAMERA_YUV_420_NV21_ADRENO;
     }
+
+    mDimension.ui_thumbnail_width = mPostviewWidth;
+    mDimension.ui_thumbnail_height = mPostviewHeight;
 
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
@@ -2941,72 +2853,58 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         return false;
     }
 
-    thumbnailBufferSize = mDimension.ui_thumbnail_width *
-                          mDimension.ui_thumbnail_height * 3 / 2;
-    int CbCrOffsetThumb = PAD_TO_WORD(mDimension.ui_thumbnail_width *
-                          mDimension.ui_thumbnail_height);
-    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
-        thumbnailBufferSize = PAD_TO_4K(CEILING32(mDimension.ui_thumbnail_width) *
-                              CEILING32(mDimension.ui_thumbnail_height)) +
-                              2 * (CEILING32(mDimension.ui_thumbnail_width/2) *
-                                CEILING32(mDimension.ui_thumbnail_height/2));
-        CbCrOffsetThumb = PAD_TO_4K(CEILING32(mDimension.ui_thumbnail_width) *
-                              CEILING32(mDimension.ui_thumbnail_height));
-    }
-
     if (mJpegHeap != NULL) {
         LOGV("initRaw: clearing old mJpegHeap.");
         mJpegHeap.clear();
     }
 
-    // Snapshot
-    mRawSize = rawWidth * rawHeight * 3 / 2;
-    mCbCrOffsetRaw = PAD_TO_WORD(rawWidth * rawHeight);
+    //postview buffer initialization
+    postViewBufferSize  = mPostviewWidth * mPostviewHeight * 3 / 2;
+    int CbCrOffsetPostview = PAD_TO_WORD(mPostviewWidth * mPostviewHeight);
+
+    //Snapshot buffer initialization
+    mRawSize = mPictureWidth * mPictureHeight * 3 / 2;
+    mCbCrOffsetRaw = PAD_TO_WORD(mPictureWidth * mPictureHeight);
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
-        mRawSize = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight)) +
-                            2 * (CEILING32(rawWidth/2) * CEILING32(rawHeight/2));
-        mCbCrOffsetRaw = PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight));
+        mRawSize = PAD_TO_4K(CEILING32(mPictureWidth) * CEILING32(mPictureHeight)) +
+                            2 * (CEILING32(mPictureWidth/2) * CEILING32(mPictureHeight/2));
+        mCbCrOffsetRaw = PAD_TO_4K(CEILING32(mPictureWidth) * CEILING32(mPictureHeight));
     }
+
+    //Jpeg buffer initialization
     if( mCurrentTarget == TARGET_MSM7627 )
-        mJpegMaxSize = CEILING16(rawWidth) * CEILING16(rawHeight) * 3 / 2;
+        mJpegMaxSize = CEILING16(mPictureWidth) * CEILING16(mPictureHeight) * 3 / 2;
     else {
-        mJpegMaxSize = rawWidth * rawHeight * 3 / 2;
+        mJpegMaxSize = mPictureWidth * mPictureHeight * 3 / 2;
         if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO){
             mJpegMaxSize =
-               PAD_TO_4K(CEILING32(rawWidth) * CEILING32(rawHeight)) +
-                    2 * (CEILING32(rawWidth/2) * CEILING32(rawHeight/2));
+               PAD_TO_4K(CEILING32(mPictureWidth) * CEILING32(mPictureHeight)) +
+                    2 * (CEILING32(mPictureWidth/2) * CEILING32(mPictureHeight/2));
         }
     }
 
-    //For offline jpeg hw encoder, jpeg encoder will provide us the
-    //required offsets and buffer size depending on the rotation.
+    int rotation = mParameters.getInt("rotation");
+    ret = native_set_parms(CAMERA_PARM_JPEG_ROTATION, sizeof(int), &rotation);
+    if(!ret){
+        LOGE("setting camera id failed");
+        return false;
+    }
+    cam_buf_info_t buf_info;
     int yOffset = 0;
-    if( (mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM7627) || (mCurrentTarget == TARGET_MSM8660)) {
-        int rotation = mParameters.getInt("rotation");
-        if (rotation >= 0) {
-            LOGV("initRaw, jpeg_rotation = %d", rotation);
-            if(!LINK_jpeg_encoder_setRotation(rotation)) {
-                LOGE("native_jpeg_encode set rotation failed");
-                return false;
-            }
-        }
-        //Don't call the get_buffer_offset() for ADRENO, as the width and height
-        //for Adreno format will be of CEILING32.
-        if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
-            LINK_jpeg_encoder_get_buffer_offset(rawWidth, rawHeight, (uint32_t *)&yOffset,
-                                            (uint32_t *)&mCbCrOffsetRaw, (uint32_t *)&mRawSize);
-            mJpegMaxSize = mRawSize;
-        }
-        LOGV("initRaw: yOffset = %d, mCbCrOffsetRaw = %d, mRawSize = %d",
-                     yOffset, mCbCrOffsetRaw, mRawSize);
-    }
+    buf_info.resolution.width = mPictureWidth;
+    buf_info.resolution.height = mPictureHeight;
+    mCfgControl.mm_camera_get_parm(CAMERA_PARM_BUFFER_INFO, (void *)&buf_info);
+    mRawSize = buf_info.size;
+    mJpegMaxSize = mRawSize;
+    mCbCrOffsetRaw = buf_info.cbcr_offset;
+    yOffset = buf_info.yoffset;
 
+    LOGV("initRaw: initializing mRawHeap.");
     if(mCurrentTarget == TARGET_MSM8660)
        pmem_region = "/dev/pmem_smipool";
     else
        pmem_region = "/dev/pmem_adsp";
-
-    LOGV("initRaw: initializing mRawHeap.");
+    //Main Raw Image
     mRawHeap =
         new PmemPool(pmem_region,
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3030,13 +2928,9 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     //sizes (like 3264x2448). This change of cbcr offset will ensure that
     //chroma plane always starts at the beginning of a row.
     if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
-        mCbCrOffsetRaw = CEILING32(rawWidth) * CEILING32(rawHeight);
-
-    LOGV("do_mmap snapshot pbuf = %p, pmem_fd = %d",
-         (uint8_t *)mRawHeap->mHeap->base(), mRawHeap->mHeap->getHeapID());
+        mCbCrOffsetRaw = CEILING32(mPictureWidth) * CEILING32(mPictureHeight);
 
     // Jpeg
-
     if (initJpegHeap) {
         LOGV("initRaw: initializing mJpegHeap.");
         mJpegHeap =
@@ -3051,42 +2945,48 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
             LOGE("initRaw X failed: error initializing mJpegHeap.");
             return false;
         }
+    }
 
-        // Thumbnails
-        /* With the recent jpeg encoder downscaling changes for thumbnail padding,
-         *  HAL needs to call this API to get the offsets and buffer size.
-         */
-        int yOffsetThumb = 0;
-        if((mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
-            && (mCurrentTarget != TARGET_MSM7630)
-            && (mCurrentTarget != TARGET_MSM8660)) {
-            LINK_jpeg_encoder_get_buffer_offset(mDimension.thumbnail_width,
-                                                 mDimension.thumbnail_height,
-                                                  (uint32_t *)&yOffsetThumb,
-                                                   (uint32_t *)&CbCrOffsetThumb,
-                                                    (uint32_t *)&thumbnailBufferSize);
-        }
-        pmem_region = "/dev/pmem_adsp";
+    //PostView
+    pmem_region = "/dev/pmem_adsp";
 
-        mThumbnailHeap =
+    mPostviewHeap =
             new PmemPool(pmem_region,
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          MSM_PMEM_THUMBNAIL,
-                         thumbnailBufferSize,
+                         postViewBufferSize,
                          1,
-                         thumbnailBufferSize,
-                         CbCrOffsetThumb,
-                         yOffsetThumb,
+                         postViewBufferSize,
+                         CbCrOffsetPostview,
+                         0,
                          "thumbnail");
 
-        if (!mThumbnailHeap->initialized()) {
-            mThumbnailHeap.clear();
-            mJpegHeap.clear();
-            mRawHeap.clear();
-            LOGE("initRaw X failed: error initializing mThumbnailHeap.");
-            return false;
-        }
+    if (!mPostviewHeap->initialized()) {
+        mPostviewHeap.clear();
+        mJpegHeap.clear();
+        mRawHeap.clear();
+        LOGE("initRaw X failed: error initializing mPostviewHeap.");
+        return false;
     }
+
+    /* frame all the exif and encode information into encode_params_t */
+    initImageEncodeParameters();
+
+    /* fill main image size, thumbnail size, postview size into capture_params_t*/
+    memset(&mImageCaptureParms, 0, sizeof(capture_params_t));
+    mImageCaptureParms.num_captures = 1;
+    mImageCaptureParms.picture_width = mPictureWidth;
+    mImageCaptureParms.picture_height = mPictureHeight;
+    mImageCaptureParms.postview_width = mPostviewWidth;
+    mImageCaptureParms.postview_height = mPostviewHeight;
+    mImageCaptureParms.thumbnail_width = mThumbnailWidth;
+    mImageCaptureParms.thumbnail_height = mThumbnailHeight;
+    LOGI("%s: picture size=%dx%d",__FUNCTION__,
+        mImageCaptureParms.picture_width, mImageCaptureParms.picture_height);
+    LOGI("%s: postview size=%dx%d",__FUNCTION__,
+        mImageCaptureParms.postview_width, mImageCaptureParms.postview_height);
+    LOGI("%s: thumbnail size=%dx%d",__FUNCTION__,
+        mImageCaptureParms.thumbnail_width, mImageCaptureParms.thumbnail_height);
 
     LOGV("initRaw X");
     return true;
@@ -3107,7 +3007,7 @@ void QualcommCameraHardware::deinitRaw()
     mJpegHeap.clear();
     mRawHeap.clear();
     if(mCurrentTarget != TARGET_MSM8660){
-       mThumbnailHeap.clear();
+       mPostviewHeap.clear();
        mDisplayHeap.clear();
     }
 
@@ -3163,8 +3063,8 @@ void QualcommCameraHardware::release()
     LOGI("release: clearing resources done.");
     if(mCurrentTarget == TARGET_MSM8660) {
        LOGV("release : Clearing the mThumbnailHeap and mDisplayHeap");
-       mPostViewHeap.clear();
-       mPostViewHeap = NULL;
+       mLastPreviewFrameHeap.clear();
+       mLastPreviewFrameHeap = NULL;
        mThumbnailHeap.clear();
        mThumbnailHeap = NULL;
        mDisplayHeap.clear();
@@ -3526,59 +3426,45 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     if(!libmmcamera){
         LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
     }
-
+    mJpegThreadWaitLock.lock();
+    mJpegThreadRunning = true;
+    mJpegThreadWait.signal();
+    mJpegThreadWaitLock.unlock();
+    mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
+                                             CAMERA_OPS_CAPTURE_AND_ENCODE :
+                                              CAMERA_OPS_RAW_CAPTURE;
     if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
-        if (native_start_ops(CAMERA_OPS_SNAPSHOT, NULL))
-            ret = receiveRawPicture();
-        else {
-            LOGE("main: snapshot failed! [CAMERA_OPS_SNAPSHOT]");
-            ret = false;
-        }
-    } else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
-        if (native_start_ops(CAMERA_OPS_RAW_SNAPSHOT, NULL)) {
-           ret = receiveRawSnapshot();
-        } else {
-           LOGE("main: raw_snapshot failed! [ CAMERA_OPS_RAW_SNAPSHOT]");
-            ret = false;
-        }
-    }
-    mInSnapshotModeWaitLock.lock();
-    mInSnapshotMode = false;
-    mInSnapshotModeWait.signal();
-    mInSnapshotModeWaitLock.unlock();
+        mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
+                 (void *)&mImageEncodeParms);
 
-    mSnapshotFormat = 0;
-    if(ret != false) {
-        if(strTexturesOn != true ) {
-            mJpegThreadWaitLock.lock();
-            while (mJpegThreadRunning) {
-                LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
-                mJpegThreadWait.wait(mJpegThreadWaitLock);
-                LOGV("runSnapshotThread: jpeg thread completed.");
-            }
-            mJpegThreadWaitLock.unlock();
-            //clear the resources
-            if(libmmcamera != NULL)
-            {
-                LINK_jpeg_encoder_join();
-            }
+        mJpegThreadWaitLock.lock();
+        while (mJpegThreadRunning) {
+            LOGV("%s: waiting for jpeg callback.", __FUNCTION__);
+            mJpegThreadWait.wait(mJpegThreadWaitLock);
+            LOGV("%s: jpeg callback received.", __FUNCTION__);
         }
-    } else {
-        if( mDataCallback
-            && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-            /* get picture failed. Give jpeg callback with NULL data
-             * to the application to restore to preview mode
-             */
-            LOGE("get picture failed, giving jpeg callback with NULL data");
-            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
+        mJpegThreadWaitLock.unlock();
+
+        //cleanup
+        deinitRaw();
+    }else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
+        notifyShutter(TRUE);
+        mCamOps.mm_camera_start(current_ops_type,(void *)&mRawCaptureParms,
+                                 NULL);
+        mJpegThreadWaitLock.lock();
+        while (mJpegThreadRunning) {
+            LOGV("%s: waiting for jpeg callback.", __FUNCTION__);
+            mJpegThreadWait.wait(mJpegThreadWaitLock);
+            LOGV("%s: jpeg callback received.", __FUNCTION__);
         }
+        mJpegThreadWaitLock.unlock();
     }
-    deinitRaw();
 
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
     mSnapshotThreadWait.signal();
     mSnapshotThreadWaitLock.unlock();
+    mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
 
     LOGV("runSnapshotThread X");
 }
@@ -3633,6 +3519,7 @@ status_t QualcommCameraHardware::takePicture()
             return UNKNOWN_ERROR;
         }
     }
+
     if(mCurrentTarget == TARGET_MSM8660) {
        /* Store the last frame queued for preview. This
         * shall be used as postview */
@@ -3640,6 +3527,12 @@ status_t QualcommCameraHardware::takePicture()
         return UNKNOWN_ERROR;
     }
     stopPreviewInternal();
+
+    mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
+                                             CAMERA_OPS_CAPTURE_AND_ENCODE :
+                                              CAMERA_OPS_RAW_CAPTURE;
+
+    mCamOps.mm_camera_init(current_ops_type, NULL, NULL);
 
     if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
         if (!initRaw(mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))) {
@@ -4567,7 +4460,7 @@ bool QualcommCameraHardware::recordingEnabled()
     return mCameraRunning && mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME);
 }
 
-void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutterSoundOnly)
+void QualcommCameraHardware::notifyShutter(bool mPlayShutterSoundOnly)
 {
     mShutterLock.lock();
     image_rect_type size;
@@ -4586,81 +4479,9 @@ void QualcommCameraHardware::notifyShutter(common_crop_t *crop, bool mPlayShutte
     }
 
     if (mShutterPending && mNotifyCallback && (mMsgEnabled & CAMERA_MSG_SHUTTER)) {
-        if (mSnapshotFormat == PICTURE_FORMAT_RAW)   {
-            size.width = previewWidth;
-            size.height = previewHeight;
-            mNotifyCallback(CAMERA_MSG_SHUTTER, (int32_t)&size, 0,
-                        mCallbackCookie);
-            mShutterPending = false;
-            mShutterLock.unlock();
-            return;
-        }
-        LOGV("out2_w=%d, out2_h=%d, in2_w=%d, in2_h=%d",
-             crop->out2_w, crop->out2_h, crop->in2_w, crop->in2_h);
-        LOGV("out1_w=%d, out1_h=%d, in1_w=%d, in1_h=%d",
-             crop->out1_w, crop->out1_h, crop->in1_w, crop->in1_h);
-
-        // To workaround a bug in MDP which happens if either
-        // dimension > 2048, we display the thumbnail instead.
-
-        if (mCurrentTarget == TARGET_MSM7627)
-            mDisplayHeap = mThumbnailHeap;
-        else
-            mDisplayHeap = mRawHeap;
-
-       // In case of 7x27, we use output2 for postview , which is of
-       // preview size. Output2 was used for thumbnail previously.
-       // Now thumbnail is generated from main image for 7x27.
-        if (crop->in1_w == 0 || crop->in1_h == 0) {
-            // Full size
-            if (mCurrentTarget == TARGET_MSM7627) {
-                jpegPadding = 0;
-                size.width = mDimension.ui_thumbnail_width;
-                size.height = mDimension.ui_thumbnail_height;
-            } else {
-                size.width = mDimension.picture_width;
-                size.height = mDimension.picture_height;
-                if (size.width > 2048 || size.height > 2048) {
-                    size.width = mDimension.ui_thumbnail_width;
-                    size.height = mDimension.ui_thumbnail_height;
-                    mDisplayHeap = mThumbnailHeap;
-                }
-            }
-        } else {
-            // Cropped
-            if (mCurrentTarget == TARGET_MSM7627) {
-                jpegPadding = 8;
-                size.width = (crop->in1_w + jpegPadding) & ~1;
-                size.height = (crop->in1_h + jpegPadding) & ~1;
-            } else {
-                size.width = (crop->in2_w + jpegPadding) & ~1;
-                size.height = (crop->in2_h + jpegPadding) & ~1;
-                if (size.width > 2048 || size.height > 2048) {
-                    size.width = (crop->in1_w + jpegPadding) & ~1;
-                    size.height = (crop->in1_h + jpegPadding) & ~1;
-                    mDisplayHeap = mThumbnailHeap;
-                }
-            }
-        }
-        //We need to create overlay with dimensions that the VFE output
-        //is configured for post view.
-        if((mCurrentTarget == TARGET_MSM7630) ||
-           (mCurrentTarget == TARGET_MSM8660)) {
-            size.width = mDimension.ui_thumbnail_width;
-            size.height = mDimension.ui_thumbnail_height;
-            //Make ThumbnailHeap as Displayheap for post view.
-            mDisplayHeap = mThumbnailHeap;
-        }
-
-        //For streaming textures, we need to pass the main image in all the cases.
-        if(strTexturesOn == true) {
-            int rawWidth, rawHeight;
-            mParameters.getPictureSize(&rawWidth, &rawHeight);
-            size.width = rawWidth;
-            size.height = rawHeight;
-            mDisplayHeap = mRawHeap;
-        }
-
+        mDisplayHeap = mPostviewHeap;
+        size.width = mPostviewWidth;
+        size.height = mPostviewHeight;
         /* Now, invoke Notify Callback to unregister preview buffer
          * and register postview buffer with surface flinger. Set ext2
          * as 0 to indicate not to play shutter sound.
@@ -4678,7 +4499,7 @@ static void receive_shutter_callback(common_crop_t *crop)
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
         /* Just play shutter sound at this time */
-        obj->notifyShutter(crop, TRUE);
+        obj->notifyShutter(TRUE);
     }
     LOGV("receive_shutter_callback: X");
 }
@@ -4797,213 +4618,112 @@ static void crop_yuv420(uint32_t width, uint32_t height,
     }
 }
 
-bool QualcommCameraHardware::receiveRawSnapshot(){
-    LOGV("receiveRawSnapshot E");
-
-    Mutex::Autolock cbLock(&mCallbackLock);
-    /* Issue notifyShutter with mPlayShutterSoundOnly as TRUE */
-    notifyShutter(&mCrop, TRUE);
-
-    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-
-          if(native_start_ops(CAMERA_OPS_GET_PICTURE, &mCrop) == false) {
-            LOGE("receiveRawSnapshot X: CAMERA_OPS_GET_PICTURE ioctl failed!");
-            return false;
-        }
-        /* Its necessary to issue another notifyShutter here with
-         * mPlayShutterSoundOnly as FALSE, since that is when the
-         * preview buffers are unregistered with the surface flinger.
-         * That is necessary otherwise the preview memory wont be
-         * deallocated.
-         */
-        notifyShutter(&mCrop, FALSE);
-
-        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
-           mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapShotPmemHeap->mBuffers[0],
-                mCallbackCookie);
-
-    }
-
-    //cleanup
-    deinitRawSnapshot();
-
-    LOGV("receiveRawSnapshot X");
-    return true;
-}
-
-bool QualcommCameraHardware::receiveRawPicture()
+void QualcommCameraHardware::receiveRawPicture(status_t status, void *cropp)
 {
-    LOGV("receiveRawPicture: E");
+    LOGV("%s: E", __FUNCTION__);
 
-    Mutex::Autolock cbLock(&mCallbackLock);
-    if (mDataCallback && ((mMsgEnabled & CAMERA_MSG_RAW_IMAGE) || mSnapshotDone)) {
-        if(native_start_ops(CAMERA_OPS_GET_PICTURE, &mCrop) == false) {
-            LOGE("getPicture: CAMERA_OPS_GET_PICTURE ioctl failed!");
-            return false;
-        }
-        mSnapshotDone = FALSE;
-        mCrop.in1_w &= ~1;
-        mCrop.in1_h &= ~1;
-        mCrop.in2_w &= ~1;
-        mCrop.in2_h &= ~1;
+    mSnapshotThreadWaitLock.lock();
+    if(mSnapshotThreadRunning == false) {
+        LOGE("%s called in wrong state, ignore", __FUNCTION__);
+        return;
+    }
+    mSnapshotThreadWaitLock.unlock();
 
-        LOGV("crop: in1_w %d", mCrop.in1_w);
-        LOGV("crop: in1_h %d", mCrop.in1_h);
-        LOGV("crop: out1_w %d", mCrop.out1_w);
-        LOGV("crop: out1_h %d", mCrop.out1_h);
-
-        LOGV("crop: in2_w %d", mCrop.in2_w);
-        LOGV("crop: in2_h %d", mCrop.in2_h);
-        LOGV("crop: out2_w %d", mCrop.out2_w);
-        LOGV("crop: out2_h %d", mCrop.out2_h);
-
-        LOGV("crop: update %d", mCrop.update_flag);
-
-        // Crop the image if zoomed.
-        if (mCrop.in2_w != 0 && mCrop.in2_h != 0 &&
-                ((mCrop.in2_w + jpegPadding) < mCrop.out2_w) &&
-                ((mCrop.in2_h + jpegPadding) < mCrop.out2_h) &&
-                ((mCrop.in1_w + jpegPadding) < mCrop.out1_w)  &&
-                ((mCrop.in1_h + jpegPadding) < mCrop.out1_h) ) {
-
-            // By the time native_get_picture returns, picture is taken. Call
-            // shutter callback if cam config thread has not done that.
-            notifyShutter(&mCrop, FALSE);
-            {
-                Mutex::Autolock l(&mRawPictureHeapLock);
-                if(mRawHeap != NULL){
-                  crop_yuv420(mCrop.out2_w, mCrop.out2_h, (mCrop.in2_w + jpegPadding), (mCrop.in2_h + jpegPadding),
-                            (uint8_t *)mRawHeap->mHeap->base(), mRawHeap->mName);
-                }
-                if( (mThumbnailHeap != NULL) &&
-                    (mCurrentTarget != TARGET_MSM7630) &&
-                    (mCurrentTarget != TARGET_MSM8660) ) {
-                    //Don't crop the mThumbnailHeap for 7630. As this heap
-                    //is used for postview rather than for thumbnail. (thumbnail is generated from main image).
-                    //overlay's setCrop will take of cropping while displaying postview.
-                    crop_yuv420(mCrop.out1_w, mCrop.out1_h, (mCrop.in1_w + jpegPadding), (mCrop.in1_h + jpegPadding),
-                            (uint8_t *)mThumbnailHeap->mHeap->base(), mThumbnailHeap->mName);
-                }
-            }
-
-            // We do not need jpeg encoder to upscale the image. Set the new
-            // dimension for encoder.
-            mDimension.orig_picture_dx = mCrop.in2_w + jpegPadding;
-            mDimension.orig_picture_dy = mCrop.in2_h + jpegPadding;
-            /* Don't update the thumbnail_width/height, if jpeg downscaling
-             * is used to generate thumbnail. These parameters should contain
-             * the original thumbnail dimensions.
+    if(status != NO_ERROR){
+        LOGE("%s: Failed to get Snapshot Image", __FUNCTION__);
+        if(mDataCallback &&
+            (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+            /* get picture failed. Give jpeg callback with NULL data
+             * to the application to restore to preview mode
              */
-            if(strTexturesOn != true) {
-                mDimension.thumbnail_width = mCrop.in1_w + jpegPadding;
-                mDimension.thumbnail_height = mCrop.in1_h + jpegPadding;
-            }
-        }else {
-            memset(&mCrop, 0 ,sizeof(mCrop));
-            // By the time native_get_picture returns, picture is taken. Call
-            // shutter callback if cam config thread has not done that.
-            notifyShutter(&mCrop, FALSE);
+            LOGE("get picture failed, giving jpeg callback with NULL data");
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
         }
+        mShutterLock.lock();
+        mShutterPending = false;
+        mShutterLock.unlock();
+        mJpegThreadWaitLock.lock();
+        mJpegThreadRunning = false;
+        mJpegThreadWait.signal();
+        mJpegThreadWaitLock.unlock();
+        mInSnapshotModeWaitLock.lock();
+        mInSnapshotMode = false;
+        mInSnapshotModeWait.signal();
+        mInSnapshotModeWaitLock.unlock();
+        return;
+    }
+    /* call notifyShutter to config surface and overlay
+     * for postview rendering.
+     * Its necessary to issue another notifyShutter here with
+     * mPlayShutterSoundOnly as FALSE, since that is when the
+     * preview buffers are unregistered with the surface flinger.
+     * That is necessary otherwise the preview memory wont be
+     * deallocated.
+     */
+    notifyShutter(FALSE);
 
-        if( mUseOverlay) {
+    if(mSnapshotFormat == PICTURE_FORMAT_JPEG) {
+        if(mUseOverlay) {
             mOverlayLock.lock();
             if(mOverlay != NULL) {
-            mOverlay->setFd(mDisplayHeap->mHeap->getHeapID());
-            int cropX = 0;
-            int cropY = 0;
-            int cropW = 0;
-            int cropH = 0;
-            //Caculate the crop dimensions from mCrop.
-            //mCrop will have the crop dimensions for VFE's
-            //postview output.
-            if (mCrop.in1_w != 0 && mCrop.in1_h != 0) {
-                cropX = (mCrop.out1_w - mCrop.in1_w + 1) / 2 - 1;
-                cropY = (mCrop.out1_h - mCrop.in1_h + 1) / 2 - 1;
-                if(cropX < 0) cropX = 0;
-                if(cropY < 0) cropY = 0;
-                cropW = mCrop.in1_w;
-                cropH = mCrop.in1_h;
-                mOverlay->setCrop(cropX, cropY, cropW, cropH);
-                mResetOverlayCrop = true;
-            } else {
-                /* as the VFE second output is being used for postView,
-                 * VPE is doing the necessary cropping. Clear the
-                 * preview cropping information with overlay, so that
-                 * the same  won't be applied to postview.
-                 */
-                 mOverlay->setCrop(0, 0, mDimension.ui_thumbnail_width,
-                                    mDimension.ui_thumbnail_height);
-            }
-
-            LOGV(" Queueing Postview for display ");
-            mOverlay->queueBuffer((void *)0);
+                mOverlay->setFd(mPostviewHeap->mHeap->getHeapID());
+                if(cropp != NULL){
+                    common_crop_t *crop = (common_crop_t *)cropp;
+                    if (crop->in1_w != 0 && crop->in1_h != 0) {
+                        int x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
+                        int y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
+                        int w = crop->in1_w;
+                        int h = crop->in1_h;
+                        if(x < 0) x = 0;
+                        if(y < 0) y = 0;
+                        mOverlay->setCrop(x, y,w,h);
+                        mResetOverlayCrop = true;
+                    }else {
+                        mOverlay->setCrop(0, 0, mPostviewWidth, mPostviewHeight);
+                    }
+                }
+                LOGV(" Queueing Postview for display ");
+                mOverlay->queueBuffer((void *)0);
             }
             mOverlayLock.unlock();
         }
+        /* Give the main Image as raw to upper layers */
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
-            mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
+            mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[0],
                             mCallbackCookie);
-        if(strTexturesOn == true) {
-            LOGI("Raw Data given to app for processing...will wait for jpeg encode call");
-            mEncodePendingWaitLock.lock();
-            mEncodePending = true;
-            mEncodePendingWaitLock.unlock();
-        }
-    }
-    else LOGV("Raw-picture callback was canceled--skipping.");
+    }else {
+        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapShotPmemHeap->mBuffers[0],
+                           mCallbackCookie);
 
-    if(strTexturesOn != true) {
-        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-            mJpegSize = 0;
-            mJpegThreadWaitLock.lock();
-            if (LINK_jpeg_encoder_init()) {
-                mJpegThreadRunning = true;
-                mJpegThreadWaitLock.unlock();
-                if(native_jpeg_encode()) {
-                    LOGV("receiveRawPicture: X (success)");
-                    return true;
-                }
-                LOGE("jpeg encoding failed");
-            }
-            else {
-                LOGE("receiveRawPicture X: jpeg_encoder_init failed.");
-                mJpegThreadWaitLock.unlock();
-            }
-        }
-        else LOGV("JPEG callback is NULL, not encoding image.");
-        deinitRaw();
-        return false;
+        mJpegThreadWaitLock.lock();
+        mJpegThreadRunning = false;
+        mJpegThreadWait.signal();
+        mJpegThreadWaitLock.unlock();
+        //cleanup
+        deinitRawSnapshot();
     }
-    LOGV("receiveRawPicture: X");
-    return true;
+
+    /* can start preview at this stage? early preview? */
+    mInSnapshotModeWaitLock.lock();
+    mInSnapshotMode = false;
+    mInSnapshotModeWait.signal();
+    mInSnapshotModeWaitLock.unlock();
+
+    LOGV("%s: X", __FUNCTION__);
 }
 
-void QualcommCameraHardware::receiveJpegPictureFragment(
-    uint8_t *buff_ptr, uint32_t buff_size)
-{
-    LOGV("receiveJpegPictureFragment size %d", buff_size);
-    uint32_t remaining = mJpegHeap->mHeap->virtualSize();
-    remaining -= mJpegSize;
-    uint8_t *base = (uint8_t *)mJpegHeap->mHeap->base();
-
-    if (buff_size > remaining) {
-        LOGE("receiveJpegPictureFragment: size %d exceeds what "
-             "remains in JPEG heap (%d), truncating",
-             buff_size,
-             remaining);
-        buff_size = remaining;
-    }
-    memcpy(base + mJpegSize, buff_ptr, buff_size);
-    mJpegSize += buff_size;
-}
-
-void QualcommCameraHardware::receiveJpegPicture(void)
+void QualcommCameraHardware::receiveJpegPicture(status_t status, uint32_t buffer_size)
 {
     LOGV("receiveJpegPicture: E image (%d uint8_ts out of %d)",
          mJpegSize, mJpegHeap->mBufferSize);
     Mutex::Autolock cbLock(&mCallbackLock);
 
     int index = 0;
+
+    if(buffer_size && (buffer_size <= mJpegHeap->mBufferSize)){
+        mJpegHeap->mFrameSize = buffer_size;
+    }
 
     if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
         // The reason we do not allocate into mJpegHeap->mBuffers[offset] is
@@ -5013,8 +4733,12 @@ void QualcommCameraHardware::receiveJpegPicture(void)
             MemoryBase(mJpegHeap->mHeap,
                        index * mJpegHeap->mBufferSize +
                        0,
-                       mJpegSize);
-        mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
+                       buffer_size);
+        if(status == NO_ERROR)
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
+        else
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
+
         buffer = NULL;
     }
     else LOGV("JPEG callback was cancelled--not delivering image.");
@@ -6248,26 +5972,53 @@ static void receive_liveshot_callback(liveshot_status status, uint32_t jpeg_size
 }
 
 
-static void receive_jpeg_fragment_callback(uint8_t *buff_ptr, uint32_t buff_size)
+static int8_t receive_event_callback(mm_camera_event* event)
 {
-    LOGV("receive_jpeg_fragment_callback E");
-    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
-    if (obj != 0) {
-        obj->receiveJpegPictureFragment(buff_ptr, buff_size);
+    LOGV("%s: E", __FUNCTION__);
+    if(event == NULL) {
+        LOGE("%s: event is NULL!", __FUNCTION__);
+        return FALSE;
     }
-    LOGV("receive_jpeg_fragment_callback X");
-}
-
-static void receive_jpeg_callback(jpeg_event_t status)
-{
-    LOGV("receive_jpeg_callback E (completion status %d)", status);
-    if (status == JPEG_EVENT_DONE) {
-        sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
-        if (obj != 0) {
-            obj->receiveJpegPicture();
+    switch(event->event_type) {
+        case SNAPSHOT_DONE:
+        {
+            /* postview buffer is received */
+            sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+            if (obj != 0) {
+                obj->receiveRawPicture(NO_ERROR, event->event_data.yuv_frames[0]->cropinfo);
+            }
         }
+        break;
+        case SNAPSHOT_FAILED:
+        {
+            /* postview buffer is received */
+            sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+            if (obj != 0) {
+                obj->receiveRawPicture(UNKNOWN_ERROR, NULL);
+            }
+        }
+        break;
+        case JPEG_ENC_DONE:
+        {
+            sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+            if (obj != 0) {
+                obj->receiveJpegPicture(NO_ERROR, event->event_data.encoded_frame->filled_size);
+            }
+        }
+        break;
+        case JPEG_ENC_FAILED:
+        {
+            sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+            if (obj != 0) {
+                obj->receiveJpegPicture(UNKNOWN_ERROR, 0);
+            }
+        }
+        break;
+        default:
+            LOGE("%s: ignore default case", __FUNCTION__);
     }
-    LOGV("receive_jpeg_callback X");
+    return TRUE;
+    LOGV("%s: X", __FUNCTION__);
 }
 // 720p : video frame calbback from camframe
 static void receive_camframe_video_callback(struct msm_frame *frame)
@@ -6369,9 +6120,9 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
      * for 7x30. */
     LOGV("Copying the preview buffer to postview buffer %d  ",
          mPreviewFrameSize);
-    if(mPostViewHeap == NULL) {
+    if(mLastPreviewFrameHeap == NULL) {
         int CbCrOffset = PAD_TO_WORD(mPreviewFrameSize * 2/3);
-        mPostViewHeap =
+        mLastPreviewFrameHeap =
            new PmemPool("/dev/pmem_adsp",
            MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
            MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
@@ -6382,23 +6133,24 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
            0,
            "postview");
 
-           if (!mPostViewHeap->initialized()) {
-               mPostViewHeap.clear();
+           if (!mLastPreviewFrameHeap->initialized()) {
+               mLastPreviewFrameHeap.clear();
                LOGE(" Failed to initialize Postview Heap");
                return false;
             }
     }
 
-    if( mPostViewHeap != NULL && mLastQueuedFrame != NULL) {
-        memcpy(mPostViewHeap->mHeap->base(),
+    if( mLastPreviewFrameHeap != NULL && mLastQueuedFrame != NULL) {
+        memcpy(mLastPreviewFrameHeap->mHeap->base(),
                (uint8_t *)mLastQueuedFrame, mPreviewFrameSize );
 
-        if( mUseOverlay ){
+        if(mUseOverlay) {
             mOverlayLock.lock();
             if(mOverlay != NULL){
-                mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
+                mOverlay->setFd(mLastPreviewFrameHeap->mHeap->getHeapID());
                 if( zoomCropInfo.w !=0 && zoomCropInfo.h !=0) {
-                    LOGD("zoomCropInfo non-zero, setting crop ");
+                    LOGE("zoomCropInfo non-zero, setting crop ");
+                    LOGE("setCrop with %dx%d and %dx%d", zoomCropInfo.x, zoomCropInfo.y, zoomCropInfo.w, zoomCropInfo.h);
                     mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
                                zoomCropInfo.w, zoomCropInfo.h);
                 }
@@ -6492,7 +6244,7 @@ void QualcommCameraHardware::encodeData() {
         if (LINK_jpeg_encoder_init()) {
             mJpegThreadRunning = true;
             mJpegThreadWaitLock.unlock();
-            if(native_jpeg_encode()) {
+            if(initImageEncodeParameters()) {
                 LOGV("encodeData: X (success)");
                 //Wait until jpeg encoding is done and call jpeg join
                 //in this context. Also clear the resources.

@@ -82,7 +82,7 @@ extern "C" {
 // Number of video buffers held by kernal (initially 1,2 &3)
 #define ACTIVE_VIDEO_BUFFERS 3
 #define ACTIVE_PREVIEW_BUFFERS 3
-
+#define APP_ORIENTATION 90
 
 #define PAD_TO_2K(x) (((x)+2047)& ~2047)
 
@@ -6463,6 +6463,7 @@ void QualcommCameraHardware::getCameraInfo()
         LOGI("camera_id: %d", HAL_cameraInfo[i].camera_id);
         LOGI("modes_supported: %x", HAL_cameraInfo[i].modes_supported);
         LOGI("position: %d", HAL_cameraInfo[i].position);
+        LOGI("sensor_mount_angle: %d", HAL_cameraInfo[i].sensor_mount_angle);
     }
 
 #if DLOPEN_LIBMMCAMERA
@@ -6493,8 +6494,7 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             LOGI("Found a matching camera info for ID %d", cameraId);
             cameraInfo->facing = (HAL_cameraInfo[i].position == BACK_CAMERA)?
                                    CAMERA_FACING_BACK : CAMERA_FACING_FRONT;
-            /* TODO: Need to get this information from lower layers */
-            cameraInfo->orientation = 270;
+            cameraInfo->orientation = (HAL_cameraInfo[i].sensor_mount_angle - APP_ORIENTATION);
             return;
         }
     }

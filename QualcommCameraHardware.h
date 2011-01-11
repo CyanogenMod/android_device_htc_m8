@@ -230,6 +230,7 @@ private:
     Mutex mPreviewThreadWaitLock;
     Condition mPreviewThreadWait;
     friend void *preview_thread(void *user);
+    friend void *openCamera(void *data);
     void runPreviewThread(void *data);
 
     class FrameQueue : public RefBase{
@@ -376,9 +377,6 @@ private:
     int                 mJpegMaxSize;
     int32_t                 mStatSize;
 
-#if DLOPEN_LIBMMCAMERA
-    void *libmmcamera;
-#endif
 
     cam_ctrl_dimension_t mDimension;
     bool mAutoFocusThreadRunning;
@@ -390,6 +388,7 @@ private:
     pthread_t mVideoThread;
     pthread_t mPreviewThread;
     pthread_t mSnapshotThread;
+    pthread_t mDeviceOpenThread;
 
     common_crop_t mCrop;
 
@@ -417,7 +416,6 @@ private:
     int maxSnapshotWidth;
     int maxSnapshotHeight;
     bool mHasAutoFocusSupport;
-    mm_camera_config mCfgControl;
     int videoWidth, videoHeight;
 
     bool mDisEnabled;

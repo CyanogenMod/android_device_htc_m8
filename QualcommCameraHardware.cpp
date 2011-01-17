@@ -2294,8 +2294,8 @@ void QualcommCameraHardware::runPreviewThread(void *data)
     #endif
         mInPreviewCallback = true;
         if(mUseOverlay) {
+           mOverlayLock.lock();
             if(mOverlay != NULL) {
-                mOverlayLock.lock();
                 mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
                 if (crop->in1_w != 0 && crop->in1_h != 0) {
                     zoomCropInfo.x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
@@ -2343,8 +2343,8 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                     mPostViewHeap.clear();
                 }
                 mLastQueuedFrame = (void *)frame->buffer;
-                mOverlayLock.unlock();
             }
+           mOverlayLock.unlock();
         } else {
             if (crop->in1_w != 0 && crop->in1_h != 0) {
                 dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;

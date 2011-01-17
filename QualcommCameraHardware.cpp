@@ -2264,7 +2264,6 @@ void QualcommCameraHardware::runPreviewThread(void *data)
     msm_frame* frame = NULL;
     CAMERA_HAL_UNUSED(data);
     while((frame = mPreviewBusyQueue.get()) != NULL) {
-
         if (UNLIKELY(mDebugFps)) {
             debugShowPreviewFPS();
         }
@@ -2308,7 +2307,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
     #endif
         mInPreviewCallback = true;
         if(mUseOverlay) {
-           mOverlayLock.lock();
+            mOverlayLock.lock();
             if(mOverlay != NULL) {
                 mOverlay->setFd(mPreviewHeap->mHeap->getHeapID());
                 if (crop->in1_w != 0 && crop->in1_h != 0) {
@@ -2358,7 +2357,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 }
                 mLastQueuedFrame = (void *)frame->buffer;
             }
-           mOverlayLock.unlock();
+            mOverlayLock.unlock();
         } else {
             if (crop->in1_w != 0 && crop->in1_h != 0) {
                 dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;
@@ -3292,7 +3291,9 @@ status_t QualcommCameraHardware::startPreviewInternal()
         LINK_camframe_release_all_frames(CAM_VIDEO_FRAME);
         LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
         mPreviewInitialized = false;
+        mOverlayLock.lock();
         mOverlay = NULL;
+        mOverlayLock.unlock();
         LOGE("startPreview X: native_start_ops: CAMERA_OPS_STREAMING_PREVIEW ioctl failed!");
         return UNKNOWN_ERROR;
     }
@@ -3340,26 +3341,31 @@ void QualcommCameraHardware::stopPreviewInternal()
             }
         }
     }
-	if (!mCameraRunning && mPreviewInitialized) {
-	    mPreviewBusyQueue.deinit();
-	    deinitPreview();
-	    if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
-		mVideoThreadWaitLock.lock();
-		LOGV("in stopPreviewInternal: making mVideoThreadExit 1");
-		mVideoThreadExit = 1;
-		mVideoThreadWaitLock.unlock();
-		//  720p : signal the video thread , and check in video thread if stop is called, if so exit video thread.
-		pthread_mutex_lock(&(g_busy_frame_queue.mut));
-		pthread_cond_signal(&(g_busy_frame_queue.wait));
-		pthread_mutex_unlock(&(g_busy_frame_queue.mut));
+    if (!mCameraRunning) {
+        if(mPreviewInitialized) {
+            mPreviewBusyQueue.deinit();
+            deinitPreview();
+            if( ( mCurrentTarget == TARGET_MSM7630 ) ||
+                (mCurrentTarget == TARGET_QSD8250) ||
+                (mCurrentTarget == TARGET_MSM8660)) {
+                mVideoThreadWaitLock.lock();
+                LOGV("in stopPreviewInternal: making mVideoThreadExit 1");
+                mVideoThreadExit = 1;
+                mVideoThreadWaitLock.unlock();
+                //720p : signal the video thread , and check in video thread
+                //if stop is called, if so exit video thread.
+                pthread_mutex_lock(&(g_busy_frame_queue.mut));
+                pthread_cond_signal(&(g_busy_frame_queue.wait));
+                pthread_mutex_unlock(&(g_busy_frame_queue.mut));
                 /* Flush the Busy Q */
                 cam_frame_flush_video();
                 /* Flush the Free Q */
                 LINK_camframe_release_all_frames(CAM_VIDEO_FRAME);
-	    }
-	    mPreviewInitialized = false;
-	}
-	else LOGE("stopPreviewInternal: failed to stop preview");
+            }
+            mPreviewInitialized = false;
+        }
+    }
+    else LOGI("stopPreviewInternal: Preview is stopped already");
 
     LOGI("stopPreviewInternal X: %d", mCameraRunning);
 }
@@ -4287,9 +4293,12 @@ void QualcommCameraHardware::receiveCameraStats(camstats_type stype, camera_prev
         return;
     }
 
+    mOverlayLock.lock();
     if(mOverlay == NULL) {
+       mOverlayLock.unlock();
        return;
     }
+    mOverlayLock.unlock();
     mCallbackLock.lock();
     int msgEnabled = mMsgEnabled;
     data_callback scb = mDataCallback;
@@ -4948,7 +4957,9 @@ bool QualcommCameraHardware::receiveRawPicture()
             notifyShutter(&mCrop, FALSE);
         }
 
-        if( mUseOverlay && (mOverlay != NULL) ) {
+        if( mUseOverlay) {
+            mOverlayLock.lock();
+            if(mOverlay != NULL) {
             mOverlay->setFd(mDisplayHeap->mHeap->getHeapID());
             int cropX = 0;
             int cropY = 0;
@@ -4978,6 +4989,8 @@ bool QualcommCameraHardware::receiveRawPicture()
 
             LOGV(" Queueing Postview for display ");
             mOverlay->queueBuffer((void *)0);
+            }
+            mOverlayLock.unlock();
         }
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
             mDataCallback(CAMERA_MSG_RAW_IMAGE, mDisplayHeap->mBuffers[0],
@@ -6284,7 +6297,9 @@ status_t QualcommCameraHardware::setOverlay(const sp<Overlay> &Overlay)
         mOverlayLock.unlock();
     } else {
         LOGV(" Overlay object NULL. returning ");
+        mOverlayLock.lock();
         mOverlay = NULL;
+        mOverlayLock.unlock();
         return UNKNOWN_ERROR;
     }
     return NO_ERROR;
@@ -6345,15 +6360,19 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
         memcpy(mPostViewHeap->mHeap->base(),
                (uint8_t *)mLastQueuedFrame, mPreviewFrameSize );
 
-        if( mUseOverlay && (mOverlay != NULL)){
-             mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
-             if( zoomCropInfo.w !=0 && zoomCropInfo.h !=0) {
-                 LOGD("zoomCropInfo non-zero, setting crop ");
-                 mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
+        if( mUseOverlay ){
+            mOverlayLock.lock();
+            if(mOverlay != NULL){
+                mOverlay->setFd(mPostViewHeap->mHeap->getHeapID());
+                if( zoomCropInfo.w !=0 && zoomCropInfo.h !=0) {
+                    LOGD("zoomCropInfo non-zero, setting crop ");
+                    mOverlay->setCrop(zoomCropInfo.x, zoomCropInfo.y,
                                zoomCropInfo.w, zoomCropInfo.h);
-              }
-            LOGV("Queueing Postview with last frame till the snapshot is done ");
-            mOverlay->queueBuffer((void *)0);
+                }
+                LOGV("Queueing Postview with last frame till the snapshot is done ");
+                mOverlay->queueBuffer((void *)0);
+            }
+            mOverlayLock.unlock();
         }
     } else
         LOGE("Failed to store Preview frame. No Postview ");

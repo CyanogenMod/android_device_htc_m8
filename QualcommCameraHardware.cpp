@@ -1971,6 +1971,11 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
     if (jpeg_quality >= 0) {
         LOGV("native_jpeg_encode, current jpeg main img quality =%d",
              jpeg_quality);
+        //Application can pass quality of zero
+        //when there is no back sensor connected.
+        //as jpeg quality of zero is not accepted at
+        //camera stack, pass default value.
+        if(jpeg_quality == 0) jpeg_quality = 85;
         if(!LINK_jpeg_encoder_setMainImageQuality(jpeg_quality)) {
             LOGE("native_jpeg_encode set jpeg-quality failed");
             return false;
@@ -1979,6 +1984,11 @@ bool QualcommCameraHardware::native_jpeg_encode(void)
 
     int thumbnail_quality = mParameters.getInt("jpeg-thumbnail-quality");
     if (thumbnail_quality >= 0) {
+        //Application can pass quality of zero
+        //when there is no back sensor connected.
+        //as quality of zero is not accepted at
+        //camera stack, pass default value.
+        if(thumbnail_quality == 0) thumbnail_quality = 85;
         LOGV("native_jpeg_encode, current jpeg thumbnail quality =%d",
              thumbnail_quality);
         if(!LINK_jpeg_encoder_setThumbnailQuality(thumbnail_quality)) {

@@ -4274,6 +4274,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 //    LOGV("receivePreviewFrame E");
     if (!mCameraRunning) {
         LOGE("ignoring preview callback--camera has been stopped");
+        LINK_camframe_add_frame(CAM_PREVIEW_FRAME,frame);
         return;
     }
 

@@ -2215,9 +2215,9 @@ void QualcommCameraHardware::runFrameThread(void *data)
     //waiting for preview thread to complete before clearing of the buffers
     mPreviewThreadWaitLock.lock();
     while (mPreviewThreadRunning) {
-        LOGV("runframethread: waiting for preview  thread to complete.");
+        LOGI("runframethread: waiting for preview  thread to complete.");
         mPreviewThreadWait.wait(mPreviewThreadWaitLock);
-        LOGV("initPreview: old preview thread completed.");
+        LOGI("initPreview: old preview thread completed.");
     }
     mPreviewThreadWaitLock.unlock();
 
@@ -2423,7 +2423,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
 
 void *preview_thread(void *user)
 {
-    LOGV("preview_thread E");
+    LOGI("preview_thread E");
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
         obj->runPreviewThread(user);
@@ -3582,23 +3582,34 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mInSnapshotModeWaitLock.unlock();
 
     mSnapshotFormat = 0;
-    if(strTexturesOn != true ) {
-        mJpegThreadWaitLock.lock();
-        while (mJpegThreadRunning) {
-            LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
-            mJpegThreadWait.wait(mJpegThreadWaitLock);
-            LOGV("runSnapshotThread: jpeg thread completed.");
-        }
-        mJpegThreadWaitLock.unlock();
-        //clear the resources
+    if(ret != false) {
+        if(strTexturesOn != true ) {
+            mJpegThreadWaitLock.lock();
+            while (mJpegThreadRunning) {
+                LOGV("runSnapshotThread: waiting for jpeg thread to complete.");
+                mJpegThreadWait.wait(mJpegThreadWaitLock);
+                LOGV("runSnapshotThread: jpeg thread completed.");
+            }
+            mJpegThreadWaitLock.unlock();
+            //clear the resources
 #if DLOPEN_LIBMMCAMERA
-        if(libhandle)
+            if(libhandle)
 #endif
-        {
-            LINK_jpeg_encoder_join();
+            {
+                LINK_jpeg_encoder_join();
+            }
         }
-        deinitRaw();
+    } else {
+        if( mDataCallback
+            && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+            /* get picture failed. Give jpeg callback with NULL data
+             * to the application to restore to preview mode
+             */
+            LOGE("get picture failed, giving jpeg callback with NULL data");
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
+        }
     }
+    deinitRaw();
 
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
@@ -3610,15 +3621,6 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
         LOGV("SNAPSHOT: dlclose(libqcamera)");
     }
 #endif
-
-    if( (ret == false) && mDataCallback
-        && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        /* get picture failed. Give jpeg callback with NULL data
-         * to the application to restore to preview mode
-         */
-        LOGE("get picture failed, giving jpeg callback with NULL data");
-        mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
-    }
 
     LOGV("runSnapshotThread X");
 }

@@ -3165,15 +3165,6 @@ void QualcommCameraHardware::release()
         stopPreviewInternal();
         LOGI("release: stopPreviewInternal done.");
     }
-    if(mCurrentTarget == TARGET_MSM8660) {
-       LOGV("release : Clearing the mThumbnailHeap and mDisplayHeap");
-       mPostViewHeap.clear();
-       mPostViewHeap = NULL;
-       mThumbnailHeap.clear();
-       mThumbnailHeap = NULL;
-       mDisplayHeap.clear();
-       mDisplayHeap = NULL;
-    }
     LINK_jpeg_encoder_join();
     //Signal the snapshot thread
     mJpegThreadWaitLock.lock();
@@ -3198,6 +3189,15 @@ void QualcommCameraHardware::release()
 
     deinitRawSnapshot();
     LOGI("release: clearing resources done.");
+    if(mCurrentTarget == TARGET_MSM8660) {
+       LOGV("release : Clearing the mThumbnailHeap and mDisplayHeap");
+       mPostViewHeap.clear();
+       mPostViewHeap = NULL;
+       mThumbnailHeap.clear();
+       mThumbnailHeap = NULL;
+       mDisplayHeap.clear();
+       mDisplayHeap = NULL;
+    }
     LINK_mm_camera_deinit();
     if(fb_fd >= 0) {
         close(fb_fd);

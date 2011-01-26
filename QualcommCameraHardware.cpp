@@ -2815,6 +2815,8 @@ void QualcommCameraHardware::deinitPreview(void)
 {
     LOGI("deinitPreview E");
 
+    mPreviewBusyQueue.deinit();
+
     // When we call deinitPreview(), we signal to the frame thread that it
     // needs to exit, but we DO NOT WAIT for it to complete here.  The problem
     // is that deinitPreview is sometimes called from the frame-thread's
@@ -3270,6 +3272,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
         mPreviewInitialized = initPreview();
         if (!mPreviewInitialized) {
             LOGE("startPreview X initPreview failed.  Not starting preview.");
+            mPreviewBusyQueue.deinit();
             return UNKNOWN_ERROR;
         }
     }
@@ -3343,7 +3346,6 @@ void QualcommCameraHardware::stopPreviewInternal()
     }
     if (!mCameraRunning) {
         if(mPreviewInitialized) {
-            mPreviewBusyQueue.deinit();
             deinitPreview();
             if( ( mCurrentTarget == TARGET_MSM7630 ) ||
                 (mCurrentTarget == TARGET_QSD8250) ||

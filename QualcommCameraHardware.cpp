@@ -2383,17 +2383,21 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                         array[i+3] = -1;
                     }
                 }
-            if(mMetaDataHeap != NULL){
-                LOGV("runPreviewThread mMetaDataHEap is non-NULL");
-                memcpy((uint32_t *)mMetaDataHeap->mHeap->base(), (uint32_t *)array, (sizeof(int)*(MAX_ROI*4+1)));
-                if  (mcb != NULL && (msgEnabled & CAMERA_MSG_META_DATA)) {
-                    mcb(CAMERA_MSG_META_DATA, mMetaDataHeap->mBuffers[0], mdata);
+                if(mMetaDataHeap != NULL){
+                    LOGV("runPreviewThread mMetaDataHEap is non-NULL");
+                    memcpy((uint32_t *)mMetaDataHeap->mHeap->base(), (uint32_t *)array, (sizeof(int)*(MAX_ROI*4+1)));
+                    mMetaDataWaitLock.unlock();
+
+                    if  (mcb != NULL && (msgEnabled & CAMERA_MSG_META_DATA)) {
+                        mcb(CAMERA_MSG_META_DATA, mMetaDataHeap->mBuffers[0], mdata);
+                    }
+                } else {
+                    mMetaDataWaitLock.unlock();
+                    LOGE("runPreviewThread mMetaDataHeap is NULL");
                 }
             } else {
-                LOGE("runPreviewThread mMetaDataHeap is NULL");
+                mMetaDataWaitLock.unlock();
             }
-            }
-            mMetaDataWaitLock.unlock();
         }
         LINK_camframe_add_frame(CAM_PREVIEW_FRAME,frame);
     }

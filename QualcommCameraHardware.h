@@ -156,6 +156,19 @@ private:
     Mutex mCameraRunningLock;
     bool mPreviewInitialized;
 
+
+    class MMCameraDL : public RefBase{
+    private:
+        static wp<MMCameraDL> instance;
+        MMCameraDL();
+        virtual ~MMCameraDL();
+        void *libmmcamera;
+        static Mutex singletonLock;
+    public:
+        static sp<MMCameraDL> getInstance();
+        void * pointer();
+    };
+
     // This class represents a heap which maintains several contiguous
     // buffers.  The heap may be backed by pmem (when pmem_pool contains
     // the name of a /dev/pmem* file), or by ashmem (when pmem_pool == NULL).
@@ -204,6 +217,7 @@ private:
         int mCameraControlFd;
         uint32_t mAlignedSize;
         struct pmem_region mSize;
+        sp<QualcommCameraHardware::MMCameraDL> mMMCameraDLRef;
     };
 
     sp<PmemPool> mPreviewHeap;
@@ -216,6 +230,9 @@ private:
     sp<AshmemPool> mMetaDataHeap;
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<PmemPool> mPostViewHeap;
+
+
+    sp<MMCameraDL> mMMCameraDLRef;
 
     bool startCamera();
     bool initPreview();

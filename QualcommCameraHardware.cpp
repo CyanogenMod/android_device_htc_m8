@@ -3395,6 +3395,10 @@ void QualcommCameraHardware::runAutoFocus()
         status = FALSE;
     }
 
+    if(mHasAutoFocusSupport && (updateFocusDistances(focusMode) != NO_ERROR)) {
+        LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, focusMode);
+    }
+
     LOGV("af done: %d", (int)status);
 
 done:
@@ -5819,6 +5823,31 @@ status_t QualcommCameraHardware::setZoom(const CameraParameters& params)
     return rc;
 }
 
+status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
+{
+    LOGV("%s: IN", __FUNCTION__);
+    focus_distances_info_t focusDistances;
+    if( mCfgControl.mm_camera_get_parm(CAMERA_PARM_FOCUS_DISTANCES,
+        (void *)&focusDistances) == MM_CAMERA_SUCCESS) {
+        String8 str;
+        char buffer[32];
+        sprintf(buffer, "%f", focusDistances.focus_distance[0]);
+        str.append(buffer);
+        sprintf(buffer, ",%f", focusDistances.focus_distance[1]);
+        str.append(buffer);
+        if(strcmp(focusmode, CameraParameters::FOCUS_MODE_INFINITY) == 0)
+            sprintf(buffer, ",%s", "Infinity");
+        else
+            sprintf(buffer, ",%f", focusDistances.focus_distance[2]);
+        str.append(buffer);
+        LOGI("%s: setting KEY_FOCUS_DISTANCES as %s", __FUNCTION__, str.string());
+        mParameters.set(CameraParameters::KEY_FOCUS_DISTANCES, str.string());
+        return NO_ERROR;
+    }
+    LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
+    return UNKNOWN_ERROR;
+}
+
 status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
 {
     const char *str = params.get(CameraParameters::KEY_FOCUS_MODE);
@@ -5827,6 +5856,12 @@ status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
                                     sizeof(focus_modes) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_FOCUS_MODE, str);
+
+            if(mHasAutoFocusSupport && (updateFocusDistances(str) != NO_ERROR)) {
+                LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, str);
+                return UNKNOWN_ERROR;
+            }
+
             if(mHasAutoFocusSupport){
                 int cafSupport = FALSE;
                 if(!strcmp(str, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO)){

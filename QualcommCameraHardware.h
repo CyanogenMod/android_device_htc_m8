@@ -366,6 +366,7 @@ private:
     void setGpsParameters();
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);
+    status_t updateFocusDistances(const char *focusmode);
 
     Mutex mLock;
     Mutex mCamframeTimeoutLock;

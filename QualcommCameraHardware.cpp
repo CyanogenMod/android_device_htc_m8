@@ -5688,36 +5688,51 @@ status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
     const char *method = params.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
     if (method) {
         mParameters.set(CameraParameters::KEY_GPS_PROCESSING_METHOD, method);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_PROCESSING_METHOD);
     }
 
     const char *latitude = params.get(CameraParameters::KEY_GPS_LATITUDE);
     if (latitude) {
+        LOGE("latitude %s",latitude);
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE, latitude);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_LATITUDE);
     }
 
     const char *latitudeRef = params.get(CameraParameters::KEY_GPS_LATITUDE_REF);
     if (latitudeRef) {
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE_REF, latitudeRef);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_LATITUDE_REF);
     }
 
     const char *longitude = params.get(CameraParameters::KEY_GPS_LONGITUDE);
     if (longitude) {
         mParameters.set(CameraParameters::KEY_GPS_LONGITUDE, longitude);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_LONGITUDE);
     }
 
     const char *longitudeRef = params.get(CameraParameters::KEY_GPS_LONGITUDE_REF);
     if (longitudeRef) {
         mParameters.set(CameraParameters::KEY_GPS_LONGITUDE_REF, longitudeRef);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_LONGITUDE_REF);
     }
 
     const char *altitudeRef = params.get(CameraParameters::KEY_GPS_ALTITUDE_REF);
     if (altitudeRef) {
         mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, altitudeRef);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_ALTITUDE_REF);
     }
 
     const char *altitude = params.get(CameraParameters::KEY_GPS_ALTITUDE);
     if (altitude) {
         mParameters.set(CameraParameters::KEY_GPS_ALTITUDE, altitude);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_ALTITUDE);
     }
 
     const char *status = params.get(CameraParameters::KEY_GPS_STATUS);
@@ -5728,12 +5743,17 @@ status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
     const char *dateTime = params.get(CameraParameters::KEY_EXIF_DATETIME);
     if (dateTime) {
         mParameters.set(CameraParameters::KEY_EXIF_DATETIME, dateTime);
+    }else {
+         mParameters.remove(CameraParameters::KEY_EXIF_DATETIME);
     }
 
     const char *timestamp = params.get(CameraParameters::KEY_GPS_TIMESTAMP);
     if (timestamp) {
         mParameters.set(CameraParameters::KEY_GPS_TIMESTAMP, timestamp);
+    }else {
+         mParameters.remove(CameraParameters::KEY_GPS_TIMESTAMP);
     }
+
     return NO_ERROR;
 }
 

@@ -6527,7 +6527,13 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             LOGI("Found a matching camera info for ID %d", cameraId);
             cameraInfo->facing = (HAL_cameraInfo[i].position == BACK_CAMERA)?
                                    CAMERA_FACING_BACK : CAMERA_FACING_FRONT;
-            cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;
+            // App Orientation not needed for 7x27 , sensor mount angle 0 is
+            // enough.
+            if(mCurrentTarget == TARGET_MSM7627)
+                cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
+            else
+                cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;
+
             LOGI("%s: orientation = %d", __FUNCTION__, cameraInfo->orientation);
             return;
         }

@@ -3960,9 +3960,18 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
                                    mStatsWaitLock.unlock();
                                    return NO_ERROR;
       case CAMERA_CMD_FACE_DETECTION_ON:
+                                   if(supportsFaceDetection() == false){
+                                        LOGI("face detection support is not available");
+                                        return NO_ERROR;
+                                   }
+
                                    setFaceDetection("on");
                                    return runFaceDetection();
       case CAMERA_CMD_FACE_DETECTION_OFF:
+                                   if(supportsFaceDetection() == false){
+                                        LOGI("face detection support is not available");
+                                        return NO_ERROR;
+                                   }
                                    setFaceDetection("off");
                                    return runFaceDetection();
       case CAMERA_CMD_SEND_META_DATA:
@@ -5575,6 +5584,10 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setFaceDetection(const char *str)
 {
+    if(supportsFaceDetection() == false){
+        LOGI("Face detection is not enabled");
+        return NO_ERROR;
+    }
     if (str != NULL) {
         int value = attr_lookup(facedetection,
                                     sizeof(facedetection) / sizeof(str_map), str);

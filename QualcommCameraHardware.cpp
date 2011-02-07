@@ -3798,7 +3798,6 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPictureFormat(params))) final_rc = rc;
     if ((rc = setSharpness(params)))    final_rc = rc;
     if ((rc = setSaturation(params)))   final_rc = rc;
-    if ((rc = setSelectableZoneAf(params)))   final_rc = rc;
     if ((rc = setTouchAfAec(params)))   final_rc = rc;
     if ((rc = setSceneMode(params)))    final_rc = rc;
     if ((rc = setContrast(params)))     final_rc = rc;
@@ -3823,6 +3822,8 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
         if ((rc = setBrightness(params)))   final_rc = rc;
         if ((rc = setISOValue(params)))  final_rc = rc;
     }
+    //selectableZoneAF needs to be invoked after continuous AF
+    if ((rc = setSelectableZoneAf(params)))   final_rc = rc;
     LOGV("setParameters: X");
     return final_rc;
 }
@@ -5813,12 +5814,14 @@ status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
                                     sizeof(focus_modes) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_FOCUS_MODE, str);
-            int cafSupport = FALSE;
-            if(!strcmp(str, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO)){
-                cafSupport = TRUE;
+            if(mHasAutoFocusSupport){
+                int cafSupport = FALSE;
+                if(!strcmp(str, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO)){
+                    cafSupport = TRUE;
+                }
+                LOGV("Continuous Auto Focus %d", cafSupport);
+                native_set_parms(CAMERA_PARM_CONTINUOUS_AF, sizeof(int8_t), (void *)&cafSupport);
             }
-            LOGV("Continuous Auto Focus %d", cafSupport);
-            native_set_parms(CAMERA_PARM_CONTINUOUS_AF, sizeof(int8_t), (void *)&cafSupport);
             // Focus step is reset to infinity when preview is started. We do
             // not need to do anything now.
             return NO_ERROR;

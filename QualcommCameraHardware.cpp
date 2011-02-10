@@ -1,6 +1,6 @@
 /*
 ** Copyright 2008, Google Inc.
-** Copyright (c) 2009-2010 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2009-2011 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -6332,7 +6332,9 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
                                    CAMERA_FACING_BACK : CAMERA_FACING_FRONT;
             // App Orientation not needed for 7x27 , sensor mount angle 0 is
             // enough.
-            if(mCurrentTarget == TARGET_MSM7627)
+            if(cameraInfo->facing == CAMERA_FACING_FRONT)
+                cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
+            else if(mCurrentTarget == TARGET_MSM7627)
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
             else
                 cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;

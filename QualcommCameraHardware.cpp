@@ -618,14 +618,6 @@ static const str_map scenedetect[] = {
     { CameraParameters::SCENE_DETECT_ON, TRUE },
 };
 
-/* TODO : setting dummy values as of now, need to query for correct
- * values from sensor in future
- */
-#define CAMERA_FOCAL_LENGTH_DEFAULT 4.31
-#define CAMERA_HORIZONTAL_VIEW_ANGLE_DEFAULT 54.8
-#define CAMERA_VERTICAL_VIEW_ANGLE_DEFAULT  42.5
-
-
 // from camera.h, led_mode_t
 static const str_map flash[] = {
     { CameraParameters::FLASH_MODE_OFF,  LED_MODE_OFF },
@@ -1553,12 +1545,6 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::SCENE_DETECT_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_DETECT,
                     scenedetect_values);
-    mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
-                    CAMERA_FOCAL_LENGTH_DEFAULT);
-    mParameters.setFloat(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE,
-                    CAMERA_HORIZONTAL_VIEW_ANGLE_DEFAULT);
-    mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
-                    CAMERA_VERTICAL_VIEW_ANGLE_DEFAULT);
     mParameters.set(CameraParameters::KEY_SELECTABLE_ZONE_AF,
                     CameraParameters::SELECTABLE_ZONE_AF_AUTO);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SELECTABLE_ZONE_AF,
@@ -1567,6 +1553,24 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::FACE_DETECTION_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_FACE_DETECTION,
                     facedetection_values);
+
+    float focalLength = 0.0f;
+    float horizontalViewAngle = 0.0f;
+    float verticalViewAngle = 0.0f;
+
+    mCfgControl.mm_camera_get_parm(CAMERA_PARM_FOCAL_LENGTH,
+            (void *)&focalLength);
+    mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
+                    focalLength);
+    mCfgControl.mm_camera_get_parm(CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
+            (void *)&horizontalViewAngle);
+    mParameters.setFloat(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE,
+                    horizontalViewAngle);
+    mCfgControl.mm_camera_get_parm(CAMERA_PARM_VERTICAL_VIEW_ANGLE,
+            (void *)&verticalViewAngle);
+    mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
+                    verticalViewAngle);
+
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }

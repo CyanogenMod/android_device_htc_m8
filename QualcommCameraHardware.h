@@ -426,6 +426,7 @@ private:
     bool *record_buffers_tracking_flag;
     bool mInPreviewCallback;
     bool mUseOverlay;
+    bool mIs3DModeOn;
     sp<Overlay>  mOverlay;
 
     int32_t mMsgEnabled;    // camera msg to be handled

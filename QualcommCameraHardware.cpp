@@ -323,6 +323,7 @@ static cam_frame_start_parms camframeParams;
 static int HAL_numOfCameras;
 static camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
 static int HAL_currentCameraId;
+static int HAL_currentCameraMode;
 static mm_camera_config mCfgControl;
 
 namespace android {
@@ -1121,6 +1122,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mHJR(0),
       mInPreviewCallback(false),
       mUseOverlay(0),
+      mIs3DModeOn(0),
       mOverlay(0),
       mMsgEnabled(0),
       mNotifyCallback(0),
@@ -1155,6 +1157,11 @@ QualcommCameraHardware::QualcommCameraHardware()
         property_get("persist.camera.hal.zsl", value, "0");
         mZslEnable = atoi(value);
     }
+
+    if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
+        mIs3DModeOn = true;
+    }
+
     if( (pthread_create(&mDeviceOpenThread, NULL, openCamera, NULL)) != 0) {
         LOGE(" openCamera thread creation failed ");
     }
@@ -4229,15 +4236,22 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
     return BAD_VALUE;
 }
 
-extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId)
+extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int mode)
 {
     int i;
     LOGI("openCameraHardware: call createInstance");
     for(i = 0; i < HAL_numOfCameras; i++) {
-        if(i == cameraId) {
+        if(HAL_cameraInfo[i].camera_id == cameraId) {
             LOGI("openCameraHardware:Valid camera ID %d", cameraId);
+            LOGI("openCameraHardware:camera mode %d", mode);
             parameter_string_initialized = false;
             HAL_currentCameraId = cameraId;
+            if(mode & HAL_cameraInfo[i].modes_supported){
+                HAL_currentCameraMode = mode;
+            }else{
+                LOGE("openCameraHardware:Invalid camera mode (%d) requested", mode);
+                return NULL;
+            }
             return QualcommCameraHardware::createInstance();
         }
     }
@@ -6780,6 +6794,13 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
                 cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;
 
             LOGI("%s: orientation = %d", __FUNCTION__, cameraInfo->orientation);
+            cameraInfo->mode = 0;
+            if(HAL_cameraInfo[i].modes_supported & CAMERA_MODE_2D)
+                cameraInfo->mode |= CAMERA_SUPPORT_MODE_2D;
+            if(HAL_cameraInfo[i].modes_supported & CAMERA_MODE_3D)
+                cameraInfo->mode |= CAMERA_SUPPORT_MODE_3D;
+            LOGI("%s: modes supported = %d", __FUNCTION__, cameraInfo->mode);
+
             return;
         }
     }

@@ -1,6 +1,6 @@
 /*
 ** Copyright 2008, Google Inc.
-** Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+** Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -123,6 +123,7 @@ private:
     QualcommCameraHardware();
     virtual ~QualcommCameraHardware();
     status_t startPreviewInternal();
+    status_t startRecordingInternal();
     status_t setHistogramOn();
     status_t setHistogramOff();
     status_t runFaceDetection();
@@ -369,6 +370,7 @@ private:
     status_t setStrTextures(const CameraParameters& params);
     status_t setPreviewFormat(const CameraParameters& params);
     status_t setSelectableZoneAf(const CameraParameters& params);
+    status_t setOverlayFormats(const CameraParameters& params);
     void setGpsParameters();
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);
@@ -456,6 +458,7 @@ private:
     int mPostviewHeight;
     int mZslEnable;
     bool mZslFlashEnable;
+    cam_3d_frame_format_t mSnapshot3DFormat;
 };
 
 }; // namespace android

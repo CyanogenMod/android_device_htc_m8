@@ -28,6 +28,8 @@ LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+LOCAL_C_INCLUDES += hardware/msm7k/libgralloc-qsd8k
+
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils

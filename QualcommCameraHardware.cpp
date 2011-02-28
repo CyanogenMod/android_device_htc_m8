@@ -2239,8 +2239,10 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 mOverlay->queueBuffer((void *)offset_addr);
                 /* To overcome a timing case where we could be having the overlay refer to deallocated
                    mDisplayHeap(and showing corruption), the mDisplayHeap is not deallocated untill the
-                   first preview frame is queued to the overlay in 8660 */
-                if ((mCurrentTarget == TARGET_MSM8660)&&(mFirstFrame == true)) {
+                   first preview frame is queued to the overlay in 8660. Also adding the condition
+                   to check if snapshot is currently in progress ensures that the resources being
+                   used by the snapshot thread are not incorrectly deallocated by preview thread*/
+                if ((mCurrentTarget == TARGET_MSM8660)&&(mFirstFrame == true)&&(!mSnapshotThreadRunning)) {
                     LOGD(" receivePreviewFrame : first frame queued, display heap being deallocated");
                     mLastPreviewFrameHeap.clear();
                     mDisplayHeap.clear();

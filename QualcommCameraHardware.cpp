@@ -2649,12 +2649,7 @@ bool QualcommCameraHardware::initPreview()
     }
     mInSnapshotModeWaitLock.unlock();
 
-     /*Temporary migrating the preview buffers to smi pool for 8x60 till the bug is resolved in the pmem_adsp pool*/
-    if(mCurrentTarget == TARGET_MSM8660)
-        pmem_region = "/dev/pmem_smipool";
-    else
-        pmem_region = "/dev/pmem_adsp";
-
+    pmem_region = "/dev/pmem_adsp";
 
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;

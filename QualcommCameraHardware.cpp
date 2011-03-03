@@ -3706,6 +3706,8 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFormat(params)))   final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))   final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
+    if ((rc = setExposureCompensation(params))) final_rc = rc;
+    if ((rc = setBrightness(params)))   final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -3714,11 +3716,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
         if ((rc = setPreviewFrameRate(params))) final_rc = rc;
         if ((rc = setPreviewFrameRateMode(params))) final_rc = rc;
         if ((rc = setAutoExposure(params))) final_rc = rc;
-        if ((rc = setExposureCompensation(params))) final_rc = rc;
         if ((rc = setWhiteBalance(params))) final_rc = rc;
         if ((rc = setFlash(params)))        final_rc = rc;
         if ((rc = setFocusMode(params)))    final_rc = rc;
-        if ((rc = setBrightness(params)))   final_rc = rc;
         if ((rc = setISOValue(params)))  final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
@@ -5267,7 +5267,7 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                 //If touch AF/AEC is enabled and touch event has occured then
                 //call the ioctl with valid values.
-                if (value == true 
+                if (value == true
                         && (xAec >= 0 && yAec >= 0)
                         && (xAf >= 0 && yAf >= 0)) {
                     //Set Touch AEC params (Pass the center co-ordinate)

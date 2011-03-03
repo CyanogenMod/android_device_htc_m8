@@ -661,6 +661,11 @@ static const str_map lensshade[] = {
     { CameraParameters::LENSSHADE_DISABLE, FALSE }
 };
 
+static const str_map mce[] = {
+    { CameraParameters::MCE_ENABLE, TRUE },
+    { CameraParameters::MCE_DISABLE, FALSE }
+};
+
 static const str_map histogram[] = {
     { CameraParameters::HISTOGRAM_ENABLE, TRUE },
     { CameraParameters::HISTOGRAM_DISABLE, FALSE }
@@ -739,6 +744,7 @@ static String8 flash_values;
 static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
+static String8 mce_values;
 static String8 histogram_values;
 static String8 skinToneEnhancement_values;
 static String8 touchafaec_values;
@@ -1332,6 +1338,8 @@ void QualcommCameraHardware::initDefaultParameters()
             iso,sizeof(iso)/sizeof(str_map));
         lensshade_values = create_values_str(
             lensshade,sizeof(lensshade)/sizeof(str_map));
+        mce_values = create_values_str(
+            mce,sizeof(mce)/sizeof(str_map));
         //Currently Enabling Histogram for 8x60
         if(mCurrentTarget == TARGET_MSM8660) {
             histogram_values = create_values_str(
@@ -1548,6 +1556,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     iso_values);
     mParameters.set(CameraParameters::KEY_SUPPORTED_LENSSHADE_MODES,
                     lensshade_values);
+    mParameters.set(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT,
+                    CameraParameters::MCE_ENABLE);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_MEM_COLOR_ENHANCE_MODES,
+                    mce_values);
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
                     CameraParameters::HISTOGRAM_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_HISTOGRAM_MODES,
@@ -4016,6 +4028,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setZoom(params)))         final_rc = rc;
     if ((rc = setOrientation(params)))  final_rc = rc;
     if ((rc = setLensshadeValue(params)))  final_rc = rc;
+    if ((rc = setMCEValue(params)))  final_rc = rc;
     if ((rc = setPictureFormat(params))) final_rc = rc;
     if ((rc = setSharpness(params)))    final_rc = rc;
     if ((rc = setSaturation(params)))   final_rc = rc;
@@ -5578,6 +5591,29 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
         }
     }
     LOGE("Invalid antibanding value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setMCEValue(const CameraParameters& params)
+{
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_MCE)) {
+        LOGI("Parameter MCE is not supported for this sensor");
+        return NO_ERROR;
+    }
+
+    const char *str = params.get(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT);
+    if (str != NULL) {
+        int value = attr_lookup(mce, sizeof(mce) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            int8_t temp = (int8_t)value;
+            LOGI("%s: setting MCE value of %s", __FUNCTION__, str);
+            mParameters.set(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT, str);
+
+            native_set_parms(CAMERA_PARM_MCE, sizeof(int8_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid MCE value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
 

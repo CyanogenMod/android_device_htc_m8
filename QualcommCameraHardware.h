@@ -356,6 +356,7 @@ private:
     status_t setSkinToneEnhancement(const CameraParameters& params);
     status_t setOrientation(const CameraParameters& params);
     status_t setLensshadeValue(const CameraParameters& params);
+    status_t setMCEValue(const CameraParameters& params);
     status_t setISOValue(const CameraParameters& params);
     status_t setPictureFormat(const CameraParameters& params);
     status_t setSharpness(const CameraParameters& params);

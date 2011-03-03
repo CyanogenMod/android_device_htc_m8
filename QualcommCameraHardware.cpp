@@ -4596,7 +4596,7 @@ void QualcommCameraHardware::receiveLiveSnapshot(uint32_t jpeg_size)
     close(file_fd);
 #endif
 
-#if 0
+#if 1
     Mutex::Autolock cbLock(&mCallbackLock);
     if (mDataCallback && (mMsgEnabled & MEDIA_RECORDER_MSG_COMPRESSED_IMAGE)) {
         sp<MemoryBase> buffer = new

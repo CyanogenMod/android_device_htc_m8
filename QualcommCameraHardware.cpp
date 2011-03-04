@@ -1057,6 +1057,8 @@ static int fb_fd = -1;
 static int32_t mMaxZoom = 0;
 static bool zoomSupported = false;
 static int dstOffset = 0;
+static int postview_offset = 1;
+static int kpostviewbuffercount;
 
 static int16_t * zoomRatios;
 
@@ -1579,6 +1581,9 @@ void QualcommCameraHardware::initDefaultParameters()
     /* Initialize the camframe_timeout_flag*/
     Mutex::Autolock l(&mCamframeTimeoutLock);
     camframe_timeout_flag = FALSE;
+    kpostviewbuffercount = 1;
+    if (mCurrentTarget == TARGET_MSM7627)
+        kpostviewbuffercount = 2;
     mPostviewHeap = NULL;
     mDisplayHeap = NULL;
     mLastPreviewFrameHeap = NULL;
@@ -2262,7 +2267,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 offset = kPreviewBufferCount + dstOffset;
                 ssize_t dstOffset_addr = offset * mPreviewHeap->mAlignedBufferSize;
                 if( !native_zoom_image(mPreviewHeap->mHeap->getHeapID(),
-                    offset_addr, dstOffset_addr, crop)) {
+                    offset_addr, dstOffset_addr, crop,previewWidth,previewHeight)) {
                     LOGE(" Error while doing MDP zoom ");
                     offset = offset_addr / mPreviewHeap->mAlignedBufferSize;
                 }
@@ -2961,7 +2966,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          MSM_PMEM_THUMBNAIL,
                          postViewBufferSize,
-                         1,
+                         kpostviewbuffercount,
                          postViewBufferSize,
                          CbCrOffsetPostview,
                          0,
@@ -3991,7 +3996,7 @@ void QualcommCameraHardware::receiveRecordingFrame(struct msm_frame *frame)
 }
 
 
-bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOffSet, common_crop_t *crop)
+bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOffSet, common_crop_t *crop,int framewidth,int frameheight)
 {
     int result = 0;
     struct mdp_blit_req *e;
@@ -4001,14 +4006,14 @@ bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOff
 
     e = &zoomImage.list.req[0];
 
-    e->src.width = previewWidth;
-    e->src.height = previewHeight;
+    e->src.width = framewidth;
+    e->src.height = frameheight;
     e->src.format = MDP_Y_CBCR_H2V2;
     e->src.offset = srcOffset;
     e->src.memory_id = fd;
 
-    e->dst.width = previewWidth;
-    e->dst.height = previewHeight;
+    e->dst.width = framewidth;
+    e->dst.height = frameheight;
     e->dst.format = MDP_Y_CBCR_H2V2;
     e->dst.offset = dstOffSet;
     e->dst.memory_id = fd;
@@ -4024,16 +4029,16 @@ bool QualcommCameraHardware::native_zoom_image(int fd, int srcOffset, int dstOff
     } else {
         e->src_rect.x = 0;
         e->src_rect.y = 0;
-        e->src_rect.w = previewWidth;
-        e->src_rect.h = previewHeight;
+        e->src_rect.w = framewidth;
+        e->src_rect.h = frameheight;
     }
     //LOGV(" native_zoom : SRC_RECT : x,y = %d,%d \t w,h = %d, %d",
     //        e->src_rect.x, e->src_rect.y, e->src_rect.w, e->src_rect.h);
 
     e->dst_rect.x = 0;
     e->dst_rect.y = 0;
-    e->dst_rect.w = previewWidth;
-    e->dst_rect.h = previewHeight;
+    e->dst_rect.w = framewidth;
+    e->dst_rect.h = frameheight;
 
     result = ioctl(fb_fd, MSMFB_BLIT, &zoomImage.list);
     if (result < 0) {
@@ -4693,10 +4698,32 @@ void QualcommCameraHardware::receiveRawPicture(status_t status, void *cropp)
             }
             mOverlayLock.unlock();
         }
-        /* Give the main Image as raw to upper layers */
-        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
-            mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[0],
-                            mCallbackCookie);
+        if(mCurrentTarget == TARGET_MSM7627) {
+            /* Give the postview buffer to upper layers */
+            common_crop_t *crop = (common_crop_t *) cropp;
+            if (crop->in1_w != 0 && crop->in1_h != 0) {
+                ssize_t srcOffset_addr = mPostviewHeap->mAlignedBufferSize;
+                ssize_t dstOffset_addr = 0;
+                if( !native_zoom_image(mPostviewHeap->mHeap->getHeapID(),
+                                       srcOffset_addr, dstOffset_addr,
+                                       crop,
+                                       mPostviewWidth,mPostviewHeight)) {
+                    LOGE(" Error while doing MDP zoom ");
+                }
+                postview_offset = 0;
+            }
+            else
+                postview_offset = 1;
+            if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
+                mDataCallback(CAMERA_MSG_RAW_IMAGE, mPostviewHeap->mBuffers[postview_offset],
+                                mCallbackCookie);
+        }
+        else {
+            /* Give the main Image as raw to upper layers */
+            if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
+                mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[0],
+                                mCallbackCookie);
+        }
     }else {
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
             mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapShotPmemHeap->mBuffers[0],

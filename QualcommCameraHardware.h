@@ -111,13 +111,13 @@ public:
     void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
-    void receiveJpegPicture(status_t status, uint32_t size);
+    void receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
     void notifyShutter(bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
-    void receiveRawPicture(status_t status, void *cropp);
+    void receiveRawPicture(status_t status, struct msm_frame *postviewframe, struct msm_frame *mainframe);
 
 private:
     QualcommCameraHardware();
@@ -147,7 +147,8 @@ private:
     static const int kPreviewBufferCount = NUM_PREVIEW_BUFFERS;
     static const int kRawBufferCount = 1;
     static const int kJpegBufferCount = 1;
-
+    int numCapture;
+    int numJpegReceived;
     int jpegPadding;
 
     CameraParameters mParameters;
@@ -240,6 +241,8 @@ private:
     bool initRecord();
     void deinitPreview();
     bool initRaw(bool initJpegHeap);
+    bool initZslBuffers(bool initJpegHeap);
+    bool deinitZslBuffers();
     bool initLiveSnapshot(int videowidth, int videoheight);
     bool initRawSnapshot();
     void deinitRaw();
@@ -330,8 +333,8 @@ private:
     bool supportsFaceDetection();
 
     void initDefaultParameters();
-    bool initImageEncodeParameters(void);
-
+    bool initImageEncodeParameters(int size);
+    bool initZslParameter(void);
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);
     status_t setPreviewFrameRate(const CameraParameters& params);
@@ -449,6 +452,8 @@ private:
     int mPictureHeight;
     int mPostviewWidth;
     int mPostviewHeight;
+    int mZslEnable;
+    bool mZslFlashEnable;
 };
 
 }; // namespace android

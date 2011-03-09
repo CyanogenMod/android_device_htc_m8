@@ -3306,8 +3306,11 @@ void QualcommCameraHardware::runAutoFocus()
         status = FALSE;
     }
 
-    if(mHasAutoFocusSupport && (updateFocusDistances(focusMode) != NO_ERROR)) {
-        LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, focusMode);
+    {
+        Mutex::Autolock pl(&mParametersLock);
+        if(mHasAutoFocusSupport && (updateFocusDistances(focusMode) != NO_ERROR)) {
+            LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, focusMode);
+        }
     }
 
     LOGV("af done: %d", (int)status);
@@ -3691,6 +3694,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     LOGV("setParameters: E params = %p", &params);
 
     Mutex::Autolock l(&mLock);
+    Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setPreviewSize(params)))  final_rc = rc;

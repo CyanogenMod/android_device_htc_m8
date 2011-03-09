@@ -375,6 +375,8 @@ private:
     bool camframe_timeout_flag;
     bool mReleasedRecordingFrame;
 
+    Mutex mParametersLock;
+
 
     Mutex mCallbackLock;
     Mutex mOverlayLock;

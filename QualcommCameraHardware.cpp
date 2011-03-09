@@ -5860,7 +5860,7 @@ status_t QualcommCameraHardware::setOverlayFormats(const CameraParameters& param
 {
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
     if(mIs3DModeOn == true) {
-        int ovFormat = HAL_PIXEL_FORMAT_YCrCb_420_SP|HAL_3D_IN_SIDE_BY_SIDE_HALF_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
+        int ovFormat = HAL_PIXEL_FORMAT_YCrCb_420_SP|HAL_3D_IN_SIDE_BY_SIDE_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
         mParameters.set("overlay-format", ovFormat);
     }
     return NO_ERROR;

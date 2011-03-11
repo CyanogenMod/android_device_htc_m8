@@ -318,6 +318,7 @@ static int kRecordBufferCount;
  * 0: VPE support is not available (default)
  */
 static bool mVpeEnabled;
+static cam_frame_start_parms camframeParams;
 
 static int HAL_numOfCameras;
 static camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
@@ -2765,11 +2766,12 @@ bool QualcommCameraHardware::initPreview()
         pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        camframeParams.cammode = CAMERA_MODE_2D;
 
         mFrameThreadRunning = !pthread_create(&mFrameThread,
                                               &attr,
                                               frame_thread,
-                                              (void*)NULL);
+                                              &camframeParams);
         ret = mFrameThreadRunning;
         mFrameThreadWaitLock.unlock();
     }

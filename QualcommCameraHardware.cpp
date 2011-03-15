@@ -2871,6 +2871,11 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     //postview buffer initialization
     postViewBufferSize  = mPostviewWidth * mPostviewHeight * 3 / 2;
     int CbCrOffsetPostview = PAD_TO_WORD(mPostviewWidth * mPostviewHeight);
+    if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO) {
+        postViewBufferSize  = PAD_TO_4K(CEILING32(mPostviewWidth) * CEILING32(mPostviewHeight)) +
+                                  2 * (CEILING32(mPostviewWidth/2) * CEILING32(mPostviewHeight/2));
+        int CbCrOffsetPostview = PAD_TO_4K(CEILING32(mPostviewWidth) * CEILING32(mPostviewHeight));
+    }
 
     //Snapshot buffer initialization
     mRawSize = mPictureWidth * mPictureHeight * 3 / 2;
@@ -2897,11 +2902,13 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     int yOffset = 0;
     buf_info.resolution.width = mPictureWidth;
     buf_info.resolution.height = mPictureHeight;
-    mCfgControl.mm_camera_get_parm(CAMERA_PARM_BUFFER_INFO, (void *)&buf_info);
-    mRawSize = buf_info.size;
-    mJpegMaxSize = mRawSize;
-    mCbCrOffsetRaw = buf_info.cbcr_offset;
-    yOffset = buf_info.yoffset;
+    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO) {
+        mCfgControl.mm_camera_get_parm(CAMERA_PARM_BUFFER_INFO, (void *)&buf_info);
+        mRawSize = buf_info.size;
+        mJpegMaxSize = mRawSize;
+        mCbCrOffsetRaw = buf_info.cbcr_offset;
+        yOffset = buf_info.yoffset;
+    }
 
     LOGV("initZslBuffer: initializing mRawHeap.");
     if(mCurrentTarget == TARGET_MSM8660)
@@ -3716,7 +3723,11 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
                                              CAMERA_OPS_CAPTURE_AND_ENCODE :
                                               CAMERA_OPS_RAW_CAPTURE;
-    if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
+    if(strTexturesOn == true) {
+        current_ops_type = CAMERA_OPS_CAPTURE;
+        mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
+                         NULL);
+    } else if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
         if(!mZslEnable || mZslFlashEnable){
             mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
                  (void *)&mImageEncodeParms);
@@ -3756,7 +3767,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mSnapshotThreadRunning = false;
     mSnapshotThreadWait.signal();
     mSnapshotThreadWaitLock.unlock();
-    if(!mZslEnable || mZslFlashEnable)
+    if( (!mZslEnable || mZslFlashEnable) && (strTexturesOn != true))
         mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
     mZslFlashEnable  = false;
     LOGV("runSnapshotThread X");
@@ -3856,6 +3867,8 @@ status_t QualcommCameraHardware::takePicture()
     mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
                                              CAMERA_OPS_CAPTURE_AND_ENCODE :
                                               CAMERA_OPS_RAW_CAPTURE;
+    if(strTexturesOn == true)
+        current_ops_type = CAMERA_OPS_CAPTURE;
 
     if( !mZslEnable || mZslFlashEnable)
 	    mCamOps.mm_camera_init(current_ops_type, NULL, NULL);
@@ -4822,6 +4835,11 @@ void QualcommCameraHardware::notifyShutter(bool mPlayShutterSoundOnly)
         mDisplayHeap = mPostviewHeap;
         size.width = mPostviewWidth;
         size.height = mPostviewHeight;
+        if(strTexturesOn == true) {
+            mDisplayHeap = mRawHeap;
+            size.width = mPictureWidth;
+            size.height = mPictureHeight;
+        }
         /* Now, invoke Notify Callback to unregister preview buffer
          * and register postview buffer with surface flinger. Set ext2
          * as 0 to indicate not to play shutter sound.
@@ -5061,6 +5079,16 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
                 if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
                     mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[offset],
                             mCallbackCookie);
+            }
+            if(strTexturesOn == true) {
+                LOGI("Raw Data given to app for processing...will wait for jpeg encode call");
+                mEncodePendingWaitLock.lock();
+                mEncodePending = true;
+                mEncodePendingWaitLock.unlock();
+                mJpegThreadWaitLock.lock();
+                mJpegThreadRunning = false;
+                mJpegThreadWait.signal();
+                mJpegThreadWaitLock.unlock();
             }
         }
     }else {
@@ -6658,34 +6686,24 @@ void QualcommCameraHardware::encodeData() {
     LOGV("encodeData: E");
 
     if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        mJpegSize = 0;
         mJpegThreadWaitLock.lock();
-        if (LINK_jpeg_encoder_init()) {
             mJpegThreadRunning = true;
             mJpegThreadWaitLock.unlock();
-
-            if(initImageEncodeParameters(1)) {
-                LOGV("encodeData: X (success)");
-                //Wait until jpeg encoding is done and call jpeg join
-                //in this context. Also clear the resources.
-                mJpegThreadWaitLock.lock();
-                while (mJpegThreadRunning) {
-                    LOGV("encodeData: waiting for jpeg thread to complete.");
-                    mJpegThreadWait.wait(mJpegThreadWaitLock);
-                    LOGV("encodeData: jpeg thread completed.");
-                }
-                mJpegThreadWaitLock.unlock();
-                //Call jpeg join in this thread context
-                LINK_jpeg_encoder_join();
+            mm_camera_ops_type_t current_ops_type = CAMERA_OPS_ENCODE;
+            mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
+                                     (void *)&mImageEncodeParms);
+            //Wait until jpeg encoding is done and clear the resources.
+            mJpegThreadWaitLock.lock();
+            while (mJpegThreadRunning) {
+                LOGV("encodeData: waiting for jpeg thread to complete.");
+                mJpegThreadWait.wait(mJpegThreadWaitLock);
+                LOGV("encodeData: jpeg thread completed.");
             }
-            LOGE("encodeData: jpeg encoding failed");
-        }
-        else {
-            LOGE("encodeData X: jpeg_encoder_init failed.");
             mJpegThreadWaitLock.unlock();
-        }
     }
     else LOGV("encodeData: JPEG callback is NULL, not encoding image.");
+
+    mCamOps.mm_camera_deinit(CAMERA_OPS_CAPTURE, NULL, NULL);
     //clear the resources
     deinitRaw();
     //Encoding is done.

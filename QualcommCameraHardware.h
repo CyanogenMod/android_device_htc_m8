@@ -114,7 +114,7 @@ public:
     void receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
-    void notifyShutter(bool mPlayShutterSoundOnly);
+    void notifyShutter(common_crop_t *crop,bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
     void receiveRawPicture(status_t status, struct msm_frame *postviewframe, struct msm_frame *mainframe);

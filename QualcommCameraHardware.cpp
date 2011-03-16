@@ -1096,8 +1096,6 @@ static int fb_fd = -1;
 static int32_t mMaxZoom = 0;
 static bool zoomSupported = false;
 static int dstOffset = 0;
-static int postview_offset = 1;
-static int kpostviewbuffercount;
 
 static int16_t * zoomRatios;
 
@@ -1659,9 +1657,6 @@ void QualcommCameraHardware::initDefaultParameters()
     /* Initialize the camframe_timeout_flag*/
     Mutex::Autolock l(&mCamframeTimeoutLock);
     camframe_timeout_flag = FALSE;
-    kpostviewbuffercount = 1;
-    if (mCurrentTarget == TARGET_MSM7627)
-        kpostviewbuffercount = 2;
     mPostviewHeap = NULL;
     mDisplayHeap = NULL;
     mLastPreviewFrameHeap = NULL;
@@ -3299,7 +3294,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          MSM_PMEM_THUMBNAIL,
                          postViewBufferSize,
-                         kpostviewbuffercount,
+                         1,
                          postViewBufferSize,
                          CbCrOffsetPostview,
                          0,
@@ -3911,7 +3906,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
             mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
                  (void *)&mImageEncodeParms);
             }else{
-//                notifyShutter(TRUE);
+//                notifyShutter(NULL,TRUE);
                 initZslParameter();
                 LOGE("snapshot mZslCapture.thumbnail %d %d %d",mZslCaptureParms.thumbnail_width,
                                      mZslCaptureParms.thumbnail_height,mZslCaptureParms.num_captures);
@@ -3930,7 +3925,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
        if(!mZslEnable || mZslFlashEnable)
             deinitRaw();
     }else if(mSnapshotFormat == PICTURE_FORMAT_RAW){
-        notifyShutter(TRUE);
+        notifyShutter(NULL,TRUE);
         mCamOps.mm_camera_start(current_ops_type,(void *)&mRawCaptureParms,
                                  NULL);
         mJpegThreadWaitLock.lock();
@@ -5049,7 +5044,7 @@ bool QualcommCameraHardware::recordingEnabled()
     return mCameraRunning && mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME);
 }
 
-void QualcommCameraHardware::notifyShutter(bool mPlayShutterSoundOnly)
+void QualcommCameraHardware::notifyShutter(common_crop_t *crop,bool mPlayShutterSoundOnly)
 {
     mShutterLock.lock();
     image_rect_type size;
@@ -5069,8 +5064,14 @@ void QualcommCameraHardware::notifyShutter(bool mPlayShutterSoundOnly)
 
     if (mShutterPending && mNotifyCallback && (mMsgEnabled & CAMERA_MSG_SHUTTER)) {
         mDisplayHeap = mPostviewHeap;
-        size.width = mPostviewWidth;
-        size.height = mPostviewHeight;
+        if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
+            size.width = crop->in1_w;
+            size.height = crop->in1_h;
+        }
+        else {
+            size.width = mPostviewWidth;
+            size.height = mPostviewHeight;
+        }
         if(strTexturesOn == true) {
             mDisplayHeap = mRawHeap;
             size.width = mPictureWidth;
@@ -5093,7 +5094,7 @@ static void receive_shutter_callback(common_crop_t *crop)
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
         /* Just play shutter sound at this time */
-        obj->notifyShutter(TRUE);
+        obj->notifyShutter(NULL,TRUE);
     }
     LOGV("receive_shutter_callback: X");
 }
@@ -5216,6 +5217,7 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
 {
     LOGE("%s: E", __FUNCTION__);
     void *cropp;
+    common_crop_t *crop = NULL;
     ssize_t offset_addr ;
     ssize_t offset;
     mSnapshotThreadWaitLock.lock();
@@ -5256,19 +5258,22 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
      * That is necessary otherwise the preview memory wont be
      * deallocated.
      */
-    notifyShutter(FALSE);
+    cropp =postviewframe->cropinfo;
+    if(mCurrentTarget == TARGET_MSM7627 && cropp != NULL) {
+        crop = (common_crop_t *) cropp;
+    }
+    notifyShutter(crop,FALSE);
 
     if(mSnapshotFormat == PICTURE_FORMAT_JPEG) {
-         cropp =postviewframe->cropinfo;
+        // Find the offset within the heap of the current buffer.
+        offset_addr = (ssize_t)postviewframe->buffer - (ssize_t)mPostviewHeap->mHeap->base();
+        offset = offset_addr / mPostviewHeap->mAlignedBufferSize;
         if(mUseOverlay) {
             mOverlayLock.lock();
             if(mOverlay != NULL) {
-                 // Find the offset within the heap of the current buffer.
-               offset_addr = (ssize_t)postviewframe->buffer - (ssize_t)mPostviewHeap->mHeap->base();
-               offset = offset_addr / mPostviewHeap->mAlignedBufferSize;
                 mOverlay->setFd(mPostviewHeap->mHeap->getHeapID());
                 if(cropp != NULL){
-                    common_crop_t *crop = (common_crop_t *)cropp;
+                    crop = (common_crop_t *)cropp;
                     if (crop->in1_w != 0 && crop->in1_h != 0) {
                         int x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
                         int y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
@@ -5289,22 +5294,12 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
         }
         if(mCurrentTarget == TARGET_MSM7627) {
             /* Give the postview buffer to upper layers */
-            common_crop_t *crop = (common_crop_t *) cropp;
             if (crop->in1_w != 0 && crop->in1_h != 0) {
-                ssize_t srcOffset_addr = mPostviewHeap->mAlignedBufferSize;
-                ssize_t dstOffset_addr = 0;
-                if( !native_zoom_image(mPostviewHeap->mHeap->getHeapID(),
-                                       srcOffset_addr, dstOffset_addr,
-                                       crop,
-                                       mPostviewWidth,mPostviewHeight)) {
-                    LOGE(" Error while doing MDP zoom ");
-                }
-                postview_offset = 0;
+                crop_yuv420(crop->out1_w, crop->out1_h, crop->in1_w, crop->in1_h,
+                                          (uint8_t *)mPostviewHeap->mHeap->base(), mPostviewHeap->mName);
             }
-            else
-                postview_offset = 1;
             if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
-                mDataCallback(CAMERA_MSG_RAW_IMAGE, mPostviewHeap->mBuffers[postview_offset],
+                mDataCallback(CAMERA_MSG_RAW_IMAGE, mPostviewHeap->mBuffers[0],
                                 mCallbackCookie);
         }
         else {

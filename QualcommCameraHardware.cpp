@@ -2681,49 +2681,7 @@ static int parse_size(const char *str, int &width, int &height)
 
 bool QualcommCameraHardware::initPreview()
 {
-    // See comments in deinitPreview() for why we have to wait for the frame
-    // thread here, and why we can't use pthread_join().
     const char * pmem_region;
-    mParameters.getPreviewSize(&previewWidth, &previewHeight);
-
-    //Get the Record sizes
-    const char *recordSize = NULL;
-    recordSize = mParameters.get("record-size");
-    if(!recordSize) {
-        //If application didn't set this parameter string, use the values from
-        //getPreviewSize() as video dimensions.
-        LOGV("No Record Size requested, use the preview dimensions");
-        videoWidth = previewWidth;
-        videoHeight = previewHeight;
-    } else {
-        //Extract the record witdh and height that application requested.
-        if(!parse_size(recordSize, videoWidth, videoHeight)) {
-            //VFE output1 shouldn't be greater than VFE output2.
-            if( (previewWidth > videoWidth) || (previewHeight > videoHeight)) {
-                //Set preview sizes as record sizes.
-                LOGI("Preview size %dx%d is greater than record size %dx%d,\
-                   resetting preview size to record size",previewWidth,\
-                     previewHeight, videoWidth, videoHeight);
-                previewWidth = videoWidth;
-                previewHeight = videoHeight;
-                mParameters.setPreviewSize(previewWidth, previewHeight);
-            }
-            if( (mCurrentTarget != TARGET_MSM7630)
-                && (mCurrentTarget != TARGET_QSD8250)
-                 && (mCurrentTarget != TARGET_MSM8660) ) {
-                //For Single VFE output targets, use record dimensions as preview dimensions.
-                previewWidth = videoWidth;
-                previewHeight = videoHeight;
-                mParameters.setPreviewSize(previewWidth, previewHeight);
-            }
-        } else {
-            LOGE("initPreview X: failed to parse parameter record-size (%s)", recordSize);
-            return false;
-        }
-    }
-
-    mDimension.display_width = previewWidth;
-    mDimension.display_height= previewHeight;
 
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
@@ -2735,22 +2693,24 @@ bool QualcommCameraHardware::initPreview()
          */
         videoWidth = mDimension.video_width;
         mDimension.video_height = videoHeight;
-        LOGV("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, mDimension.video_width, mDimension.video_height );
+        LOGI("initPreview : preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight);
     }
 
+    // See comments in deinitPreview() for why we have to wait for the frame
+    // thread here, and why we can't use pthread_join().
     mFrameThreadWaitLock.lock();
     while (mFrameThreadRunning) {
-        LOGV("initPreview: waiting for old frame thread to complete.");
+        LOGI("initPreview: waiting for old frame thread to complete.");
         mFrameThreadWait.wait(mFrameThreadWaitLock);
-        LOGV("initPreview: old frame thread completed.");
+        LOGI("initPreview: old frame thread completed.");
     }
     mFrameThreadWaitLock.unlock();
 
     mInSnapshotModeWaitLock.lock();
     while (mInSnapshotMode) {
-        LOGV("initPreview: waiting for snapshot mode to complete.");
+        LOGI("initPreview: waiting for snapshot mode to complete.");
         mInSnapshotModeWait.wait(mInSnapshotModeWaitLock);
-        LOGV("initPreview: snapshot mode completed.");
+        LOGI("initPreview: snapshot mode completed.");
     }
     mInSnapshotModeWaitLock.unlock();
 
@@ -4211,6 +4171,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setPreviewSize(params)))  final_rc = rc;
+    if ((rc = setRecordSize(params)))  final_rc = rc;
     if ((rc = setPictureSize(params)))  final_rc = rc;
     if ((rc = setJpegThumbnailSize(params))) final_rc = rc;
     if ((rc = setJpegQuality(params)))  final_rc = rc;
@@ -4227,7 +4188,6 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setTouchAfAec(params)))   final_rc = rc;
     if ((rc = setSceneMode(params)))    final_rc = rc;
     if ((rc = setContrast(params)))     final_rc = rc;
-    if ((rc = setRecordSize(params)))  final_rc = rc;
     if ((rc = setSceneDetect(params)))  final_rc = rc;
     if ((rc = setStrTextures(params)))   final_rc = rc;
     if ((rc = setPreviewFormat(params)))   final_rc = rc;
@@ -4723,6 +4683,8 @@ bool QualcommCameraHardware::initRecord()
     else
         pmem_region = "/dev/pmem_adsp";
 
+    LOGI("initRecord: mDimension.video_width = %d mDimension.video_height = %d",
+             mDimension.video_width, mDimension.video_height);
     // for 8x60 the Encoder expects the CbCr offset should be aligned to 2K.
     if(mCurrentTarget == TARGET_MSM8660) {
         CbCrOffset = PAD_TO_2K(mDimension.video_width  * mDimension.video_height);
@@ -4731,8 +4693,6 @@ bool QualcommCameraHardware::initRecord()
         CbCrOffset = PAD_TO_WORD(mDimension.video_width  * mDimension.video_height);
         recordBufferSize = (mDimension.video_width  * mDimension.video_height *3)/2;
     }
-    LOGV("initRecord: mDimension.video_width = %d mDimension.video_height = %d",
-             mDimension.video_width, mDimension.video_height);
 
     /* Buffersize and frameSize will be different when DIS is ON.
      * We need to pass the actual framesize with video heap, as the same
@@ -5413,20 +5373,50 @@ bool QualcommCameraHardware::previewEnabled()
 }
 status_t QualcommCameraHardware::setRecordSize(const CameraParameters& params)
 {
-    const char *str = params.get("record-size");
-    if(str) {
-        LOGV("Requested Record size %s", str);
-        mParameters.set("record-size" , str);
-    } else {
-        //set the record-size value to null.
-        //This is required as the application can request
-        //to reset this value, so that it won't be carried
-        //when switched to camera.
+    const char *recordSize = NULL;
+    recordSize = params.get("record-size");
+    if(!recordSize) {
         mParameters.set("record-size", "");
+        //If application didn't set this parameter string, use the values from
+        //getPreviewSize() as video dimensions.
+        LOGV("No Record Size requested, use the preview dimensions");
+        videoWidth = previewWidth;
+        videoHeight = previewHeight;
+    } else {
+        //Extract the record witdh and height that application requested.
+        LOGI("%s: requested record size %s", __FUNCTION__, recordSize);
+        if(!parse_size(recordSize, videoWidth, videoHeight)) {
+            mParameters.set("record-size" , recordSize);
+            //VFE output1 shouldn't be greater than VFE output2.
+            if( (previewWidth > videoWidth) || (previewHeight > videoHeight)) {
+                //Set preview sizes as record sizes.
+                LOGI("Preview size %dx%d is greater than record size %dx%d,\
+                   resetting preview size to record size",previewWidth,\
+                     previewHeight, videoWidth, videoHeight);
+                previewWidth = videoWidth;
+                previewHeight = videoHeight;
+                mParameters.setPreviewSize(previewWidth, previewHeight);
+            }
+            if( (mCurrentTarget != TARGET_MSM7630)
+                && (mCurrentTarget != TARGET_QSD8250)
+                 && (mCurrentTarget != TARGET_MSM8660) ) {
+                //For Single VFE output targets, use record dimensions as preview dimensions.
+                previewWidth = videoWidth;
+                previewHeight = videoHeight;
+                mParameters.setPreviewSize(previewWidth, previewHeight);
+            }
+        } else {
+            mParameters.set("record-size", "");
+            LOGE("initPreview X: failed to parse parameter record-size (%s)", recordSize);
+            return BAD_VALUE;
+        }
     }
+    LOGI("%s: preview dimensions: %dx%d", __FUNCTION__, previewWidth, previewHeight);
+    LOGI("%s: video dimensions: %dx%d", __FUNCTION__, videoWidth, videoHeight);
+    mDimension.display_width = previewWidth;
+    mDimension.display_height= previewHeight;
     return NO_ERROR;
 }
-
 
 status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
 {
@@ -5439,6 +5429,8 @@ status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
         if (width ==  preview_sizes[i].width
            && height ==  preview_sizes[i].height) {
             mParameters.setPreviewSize(width, height);
+            previewWidth = width;
+            previewHeight = height;
             mDimension.display_width = width;
             mDimension.display_height= height;
             return NO_ERROR;

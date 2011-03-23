@@ -1166,8 +1166,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPostviewWidth(0),
       mPostviewHeight(0),
       mZslEnable(0),
-      mZslFlashEnable(false)
-
+      mZslFlashEnable(false),
+      mSnapshotCancel(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -3872,11 +3872,29 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
 {
     bool ret = true;
     CAMERA_HAL_UNUSED(data);
-    LOGV("runSnapshotThread E");
+    LOGI("runSnapshotThread E");
 
     if(!libmmcamera){
         LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
     }
+    mSnapshotCancelLock.lock();
+    if(mSnapshotCancel == true) {
+        mSnapshotCancel = false;
+        mSnapshotCancelLock.unlock();
+        LOGI("%s: cancelpicture has been called..so abort taking snapshot", __FUNCTION__);
+        deinitRaw();
+        mInSnapshotModeWaitLock.lock();
+        mInSnapshotMode = false;
+        mInSnapshotModeWait.signal();
+        mInSnapshotModeWaitLock.unlock();
+        mSnapshotThreadWaitLock.lock();
+        mSnapshotThreadRunning = false;
+        mSnapshotThreadWait.signal();
+        mSnapshotThreadWaitLock.unlock();
+        return;
+    }
+    mSnapshotCancelLock.unlock();
+
     mJpegThreadWaitLock.lock();
     mJpegThreadRunning = true;
     mJpegThreadWait.signal();
@@ -3897,7 +3915,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
                 initZslParameter();
                 LOGE("snapshot mZslCapture.thumbnail %d %d %d",mZslCaptureParms.thumbnail_width,
                                      mZslCaptureParms.thumbnail_height,mZslCaptureParms.num_captures);
-   	        mCamOps.mm_camera_start(current_ops_type,(void *)&mZslCaptureParms,
+                mCamOps.mm_camera_start(current_ops_type,(void *)&mZslCaptureParms,
                       (void *)&mImageEncodeParms);
            }
         mJpegThreadWaitLock.lock();
@@ -3924,14 +3942,14 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
         mJpegThreadWaitLock.unlock();
     }
 
+    if(!mZslEnable || mZslFlashEnable)
+        mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
+    mZslFlashEnable  = false;
     mSnapshotThreadWaitLock.lock();
     mSnapshotThreadRunning = false;
     mSnapshotThreadWait.signal();
     mSnapshotThreadWaitLock.unlock();
-    if( (!mZslEnable || mZslFlashEnable) && (strTexturesOn != true))
-        mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
-    mZslFlashEnable  = false;
-    LOGV("runSnapshotThread X");
+    LOGI("runSnapshotThread X");
 }
 
 void *snapshot_thread(void *user)
@@ -4055,6 +4073,10 @@ status_t QualcommCameraHardware::takePicture()
     mShutterPending = true;
     mShutterLock.unlock();
 
+    mSnapshotCancelLock.lock();
+    mSnapshotCancel = false;
+    mSnapshotCancelLock.unlock();
+
     numJpegReceived = 0;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -4162,7 +4184,13 @@ bool QualcommCameraHardware::initLiveSnapshot(int videowidth, int videoheight)
 status_t QualcommCameraHardware::cancelPicture()
 {
     status_t rc;
-    LOGV("cancelPicture: E");
+    LOGI("cancelPicture: E");
+
+    mSnapshotCancelLock.lock();
+    LOGI("%s: setting mSnapshotCancel to true", __FUNCTION__);
+    mSnapshotCancel = true;
+    mSnapshotCancelLock.unlock();
+
     if (mCurrentTarget == TARGET_MSM7627) {
         mSnapshotDone = TRUE;
         mSnapshotThreadWaitLock.lock();
@@ -4173,9 +4201,9 @@ status_t QualcommCameraHardware::cancelPicture()
         }
         mSnapshotThreadWaitLock.unlock();
     }
-         rc = native_stop_ops(CAMERA_OPS_SNAPSHOT, NULL) ? NO_ERROR : UNKNOWN_ERROR;
+    rc = native_stop_ops(CAMERA_OPS_SNAPSHOT, NULL) ? NO_ERROR : UNKNOWN_ERROR;
     mSnapshotDone = FALSE;
-    LOGV("cancelPicture: X: %d", rc);
+    LOGI("cancelPicture: X: %d", rc);
     return rc;
 }
 

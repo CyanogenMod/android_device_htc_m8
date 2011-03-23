@@ -459,6 +459,8 @@ private:
     int mZslEnable;
     bool mZslFlashEnable;
     cam_3d_frame_format_t mSnapshot3DFormat;
+    bool mSnapshotCancel;
+    Mutex mSnapshotCancelLock;
 };
 
 }; // namespace android

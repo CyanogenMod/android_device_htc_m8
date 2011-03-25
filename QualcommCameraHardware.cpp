@@ -2157,6 +2157,7 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     mImageEncodeParms.exif_data = exif_data;
     mImageEncodeParms.exif_numEntries = exif_table_numEntries;
 
+    mImageEncodeParms.format3d = mIs3DModeOn;
     return true;
 }
 
@@ -3202,13 +3203,18 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     }
     cam_buf_info_t buf_info;
     int yOffset = 0;
-    buf_info.resolution.width = mPictureWidth * w_scale_factor;
-    buf_info.resolution.height = mPictureHeight;
-    mCfgControl.mm_camera_get_parm(CAMERA_PARM_BUFFER_INFO, (void *)&buf_info);
-    mRawSize = buf_info.size;
-    mJpegMaxSize = mRawSize;
-    mCbCrOffsetRaw = buf_info.cbcr_offset;
-    yOffset = buf_info.yoffset;
+    if(mIs3DModeOn == false)
+    {
+        buf_info.resolution.width = mPictureWidth * w_scale_factor;
+        buf_info.resolution.height = mPictureHeight;
+        mCfgControl.mm_camera_get_parm(CAMERA_PARM_BUFFER_INFO, (void *)&buf_info);
+        mRawSize = buf_info.size;
+        mJpegMaxSize = mRawSize;
+        mCbCrOffsetRaw = buf_info.cbcr_offset;
+        yOffset = buf_info.yoffset;
+    }
+
+    LOGE("rawsize = %d cbcr offset =%d", mRawSize, mCbCrOffsetRaw);
 
     LOGV("initRaw: initializing mRawHeap.");
     if(mCurrentTarget == TARGET_MSM8660)
@@ -3349,7 +3355,12 @@ void QualcommCameraHardware::release()
         stopPreviewInternal();
         LOGI("release: stopPreviewInternal done.");
     }
-    LINK_jpeg_encoder_join();
+
+    mm_camera_ops_type_t current_ops_type = (mSnapshotFormat
+            == PICTURE_FORMAT_JPEG) ? CAMERA_OPS_CAPTURE_AND_ENCODE
+            : CAMERA_OPS_RAW_CAPTURE;
+    mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
+
     //Signal the snapshot thread
     mJpegThreadWaitLock.lock();
     mJpegThreadRunning = false;

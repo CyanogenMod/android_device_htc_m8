@@ -665,6 +665,13 @@ static const str_map lensshade[] = {
     { CameraParameters::LENSSHADE_DISABLE, FALSE }
 };
 
+static const str_map hfr[] = {
+    { CameraParameters::VIDEO_HFR_OFF, CAMERA_HFR_MODE_OFF },
+    { CameraParameters::VIDEO_HFR_2X, CAMERA_HFR_MODE_60FPS },
+    { CameraParameters::VIDEO_HFR_3X, CAMERA_HFR_MODE_90FPS },
+    { CameraParameters::VIDEO_HFR_4X, CAMERA_HFR_MODE_120FPS },
+};
+
 static const str_map mce[] = {
     { CameraParameters::MCE_ENABLE, TRUE },
     { CameraParameters::MCE_DISABLE, FALSE }
@@ -757,6 +764,7 @@ static String8 scenedetect_values;
 static String8 preview_format_values;
 static String8 selectable_zone_af_values;
 static String8 facedetection_values;
+static String8 hfr_values;
 
 mm_camera_notify mCamNotify;
 mm_camera_ops mCamOps;
@@ -1117,6 +1125,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mCameraRunning(false),
       mPreviewInitialized(false),
       mPreviewThreadRunning(false),
+      mHFRThreadRunning(false),
       mFrameThreadRunning(false),
       mVideoThreadRunning(false),
       mSnapshotThreadRunning(false),
@@ -1162,7 +1171,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPostviewHeight(0),
       mZslEnable(0),
       mZslFlashEnable(false),
-      mSnapshotCancel(false)
+      mSnapshotCancel(false),
+      mHFRMode(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -1375,6 +1385,8 @@ void QualcommCameraHardware::initDefaultParameters()
             lensshade,sizeof(lensshade)/sizeof(str_map));
         mce_values = create_values_str(
             mce,sizeof(mce)/sizeof(str_map));
+        hfr_values = create_values_str(
+            hfr,sizeof(hfr)/sizeof(str_map));
         //Currently Enabling Histogram for 8x60
         if(mCurrentTarget == TARGET_MSM8660) {
             histogram_values = create_values_str(
@@ -1601,6 +1613,12 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::MCE_ENABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_MEM_COLOR_ENHANCE_MODES,
                     mce_values);
+    if(mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) {
+        mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE,
+                    CameraParameters::VIDEO_HFR_OFF);
+        mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
+                    hfr_values);
+    }
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
                     CameraParameters::HISTOGRAM_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_HISTOGRAM_MODES,
@@ -2273,8 +2291,15 @@ void QualcommCameraHardware::runFrameThread(void *data)
 
     if(mIs3DModeOn != true)
         mPreviewHeap.clear();
-    if(( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660))
-        mRecordHeap.clear();
+    if(( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)){
+        if(mHFRMode != true) {
+            mRecordHeap.clear();
+            mRecordHeap = NULL;
+        }else{
+            LOGI("%s: unregister record buffers with camera driver", __FUNCTION__);
+            register_record_buffers(false);
+        }
+    }
 
     mFrameThreadWaitLock.lock();
     mFrameThreadRunning = false;
@@ -2488,8 +2513,30 @@ void *preview_thread(void *user)
     return NULL;
 }
 
+void *hfr_thread(void *user)
+{
+    LOGI("hfr_thread E");
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+    if (obj != 0) {
+        obj->runHFRThread(user);
+    }
+    else LOGE("not starting hfr thread: the object went away!");
+    LOGI("hfr_thread X");
+    return NULL;
+}
 
-
+void QualcommCameraHardware::runHFRThread(void *data)
+{
+    LOGD("runHFRThread E");
+    CAMERA_HAL_UNUSED(data);
+    LOGI("%s: stopping Preview", __FUNCTION__);
+    stopPreviewInternal();
+    LOGI("%s: setting parameters", __FUNCTION__);
+    setParameters(mParameters);
+    LOGI("%s: starting Preview", __FUNCTION__);
+    startPreviewInternal();
+    mHFRMode = false;
+}
 
 void QualcommCameraHardware::runVideoThread(void *data)
 {
@@ -4279,6 +4326,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     }
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))   final_rc = rc;
+    // setHighFrameRate needs to be done at end, as there can
+    // be a preview restart, and need to use the updated parameters
+    if ((rc = setHighFrameRate(params)))  final_rc = rc;
     LOGV("setParameters: X");
     return final_rc;
 }
@@ -4865,7 +4915,13 @@ bool QualcommCameraHardware::initRecord()
      * is used at camera MIO when negotiating with encoder.
      */
     mRecordFrameSize = recordBufferSize;
-    if((mVpeEnabled && mDisEnabled)|| mIs3DModeOn){
+    bool dis_disable = 0;
+    const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+    if((str != NULL) && (strcmp(str, CameraParameters::VIDEO_HFR_OFF))) {
+        LOGI("%s: HFR is ON, DIS has to be OFF", __FUNCTION__);
+        dis_disable = 1;
+    }
+    if((mVpeEnabled && mDisEnabled && (!dis_disable))|| mIs3DModeOn){
         mRecordFrameSize = videoWidth * videoHeight * 3 / 2;
         if(mCurrentTarget == TARGET_MSM8660){
             mRecordFrameSize = PAD_TO_2K(videoWidth * videoHeight)
@@ -4873,8 +4929,8 @@ bool QualcommCameraHardware::initRecord()
         }
     }
     LOGV("mRecordFrameSize = %d", mRecordFrameSize);
-
-    mRecordHeap = new PmemPool(pmem_region,
+    if(mRecordHeap == NULL) {
+        mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 MSM_PMEM_VIDEO,
                                 recordBufferSize,
@@ -4883,12 +4939,20 @@ bool QualcommCameraHardware::initRecord()
                                 CbCrOffset,
                                 0,
                                 "record");
-
-    if (!mRecordHeap->initialized()) {
-        mRecordHeap.clear();
-        LOGE("initRecord X: could not initialize record heap.");
-        return false;
+        if (!mRecordHeap->initialized()) {
+            mRecordHeap.clear();
+            mRecordHeap = NULL;
+            LOGE("initRecord X: could not initialize record heap.");
+            return false;
+        }
+    } else {
+        if(mHFRMode == true) {
+            LOGI("%s: register record buffers with camera driver", __FUNCTION__);
+            register_record_buffers(true);
+            mHFRMode = false;
+        }
     }
+
     for (int cnt = 0; cnt < kRecordBufferCount; cnt++) {
         recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
         recordframes[cnt].buffer =
@@ -4943,6 +5007,11 @@ status_t QualcommCameraHardware::setDIS() {
         video_frame_cbcroffset = PAD_TO_2K(videoWidth * videoHeight);
 
     disCtrl.dis_enable = mDisEnabled;
+    const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+    if((str != NULL) && (strcmp(str, CameraParameters::VIDEO_HFR_OFF))) {
+        LOGI("%s: HFR is ON, setting DIS as OFF", __FUNCTION__);
+        disCtrl.dis_enable = 0;
+    }
     disCtrl.video_rec_width = videoWidth;
     disCtrl.video_rec_height = videoHeight;
     disCtrl.output_cbcr_offset = video_frame_cbcroffset;
@@ -6075,6 +6144,46 @@ status_t QualcommCameraHardware::setMCEValue(const CameraParameters& params)
     return BAD_VALUE;
 }
 
+status_t QualcommCameraHardware::setHighFrameRate(const CameraParameters& params)
+{
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) {
+        LOGI("Parameter HFR is not supported for this sensor");
+        return NO_ERROR;
+    }
+
+    const char *str = params.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+    if (str != NULL) {
+        int value = attr_lookup(hfr, sizeof(hfr) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            int32_t temp = (int32_t)value;
+            LOGI("%s: setting HFR value of %s(%d)", __FUNCTION__, str, temp);
+            //Check for change in HFR value
+            const char *oldHfr = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+            if(strcmp(oldHfr, str)){
+                LOGI("%s: old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
+                mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE, str);
+                mHFRMode = true;
+                if(mCameraRunning == true) {
+                    mHFRThreadWaitLock.lock();
+                    pthread_attr_t pattr;
+                    pthread_attr_init(&pattr);
+                    pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_DETACHED);
+                    mHFRThreadRunning = !pthread_create(&mHFRThread,
+                                      &pattr,
+                                      hfr_thread,
+                                      (void*)NULL);
+                    mHFRThreadWaitLock.unlock();
+                    return NO_ERROR;
+                }
+            }
+            native_set_parms(CAMERA_PARM_HFR, sizeof(int32_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid HFR value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
 status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
 {
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ROLLOFF)) {
@@ -6609,6 +6718,39 @@ QualcommCameraHardware::AshmemPool::AshmemPool(int buffer_size, int num_buffers,
     mHeap = new MemoryHeapBase(ashmem_size);
 
     completeInitialization();
+}
+
+bool QualcommCameraHardware::register_record_buffers(bool register_buffer) {
+    LOGI("%s: (%d) E", __FUNCTION__, register_buffer);
+    struct msm_pmem_info pmemBuf;
+
+    for (int cnt = 0; cnt < kRecordBufferCount; ++cnt) {
+        pmemBuf.type     = MSM_PMEM_VIDEO;
+        pmemBuf.fd       = mRecordHeap->mHeap->getHeapID();
+        pmemBuf.offset   = mRecordHeap->mAlignedBufferSize * cnt;
+        pmemBuf.len      = mRecordHeap->mBufferSize;
+        pmemBuf.vaddr    = (uint8_t *)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
+        pmemBuf.y_off    = 0;
+        pmemBuf.cbcr_off = recordframes[0].cbcr_off;
+        if(register_buffer == true) {
+            pmemBuf.active   = (cnt<ACTIVE_VIDEO_BUFFERS);
+            if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
+                pmemBuf.type = MSM_PMEM_VIDEO_VPE;
+                pmemBuf.active = 1;
+            }
+        } else {
+            pmemBuf.active   = false;
+        }
+
+        LOGV("register_buf:  reg = %d buffer = %p", !register_buffer, buf);
+        if(native_start_ops(register_buffer ? CAMERA_OPS_REGISTER_BUFFER :
+                CAMERA_OPS_UNREGISTER_BUFFER ,(void *)&pmemBuf) < 0) {
+            LOGE("register_buf: MSM_CAM_IOCTL_(UN)REGISTER_PMEM  error %s",
+                strerror(errno));
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool register_buf(int size,

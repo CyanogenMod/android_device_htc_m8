@@ -255,6 +255,10 @@ private:
     friend void *preview_thread(void *user);
     friend void *openCamera(void *data);
     void runPreviewThread(void *data);
+    friend void *hfr_thread(void *user);
+    void runHFRThread(void *data);
+    bool mHFRThreadRunning;
+    Mutex mHFRThreadWaitLock;
 
     class FrameQueue : public RefBase{
     private:
@@ -382,6 +386,8 @@ private:
     status_t setPreviewFormat(const CameraParameters& params);
     status_t setSelectableZoneAf(const CameraParameters& params);
     status_t setOverlayFormats(const CameraParameters& params);
+    status_t setHighFrameRate(const CameraParameters& params);
+    bool register_record_buffers(bool register_buffer);
     void setGpsParameters();
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);
@@ -427,6 +433,7 @@ private:
     pthread_t mSnapshotThread;
     pthread_t mDeviceOpenThread;
     pthread_t mSmoothzoomThread;
+    pthread_t mHFRThread;
 
     common_crop_t mCrop;
 
@@ -472,6 +479,7 @@ private:
     bool mZslFlashEnable;
     cam_3d_frame_format_t mSnapshot3DFormat;
     bool mSnapshotCancel;
+    bool mHFRMode;
     Mutex mSnapshotCancelLock;
     int mActualPictWidth;
     int mActualPictHeight;

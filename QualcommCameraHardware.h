@@ -135,6 +135,7 @@ private:
     status_t cancelAutoFocusInternal();
     bool native_set_dimension (int camfd);
     bool native_jpeg_encode (void);
+    bool updatePictureDimension(const CameraParameters& params, int& width, int& height);
     bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
     bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
     bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop,int framewidth,int frameheight);
@@ -461,6 +462,9 @@ private:
     cam_3d_frame_format_t mSnapshot3DFormat;
     bool mSnapshotCancel;
     Mutex mSnapshotCancelLock;
+    int mActualPictWidth;
+    int mActualPictHeight;
+    bool mUseJpegDownScaling;
 };
 
 }; // namespace android

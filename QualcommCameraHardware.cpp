@@ -2132,6 +2132,11 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1,
                 1, (void *)&focalLength);
 
+    if (mUseJpegDownScaling) {
+      LOGV("initImageEncodeParameters: update main image", __func__);
+      mImageEncodeParms.output_picture_width = mActualPictWidth;
+      mImageEncodeParms.output_picture_height = mActualPictHeight;
+    }
     mImageEncodeParms.cbcr_offset = mCbCrOffsetRaw;
     if(mPreviewFormat == CAMERA_YUV_420_NV21_ADRENO)
         mImageEncodeParms.cbcr_offset = mCbCrOffsetRaw;
@@ -3093,6 +3098,10 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     uint32_t i;
 
     mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
+    if (updatePictureDimension(mParameters, mPictureWidth, mPictureHeight)) {
+        mDimension.picture_width = mPictureWidth;
+        mDimension.picture_height = mPictureHeight;
+    }
     LOGV("initRaw E: picture size=%dx%d", mPictureWidth, mPictureHeight);
     int w_scale_factor = (mIs3DModeOn && mSnapshot3DFormat == SIDE_BY_SIDE_FULL) ? 2 : 1;
 
@@ -5512,6 +5521,25 @@ status_t QualcommCameraHardware::setJpegThumbnailSize(const CameraParameters& pa
        }
     }
     return BAD_VALUE;
+}
+
+bool QualcommCameraHardware::updatePictureDimension(const CameraParameters& params, int& width, int& height)
+{
+    bool retval = false;
+    int previewWidth, previewHeight;
+    params.getPreviewSize(&previewWidth, &previewHeight);
+    LOGV("updatePictureDimension: %dx%d <- %dx%d", width, height,
+      previewWidth, previewHeight);
+    if ((width < previewWidth) || (height < previewHeight)) {
+        mUseJpegDownScaling = true;
+        mActualPictWidth = width;
+        width = previewWidth;
+        mActualPictHeight = height;
+        height = previewHeight;
+        retval = true;
+    } else
+        mUseJpegDownScaling = false;
+    return retval;
 }
 
 status_t QualcommCameraHardware::setPictureSize(const CameraParameters& params)

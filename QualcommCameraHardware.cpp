@@ -1182,9 +1182,11 @@ QualcommCameraHardware::QualcommCameraHardware()
     }
     /* TODO: Will remove this command line interface at end */
     property_get("persist.camera.hal.3dmode", value, "0");
-    mIs3DModeOn = atoi(value);
-    if(mIs3DModeOn == true)
+    int mode = atoi(value);
+    if( mode  == 1) {
+        mIs3DModeOn = true;
         HAL_currentCameraMode = CAMERA_MODE_3D;
+    }
 
     if( (pthread_create(&mDeviceOpenThread, NULL, openCamera, NULL)) != 0) {
         LOGE(" openCamera thread creation failed ");
@@ -5410,6 +5412,17 @@ status_t QualcommCameraHardware::setRecordSize(const CameraParameters& params)
                 && (mCurrentTarget != TARGET_QSD8250)
                  && (mCurrentTarget != TARGET_MSM8660) ) {
                 //For Single VFE output targets, use record dimensions as preview dimensions.
+                previewWidth = videoWidth;
+                previewHeight = videoHeight;
+                mParameters.setPreviewSize(previewWidth, previewHeight);
+            }
+            if(mIs3DModeOn == true) {
+                /* As preview and video frames are same in 3D mode,
+                 * preview size should be same as video size. This
+                 * cahnge is needed to take of video resolutions
+                 * like 720P and 1080p where the application can
+                 * request different preview sizes like 768x432
+                 */
                 previewWidth = videoWidth;
                 previewHeight = videoHeight;
                 mParameters.setPreviewSize(previewWidth, previewHeight);

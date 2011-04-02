@@ -625,6 +625,7 @@ static const str_map scenemode[] = {
     { CameraParameters::SCENE_MODE_CANDLELIGHT,    CAMERA_BESTSHOT_CANDLELIGHT },
     { CameraParameters::SCENE_MODE_BACKLIGHT,      CAMERA_BESTSHOT_BACKLIGHT },
     { CameraParameters::SCENE_MODE_FLOWERS,        CAMERA_BESTSHOT_FLOWERS },
+    { CameraParameters::SCENE_MODE_AR,             CAMERA_BESTSHOT_AR },
 };
 
 static const str_map scenedetect[] = {
@@ -5326,7 +5327,7 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
     uint32_t index;
      offset = (uint32_t)encoded_buffer->ptr - (uint32_t)mJpegHeap->mHeap->base();
      LOGE("address of Jpeg %d encoded buf %u Jpeg Heap base %u",offset,(uint32_t)encoded_buffer->ptr ,(uint32_t)mJpegHeap->mHeap->base());
- 
+
     index = offset/ mJpegHeap->mBufferSize;
     if(buffer_size && (buffer_size <= mJpegHeap->mBufferSize)){
         mJpegHeap->mFrameSize = buffer_size;

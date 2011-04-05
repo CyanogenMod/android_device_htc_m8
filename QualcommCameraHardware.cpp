@@ -84,8 +84,6 @@ extern "C" {
 #define ACTIVE_ZSL_BUFFERS 3
 #define APP_ORIENTATION 90
 
-#define PAD_TO_2K(x) (((x)+2047)& ~2047)
-
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
@@ -5462,52 +5460,58 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
 
 void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer)
 {
-    uint32_t buffer_size = encoded_buffer->filled_size;
-    LOGV("receiveJpegPicture: E image (%d uint8_ts out of %d)",
-         buffer_size, mJpegHeap->mBufferSize);
     Mutex::Autolock cbLock(&mCallbackLock);
     numJpegReceived++;
     uint32_t offset ;
-    uint32_t index;
-     offset = (uint32_t)encoded_buffer->ptr - (uint32_t)mJpegHeap->mHeap->base();
-     LOGE("address of Jpeg %d encoded buf %u Jpeg Heap base %u",offset,(uint32_t)encoded_buffer->ptr ,(uint32_t)mJpegHeap->mHeap->base());
+    int32_t index = -1;
+    int32_t buffer_size = 0;
+    if(encoded_buffer && status == NO_ERROR) {
+      buffer_size = encoded_buffer->filled_size;
+      LOGV("receiveJpegPicture: E image (%d uint8_ts out of %d)",
+        buffer_size, mJpegHeap->mBufferSize);
 
-    index = offset/ mJpegHeap->mBufferSize;
-    if(buffer_size && (buffer_size <= mJpegHeap->mBufferSize)){
-        mJpegHeap->mFrameSize = buffer_size;
+      offset = (uint32_t)encoded_buffer->ptr - (uint32_t)mJpegHeap->mHeap->base();
+      LOGE("address of Jpeg %d encoded buf %u Jpeg Heap base %u", offset,
+         (uint32_t)encoded_buffer->ptr, (uint32_t)mJpegHeap->mHeap->base());
+
+      index = offset/ mJpegHeap->mBufferSize;
+      if(buffer_size && (buffer_size <= mJpegHeap->mBufferSize)){
+          mJpegHeap->mFrameSize = buffer_size;
+      }
     }
     if((index < 0) || (index >= (MAX_SNAPSHOT_BUFFERS-2))){
-        LOGE("Jpeg index is not valid.. Hence ignoring the callback");
+        LOGE("Jpeg index is not valid or fails. ");
+        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+          mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
+        }
         mJpegThreadWaitLock.lock();
         mJpegThreadRunning = false;
         mJpegThreadWait.signal();
         mJpegThreadWaitLock.unlock();
-        return;
-    }
-    LOGV("receiveJpegPicture: Index of Jpeg is %d",index);
+    } else {
+      LOGV("receiveJpegPicture: Index of Jpeg is %d",index);
 
-    if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        // The reason we do not allocate into mJpegHeap->mBuffers[offset] is
-        // that the JPEG image's size will probably change from one snapshot
-        // to the next, so we cannot reuse the MemoryBase object.
-        sp<MemoryBase> buffer = new
-            MemoryBase(mJpegHeap->mHeap,
-                       index * mJpegHeap->mBufferSize +
-                       0,
-                       buffer_size);
-        if(status == NO_ERROR)
-            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
-        else
-            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, NULL, mCallbackCookie);
-
-        buffer = NULL;
-    }
-    else LOGV("JPEG callback was cancelled--not delivering image.");
-    if(numJpegReceived == numCapture){
-        mJpegThreadWaitLock.lock();
-        mJpegThreadRunning = false;
-        mJpegThreadWait.signal();
-        mJpegThreadWaitLock.unlock();
+      if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+          // The reason we do not allocate into mJpegHeap->mBuffers[offset] is
+          // that the JPEG image's size will probably change from one snapshot
+          // to the next, so we cannot reuse the MemoryBase object.
+          sp<MemoryBase> buffer = new
+              MemoryBase(mJpegHeap->mHeap,
+                         index * mJpegHeap->mBufferSize +
+                         0,
+                         buffer_size);
+          if(status == NO_ERROR)
+              mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
+          buffer = NULL;
+      } else {
+        LOGV("JPEG callback was cancelled--not delivering image.");
+      }
+      if(numJpegReceived == numCapture){
+          mJpegThreadWaitLock.lock();
+          mJpegThreadRunning = false;
+          mJpegThreadWait.signal();
+          mJpegThreadWaitLock.unlock();
+      }
     }
 
     LOGV("receiveJpegPicture: X callback done.");

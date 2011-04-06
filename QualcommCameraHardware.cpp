@@ -3297,8 +3297,17 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     mImageCaptureParms.picture_height = mPictureHeight;
     mImageCaptureParms.postview_width = mPostviewWidth;
     mImageCaptureParms.postview_height = mPostviewHeight;
-    mImageCaptureParms.thumbnail_width = mThumbnailWidth;
-    mImageCaptureParms.thumbnail_height = mThumbnailHeight;
+
+    int width = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    int height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    if((width != 0) && (height != 0)) {
+        mImageCaptureParms.thumbnail_width = mThumbnailWidth;
+        mImageCaptureParms.thumbnail_height = mThumbnailHeight;
+    } else {
+        mImageCaptureParms.thumbnail_width = 0;
+        mImageCaptureParms.thumbnail_height = 0;
+    }
+
     LOGI("%s: picture size=%dx%d",__FUNCTION__,
         mImageCaptureParms.picture_width, mImageCaptureParms.picture_height);
     LOGI("%s: postview size=%dx%d",__FUNCTION__,

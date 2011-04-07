@@ -23,6 +23,9 @@ else
 LOCAL_CFLAGS+= -DNUM_PREVIEW_BUFFERS=4 -D_ANDROID_
 endif
 
+# Uncomment below line to enable smooth zoom
+#LOCAL_CFLAGS+= -DCAMERA_SMOOTH_ZOOM
+
 LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \

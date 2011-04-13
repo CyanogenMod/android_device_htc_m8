@@ -327,6 +327,10 @@ static int HAL_currentCameraId;
 static int HAL_currentCameraMode;
 static mm_camera_config mCfgControl;
 
+static int HAL_currentSnapshotMode;
+#define CAMERA_SNAPSHOT_NONZSL 0x04
+#define CAMERA_SNAPSHOT_ZSL 0x08
+
 namespace android {
 
 static const int PICTURE_FORMAT_JPEG = 1;
@@ -1193,10 +1197,20 @@ QualcommCameraHardware::QualcommCameraHardware()
     mMMCameraDLRef = MMCameraDL::getInstance();
     libmmcamera = mMMCameraDLRef->pointer();
     char value[PROPERTY_VALUE_MAX];
+
+    if(HAL_currentSnapshotMode == CAMERA_SNAPSHOT_ZSL) {
+        LOGI("%s: this is ZSL mode", __FUNCTION__);
+        mZslEnable = true;
+    }
+
     //ENABLE ZSL FOR 8660 only
     if( mCurrentTarget == TARGET_MSM8660){
         property_get("persist.camera.hal.zsl", value, "0");
-        mZslEnable = atoi(value);
+        int zsl = atoi(value);
+        if(zsl == 1) {
+            mZslEnable = true;
+            HAL_currentSnapshotMode = CAMERA_SNAPSHOT_ZSL;
+        }
     }
 
     if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
@@ -1701,6 +1715,14 @@ void QualcommCameraHardware::initDefaultParameters()
             (void *)&verticalViewAngle);
     mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
                     verticalViewAngle);
+
+    if(mZslEnable == true) {
+        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, MAX_SNAPSHOT_BUFFERS-2);
+        mParameters.set("num-snaps-per-shutter", MAX_SNAPSHOT_BUFFERS-2);
+    } else {
+        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, 1);
+        mParameters.set("num-snaps-per-shutter", "1");
+    }
     if(mIs3DModeOn)
         mParameters.set("3d-frame-format", "left-right");
 
@@ -4101,10 +4123,12 @@ status_t QualcommCameraHardware::takePicture()
         }
     }
     if( mZslEnable && !mZslFlashEnable){
+        /*
         char value[PROPERTY_VALUE_MAX];
         property_get("persist.camera.hal.capture", value, "1");
         numCapture = atoi(value);
         if(numCapture > (MAX_SNAPSHOT_BUFFERS-2))
+        */
            numCapture = MAX_SNAPSHOT_BUFFERS-2;
     }else
         numCapture = 1;
@@ -4631,12 +4655,23 @@ extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int 
             LOGI("openCameraHardware:camera mode %d", mode);
             parameter_string_initialized = false;
             HAL_currentCameraId = cameraId;
-            if(mode & HAL_cameraInfo[i].modes_supported){
-                HAL_currentCameraMode = mode;
+            HAL_currentCameraMode = CAMERA_MODE_2D;
+            /* The least significant two bits of mode parameter indicates the sensor mode
+               of 2D or 3D. The next two bits indicates the snapshot mode of
+               ZSL or NONZSL
+               */
+            int sensorModeMask = 0x03 & mode;
+            if(sensorModeMask & HAL_cameraInfo[i].modes_supported){
+                HAL_currentCameraMode = sensorModeMask;
             }else{
                 LOGE("openCameraHardware:Invalid camera mode (%d) requested", mode);
                 return NULL;
             }
+            HAL_currentSnapshotMode = CAMERA_SNAPSHOT_NONZSL;
+            if(mode & CAMERA_SNAPSHOT_ZSL)
+                HAL_currentSnapshotMode = CAMERA_SNAPSHOT_ZSL;
+            LOGI("%s: HAL_currentSnapshotMode = %d", __FUNCTION__, HAL_currentSnapshotMode);
+
             return QualcommCameraHardware::createInstance();
         }
     }
@@ -7447,6 +7482,7 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
                 cameraInfo->mode |= CAMERA_SUPPORT_MODE_2D;
             if(HAL_cameraInfo[i].modes_supported & CAMERA_MODE_3D)
                 cameraInfo->mode |= CAMERA_SUPPORT_MODE_3D;
+
             LOGI("%s: modes supported = %d", __FUNCTION__, cameraInfo->mode);
 
             return;

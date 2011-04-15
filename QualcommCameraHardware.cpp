@@ -3208,7 +3208,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     }
 
     int rotation = mParameters.getInt("rotation");
-    rotation= 0;
+    if (mIs3DModeOn)
+        rotation = 0;
     ret = native_set_parms(CAMERA_PARM_JPEG_ROTATION, sizeof(int), &rotation);
     if(!ret){
         LOGE("setting camera id failed");

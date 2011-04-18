@@ -705,6 +705,11 @@ static const str_map touchafaec[] = {
     { CameraParameters::TOUCH_AF_AEC_ON, TRUE }
 };
 
+static const str_map redeye_reduction[] = {
+    { CameraParameters::REDEYE_REDUCTION_ENABLE, TRUE },
+    { CameraParameters::REDEYE_REDUCTION_DISABLE, FALSE }
+};
+
 
 /*
  * Values based on aec.c
@@ -765,6 +770,7 @@ static String8 preview_format_values;
 static String8 selectable_zone_af_values;
 static String8 facedetection_values;
 static String8 hfr_values;
+static String8 redeye_reduction_values;
 
 mm_camera_notify mCamNotify;
 mm_camera_ops mCamOps;
@@ -1446,6 +1452,10 @@ void QualcommCameraHardware::initDefaultParameters()
             facedetection_values = create_values_str(
                 facedetection, sizeof(facedetection) / sizeof(str_map));
         }
+
+        redeye_reduction_values = create_values_str(
+            redeye_reduction, sizeof(redeye_reduction) / sizeof(str_map));
+
         parameter_string_initialized = true;
     }
 
@@ -1655,6 +1665,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::FACE_DETECTION_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_FACE_DETECTION,
                     facedetection_values);
+    mParameters.set(CameraParameters::KEY_REDEYE_REDUCTION,
+                    CameraParameters::REDEYE_REDUCTION_DISABLE);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_REDEYE_REDUCTION,
+                    redeye_reduction_values);
 
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
@@ -4313,6 +4327,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setExposureCompensation(params))) final_rc = rc;
     if ((rc = setBrightness(params)))   final_rc = rc;
     if ((rc = setOverlayFormats(params)))  final_rc = rc;
+    if ((rc = setRedeyeReduction(params)))  final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -6321,6 +6336,29 @@ status_t QualcommCameraHardware::setFaceDetection(const char *str)
         }
     }
     LOGE("Invalid Face Detection value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setRedeyeReduction(const CameraParameters& params)
+{
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_REDEYE_REDUCTION)) {
+        LOGI("Parameter Redeye Reduction is not supported for this sensor");
+        return NO_ERROR;
+    }
+
+    const char *str = params.get(CameraParameters::KEY_REDEYE_REDUCTION);
+    if (str != NULL) {
+        int value = attr_lookup(redeye_reduction, sizeof(redeye_reduction) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            int8_t temp = (int8_t)value;
+            LOGI("%s: setting Redeye Reduction value of %s", __FUNCTION__, str);
+            mParameters.set(CameraParameters::KEY_REDEYE_REDUCTION, str);
+
+            native_set_parms(CAMERA_PARM_REDEYE_REDUCTION, sizeof(int8_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid Redeye Reduction value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
 

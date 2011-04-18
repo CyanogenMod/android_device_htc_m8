@@ -388,6 +388,7 @@ private:
     status_t setOverlayFormats(const CameraParameters& params);
     status_t setHighFrameRate(const CameraParameters& params);
     bool register_record_buffers(bool register_buffer);
+    status_t setRedeyeReduction(const CameraParameters& params);
     void setGpsParameters();
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);

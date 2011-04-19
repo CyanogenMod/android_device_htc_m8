@@ -3412,6 +3412,8 @@ void QualcommCameraHardware::release()
        mLastPreviewFrameHeap = NULL;
        mThumbnailHeap.clear();
        mThumbnailHeap = NULL;
+       mPostviewHeap.clear();
+       mPostviewHeap = NULL;
        mDisplayHeap.clear();
        mDisplayHeap = NULL;
     }

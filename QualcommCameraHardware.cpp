@@ -2090,6 +2090,7 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     LOGV("%s: E", __FUNCTION__);
     memset(&mImageEncodeParms, 0, sizeof(encode_params_t));
     int jpeg_quality = mParameters.getInt("jpeg-quality");
+    bool ret;
     if (jpeg_quality >= 0) {
         LOGV("initJpegParameters, current jpeg main img quality =%d",
              jpeg_quality);
@@ -2099,6 +2100,11 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
         //camera stack, pass default value.
         if(jpeg_quality == 0) jpeg_quality = 85;
         mImageEncodeParms.quality = jpeg_quality;
+        ret = native_set_parms(CAMERA_PARM_JPEG_MAINIMG_QUALITY, sizeof(int), &jpeg_quality);
+        if(!ret){
+          LOGE("initJpegParametersX: failed to set main image quality");
+          return false;
+        }
     }
 
     int thumbnail_quality = mParameters.getInt("jpeg-thumbnail-quality");
@@ -2112,6 +2118,11 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
              thumbnail_quality);
         /* TODO: check with mm-camera? */
         mImageEncodeParms.quality = thumbnail_quality;
+        ret = native_set_parms(CAMERA_PARM_JPEG_THUMB_QUALITY, sizeof(int), &thumbnail_quality);
+        if(!ret){
+          LOGE("initJpegParameters X: failed to set thumbnail quality");
+          return false;
+        }
     }
 
     int rotation = mParameters.getInt("rotation");

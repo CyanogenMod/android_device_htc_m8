@@ -707,10 +707,6 @@ static const str_map touchafaec[] = {
 #define CAMERA_HISTOGRAM_DISABLE 0
 #define HISTOGRAM_STATS_SIZE 257
 
-//Dx,Dy should be same as defined in res/layout/camera.xml
-#define FOCUS_RECTANGLE_DX 100
-#define FOCUS_RECTANGLE_DY 100
-
 /*
  * Values based on aec.c
  */
@@ -1625,6 +1621,8 @@ void QualcommCameraHardware::initDefaultParameters()
                     touchafaec_values);
     mParameters.setTouchIndexAec(-1, -1);
     mParameters.setTouchIndexAf(-1, -1);
+    mParameters.set("touchAfAec-dx","100");
+    mParameters.set("touchAfAec-dy","100");
     mParameters.set(CameraParameters::KEY_SCENE_DETECT,
                     CameraParameters::SCENE_DETECT_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_DETECT,
@@ -6132,6 +6130,12 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
             int value = attr_lookup(touchafaec,
                     sizeof(touchafaec) / sizeof(str_map), str);
             if (value != NOT_FOUND) {
+
+                //Dx,Dy will be same as defined in res/layout/camera.xml
+                //passed down to HAL in a key.value pair.
+
+                int FOCUS_RECTANGLE_DX = params.getInt("touchAfAec-dx");
+                int FOCUS_RECTANGLE_DY = params.getInt("touchAfAec-dy");
                 mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC, str);
                 mParameters.setTouchIndexAec(xAec, yAec);
                 mParameters.setTouchIndexAf(xAf, yAf);

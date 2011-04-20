@@ -1244,14 +1244,14 @@ QualcommCameraHardware::QualcommCameraHardware()
     mDimension.thumb_format    = CAMERA_YUV_420_NV21;
 
     if( (mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660) ){
-        /* DIS is enabled all the time in VPE support targets.
+        /* DIS is disabled all the time in VPE support targets.
          * No provision for the user to control this.
          */
-        mDisEnabled = 1;
+        mDisEnabled = 0;
         /* Get the DIS value from properties, to check whether
-         * DIS is disabled or not
-         */
-        property_get("persist.camera.hal.dis", value, "1");
+         * DIS is disabled or not. If the property is not found
+         * default to DIS disabled.*/
+        property_get("persist.camera.hal.dis", value, "0");
         mDisEnabled = atoi(value);
         mVpeEnabled = 1;
     }

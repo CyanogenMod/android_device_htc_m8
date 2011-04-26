@@ -1172,7 +1172,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       mZslEnable(0),
       mZslFlashEnable(false),
       mSnapshotCancel(false),
-      mHFRMode(false)
+      mHFRMode(false),
+      mActualPictWidth(0),
+      mActualPictHeight(0)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -5773,7 +5775,7 @@ bool QualcommCameraHardware::updatePictureDimension(const CameraParameters& para
     params.getPreviewSize(&previewWidth, &previewHeight);
     LOGV("updatePictureDimension: %dx%d <- %dx%d", width, height,
       previewWidth, previewHeight);
-    if ((width < previewWidth) || (height < previewHeight)) {
+    if ((width < previewWidth) && (height < previewHeight)) {
         mUseJpegDownScaling = true;
         mActualPictWidth = width;
         width = previewWidth;

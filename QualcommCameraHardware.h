@@ -343,7 +343,7 @@ private:
     void hasAutoFocusSupport();
     void filterPictureSizes();
     void filterPreviewSizes();
-    void storeTargetType();
+    static void storeTargetType();
     bool supportsSceneDetection();
     bool supportsSelectableZoneAf();
     bool supportsFaceDetection();

@@ -7400,6 +7400,7 @@ void QualcommCameraHardware::getCameraInfo()
         LOGI("position: %d", HAL_cameraInfo[i].position);
         LOGI("sensor_mount_angle: %d", HAL_cameraInfo[i].sensor_mount_angle);
     }
+    storeTargetType();
 
 #if DLOPEN_LIBMMCAMERA
     if (libhandle) {

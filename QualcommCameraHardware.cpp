@@ -687,6 +687,11 @@ static const str_map skinToneEnhancement[] = {
     { CameraParameters::SKIN_TONE_ENHANCEMENT_DISABLE, FALSE }
 };
 
+static const str_map denoise[] = {
+    { CameraParameters::DENOISE_OFF, FALSE },
+    { CameraParameters::DENOISE_ON, TRUE }
+};
+
 static const str_map selectable_zone_af[] = {
     { CameraParameters::SELECTABLE_ZONE_AF_AUTO,  AUTO },
     { CameraParameters::SELECTABLE_ZONE_AF_SPOT_METERING, SPOT },
@@ -762,6 +767,7 @@ static String8 skinToneEnhancement_values;
 static String8 touchafaec_values;
 static String8 picture_format_values;
 static String8 scenemode_values;
+static String8 denoise_values;
 static String8 zoom_ratio_values;
 static String8 preview_frame_rate_values;
 static String8 frame_rate_mode_values;
@@ -1180,7 +1186,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mSnapshotCancel(false),
       mHFRMode(false),
       mActualPictWidth(0),
-      mActualPictHeight(0)
+      mActualPictHeight(0),
+      mDenoiseValue(0)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -1413,6 +1420,10 @@ void QualcommCameraHardware::initDefaultParameters()
         picture_format_values = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
 
+        if(mCurrentTarget == TARGET_MSM8660) {
+            denoise_values = create_values_str(
+                denoise, sizeof(denoise) / sizeof(str_map));
+        }
        if( mCfgControl.mm_camera_query_parms(CAMERA_PARM_ZOOM_RATIO, (void **)&zoomRatios, (uint32_t *) &mMaxZoom) == MM_CAMERA_SUCCESS)
        {
             zoomSupported = true;
@@ -1645,6 +1656,10 @@ void QualcommCameraHardware::initDefaultParameters()
 
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,
                     scenemode_values);
+    mParameters.set(CameraParameters::KEY_DENOISE,
+                    CameraParameters::DENOISE_OFF);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_DENOISE,
+                    denoise_values);
     mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
                     CameraParameters::TOUCH_AF_AEC_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_TOUCH_AF_AEC,
@@ -4328,6 +4343,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setBrightness(params)))   final_rc = rc;
     if ((rc = setOverlayFormats(params)))  final_rc = rc;
     if ((rc = setRedeyeReduction(params)))  final_rc = rc;
+    if ((rc = setDenoise(params)))  final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -6578,6 +6594,28 @@ status_t QualcommCameraHardware::setZoom(const CameraParameters& params)
     return rc;
 }
 
+status_t QualcommCameraHardware::setDenoise(const CameraParameters& params)
+{
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_WAVELET_DENOISE)) {
+        LOGE("Wavelet Denoise is not supported for this sensor");
+        return NO_ERROR;
+    }
+    const char *str = params.get(CameraParameters::KEY_DENOISE);
+    if (str != NULL) {
+        int value = attr_lookup(denoise,
+        sizeof(denoise) / sizeof(str_map), str);
+        if ((value != NOT_FOUND) &&  (mDenoiseValue != value)) {
+        mDenoiseValue =  value;
+        mParameters.set(CameraParameters::KEY_DENOISE, str);
+        bool ret = native_set_parms(CAMERA_PARM_WAVELET_DENOISE, sizeof(value),
+                                               (void *)&value);
+        return ret ? NO_ERROR : UNKNOWN_ERROR;
+        }
+        return NO_ERROR;
+    }
+    LOGE("Invalid Denoise value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
 status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
 {
     LOGV("%s: IN", __FUNCTION__);

@@ -1203,6 +1203,7 @@ QualcommCameraHardware::QualcommCameraHardware()
         mZslEnable = true;
     }
 
+    storeTargetType();
     //ENABLE ZSL FOR 8660 only
     if( mCurrentTarget == TARGET_MSM8660){
         property_get("persist.camera.hal.zsl", value, "0");
@@ -1230,7 +1231,6 @@ QualcommCameraHardware::QualcommCameraHardware()
     memset(&mDimension, 0, sizeof(mDimension));
     memset(&mCrop, 0, sizeof(mCrop));
     memset(&zoomCropInfo, 0, sizeof(zoom_crop_info));
-    storeTargetType();
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_MSM8660 ) {
@@ -7455,10 +7455,13 @@ extern "C" int HAL_getNumberOfCameras()
 extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
 {
     int i;
+    char mDeviceName[PROPERTY_VALUE_MAX];
     if(cameraInfo == NULL) {
         LOGE("cameraInfo is NULL");
         return;
     }
+
+    property_get("ro.product.device",mDeviceName," ");
 
     for(i = 0; i < HAL_numOfCameras; i++) {
         if(i == cameraId) {
@@ -7469,9 +7472,9 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             // enough.
             if(cameraInfo->facing == CAMERA_FACING_FRONT)
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
-            else if(mCurrentTarget == TARGET_MSM7627)
+            else if( !strncmp(mDeviceName, "msm7627", 7))
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
-            else if(mCurrentTarget == TARGET_MSM8660)
+            else if( !strncmp(mDeviceName, "msm8660", 7))
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
             else
                 cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;

@@ -206,7 +206,9 @@ static uint32_t  PREVIEW_SIZE_COUNT;
 
 board_property boardProperties[] = {
         {TARGET_MSM7625, 0x00000fff, false, false, false},
+        {TARGET_MSM7625A, 0x00000fff, false, false, false},
         {TARGET_MSM7627, 0x000006ff, false, false, false},
+        {TARGET_MSM7627A, 0x000006ff, false, false, false},
         {TARGET_MSM7630, 0x00000fff, true, true, false},
         {TARGET_MSM8660, 0x00001fff, true, true, false},
         {TARGET_QSD8250, 0x00000fff, false, false, false}
@@ -245,7 +247,9 @@ static liveshotState liveshot_state = LIVESHOT_DONE;
 
 static const target_map targetList [] = {
     { "msm7625", TARGET_MSM7625 },
+    { "msm7625a", TARGET_MSM7625A },
     { "msm7627", TARGET_MSM7627 },
+    { "msm7627a", TARGET_MSM7627A },
     { "qsd8250", TARGET_QSD8250 },
     { "msm7630", TARGET_MSM7630 },
     { "msm8660", TARGET_MSM8660 }
@@ -1048,6 +1052,14 @@ void QualcommCameraHardware::storeTargetType(void) {
     for( int i = 0; i < TARGET_MAX ; i++) {
         if( !strncmp(mDeviceName, targetList[i].targetStr, 7)) {
             mCurrentTarget = targetList[i].targetEnum;
+            if(mCurrentTarget == TARGET_MSM7625) {
+                if(!strncmp(mDeviceName, "msm7625a" , 8))
+                    mCurrentTarget = TARGET_MSM7625A;
+            }
+            if(mCurrentTarget == TARGET_MSM7627) {
+                if(!strncmp(mDeviceName, "msm7627a" , 8))
+                    mCurrentTarget = TARGET_MSM7627A;
+            }
             break;
         }
     }
@@ -1270,6 +1282,7 @@ QualcommCameraHardware::QualcommCameraHardware()
 
     switch(mCurrentTarget){
         case TARGET_MSM7627:
+        case TARGET_MSM7627A:
             jpegPadding = 0; // to be checked.
             break;
         case TARGET_QSD8250:
@@ -1460,7 +1473,9 @@ void QualcommCameraHardware::initDefaultParameters()
         picture_format_values = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
 
-        if(mCurrentTarget == TARGET_MSM8660) {
+        if(mCurrentTarget == TARGET_MSM8660 ||
+          (mCurrentTarget == TARGET_MSM7625A ||
+           mCurrentTarget == TARGET_MSM7627A)) {
             denoise_values = create_values_str(
                 denoise, sizeof(denoise) / sizeof(str_map));
         }
@@ -2517,7 +2532,9 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                     offset = offset_addr / mPreviewHeap->mAlignedBufferSize;
                 }
             }
-            if (mCurrentTarget == TARGET_MSM7627) {
+            if (mCurrentTarget == TARGET_MSM7627  ||
+               (mCurrentTarget == TARGET_MSM7625A ||
+                mCurrentTarget == TARGET_MSM7627A)) {
                 mLastQueuedFrame = (void *)mPreviewHeap->mBuffers[offset]->pointer();
             }
         }
@@ -3131,7 +3148,9 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     }
 
     //Jpeg buffer initialization
-    if( mCurrentTarget == TARGET_MSM7627 )
+    if( mCurrentTarget == TARGET_MSM7627 ||
+       (mCurrentTarget == TARGET_MSM7625A ||
+        mCurrentTarget == TARGET_MSM7627A))
         mJpegMaxSize = CEILING16(mPictureWidth) * CEILING16(mPictureHeight) * 3 / 2;
     else {
         mJpegMaxSize = mPictureWidth * mPictureHeight * 3 / 2;
@@ -3294,7 +3313,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
      * which won't use optimalPreviewSize based on picture size.
     */
     if((mPictureHeight >= previewHeight) &&
-       (mCurrentTarget != TARGET_MSM7627)) {
+       (mCurrentTarget != TARGET_MSM7627 &&
+       (mCurrentTarget != TARGET_MSM7627A && mCurrentTarget != TARGET_MSM7625A))) {
         mPostviewHeight = previewHeight;
         mPostviewWidth = (previewHeight * mPictureWidth) / mPictureHeight;
     }else if(mPictureHeight < mThumbnailHeight){
@@ -3342,7 +3362,9 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     }
 
     //Jpeg buffer initialization
-    if( mCurrentTarget == TARGET_MSM7627 )
+    if( mCurrentTarget == TARGET_MSM7627 ||
+       (mCurrentTarget == TARGET_MSM7625A ||
+        mCurrentTarget == TARGET_MSM7627A))
         mJpegMaxSize = CEILING16(mPictureWidth * w_scale_factor) * CEILING16(mPictureHeight) * 3 / 2;
     else {
         mJpegMaxSize = mPictureWidth * w_scale_factor * mPictureHeight * 3 / 2;
@@ -4353,7 +4375,9 @@ status_t QualcommCameraHardware::cancelPicture()
     mSnapshotCancel = true;
     mSnapshotCancelLock.unlock();
 
-    if (mCurrentTarget == TARGET_MSM7627) {
+    if (mCurrentTarget == TARGET_MSM7627 ||
+       (mCurrentTarget == TARGET_MSM7625A ||
+        mCurrentTarget == TARGET_MSM7627A)) {
         mSnapshotDone = TRUE;
         mSnapshotThreadWaitLock.lock();
         while (mSnapshotThreadRunning) {
@@ -5427,6 +5451,8 @@ static void crop_yuv420(uint32_t width, uint32_t height,
     y &= ~1;
 
     if((mCurrentTarget == TARGET_MSM7627)
+       || (mCurrentTarget == TARGET_MSM7625A)
+       || (mCurrentTarget == TARGET_MSM7627A)
        || (mCurrentTarget == TARGET_MSM7630)
        || (mCurrentTarget == TARGET_MSM8660)) {
         if (!strcmp("snapshot camera", name)) {
@@ -5560,7 +5586,10 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
      * deallocated.
      */
     cropp =postviewframe->cropinfo;
-    if(mCurrentTarget == TARGET_MSM7627 && cropp != NULL) {
+    if((mCurrentTarget == TARGET_MSM7627 ||
+       (mCurrentTarget == TARGET_MSM7627A ||
+        mCurrentTarget == TARGET_MSM7625A)) &&
+        cropp != NULL) {
         crop = (common_crop_t *) cropp;
     }
     notifyShutter(crop,FALSE);
@@ -5593,7 +5622,9 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
             }
             mOverlayLock.unlock();
         }
-        if(mCurrentTarget == TARGET_MSM7627) {
+        if(mCurrentTarget == TARGET_MSM7627 ||
+          (mCurrentTarget == TARGET_MSM7625A ||
+           mCurrentTarget == TARGET_MSM7627A)) {
             /* Give the postview buffer to upper layers */
             if (crop->in1_w != 0 && crop->in1_h != 0) {
                 crop_yuv420(crop->out1_w, crop->out1_h, crop->in1_w, crop->in1_h,
@@ -7525,6 +7556,10 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             // App Orientation not needed for 7x27 , sensor mount angle 0 is
             // enough.
             if(cameraInfo->facing == CAMERA_FACING_FRONT)
+                cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
+            else if( !strncmp(mDeviceName, "msm7625a", 8))
+                cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
+            else if( !strncmp(mDeviceName, "msm7627a", 8))
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;
             else if( !strncmp(mDeviceName, "msm7627", 7))
                 cameraInfo->orientation = HAL_cameraInfo[i].sensor_mount_angle;

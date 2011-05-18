@@ -2164,6 +2164,11 @@ bool QualcommCameraHardware::initZslParameter(void)
     {  LOGV("%s: E", __FUNCTION__);
        mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
        LOGV("initZslParamter E: picture size=%dx%d", mPictureWidth, mPictureHeight);
+       if (updatePictureDimension(mParameters, mPictureWidth, mPictureHeight)) {
+         mDimension.picture_width = mPictureWidth;
+         mDimension.picture_height = mPictureHeight;
+       }
+
        /* use the default thumbnail sizes */
         mZslParms.picture_width = mPictureWidth;
         mZslParms.picture_height = mPictureHeight;
@@ -2910,6 +2915,12 @@ bool QualcommCameraHardware::initPreview()
         //Limitation of ZSL  where the thumbnail and display dimensions should be the same
         mDimension.ui_thumbnail_width = mDimension.display_width;
         mDimension.ui_thumbnail_height = mDimension.display_height;
+        mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
+        if (updatePictureDimension(mParameters, mPictureWidth,
+          mPictureHeight)) {
+          mDimension.picture_width = mPictureWidth;
+          mDimension.picture_height = mPictureHeight;
+        }
     }
 
     // mDimension will be filled with thumbnail_width, thumbnail_height,
@@ -3097,7 +3108,6 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     LOGE("Init ZSL buffers E");
     const char * pmem_region;
     int postViewBufferSize;
-    mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
 
     mPostviewWidth = mDimension.display_width;
     mPostviewHeight =  mDimension.display_height;
@@ -6898,7 +6908,8 @@ bool QualcommCameraHardware::register_record_buffers(bool register_buffer) {
             pmemBuf.active   = false;
         }
 
-        LOGV("register_buf:  reg = %d buffer = %p", !register_buffer, buf);
+        LOGV("register_buf:  reg = %d buffer = %p", !register_buffer,
+          (void *)pmemBuf.vaddr);
         if(native_start_ops(register_buffer ? CAMERA_OPS_REGISTER_BUFFER :
                 CAMERA_OPS_UNREGISTER_BUFFER ,(void *)&pmemBuf) < 0) {
             LOGE("register_buf: MSM_CAM_IOCTL_(UN)REGISTER_PMEM  error %s",

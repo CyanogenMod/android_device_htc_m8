@@ -1579,7 +1579,8 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::AUTO_EXPOSURE_FRAME_AVG);
     mParameters.set(CameraParameters::KEY_WHITE_BALANCE,
                     CameraParameters::WHITE_BALANCE_AUTO);
-    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250) ) {
+    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250)
+        && (mCurrentTarget != TARGET_MSM8660)) {
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
                     "yuv420sp");
     }

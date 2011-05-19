@@ -4130,7 +4130,7 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
             mCamOps.mm_camera_start(current_ops_type,(void *)&mImageCaptureParms,
                  (void *)&mImageEncodeParms);
             }else{
-//                notifyShutter(NULL,TRUE);
+                notifyShutter(NULL,TRUE);
                 initZslParameter();
                 LOGE("snapshot mZslCapture.thumbnail %d %d %d",mZslCaptureParms.thumbnail_width,
                                      mZslCaptureParms.thumbnail_height,mZslCaptureParms.num_captures);

@@ -7547,17 +7547,20 @@ void QualcommCameraHardware::getCameraInfo()
     *(void **)&LINK_mm_camera_get_camera_info =
         ::dlsym(libhandle, "mm_camera_get_camera_info");
 #endif
-
+    storeTargetType();
     status = LINK_mm_camera_get_camera_info(HAL_cameraInfo, &HAL_numOfCameras);
     LOGI("getCameraInfo: numOfCameras = %d", HAL_numOfCameras);
     for(int i = 0; i < HAL_numOfCameras; i++) {
+        if((HAL_cameraInfo[i].position == BACK_CAMERA )&&
+            mCurrentTarget == TARGET_MSM8660){
+            HAL_cameraInfo[i].modes_supported |= CAMERA_ZSL_MODE;
+        }
         LOGI("Camera sensor %d info:", i);
         LOGI("camera_id: %d", HAL_cameraInfo[i].camera_id);
         LOGI("modes_supported: %x", HAL_cameraInfo[i].modes_supported);
         LOGI("position: %d", HAL_cameraInfo[i].position);
         LOGI("sensor_mount_angle: %d", HAL_cameraInfo[i].sensor_mount_angle);
     }
-    storeTargetType();
 
 #if DLOPEN_LIBMMCAMERA
     if (libhandle) {
@@ -7611,6 +7614,10 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
                 cameraInfo->mode |= CAMERA_SUPPORT_MODE_2D;
             if(HAL_cameraInfo[i].modes_supported & CAMERA_MODE_3D)
                 cameraInfo->mode |= CAMERA_SUPPORT_MODE_3D;
+            if((HAL_cameraInfo[i].position == BACK_CAMERA )&&
+                !strncmp(mDeviceName, "msm8660", 7)){
+                cameraInfo->mode |= CAMERA_ZSL_MODE;
+            }
 
             LOGI("%s: modes supported = %d", __FUNCTION__, cameraInfo->mode);
 

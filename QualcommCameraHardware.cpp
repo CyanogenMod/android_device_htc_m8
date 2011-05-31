@@ -203,6 +203,7 @@ union zoomimage
  * in bitmasks for boardproperties
  */
 static uint32_t  PREVIEW_SIZE_COUNT;
+static uint32_t  HFR_SIZE_COUNT;
 
 board_property boardProperties[] = {
         {TARGET_MSM7625, 0x00000fff, false, false, false},
@@ -234,6 +235,7 @@ static struct camera_size_type zsl_picture_sizes[] = {
 };
 static camera_size_type* picture_sizes;
 static camera_size_type* preview_sizes;
+static camera_size_type* hfr_sizes;
 static unsigned int PICTURE_SIZE_COUNT;
 static const camera_size_type * picture_sizes_ptr;
 static int supportedPictureSizesCount;
@@ -763,6 +765,7 @@ static const str_map preview_formats[] = {
 
 static bool parameter_string_initialized = false;
 static String8 preview_size_values;
+static String8 hfr_size_values;
 static String8 picture_size_values;
 static String8 fps_ranges_supported_values;
 static String8 jpeg_thumbnail_size_values;
@@ -1433,6 +1436,8 @@ void QualcommCameraHardware::initDefaultParameters()
                 picture_sizes_ptr, supportedPictureSizesCount);
         preview_size_values = create_sizes_str(
                 preview_sizes,  PREVIEW_SIZE_COUNT);
+        hfr_size_values = create_sizes_str(
+                hfr_sizes, HFR_SIZE_COUNT);
 
         fps_ranges_supported_values = create_fps_str(
             FpsRangesSupported,FPS_RANGES_SUPPORTED_COUNT );
@@ -1695,9 +1700,13 @@ void QualcommCameraHardware::initDefaultParameters()
     if(mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) {
         mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE,
                     CameraParameters::VIDEO_HFR_OFF);
+        mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,
+                    hfr_size_values.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
                     hfr_values);
-    }
+    } else
+        mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
+
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
                     CameraParameters::HISTOGRAM_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_HISTOGRAM_MODES,
@@ -1923,6 +1932,13 @@ bool QualcommCameraHardware::startCamera()
         return false;
     }
     LOGV("startCamera preview_sizes %p previewSizeCount %d", preview_sizes, PREVIEW_SIZE_COUNT);
+
+    mCfgControl.mm_camera_query_parms(CAMERA_PARM_HFR_SIZE, (void **)&hfr_sizes, &HFR_SIZE_COUNT);
+    if ((hfr_sizes == NULL) || (!HFR_SIZE_COUNT)) {
+        LOGE("startCamera X: could not get hfr sizes");
+        return false;
+    }
+    LOGV("startCamera hfr_sizes %p hfrSizeCount %d", hfr_sizes, HFR_SIZE_COUNT);
 
 
     LOGV("startCamera X");
@@ -2412,6 +2428,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
 
 void QualcommCameraHardware::runPreviewThread(void *data)
 {
+    static int hfr_count = 0;
     msm_frame* frame = NULL;
     CAMERA_HAL_UNUSED(data);
     while((frame = mPreviewBusyQueue.get()) != NULL) {
@@ -2539,8 +2556,28 @@ void QualcommCameraHardware::runPreviewThread(void *data)
             }
         }
         if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
-            pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
-                pdata);
+        {
+           const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+           if(str != NULL)
+           {
+               hfr_count++;
+               if(!strcmp(str, CameraParameters::VIDEO_HFR_OFF)) {
+                   pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
+                    pdata);
+               } else if (!strcmp(str, CameraParameters::VIDEO_HFR_2X)) {
+                 hfr_count %= 2;
+               } else if (!strcmp(str, CameraParameters::VIDEO_HFR_3X)) {
+                 hfr_count %= 3;
+               } else if (!strcmp(str, CameraParameters::VIDEO_HFR_4X)) {
+                 hfr_count %= 4;
+               }
+               if(hfr_count == 0)
+                   pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
+                    pdata);
+           } else
+               pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
+               pdata);
+        }
 
         // If output  is NOT enabled (targets otherthan 7x30 , 8x50 and 8x60 currently..)
         if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250) && (mCurrentTarget != TARGET_MSM8660)) {

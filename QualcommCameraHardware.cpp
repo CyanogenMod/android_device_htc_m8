@@ -275,7 +275,7 @@ static thumbnail_size_type thumbnail_sizes[] = {
     { 5006, 352, 288 }, //1.222222
 };
 #define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
-#define DEFAULT_THUMBNAIL_SETTING 2
+#define DEFAULT_THUMBNAIL_SETTING 4
 #define THUMBNAIL_WIDTH_STR "512"
 #define THUMBNAIL_HEIGHT_STR "384"
 #define THUMBNAIL_SMALL_HEIGHT 144
@@ -1407,6 +1407,10 @@ void QualcommCameraHardware::initDefaultParameters()
     LOGI("initDefaultParameters E");
     mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
     mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
+    mDimension.ui_thumbnail_width =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
+    mDimension.ui_thumbnail_height =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
     bool ret = native_set_parms(CAMERA_PARM_DIMENSION,
                sizeof(cam_ctrl_dimension_t),(void *) &mDimension);
     if(ret != true) {

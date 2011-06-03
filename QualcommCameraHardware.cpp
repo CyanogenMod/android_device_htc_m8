@@ -3351,7 +3351,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     */
     if((mPictureHeight >= previewHeight) &&
        (mCurrentTarget != TARGET_MSM7627 &&
-       (mCurrentTarget != TARGET_MSM7627A && mCurrentTarget != TARGET_MSM7625A))) {
+        mCurrentTarget != TARGET_MSM7627A &&
+        mCurrentTarget != TARGET_MSM7625A) && !mIs3DModeOn) {
         mPostviewHeight = previewHeight;
         mPostviewWidth = (previewHeight * mPictureWidth) / mPictureHeight;
     }else if(mPictureHeight < mThumbnailHeight){

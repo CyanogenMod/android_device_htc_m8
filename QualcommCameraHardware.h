@@ -490,6 +490,7 @@ private:
     int mActualPictWidth;
     int mActualPictHeight;
     bool mUseJpegDownScaling;
+    bool mPreviewStopping;
 };
 
 }; // namespace android

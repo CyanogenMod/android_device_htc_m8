@@ -1226,7 +1226,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mHFRMode(false),
       mActualPictWidth(0),
       mActualPictHeight(0),
-      mDenoiseValue(0)
+      mDenoiseValue(0),
+      mPreviewStopping(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -3679,6 +3680,7 @@ sp<IMemoryHeap> QualcommCameraHardware::getPreviewHeap() const
 status_t QualcommCameraHardware::startPreviewInternal()
 {
    LOGV("in startPreviewInternal : E");
+   mPreviewStopping = false;
    if(mZslEnable){
        LOGE("start zsl Preview called");
        mCamOps.mm_camera_start(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
@@ -3797,6 +3799,7 @@ status_t QualcommCameraHardware::startPreview()
 void QualcommCameraHardware::stopPreviewInternal()
 {
     LOGI("stopPreviewInternal E: %d", mCameraRunning);
+    mPreviewStopping = true;
     if (mCameraRunning) {
         /* For 3D mode, we need to exit the video thread.*/
         if(mIs3DModeOn) {
@@ -4661,19 +4664,22 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
       case CAMERA_CMD_START_SMOOTH_ZOOM :
              LOGV("HAL sendcmd start smooth zoom %d %d", arg1 , arg2);
              mTargetSmoothZoom = arg1;
-
-             // create smooth zoom thread
-             mSmoothzoomThreadLock.lock();
-             mSmoothzoomThreadExit = false;
-             pthread_attr_t attr;
-             pthread_attr_init(&attr);
-             pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-             pthread_create(&mSmoothzoomThread,
+             if(!mPreviewStopping) {
+                 // create smooth zoom thread
+                 mSmoothzoomThreadLock.lock();
+                 mSmoothzoomThreadExit = false;
+                 pthread_attr_t attr;
+                 pthread_attr_init(&attr);
+                 pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+                 pthread_create(&mSmoothzoomThread,
                                     &attr,
                                     smoothzoom_thread,
                                     NULL);
-             mSmoothzoomThreadLock.unlock();
-
+                 mSmoothzoomThreadLock.unlock();
+             } else
+                 LOGV(" Not creating smooth zoom thread "
+                      " since preview is stopping ");
+             mTargetSmoothZoom = arg1;
              return NO_ERROR;
 
       case CAMERA_CMD_STOP_SMOOTH_ZOOM :
@@ -4686,16 +4692,21 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
    return BAD_VALUE;
 }
 
-void  QualcommCameraHardware::runSmoothzoomThread(void * data)
-{
-    LOGV("runSmoothZoom thread current zoom %d - target %d",  mParameters.getInt("zoom"), mTargetSmoothZoom);
-    int current_zoom = mParameters.getInt("zoom");
-    int step = (current_zoom > mTargetSmoothZoom)?-1:1;
+void QualcommCameraHardware::runSmoothzoomThread(void * data) {
 
-    if( current_zoom == mTargetSmoothZoom )
-    {
-        LOGV("Smoothzoom target zoom value is same as current zoom value, return...");
-        mNotifyCallback(CAMERA_MSG_ZOOM, current_zoom, 1, mCallbackCookie);
+    LOGV("runSmoothzoomThread: Current zoom %d - "
+          "Target %d", mParameters.getInt("zoom"), mTargetSmoothZoom);
+    int current_zoom = mParameters.getInt("zoom");
+    int step = (current_zoom > mTargetSmoothZoom)? -1: 1;
+
+    if(current_zoom == mTargetSmoothZoom) {
+        LOGV("Smoothzoom target zoom value is same as "
+             "current zoom value, return...");
+        if(!mPreviewStopping)
+            mNotifyCallback(CAMERA_MSG_ZOOM,
+                current_zoom, 1, mCallbackCookie);
+        else
+            LOGV("Not issuing callback since preview is stopping");
         return;
     }
 
@@ -4706,37 +4717,42 @@ void  QualcommCameraHardware::runSmoothzoomThread(void * data)
     mSmoothzoomThreadWaitLock.unlock();
 
     int i = current_zoom;
-    while(1){  // Thread loop
+    while(1) {  // Thread loop
         mSmoothzoomThreadLock.lock();
         if(mSmoothzoomThreadExit) {
-            LOGV("Exiting smoothzoom thread, as stop smoothzoom called.");
-            mNotifyCallback(CAMERA_MSG_ZOOM, i, 1, mCallbackCookie);
+            LOGV("Exiting smoothzoom thread, as stop smoothzoom called");
             mSmoothzoomThreadLock.unlock();
             break;
         }
         mSmoothzoomThreadLock.unlock();
 
-        if(i < 0 ||  i > mMaxZoom){
+        if((i < 0) || (i > mMaxZoom)) {
             LOGE(" ERROR : beyond supported zoom values, break..");
             break;
         }
         // update zoom
         p.set("zoom", i);
         setZoom(p);
-
-        // give call back to zoom listener in app
-        mNotifyCallback(CAMERA_MSG_ZOOM, i, (mTargetSmoothZoom-i == 0)?1:0,
+        if(!mPreviewStopping) {
+            // give call back to zoom listener in app
+            mNotifyCallback(CAMERA_MSG_ZOOM, i, (mTargetSmoothZoom-i == 0)?1:0,
                     mCallbackCookie);
-        if(i==mTargetSmoothZoom)break;
+        } else {
+            LOGV("Preview is stopping. Breaking out of smooth zoom loop");
+            break;
+        }
+        if(i == mTargetSmoothZoom)
+            break;
+
         i+=step;
 
-        // wait on a singal , which will be signalled on receiving next preview frame
+        /* wait on singal, which will be signalled on
+         * receiving next preview frame */
         mSmoothzoomThreadWaitLock.lock();
         //LOGV("Smoothzoom thread: waiting for preview frame.");
         mSmoothzoomThreadWait.wait(mSmoothzoomThreadWaitLock);
         //LOGV("Smoothzoom thread: wait over for preview frame.");
         mSmoothzoomThreadWaitLock.unlock();
-
     } // while loop over, exiting thread
 
     mSmoothzoomThreadWaitLock.lock();

@@ -2719,7 +2719,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
 			else
 			{
 				write(file_fd, (const void *)vframe->buffer,
-					vframe->cbcr_off * 3 / 2);
+					vframe->planar1_off * 3 / 2);
 			}
 			close(file_fd);
 	  }
@@ -2849,8 +2849,8 @@ static int mm_app_prepare_buf2 (cam_format_t fmt_type, camera_mode_t mode,
 				goto end;
 		}
 		previewframes[i].path = OUTPUT_TYPE_P;
-        previewframes[i].y_off= y_off;
-		previewframes[i].cbcr_off = cbcr_off;
+        previewframes[i].planar0_off = y_off;
+		previewframes[i].planar1_off = cbcr_off;
 	}
     memset(&reg_buf, 0, sizeof(reg_buf));
 	reg_buf.ch_type = MM_CAMERA_CH_PREVIEW;
@@ -2886,8 +2886,8 @@ static int mm_app_prepare_video_buf2 (cam_format_t fmt_type, camera_mode_t mode,
 				goto end;
 		}
 		videorecordframes[i].path = OUTPUT_TYPE_V;
-        videorecordframes[i].y_off= y_off;
-		videorecordframes[i].cbcr_off = cbcr_off; 
+        videorecordframes[i].planar0_off = y_off;
+		videorecordframes[i].planar1_off = cbcr_off; 
 	}
     memset(&reg_buf, 0, sizeof(reg_buf));
 	reg_buf.ch_type = MM_CAMERA_CH_VIDEO;
@@ -2926,8 +2926,8 @@ static int mm_app_prepare_snapshot_buf2 (cam_format_t fmt_type, cam_format_t fmt
             goto end;
     }
     snapshotframe.path = OUTPUT_TYPE_S;
-    snapshotframe.y_off= y_off;
-    snapshotframe.cbcr_off = cbcr_off;
+    snapshotframe.planar0_off = y_off;
+    snapshotframe.planar1_off = cbcr_off;
 
 	frame_len = mm_camera_get_msm_frame_len(fmt_type_t, mode, display_width, display_height, &y_off, &cbcr_off, MM_CAMERA_PAD_WORD);	
     g_dbg_snapshot_thumb_size = frame_len;
@@ -2939,8 +2939,8 @@ static int mm_app_prepare_snapshot_buf2 (cam_format_t fmt_type, cam_format_t fmt
             goto end;
     }
     thumbnailframe.path = OUTPUT_TYPE_T;
-    thumbnailframe.y_off= y_off;
-    thumbnailframe.cbcr_off = cbcr_off;
+    thumbnailframe.planar0_off = y_off;
+    thumbnailframe.planar1_off = cbcr_off;
 
     memset(&reg_buf, 0, sizeof(reg_buf));
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
@@ -3272,8 +3272,8 @@ bool QualcommCameraHardware::initRawSnapshot()
     snapshotframe.fd = mRawSnapShotPmemHeap->mHeap->getHeapID();
     snapshotframe.buffer = (uint32_t)mRawSnapShotPmemHeap->mHeap->base();
     snapshotframe.path = OUTPUT_TYPE_S;
-    snapshotframe.y_off= y_off;
-    snapshotframe.cbcr_off = cbcr_off;
+    snapshotframe.planar0_off= y_off;
+    snapshotframe.planar1_off = cbcr_off;
 
     memset(&reg_buf, 0, sizeof(reg_buf));
     reg_buf.ch_type = MM_CAMERA_CH_RAW;
@@ -3545,8 +3545,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 //    }
 
     snapshotframe.path = OUTPUT_TYPE_S;
-    snapshotframe.y_off= y_off;
-    snapshotframe.cbcr_off = cbcr_off;
+    snapshotframe.planar0_off = y_off;
+    snapshotframe.planar1_off = cbcr_off;
 
 
 //    frame_len = mm_camera_get_msm_frame_len(fmt_type_t, mode, display_width, display_height, &y_off, &cbcr_off);	
@@ -3584,8 +3584,8 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 //            goto end;
 //    }
     thumbnailframe.path = OUTPUT_TYPE_T;
-    thumbnailframe.y_off= y_off;
-    thumbnailframe.cbcr_off = cbcr_off;
+    thumbnailframe.planar0_off = y_off;
+    thumbnailframe.planar1_off = cbcr_off;
     thumbnailframe.fd = mPostviewHeap->mHeap->getHeapID();
     thumbnailframe.buffer = (uint32_t)mPostviewHeap->mHeap->base();
 
@@ -5313,14 +5313,14 @@ bool QualcommCameraHardware::initRecord()
         recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
         recordframes[cnt].buffer =
             (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-        recordframes[cnt].y_off = y_off;
-        recordframes[cnt].cbcr_off = cbcr_off;
+        recordframes[cnt].planar0_off = y_off;
+        recordframes[cnt].planar1_off = cbcr_off;
         recordframes[cnt].path = OUTPUT_TYPE_V;
         record_buffers_tracking_flag[cnt] = false;
 		offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
         LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
-          (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
-          recordframes[cnt].cbcr_off);
+          (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].planar0_off,
+          recordframes[cnt].planar1_off);
     }
 
 	#if 0
@@ -6725,8 +6725,8 @@ bool QualcommCameraHardware::register_record_buffers(bool register_buffer) {
         pmemBuf.offset   = mRecordHeap->mAlignedBufferSize * cnt;
         pmemBuf.len      = mRecordHeap->mBufferSize;
         pmemBuf.vaddr    = (uint8_t *)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-        pmemBuf.y_off    = 0;
-        pmemBuf.cbcr_off = recordframes[0].cbcr_off;
+        pmemBuf.planar0_off    = 0;
+        pmemBuf.planar1_off = recordframes[0].planar1_off;
         if(register_buffer == true) {
             pmemBuf.active   = (cnt<ACTIVE_VIDEO_BUFFERS);
             if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
@@ -6924,8 +6924,8 @@ static bool register_buf(int size,
     pmemBuf.offset   = offset;
     pmemBuf.len      = size;
     pmemBuf.vaddr    = buf;
-    pmemBuf.y_off    = yoffset;
-    pmemBuf.cbcr_off = cbcr_offset;
+    pmemBuf.planar0_off    = yoffset;
+    pmemBuf.planar1_off = cbcr_offset;
 
     pmemBuf.active   = vfe_can_write;
 

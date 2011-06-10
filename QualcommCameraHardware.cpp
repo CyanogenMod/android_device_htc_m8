@@ -1,3 +1,4 @@
+
 /*
 ** Copyright 2008, Google Inc.
 ** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
@@ -2385,9 +2386,47 @@ void QualcommCameraHardware::jpeg_set_location()
     else LOGV("not setting image location");
 }
 
+static bool register_buf(int size,
+                         int frame_size,
+                         int cbcr_offset,
+                         int yoffset,
+                         int pmempreviewfd,
+                         uint32_t offset,
+                         uint8_t *buf,
+                         int pmem_type,
+                         bool vfe_can_write,
+                         bool register_buffer)
+{
+    struct msm_pmem_info pmemBuf;
+    CAMERA_HAL_UNUSED(frame_size);
+
+    pmemBuf.type     = pmem_type;
+    pmemBuf.fd       = pmempreviewfd;
+    pmemBuf.offset   = offset;
+    pmemBuf.len      = size;
+    pmemBuf.vaddr    = buf;
+    pmemBuf.y_off    = yoffset;
+    pmemBuf.cbcr_off = cbcr_offset;
+
+    pmemBuf.active   = vfe_can_write;
+
+    LOGV("register_buf:  reg = %d buffer = %p",
+         !register_buffer, buf);
+    if(native_start_ops(register_buffer ? CAMERA_OPS_REGISTER_BUFFER :
+        CAMERA_OPS_UNREGISTER_BUFFER ,(void *)&pmemBuf) < 0) {
+         LOGE("register_buf: MSM_CAM_IOCTL_(UN)REGISTER_PMEM  error %s",
+               strerror(errno));
+         return false;
+         }
+
+    return true;
+
+}
+
 void QualcommCameraHardware::runFrameThread(void *data)
 {
     LOGV("runFrameThread E");
+    int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
 
     if(libmmcamera)
     {
@@ -2407,7 +2446,28 @@ void QualcommCameraHardware::runFrameThread(void *data)
     LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
 
     if(mIs3DModeOn != true)
-        mPreviewHeap.clear();
+    {
+        if(mHFRMode == false)
+        {
+            mPreviewHeap.clear();
+        }
+        else
+        {
+            //unregister preview buffers. we are not deallocating here.
+            for (int cnt = 0; cnt < kPreviewBufferCountActual; ++cnt) {
+                register_buf(mPreviewFrameSize,
+                         mPreviewFrameSize,
+                         CbCrOffset,
+                         0,
+                         mPreviewHeap->mHeap->getHeapID(),
+                         mPreviewHeap->mAlignedBufferSize * cnt,
+                         (uint8_t *)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt,
+                         MSM_PMEM_PREVIEW,
+                         false,
+                         false );
+            }
+        }
+    }
     if(( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)){
         if(mHFRMode != true) {
             mRecordHeap.clear();
@@ -2977,13 +3037,14 @@ bool QualcommCameraHardware::initPreview()
           mDimension.picture_height = mPictureHeight;
         }
     }
-
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
     bool ret = native_set_parms(CAMERA_PARM_DIMENSION,
                                sizeof(cam_ctrl_dimension_t), &mDimension);
     if(mIs3DModeOn != true) {
+      if(mHFRMode == false)
+      {
         mPreviewHeap = new PmemPool(pmem_region,
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
@@ -2995,20 +3056,41 @@ bool QualcommCameraHardware::initPreview()
                                 "preview");
 
         if (!mPreviewHeap->initialized()) {
-            mPreviewHeap.clear();
-            LOGE("initPreview X: could not initialize Camera preview heap.");
-            return false;
+          mPreviewHeap.clear();
+          LOGE("initPreview X: could not initialize Camera preview heap.");
+          return false;
         }
-
-        //set DIS value to get the updated video width and height to calculate
-        //the required record buffer size
-        if(mVpeEnabled) {
-            bool status = setDIS();
-            if(status) {
-                LOGE("Failed to set DIS");
-                return false;
-            }
+      }
+      else
+      {
+          for (int cnt = 0; cnt < kPreviewBufferCountActual; ++cnt) {
+              bool status;
+              int active = (cnt < ACTIVE_PREVIEW_BUFFERS);
+              status = register_buf(mPreviewFrameSize,
+                       mPreviewFrameSize,
+                       CbCrOffset,
+                       0,
+                       mPreviewHeap->mHeap->getHeapID(),
+                       mPreviewHeap->mAlignedBufferSize * cnt,
+                       (uint8_t *)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt,
+                       MSM_PMEM_PREVIEW,
+                       active,
+                       true);
+              if(status == false){
+                  LOGE("Registring Preview Buffers failed for HFR mode");
+                  return false;
+              }
+          }
+      }
+      //set DIS value to get the updated video width and height to calculate
+      //the required record buffer size
+      if(mVpeEnabled) {
+        bool status = setDIS();
+        if(status) {
+          LOGE("Failed to set DIS");
+          return false;
         }
+      }
     }
 
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
@@ -7160,42 +7242,6 @@ QualcommCameraHardware::MemPool::~MemPool()
     LOGV("destroying MemPool %s completed", mName);
 }
 
-static bool register_buf(int size,
-                         int frame_size,
-                         int cbcr_offset,
-                         int yoffset,
-                         int pmempreviewfd,
-                         uint32_t offset,
-                         uint8_t *buf,
-                         int pmem_type,
-                         bool vfe_can_write,
-                         bool register_buffer)
-{
-    struct msm_pmem_info pmemBuf;
-    CAMERA_HAL_UNUSED(frame_size);
-
-    pmemBuf.type     = pmem_type;
-    pmemBuf.fd       = pmempreviewfd;
-    pmemBuf.offset   = offset;
-    pmemBuf.len      = size;
-    pmemBuf.vaddr    = buf;
-    pmemBuf.y_off    = yoffset;
-    pmemBuf.cbcr_off = cbcr_offset;
-
-    pmemBuf.active   = vfe_can_write;
-
-    LOGV("register_buf:  reg = %d buffer = %p",
-         !register_buffer, buf);
-    if(native_start_ops(register_buffer ? CAMERA_OPS_REGISTER_BUFFER :
-        CAMERA_OPS_UNREGISTER_BUFFER ,(void *)&pmemBuf) < 0) {
-         LOGE("register_buf: MSM_CAM_IOCTL_(UN)REGISTER_PMEM  error %s",
-               strerror(errno));
-         return false;
-         }
-
-    return true;
-
-}
 
 status_t QualcommCameraHardware::MemPool::dump(int fd, const Vector<String16>& args) const
 {

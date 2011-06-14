@@ -12,7 +12,26 @@ LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
 
-LOCAL_SRC_FILES:= QualcommCameraHardware.cpp
+# yyan: select different HAL code for newer targets
+ifeq "$(findstring msm8960,$(QCOM_TARGET_PRODUCT))" "msm8960"
+LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp \
+		mm_camera_interface2.c \
+		mm_camera_stream.c \
+		mm_camera_channel.c \
+		mm_camera.c \
+		mm_camera_poll_thread.c \
+		mm_camera_notify.c mm_camera_helper.c \
+		mm_jpeg_encoder.c
+else
+LOCAL_HAL_FILES := QualcommCameraHardware.cpp
+endif
+
+#yyan if debug service layer and up , use stub camera!
+LOCAL_C_INCLUDES += \
+	frameworks/base/services/camera/libcameraservice #
+
+LOCAL_SRC_FILES := $(LOCAL_HAL_FILES)
+
 
 LOCAL_CFLAGS:= -DDLOPEN_LIBMMCAMERA=$(DLOPEN_LIBMMCAMERA)
 
@@ -28,14 +47,17 @@ endif
 
 LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
+    $(TARGET_OUT_HEADERS)/mm-camera/common \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 LOCAL_C_INCLUDES += hardware/msm7k/libgralloc-qsd8k
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils
+LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg
 
 LOCAL_SHARED_LIBRARIES+= libbinder
 ifneq ($(DLOPEN_LIBMMCAMERA),1)

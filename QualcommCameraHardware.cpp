@@ -1241,15 +1241,6 @@ QualcommCameraHardware::QualcommCameraHardware()
     }
 
     storeTargetType();
-    //ENABLE ZSL FOR 8660 only
-    if( mCurrentTarget == TARGET_MSM8660){
-        property_get("persist.camera.hal.zsl", value, "0");
-        int zsl = atoi(value);
-        if(zsl == 1) {
-            mZslEnable = true;
-            HAL_currentSnapshotMode = CAMERA_SNAPSHOT_ZSL;
-        }
-    }
 
     if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
         mIs3DModeOn = true;
@@ -1774,8 +1765,22 @@ void QualcommCameraHardware::initDefaultParameters()
                     verticalViewAngle);
 
     if(mZslEnable == true) {
-        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, MAX_SNAPSHOT_BUFFERS-2);
-        mParameters.set("num-snaps-per-shutter", MAX_SNAPSHOT_BUFFERS-2);
+        char value[50], snap[10];
+        int zslSnapshot, maxSnapshot;
+        maxSnapshot = MAX_SNAPSHOT_BUFFERS - 2;
+        sprintf(snap, "%d", maxSnapshot);
+        /* To be removed once app support is available */
+        property_get("persist.camera.hal.capture", value, snap);
+        zslSnapshot =  atoi(value);
+        if(zslSnapshot >  maxSnapshot)
+            zslSnapshot =  maxSnapshot;
+        else if(zslSnapshot < 1)
+            zslSnapshot = 1;
+        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, zslSnapshot);
+
+        mParameters.set("num-snaps-per-shutter", zslSnapshot);
+        mParameters.set("capture-burst-captures-values", maxSnapshot);
+        mParameters.set("capture-burst-interval-supported", "false");
     } else {
         LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, 1);
         mParameters.set("num-snaps-per-shutter", "1");
@@ -4309,13 +4314,11 @@ status_t QualcommCameraHardware::takePicture()
         }
     }
     if( mZslEnable && !mZslFlashEnable){
-        /*
-        char value[PROPERTY_VALUE_MAX];
-        property_get("persist.camera.hal.capture", value, "1");
-        numCapture = atoi(value);
-        if(numCapture > (MAX_SNAPSHOT_BUFFERS-2))
-        */
-           numCapture = MAX_SNAPSHOT_BUFFERS-2;
+        const char *str =  mParameters.get("num-snaps-per-shutter");
+        if(str != NULL)
+            numCapture = atoi(str);
+        else
+            numCapture = 1;
     }else
         numCapture = 1;
 
@@ -4555,7 +4558,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setRedeyeReduction(params)))  final_rc = rc;
     if ((rc = setDenoise(params)))  final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))  final_rc = rc;
-
+    if ((rc = setZslCaptureCount(params)))  final_rc = rc;
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
 
@@ -6877,6 +6880,27 @@ status_t QualcommCameraHardware::setDenoise(const CameraParameters& params)
     LOGE("Invalid Denoise value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
+
+status_t QualcommCameraHardware::setZslCaptureCount(const CameraParameters& params)
+{
+    if(!mZslEnable){
+        LOGV("ZSL mode not enabled, hence ignoring Zsl Capture Count");
+        return NO_ERROR;
+    }
+    const char *str = params.get("num-snaps-per-shutter");
+    if (str != NULL) {
+        char snapshotCount[5];
+        int value = atoi(str);
+        if(value > MAX_SNAPSHOT_BUFFERS -2)
+            value = MAX_SNAPSHOT_BUFFERS -2;
+        else if(value < 1)
+            value = 1;
+        sprintf(snapshotCount,"%d",value);
+        mParameters.set("num-snaps-per-shutter", snapshotCount);
+    }
+    return NO_ERROR;
+}
+
 status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
 {
     LOGV("%s: IN", __FUNCTION__);

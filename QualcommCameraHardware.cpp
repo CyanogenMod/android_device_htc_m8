@@ -4284,7 +4284,7 @@ void *snapshot_thread(void *user)
 
 status_t QualcommCameraHardware::takePicture()
 {
-    LOGV("takePicture(%d)", mMsgEnabled);
+    LOGE("takePicture(%d)", mMsgEnabled);
     Mutex::Autolock l(&mLock);
 
     if(strTexturesOn == true){
@@ -4408,7 +4408,9 @@ status_t QualcommCameraHardware::takePicture()
     mInSnapshotMode = true;
     mInSnapshotModeWaitLock.unlock();
 
-    LOGV("takePicture: X");
+    setOverlayFormats(mParameters);
+
+    LOGE("takePicture: X");
     return mSnapshotThreadRunning ? NO_ERROR : UNKNOWN_ERROR;
 }
 
@@ -5757,13 +5759,20 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
                         int h = crop->in1_h;
                         if(x < 0) x = 0;
                         if(y < 0) y = 0;
-                        mOverlay->setCrop(x, y,w,h);
+
+                        mIs3DModeOn ?
+                            mOverlay->setCrop(x, y, 2 * w, h) :
+                            mOverlay->setCrop(x, y, w, h);
+
                         mResetOverlayCrop = true;
                     }else {
-                        mOverlay->setCrop(0, 0, mPostviewWidth, mPostviewHeight);
+                        mIs3DModeOn ?
+                            mOverlay->setCrop(0, 0, 
+                                      2 * mPostviewWidth, mPostviewHeight) :
+                            mOverlay->setCrop(0, 0, 
+                                      mPostviewWidth, mPostviewHeight);
                     }
                 }
-                LOGV(" Queueing Postview for display ");
                 mOverlay->queueBuffer((void *)offset_addr);
             }
             mOverlayLock.unlock();
@@ -6388,11 +6397,19 @@ status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setOverlayFormats(const CameraParameters& params)
 {
-    mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
-    if(mIs3DModeOn == true) {
-        int ovFormat = HAL_PIXEL_FORMAT_YCrCb_420_SP|HAL_3D_IN_SIDE_BY_SIDE_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
-        mParameters.set("overlay-format", ovFormat);
+    int ovFormat;
+    if(mIs3DModeOn) {
+        ovFormat = HAL_3D_IN_SIDE_BY_SIDE_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
+        mInSnapshotMode ?
+            ovFormat |= HAL_PIXEL_FORMAT_YCbCr_420_SP:
+            ovFormat |= HAL_PIXEL_FORMAT_YCrCb_420_SP;
     }
+    else {
+        ovFormat = HAL_PIXEL_FORMAT_YCbCr_420_SP;
+    }
+
+    mParameters.set("overlay-format", ovFormat);
+
     return NO_ERROR;
 }
 
@@ -7665,6 +7682,11 @@ void QualcommCameraHardware::getCameraInfo()
     }
 #endif
     LOGI("getCameraInfo: OUT");
+}
+
+extern "C" int HAL_isIn3DMode()
+{
+    return HAL_currentCameraMode == CAMERA_MODE_3D;
 }
 
 extern "C" int HAL_getNumberOfCameras()

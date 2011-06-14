@@ -4520,7 +4520,7 @@ status_t QualcommCameraHardware::cancelPicture()
         }
         mSnapshotThreadWaitLock.unlock();
     }
-    rc = native_stop_ops(CAMERA_OPS_SNAPSHOT, NULL) ? NO_ERROR : UNKNOWN_ERROR;
+    rc = native_stop_ops(CAMERA_OPS_CAPTURE, NULL) ? NO_ERROR : UNKNOWN_ERROR;
     mSnapshotDone = FALSE;
     LOGI("cancelPicture: X: %d", rc);
     return rc;

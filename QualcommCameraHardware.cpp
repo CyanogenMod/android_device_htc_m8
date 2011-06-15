@@ -1228,7 +1228,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mActualPictWidth(0),
       mActualPictHeight(0),
       mDenoiseValue(0),
-      mPreviewStopping(false)
+      mPreviewStopping(false),
+      mInHFRThread(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -2456,7 +2457,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
 
     if(mIs3DModeOn != true)
     {
-        if(mHFRMode == false)
+        if(mInHFRThread == false)
         {
             mPreviewHeap.clear();
         }
@@ -2737,6 +2738,7 @@ void *hfr_thread(void *user)
 void QualcommCameraHardware::runHFRThread(void *data)
 {
     LOGD("runHFRThread E");
+    mInHFRThread = true;
     CAMERA_HAL_UNUSED(data);
     LOGI("%s: stopping Preview", __FUNCTION__);
     stopPreviewInternal();
@@ -2745,6 +2747,7 @@ void QualcommCameraHardware::runHFRThread(void *data)
     LOGI("%s: starting Preview", __FUNCTION__);
     startPreviewInternal();
     mHFRMode = false;
+    mInHFRThread = false;
 }
 
 void QualcommCameraHardware::runVideoThread(void *data)
@@ -3052,7 +3055,7 @@ bool QualcommCameraHardware::initPreview()
     bool ret = native_set_parms(CAMERA_PARM_DIMENSION,
                                sizeof(cam_ctrl_dimension_t), &mDimension);
     if(mIs3DModeOn != true) {
-      if(mHFRMode == false)
+      if(mInHFRThread == false)
       {
         mPreviewHeap = new PmemPool(pmem_region,
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,

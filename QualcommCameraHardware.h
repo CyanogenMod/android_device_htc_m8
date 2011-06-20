@@ -393,7 +393,7 @@ private:
     bool register_record_buffers(bool register_buffer);
     status_t setRedeyeReduction(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
-    status_t setZslCaptureCount(const CameraParameters& params);
+    status_t setSnapshotCount(const CameraParameters& params);
     void setGpsParameters();
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);

@@ -4086,6 +4086,7 @@ done:
 status_t QualcommCameraHardware::cancelAutoFocusInternal()
 {
     LOGV("cancelAutoFocusInternal E");
+    bool afRunning = true;
 
     if(!mHasAutoFocusSupport){
         LOGV("cancelAutoFocusInternal X");
@@ -4094,24 +4095,33 @@ status_t QualcommCameraHardware::cancelAutoFocusInternal()
 
     status_t rc = NO_ERROR;
     status_t err;
-    err = mAfLock.tryLock();
-    if(err == NO_ERROR) {
-        //Got Lock, means either AF hasn't started or
-        // AF is done. So no need to cancel it, just change the state
-        LOGV("As Auto Focus is not in progress, Cancel Auto Focus "
-                "is ignored");
-        mAfLock.unlock();
-    }
-    else {
+
+    do {
+      err = mAfLock.tryLock();
+      if(err == NO_ERROR) {
+          //Got Lock, means either AF hasn't started or
+          // AF is done. So no need to cancel it, just change the state
+          LOGV("Auto Focus is not in progress, Cancel Auto Focus is ignored");
+          mAfLock.unlock();
+
+          mAutoFocusThreadLock.lock();
+          afRunning = mAutoFocusThreadRunning;
+          mAutoFocusThreadLock.unlock();
+          if(afRunning) {
+            usleep( 5000 );
+          }
+      }
+    } while ( err == NO_ERROR && afRunning );
+    if(afRunning) {
         //AF is in Progess, So cancel it
         LOGV("Lock busy...cancel AF");
-             rc = native_stop_ops(CAMERA_OPS_FOCUS, NULL) ?
-                NO_ERROR :
-                UNKNOWN_ERROR;
+        rc = native_stop_ops(CAMERA_OPS_FOCUS, NULL) ?
+          NO_ERROR : UNKNOWN_ERROR;
+
+        /*now just wait for auto focus thread to be finished*/
+        mAutoFocusThreadLock.lock();
+        mAutoFocusThreadLock.unlock();
     }
-
-
-
     LOGV("cancelAutoFocusInternal X: %d", rc);
     return rc;
 }

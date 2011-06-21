@@ -76,6 +76,9 @@ extern "C" {
 
 #define DEFAULT_PICTURE_WIDTH  640
 #define DEFAULT_PICTURE_HEIGHT 480
+#define DEFAULT_PICTURE_WIDTH_3D 1920
+#define DEFAULT_PICTURE_HEIGHT_3D 1080
+
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define MAX_ZOOM_LEVEL 5
 #define NOT_FOUND -1
@@ -208,6 +211,8 @@ union zoomimage
 //Default to VGA
 #define DEFAULT_PREVIEW_WIDTH 640
 #define DEFAULT_PREVIEW_HEIGHT 480
+#define DEFAULT_PREVIEW_WIDTH_3D 1280
+#define DEFAULT_PREVIEW_HEIGHT_3D 720
 
 //Default FPS
 #define MINIMUM_FPS 5
@@ -249,6 +254,11 @@ static struct camera_size_type zsl_picture_sizes[] = {
   { 320, 240}, // QVGA
   { 176, 144} // QCIF
 };
+
+static struct camera_size_type for_3D_picture_sizes[] = {
+  { 1920, 1080},
+};
+
 static camera_size_type* picture_sizes;
 static camera_size_type* preview_sizes;
 static camera_size_type* hfr_sizes;
@@ -397,6 +407,12 @@ static const str_map antibanding[] = {
     { CameraParameters::ANTIBANDING_50HZ, CAMERA_ANTIBANDING_50HZ },
     { CameraParameters::ANTIBANDING_60HZ, CAMERA_ANTIBANDING_60HZ },
     { CameraParameters::ANTIBANDING_AUTO, CAMERA_ANTIBANDING_AUTO }
+};
+
+static const str_map antibanding_3D[] = {
+    { CameraParameters::ANTIBANDING_OFF,  CAMERA_ANTIBANDING_OFF },
+    { CameraParameters::ANTIBANDING_50HZ, CAMERA_ANTIBANDING_50HZ },
+    { CameraParameters::ANTIBANDING_60HZ, CAMERA_ANTIBANDING_60HZ }
 };
 
 /* Mapping from MCC to antibanding type */
@@ -680,6 +696,15 @@ static const str_map iso[] = {
     { CameraParameters::ISO_1600,  CAMERA_ISO_1600 }
 };
 
+static const str_map iso_3D[] = {
+    { CameraParameters::ISO_AUTO,  CAMERA_ISO_AUTO},
+    { CameraParameters::ISO_100,   CAMERA_ISO_100},
+    { CameraParameters::ISO_200,   CAMERA_ISO_200},
+    { CameraParameters::ISO_400,   CAMERA_ISO_400},
+    { CameraParameters::ISO_800,   CAMERA_ISO_800 },
+    { CameraParameters::ISO_1600,  CAMERA_ISO_1600 }
+};
+
 
 #define DONT_CARE 0
 static const str_map focus_modes[] = {
@@ -766,6 +791,10 @@ static const str_map redeye_reduction[] = {
 static const str_map picture_formats[] = {
         {CameraParameters::PIXEL_FORMAT_JPEG, PICTURE_FORMAT_JPEG},
         {CameraParameters::PIXEL_FORMAT_RAW, PICTURE_FORMAT_RAW}
+};
+
+static const str_map picture_formats_zsl[] = {
+        {CameraParameters::PIXEL_FORMAT_JPEG, PICTURE_FORMAT_JPEG}
 };
 
 static const str_map frame_rate_modes[] = {
@@ -1373,7 +1402,13 @@ void QualcommCameraHardware::filterPictureSizes(){
         // due to lack of PMEM we restrict to lower resolution
         picture_sizes_ptr = zsl_picture_sizes;
         supportedPictureSizesCount = 7;
-    }else{
+    }
+    else if(mIs3DModeOn){
+     // In 3D mode we only want 1080p picture size
+      picture_sizes_ptr = for_3D_picture_sizes;
+      supportedPictureSizesCount = 1;
+    }
+    else{
     picture_sizes_ptr = picture_sizes;
     supportedPictureSizesCount = PICTURE_SIZE_COUNT;
     }
@@ -1441,8 +1476,13 @@ void QualcommCameraHardware::initDefaultParameters()
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
     if (!parameter_string_initialized) {
+        if(mIs3DModeOn){
+          antibanding_values = create_values_str(
+            antibanding_3D, sizeof(antibanding_3D) / sizeof(str_map));
+        } else{
         antibanding_values = create_values_str(
             antibanding, sizeof(antibanding) / sizeof(str_map));
+        }
         effect_values = create_values_str(
             effects, sizeof(effects) / sizeof(str_map));
         autoexposure_values = create_values_str(
@@ -1455,9 +1495,10 @@ void QualcommCameraHardware::initDefaultParameters()
                 picture_sizes_ptr, supportedPictureSizesCount);
         preview_size_values = create_sizes_str(
                 preview_sizes,  PREVIEW_SIZE_COUNT);
+        if(!mIs3DModeOn){
         hfr_size_values = create_sizes_str(
                 hfr_sizes, HFR_SIZE_COUNT);
-
+        }
         fps_ranges_supported_values = create_fps_str(
             FpsRangesSupported,FPS_RANGES_SUPPORTED_COUNT );
         mParameters.set(
@@ -1471,14 +1512,21 @@ void QualcommCameraHardware::initDefaultParameters()
             focus_mode_values = create_values_str(
                     focus_modes, sizeof(focus_modes) / sizeof(str_map));
         }
-        iso_values = create_values_str(
-            iso,sizeof(iso)/sizeof(str_map));
+        if(mIs3DModeOn){
+          iso_values = create_values_str(
+              iso_3D,sizeof(iso_3D)/sizeof(str_map));
+        } else{
+           iso_values = create_values_str(
+              iso,sizeof(iso)/sizeof(str_map));
+        }
         lensshade_values = create_values_str(
             lensshade,sizeof(lensshade)/sizeof(str_map));
         mce_values = create_values_str(
             mce,sizeof(mce)/sizeof(str_map));
-        hfr_values = create_values_str(
+        if(!mIs3DModeOn){
+          hfr_values = create_values_str(
             hfr,sizeof(hfr)/sizeof(str_map));
+        }
         //Currently Enabling Histogram for 8x60
         if(mCurrentTarget == TARGET_MSM8660) {
             histogram_values = create_values_str(
@@ -1493,10 +1541,13 @@ void QualcommCameraHardware::initDefaultParameters()
             touchafaec_values = create_values_str(
                 touchafaec,sizeof(touchafaec)/sizeof(str_map));
         }
-
-        picture_format_values = create_values_str(
-            picture_formats, sizeof(picture_formats)/sizeof(str_map));
-
+        if(mZslEnable){
+           picture_format_values = create_values_str(
+               picture_formats_zsl, sizeof(picture_formats_zsl)/sizeof(str_map));
+        } else{
+           picture_format_values = create_values_str(
+               picture_formats, sizeof(picture_formats)/sizeof(str_map));
+        }
         if(mCurrentTarget == TARGET_MSM8660 ||
           (mCurrentTarget == TARGET_MSM7625A ||
            mCurrentTarget == TARGET_MSM7627A)) {
@@ -1548,11 +1599,16 @@ void QualcommCameraHardware::initDefaultParameters()
 
         parameter_string_initialized = true;
     }
-
-    mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_HEIGHT);
-    mDimension.display_width = DEFAULT_PREVIEW_WIDTH;
-    mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
-
+    if(mIs3DModeOn){
+       LOGE("In initDefaultParameters - 3D mode on so set the default preview to 1280 x 720");
+       mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH_3D, DEFAULT_PREVIEW_HEIGHT_3D);
+       mDimension.display_width = DEFAULT_PREVIEW_WIDTH_3D;
+       mDimension.display_height = DEFAULT_PREVIEW_HEIGHT_3D;
+    } else{
+       mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_HEIGHT);
+       mDimension.display_width = DEFAULT_PREVIEW_WIDTH;
+       mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
+    }
     mParameters.setPreviewFrameRate(DEFAULT_FPS);
     if( mCfgControl.mm_camera_is_supported(CAMERA_PARM_FPS)){
         mParameters.set(
@@ -1566,8 +1622,11 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.setPreviewFrameRateMode("frame-rate-auto");
     mParameters.setPreviewFormat("yuv420sp"); // informative
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
-
-    mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
+    if(mIs3DModeOn){
+      mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH_3D, DEFAULT_PICTURE_HEIGHT_3D);
+    } else{
+      mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
+    }
     mParameters.setPictureFormat("jpeg"); // informative
 
     mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "85"); // max quality
@@ -1722,14 +1781,14 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::MCE_ENABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_MEM_COLOR_ENHANCE_MODES,
                     mce_values);
-    if(mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) {
+    if(mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR) && !(mIs3DModeOn)) {
         mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE,
                     CameraParameters::VIDEO_HFR_OFF);
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,
                     hfr_size_values.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
-                    hfr_values);
-    } else
+                    hfr_values);}
+     else
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
 
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
@@ -6566,7 +6625,7 @@ status_t QualcommCameraHardware::setMCEValue(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setHighFrameRate(const CameraParameters& params)
 {
-    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) {
+    if((!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) || (mIs3DModeOn)) {
         LOGI("Parameter HFR is not supported for this sensor");
         return NO_ERROR;
     }

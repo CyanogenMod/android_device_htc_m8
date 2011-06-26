@@ -221,14 +221,15 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
 	/* init condv, mutex, fork worker thread */
 	pthread_mutex_init(&g_cam_ctrl.cam_obj[camera_id]->work_ctrl.mutex, NULL);
 	pthread_cond_init(&g_cam_ctrl.cam_obj[camera_id]->work_ctrl.cond_v, NULL);
-	pipe(g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds);
-	/* if pipe open good */
-	if(g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds[0]) {
-		(void)mm_camera_poll_task_launch(g_cam_ctrl.cam_obj[camera_id]);
-		CDBG("%s: calling mm_camera_open()\n", __func__);
-		rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
-		if(rc < 0) CDBG("%s: open failed\n", __func__);
-	} else rc = - MM_CAMERA_E_GENERAL;
+	if (pipe(g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds) == -1) {
+		LOGE("pipe() failed with error: %s\n", strerror(errno));
+		rc = -MM_CAMERA_E_GENERAL;
+		goto end;
+	};
+	(void)mm_camera_poll_task_launch(g_cam_ctrl.cam_obj[camera_id]);
+	CDBG("%s: calling mm_camera_open()\n", __func__);
+	rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
+	if(rc < 0) CDBG("%s: open failed\n", __func__);
 end:
 	pthread_mutex_unlock(&g_mutex);
 	return rc;

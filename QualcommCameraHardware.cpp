@@ -88,6 +88,21 @@ extern "C" {
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
+
+// Conversion routines from YV420sp to YV12 format
+int (*LINK_neon_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtr);
+int (*LINK_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtr);
+int (*LINK_yuv_convert_ycrcb420sp_to_yv12_ver2) (yuv_image_type* yuvStructPtrin, yuv_image_type* yuvStructPtrout);
+#ifdef USE_NEON_CONVERSION
+    #define HAL_CONVERT_YUV420SP_YV12_INPLACE LINK_neon_yuv_convert_ycrcb420sp_to_yv12
+    #define HAL_CONVERT_YUV420SP_YV12
+#else
+    #define HAL_CONVERT_YUV420SP_YV12_INPLACE LINK_yuv_convert_ycrcb420sp_to_yv12
+    #define HAL_CONVERT_YUV420SP_YV12         LINK_yuv_convert_ycrcb420sp_to_yv12_ver2
+#endif
+#define NUM_YV12_FRAMES 1
+
+
 void *libmmcamera;
 void* (*LINK_cam_conf)(void *data);
 void* (*LINK_cam_frame)(void *data);
@@ -761,7 +776,12 @@ static const str_map frame_rate_modes[] = {
 static int mPreviewFormat;
 static const str_map preview_formats[] = {
         {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
-        {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO}
+        {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO},
+        {CameraParameters::PIXEL_FORMAT_YV12, CAMERA_YUV_420_YV12}
+};
+static const str_map preview_formats1[] = {
+        {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
+        {CameraParameters::PIXEL_FORMAT_YV12, CAMERA_YUV_420_YV12}
 };
 
 static bool parameter_string_initialized = false;
@@ -1598,12 +1618,18 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::AUTO_EXPOSURE_FRAME_AVG);
     mParameters.set(CameraParameters::KEY_WHITE_BALANCE,
                     CameraParameters::WHITE_BALANCE_AUTO);
-    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250)
-        && (mCurrentTarget != TARGET_MSM8660)) {
-    mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
+    if( (mCurrentTarget != TARGET_MSM7630)
+        && (mCurrentTarget != TARGET_QSD8250)
+        && (mCurrentTarget != TARGET_MSM8660)
+        && (mCurrentTarget != TARGET_MSM7627A)) {
+        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
                     "yuv420sp");
-    }
-    else {
+    } else if(mCurrentTarget == TARGET_MSM7627A) {
+        preview_format_values = create_values_str(
+            preview_formats1, sizeof(preview_formats1) / sizeof(str_map));
+        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
+                preview_format_values.string());
+    } else {
         preview_format_values = create_values_str(
             preview_formats, sizeof(preview_formats) / sizeof(str_map));
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
@@ -1897,6 +1923,14 @@ bool QualcommCameraHardware::startCamera()
     *(void **)&LINK_mm_camera_destroy =
         ::dlsym(libmmcamera, "mm_camera_destroy");
 
+    *(void **)&LINK_neon_yuv_convert_ycrcb420sp_to_yv12 =
+        ::dlsym(libmmcamera, "neon_yuv_convert_ycrcb420sp_to_yv12");
+
+    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12 =
+        ::dlsym(libmmcamera, "yuv_convert_ycrcb420sp_to_yv12");
+
+    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12_ver2 =
+        ::dlsym(libmmcamera, "yuv_convert_ycrcb420sp_to_yv12_ver2");
 
 /* Disabling until support is available.
     *(void **)&LINK_zoom_crop_upscale =
@@ -2454,6 +2488,11 @@ void QualcommCameraHardware::runFrameThread(void *data)
         if(mInHFRThread == false)
         {
             mPreviewHeap.clear();
+            if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
+                mCurrentTarget == TARGET_MSM7627A  &&
+                previewWidth%32 != 0 )
+                mYV12Heap.clear();
+
         }
         else
         {
@@ -2495,6 +2534,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
 {
     static int hfr_count = 0;
     msm_frame* frame = NULL;
+
     CAMERA_HAL_UNUSED(data);
     while((frame = mPreviewBusyQueue.get()) != NULL) {
         if (UNLIKELY(mDebugFps)) {
@@ -2620,28 +2660,59 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 mLastQueuedFrame = (void *)mPreviewHeap->mBuffers[offset]->pointer();
             }
         }
-        if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
+
+
+        // if 7x27A && yv12 is set as preview format use convert routines to
+        // convert from YUV420sp to YV12
+        yuv_image_type in_buf, out_buf;
+        int conversion_result = 0;
+
+        if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
+            mCurrentTarget == TARGET_MSM7627A  ){
+            // if the width is not multiple of 32,
+            //we cannot do inplace conversion as sizes of 420sp and YV12 frames differ
+            if(previewWidth%32){
+                //LOGD("Doing not inplace conversion from 420sp to yv12");
+                out_buf.imgPtr = (unsigned char *)mYV12Heap->mBuffers[0]->pointer();
+                in_buf.imgPtr = (unsigned char*)mPreviewHeap->mBuffers[offset]->pointer();
+                in_buf.dx = out_buf.dx = previewWidth;
+                in_buf.dy = in_buf.dy = previewHeight;
+                HAL_CONVERT_YUV420SP_YV12(&in_buf, &out_buf);
+            } else {
+                //LOGD("Doing inplace conversion from 420sp to yv12");
+                in_buf.imgPtr = (unsigned char *)mPreviewHeap->mBuffers[offset]->pointer();
+                in_buf.dx  = previewWidth;
+                in_buf.dy  = previewHeight;
+                conversion_result = HAL_CONVERT_YUV420SP_YV12_INPLACE(&in_buf);
+            }
+        }
+
+        if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME) && conversion_result == 0)
         {
            const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
            if(str != NULL)
            {
                hfr_count++;
                if(!strcmp(str, CameraParameters::VIDEO_HFR_OFF)) {
-                   pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
-                    pdata);
+                    pcb(CAMERA_MSG_PREVIEW_FRAME,
+                    (mYV12Heap == NULL)? mPreviewHeap->mBuffers[offset] : mYV12Heap->mBuffers[0],
+                         pdata);
                } else if (!strcmp(str, CameraParameters::VIDEO_HFR_2X)) {
-                 hfr_count %= 2;
+                   hfr_count %= 2;
                } else if (!strcmp(str, CameraParameters::VIDEO_HFR_3X)) {
-                 hfr_count %= 3;
+                   hfr_count %= 3;
                } else if (!strcmp(str, CameraParameters::VIDEO_HFR_4X)) {
-                 hfr_count %= 4;
+                   hfr_count %= 4;
                }
                if(hfr_count == 0)
-                   pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
-                    pdata);
+                   pcb(CAMERA_MSG_PREVIEW_FRAME,
+                   (mYV12Heap == NULL)? mPreviewHeap->mBuffers[offset] : mYV12Heap->mBuffers[0],
+                         pdata);
+
            } else
-               pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap->mBuffers[offset],
-               pdata);
+               pcb(CAMERA_MSG_PREVIEW_FRAME,
+               (mYV12Heap == NULL)? mPreviewHeap->mBuffers[offset] : mYV12Heap->mBuffers[0],
+                   pdata);
         }
 
         // If output  is NOT enabled (targets otherthan 7x30 , 8x50 and 8x60 currently..)
@@ -3097,6 +3168,29 @@ bool QualcommCameraHardware::initPreview()
           return false;
         }
       }
+      // if 7x27A , YV12 format is set as preview format , if width is not 32
+      // bit aligned , we need seperate buffer to hold YV12 data
+    yv12framesize = (previewWidth*previewHeight)
+          + 2* ( CEILING16(previewWidth/2) * (previewHeight/2)) ;
+    if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
+        mCurrentTarget == TARGET_MSM7627A  &&
+        previewWidth%32 != 0 ){
+        LOGE("initpreview : creating YV12 heap as previewwidth %d not 32 aligned", previewWidth);
+        mYV12Heap = new PmemPool(pmem_region,
+                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                MSM_PMEM_PREVIEW,
+                                yv12framesize,
+                                NUM_YV12_FRAMES,
+                                yv12framesize,
+                                CbCrOffset,
+                                0,
+                                "preview");
+            if (!mYV12Heap->initialized()) {
+                mYV12Heap.clear();
+                LOGE("initPreview X: could not initialize YV12 Camera preview heap.");
+                return false;
+            }
+        }
     }
 
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)) {
@@ -3757,10 +3851,16 @@ sp<IMemoryHeap> QualcommCameraHardware::getRawHeap() const
 sp<IMemoryHeap> QualcommCameraHardware::getPreviewHeap() const
 {
     LOGV("getPreviewHeap");
-    if(mIs3DModeOn != true)
+    if(mIs3DModeOn != true) {
+        if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
+            mCurrentTarget == TARGET_MSM7627A  &&
+            previewWidth%32 != 0 )
+            return mYV12Heap->mHeap;
+
         return mPreviewHeap != NULL ? mPreviewHeap->mHeap : NULL;
-    else
+    } else
         return mRecordHeap != NULL ? mRecordHeap->mHeap : NULL;
+
 }
 
 

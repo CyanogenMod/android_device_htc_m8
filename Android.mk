@@ -45,6 +45,9 @@ else
 LOCAL_CFLAGS+= -DNUM_PREVIEW_BUFFERS=4 -D_ANDROID_
 endif
 
+# To Choose neon/C routines for YV12 conversion
+LOCAL_CFLAGS+= -DUSE_NEON_CONVERSION
+
 # Uncomment below line to enable smooth zoom
 #LOCAL_CFLAGS+= -DCAMERA_SMOOTH_ZOOM
 

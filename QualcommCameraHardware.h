@@ -226,6 +226,7 @@ private:
     };
 
     sp<PmemPool> mPreviewHeap;
+    sp<PmemPool> mYV12Heap;
     sp<PmemPool> mRecordHeap;
     sp<PmemPool> mThumbnailHeap;
     sp<PmemPool> mRawHeap;
@@ -465,6 +466,7 @@ private:
     int mDebugFps;
     int kPreviewBufferCountActual;
     int previewWidth, previewHeight;
+    int yv12framesize;
     bool mSnapshotDone;
     int maxSnapshotWidth;
     int maxSnapshotHeight;

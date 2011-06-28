@@ -393,6 +393,7 @@ private:
     bool register_record_buffers(bool register_buffer);
     status_t setRedeyeReduction(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
+    status_t setZslParam(const CameraParameters& params);
     status_t setSnapshotCount(const CameraParameters& params);
     void setGpsParameters();
     bool storePreviewFrameForPostview();
@@ -483,6 +484,7 @@ private:
     int mPostviewHeight;
     int mDenoiseValue;
     int mZslEnable;
+    int mZslPanorama;
     bool mZslFlashEnable;
     cam_3d_frame_format_t mSnapshot3DFormat;
     bool mSnapshotCancel;

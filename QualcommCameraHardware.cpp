@@ -1223,6 +1223,7 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPostviewHeight(0),
       mZslEnable(0),
       mZslFlashEnable(false),
+      mZslPanorama(false),
       mSnapshotCancel(false),
       mHFRMode(false),
       mActualPictWidth(0),
@@ -3767,7 +3768,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
 {
    LOGV("in startPreviewInternal : E");
    mPreviewStopping = false;
-   if(mZslEnable){
+   if(mZslEnable && !mZslPanorama){
        LOGE("start zsl Preview called");
        mCamOps.mm_camera_start(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
        if (mCurrentTarget == TARGET_MSM8660) {
@@ -4348,8 +4349,10 @@ status_t QualcommCameraHardware::takePicture()
     }
     if(!mZslEnable || mZslFlashEnable)
         stopPreviewInternal();
-    else {
-	LOGE("Calling stop preview");
+    else if(mZslEnable && !mZslPanorama) {
+        /* Dont stop preview if ZSL Panorama is enabled for
+         * Continuous viewfinder support*/
+        LOGE("Calling stop preview");
         mCamOps.mm_camera_stop(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
     }
 
@@ -4556,6 +4559,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setRedeyeReduction(params)))  final_rc = rc;
     if ((rc = setDenoise(params)))  final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))  final_rc = rc;
+    if ((rc = setZslParam(params)))  final_rc = rc;
     if ((rc = setSnapshotCount(params)))  final_rc = rc;
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -5739,7 +5743,7 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
         // Find the offset within the heap of the current buffer.
         offset_addr = (ssize_t)postviewframe->buffer - (ssize_t)mPostviewHeap->mHeap->base();
         offset = offset_addr / mPostviewHeap->mAlignedBufferSize;
-        if(mUseOverlay) {
+        if(mUseOverlay && !mZslPanorama) {
             mOverlayLock.lock();
             if(mOverlay != NULL) {
                 mOverlay->setFd(mPostviewHeap->mHeap->getHeapID());
@@ -6898,6 +6902,26 @@ status_t QualcommCameraHardware::setDenoise(const CameraParameters& params)
     return BAD_VALUE;
 }
 
+status_t QualcommCameraHardware::setZslParam(const CameraParameters& params)
+{
+    if(!mZslEnable) {
+        LOGV("Zsl is not enabled");
+        return NO_ERROR;
+    }
+    /* This ensures that restart of Preview doesnt happen when taking
+     * Snapshot for continuous viewfinder */
+    const char *str = params.get("continuous-temporal-bracketing");
+    if(str !=NULL) {
+        if(!strncmp(str, "enable", 8))
+            mZslPanorama = true;
+        else
+            mZslPanorama = false;
+        return NO_ERROR;
+    }
+    mZslPanorama = false;
+    return NO_ERROR;
+}
+
 status_t QualcommCameraHardware::setSnapshotCount(const CameraParameters& params)
 {
     if(!mZslEnable){
@@ -7521,7 +7545,7 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
         memcpy(mLastPreviewFrameHeap->mHeap->base(),
                (uint8_t *)mLastQueuedFrame, mPreviewFrameSize );
 
-        if(mUseOverlay) {
+        if(mUseOverlay && !mZslPanorama) {
             mOverlayLock.lock();
             if(mOverlay != NULL){
                 mOverlay->setFd(mLastPreviewFrameHeap->mHeap->getHeapID());

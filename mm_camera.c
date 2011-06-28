@@ -40,7 +40,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static int32_t mm_camera_ctrl_set_specialEffect (mm_camera_obj_t *my_obj, int effect) {
   struct v4l2_control ctrl;
-  effect++;
   if (effect == CAMERA_EFFECT_MAX)
     effect = CAMERA_EFFECT_OFF;
   int rc = 0;

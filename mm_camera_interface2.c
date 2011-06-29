@@ -62,6 +62,7 @@ static int mm_camera_util_opcode_2_ch_type(mm_camera_obj_t *my_obj,
 
 const char *mm_camera_util_get_dev_name(mm_camera_obj_t * my_obj)
 {
+	CDBG("%s: Returning %s at index :%d\n",__func__,g_cam_ctrl.camera[my_obj->my_id].video_dev_name,my_obj->my_id);
 	return g_cam_ctrl.camera[my_obj->my_id].video_dev_name;
 }
 
@@ -196,6 +197,7 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
 	int8_t camera_id = camera->camera_info.camera_id;
 	int32_t rc = MM_CAMERA_OK;
 
+	CDBG("%s: BEGIN\n", __func__);
 	pthread_mutex_lock(&g_mutex);
 
 	/* not first open */
@@ -213,6 +215,7 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
 	memset(g_cam_ctrl.cam_obj[camera_id], 0, 
 				 sizeof(mm_camera_obj_t));
 	g_cam_ctrl.cam_obj[camera_id]->ref_count++;
+	g_cam_ctrl.cam_obj[camera_id]->my_id=camera_id;
 
 	/* TODO: this per obj mutex is not used so far. 
 	 	 Need to see if g_mutex add significent delay or not.
@@ -232,6 +235,8 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
 	if(rc < 0) CDBG("%s: open failed\n", __func__);
 end:
 	pthread_mutex_unlock(&g_mutex);
+
+	CDBG("%s: END, rc=%d\n", __func__, rc);
 	return rc;
 }
 

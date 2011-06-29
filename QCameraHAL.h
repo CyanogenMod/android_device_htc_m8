@@ -132,7 +132,7 @@ private:
     QualcommCameraHardware();
     virtual ~QualcommCameraHardware();
     status_t startPreviewInternal();
-    status_t startRecordingInternal();
+    status_t startRecordingInternal(bool cameraRunning);
     status_t setHistogramOn();
     status_t setHistogramOff();
     status_t runFaceDetection();
@@ -297,7 +297,8 @@ private:
     FrameQueue mPreviewBusyQueue;
     FrameQueue mRecordBusyQueue;
     //FrameQueue mRecordFreeQueue;
-    Vector<mm_camera_ch_data_buf_t *> mRecordFreeQueue;
+    Mutex mRecordFreeQueueLock;
+    Vector<mm_camera_ch_data_buf_t> mRecordFreeQueue;
     
 
     bool mFrameThreadRunning;

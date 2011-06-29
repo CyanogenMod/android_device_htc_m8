@@ -286,7 +286,6 @@ static int exif_table_numEntries = 0;
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
-#define RECORD_BUFFERS 4
 #define RECORD_BUFFERS_8x50 8
 static int kRecordBufferCount;
 /* controls whether VPE is avialable for the target
@@ -977,7 +976,7 @@ static int dstOffset = 0;
  */
 #define NUM_MORE_BUFS 2
 #define PREVIEW_BUFFER_COUNT 4
-#define VIDEO_BUFFER_COUNT 4
+#define VIDEO_BUFFER_COUNT 8
 QualcommCameraHardware::QualcommCameraHardware()
     : mStopRecording(false),
       mParameters(),
@@ -1056,7 +1055,7 @@ QualcommCameraHardware::QualcommCameraHardware()
     mDebugFps = atoi(value);
 
     kPreviewBufferCountActual = kPreviewBufferCount;
-    kRecordBufferCount = RECORD_BUFFERS;
+    kRecordBufferCount = VIDEO_BUFFER_COUNT;
     recordframes = new msm_frame[kRecordBufferCount];
     record_buffers_tracking_flag = new bool[kRecordBufferCount];
     jpegPadding = 0;
@@ -3787,7 +3786,11 @@ status_t QualcommCameraHardware::startPreview()
 {
     LOGV("startPreview E");
     Mutex::Autolock l(&mLock);
-    return startPreviewInternal();
+    status_t ret;
+    bool cameraRunning = mCameraRunning;
+    if( (ret=startPreviewInternal())== NO_ERROR)
+        ret = startRecordingInternal(cameraRunning);
+    return ret;
 }
 int mm_do_munmap(int pmem_fd, void *addr, size_t size)
 {
@@ -3815,6 +3818,16 @@ void QualcommCameraHardware::stopPreviewInternal()
     if(!mCameraRunning) {
         LOGV("Preview Already stopped.");
         return;
+    }
+
+    LOGD("Stop OPS VIDEO");
+    if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action(HAL_camerahandle[HAL_currentCameraId],FALSE,MM_CAMERA_OPS_VIDEO,0)) {
+        LOGE("%s: ###############Video Stream off failed: ",__func__);
+    //    return ;
+    }
+    else
+    {
+        LOGE("%s: ###############Video Stream off passed: ",__func__);
     }
     LOGD("Stop OPS PREVIEW");
     if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action(HAL_camerahandle[HAL_currentCameraId],FALSE,MM_CAMERA_OPS_PREVIEW,0)) {
@@ -4987,25 +5000,34 @@ void QualcommCameraHardware::receiveRecordingFrame(mm_camera_ch_data_buf_t*frame
     else 
         LOGE("in  receiveRecordingFrame frame is NULL");
 #endif
-    mCallbackLock.lock();
-    int msgEnabled = mMsgEnabled;
-    LOGE("Guru: Calling Encoder");
-    data_callback_timestamp rcb = mDataCallbackTimestamp;
-    void *rdata = mCallbackCookie;
-    mCallbackLock.unlock();
-    
-    nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + frame->video.video.frame->ts.tv_nsec;
 
-    LOGE("Video Callback : got video frame, giving frame to services/encoder Timestamp:  %ld",timeStamp);  
-    LOGE("receiveRecordingFrame frame idx = %d\n", frame->video.video.idx);
-    if(mRecordEnable == true) {
-        //FreeQueueCount++;
-        //mRecordFreeQueue.add(frame);
-        LOGE("### Call to services/encoder ###");
-        rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
-    }
+	#if 1
+	        mCallbackLock.lock();
+            int msgEnabled = mMsgEnabled;
+            LOGE("Guru: Calling Encoder");
+            data_callback_timestamp rcb = mDataCallbackTimestamp;
+            void *rdata = mCallbackCookie;
+            mCallbackLock.unlock();
+			
+			nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + frame->video.video.frame->ts.tv_nsec;
 
-    HAL_camerahandle[HAL_currentCameraId]->evt->buf_done(HAL_camerahandle[HAL_currentCameraId],frame);
+			LOGE("in video_thread : got video frame, giving frame to services/encoder");
+			
+			LOGE("receiveRecordingFrame frame idx = %d\n", frame->video.video.idx);
+			//LOGE("Heap = %x\n", mRecordHeap);
+			//LOGE("Buffer = %x\n", mRecordHeap->mBuffers);
+            if(mRecordEnable == true) {
+                LOGE("### Call to services/encoder ###");
+                mRecordFreeQueueLock.lock();
+                mRecordFreeQueue.add(*frame);
+                mRecordFreeQueueLock.unlock();
+                rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
+            } else {
+                HAL_camerahandle[HAL_currentCameraId]->evt->buf_done(HAL_camerahandle[HAL_currentCameraId], frame);
+            }
+            //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,vframe, rdata);
+    #endif
+    LOGI("%s (%d): receivedRecordingFrame = %p\n", __func__, __LINE__, frame);
 	/*********************************************************************************/
     LOGV("receiveRecordingFrame X");
 }
@@ -5419,23 +5441,29 @@ status_t QualcommCameraHardware::startRecording()
         return UNKNOWN_ERROR;
     }
 
+    bool cameraRunning = mCameraRunning;
     if( (ret=startPreviewInternal())== NO_ERROR) {
         /* this variable state will be used in 3D mode.
          * recordingState = 1 : start giving frames for encoding.
          * recordingState = 0 : stop giving frames for encoding.
          */
-        recordingState = 1;
-        mRecordEnable = true;
-        return startRecordingInternal();
+        ret = startRecordingInternal(cameraRunning);
+        if (ret == NO_ERROR) {
+            mRecordEnable = true;
+            recordingState = 1;
+        }
     }
 
     return ret;
 }
 
-status_t QualcommCameraHardware::startRecordingInternal()
+status_t QualcommCameraHardware::startRecordingInternal(bool cameraRunning)
 {
     LOGI("%s: E", __FUNCTION__);
     mReleasedRecordingFrame = false;
+
+    if (cameraRunning)
+        return NO_ERROR;
 #if 0
     /* In 3D mode, the video thread has to be started as part
      * of preview itself, because video buffers and video callback
@@ -5514,7 +5542,7 @@ status_t QualcommCameraHardware::startRecordingInternal()
             }
 		LOGE(" Video Thread is Started");
     /****************************************************************************************************/     
-    LOGV("%s: E", __FUNCTION__);
+    LOGV("%s: X", __FUNCTION__);
     return NO_ERROR;
 }
 
@@ -5523,9 +5551,7 @@ void QualcommCameraHardware::stopRecording()
     LOGV("stopRecording: E");
 	mStopRecording = true;
     mRecordEnable = false;
-    if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action(HAL_camerahandle[HAL_currentCameraId],0,MM_CAMERA_OPS_VIDEO,0)) {
-                LOGE("stopRecording: Stream on failed: ");
-    }
+    LOGI("%s (%d): mRecordFreeQueue size = %d\n", __func__, __LINE__, mRecordFreeQueue.size());
 #if 0
     Mutex::Autolock l(&mLock);
     {
@@ -5640,6 +5666,19 @@ void QualcommCameraHardware::releaseRecordingFrame(
         }
     }
 #endif
+    mRecordFreeQueueLock.lock();
+    if (mRecordFreeQueue.isEmpty()) {
+        LOGE("%s (%d): mRecordFreeQueue is empty!\n", __FUNCTION__, __LINE__);
+        mRecordFreeQueueLock.unlock();
+        return;
+    }
+    LOGI("%s (%d): mRecordFreeQueue has %d entries.\n", __FUNCTION__, __LINE__,
+        mRecordFreeQueue.size());
+    mm_camera_ch_data_buf_t releasedBuf = mRecordFreeQueue.itemAt(0);
+    mRecordFreeQueue.removeAt(0);
+    mRecordFreeQueueLock.unlock();
+    LOGI("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__, releasedBuf.video.video.idx);
+    HAL_camerahandle[HAL_currentCameraId]->evt->buf_done(HAL_camerahandle[HAL_currentCameraId], &releasedBuf);
     LOGV("releaseRecordingFrame X");
 }
 #if 0

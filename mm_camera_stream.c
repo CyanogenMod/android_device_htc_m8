@@ -208,9 +208,9 @@ static uint32_t mm_camera_util_get_v4l2_fmt(cam_format_t fmt)
 {
 	switch(fmt) {
 	case CAMERA_YUV_420_NV12:
-		return V4L2_PIX_FMT_YUV420;
+		return V4L2_PIX_FMT_NV12;
 	case CAMERA_YUV_420_NV21:
-		return V4L2_PIX_FMT_YVU420;
+		return V4L2_PIX_FMT_NV21;
 	default:
 		return 0;
 	}

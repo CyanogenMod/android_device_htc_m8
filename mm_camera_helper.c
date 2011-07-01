@@ -91,6 +91,10 @@ int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size)
 {
   int rc;
 
+	if (pmem_fd <= 0) {
+		CDBG("%%s:invalid fd=%d\n", __func__, pmem_fd);
+		return -1;
+	}
   size = (size + 4095) & (~4095);
 
   CDBG("munmapped size = %d, virt_addr = 0x%p\n",
@@ -107,40 +111,21 @@ int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size)
 }
 
 /*============================================================
-   FUNCTION cam_dump_yuv
-   DESCRIPTION this function dumps the yuv 4:2:0 frame with
-               Y and CbCr in continuous in memory
+   FUNCTION mm_camera_dump_image
+   DESCRIPTION:
 ==============================================================*/
-void mm_camera_dump_yuv(void *addr, uint32_t size, char *filename)
+int mm_camera_dump_image(void *addr, uint32_t size, char *filename)
 {
   int file_fd = open(filename, O_RDWR | O_CREAT, 0777);
 
-  if (file_fd < 0)
+  if (file_fd < 0) {
     CDBG_HIGH("%s: cannot open file\n", __func__);
-  else
-    write(file_fd, addr, size * 3/2);
-
+		return -1;
+	} else
+    write(file_fd, addr, size);
   close(file_fd);
-}
-
-/*============================================================
-   FUNCTION cam_dump_yuv2
-   DESCRIPTION this function dumps the yuv 4:2:0 frame with
-               Y and CbCr in non-continuous memory
-==============================================================*/
-void mm_camera_dump_yuv2(void *yaddr, void *cbcraddr, uint32_t size,
-                   char *filename)
-{
-  int file_fd = open(filename, O_RDWR | O_CREAT, 0777);
-
-  if (file_fd < 0)
-    CDBG_HIGH("%s: cannot open file\n", __func__);
-  else {
-    write(file_fd, yaddr, size);
-    write(file_fd, cbcraddr, size/2);
-  }
-
-  close(file_fd);
+	CDBG("%s: %s, size=%d\n", __func__, filename, size);
+	return 0;
 }
 
 uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type, 
@@ -172,6 +157,11 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
 			*cbcr_off = PAD_TO_WORD(w*h);
 		}
 		}
+		break;
+	case CAMERA_BAYER_SBGGR10:
+		len = (uint32_t)PAD_TO_WORD(w*h);
+		*y_off = 0;
+		*cbcr_off = PAD_TO_WORD(w*h);
 		break;
 	case CAMERA_YUV_420_NV21_ADRENO:
 	default:

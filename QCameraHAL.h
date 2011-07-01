@@ -145,6 +145,7 @@ private:
     bool updatePictureDimension(const CameraParameters& params, int& width, int& height);
     bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
     bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
+    bool native_start_ops(mm_camera_ops_type_t  type, void* arg_val);
     bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop,int framewidth,int frameheight);
 
     static wp<QualcommCameraHardware> singleton;

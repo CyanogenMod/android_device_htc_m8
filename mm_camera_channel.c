@@ -38,24 +38,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
-int mm_camera_ch_is_active(mm_camera_obj_t * my_obj, mm_camera_channel_type_t ch_type)
-{
-	switch(ch_type) {
-	case MM_CAMERA_CH_DEF:
-		return mm_camera_stream_is_active(&my_obj->ch[ch_type].def.stream);
-	case MM_CAMERA_CH_PREVIEW:
-		return mm_camera_stream_is_active(&my_obj->ch[ch_type].preview.stream);
-	case MM_CAMERA_CH_VIDEO:
-			return mm_camera_stream_is_active(&my_obj->ch[ch_type].video.video);
-	case MM_CAMERA_CH_SNAPSHOT:
-		return mm_camera_stream_is_active(&my_obj->ch[ch_type].snapshot.main);
-	case MM_CAMERA_CH_ZSL:
-		return mm_camera_stream_is_active(&my_obj->ch[ch_type].zsl.main);
-	default:
-		break;
-	}
-	return FALSE;
-}
 static void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj, 
 															mm_camera_channel_type_t ch_type, 
 															mm_camera_stream_t **stream1, 
@@ -65,8 +47,8 @@ static void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
 	*stream2 = NULL;
 
 	switch(ch_type) {
-	case MM_CAMERA_CH_DEF:
-		*stream1 = &my_obj->ch[ch_type].def.stream;
+	case MM_CAMERA_CH_RAW:
+		*stream1 = &my_obj->ch[ch_type].raw.stream;
 		break;
 	case MM_CAMERA_CH_PREVIEW:
 		*stream1 = &my_obj->ch[ch_type].preview.stream;
@@ -100,10 +82,9 @@ static int32_t mm_camera_ch_util_set_fmt(mm_camera_obj_t * my_obj,
 	mm_camera_image_fmt_t *fmt1 = NULL;
 	mm_camera_image_fmt_t *fmt2 = NULL;
 
-	CDBG("%s:BEGIN,ch_type=%d\n", __func__, ch_type);
 	switch(ch_type) {
-	case MM_CAMERA_CH_DEF:
-		stream1 = &my_obj->ch[ch_type].def.stream;
+	case MM_CAMERA_CH_RAW:
+		stream1 = &my_obj->ch[ch_type].raw.stream;
 		fmt1 = &fmt->def;
 		break;
 	case MM_CAMERA_CH_PREVIEW:
@@ -143,7 +124,6 @@ static int32_t mm_camera_ch_util_set_fmt(mm_camera_obj_t * my_obj,
 	if(stream2 && !rc) 
 		rc = mm_camera_stream_fsm_fn_vtbl(my_obj, stream2, 
 																			MM_CAMERA_STATE_EVT_SET_FMT, fmt2);
-	CDBG("%s:END, rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -156,16 +136,16 @@ static int32_t mm_camera_ch_util_acquire(mm_camera_obj_t * my_obj,
 	mm_camera_stream_type_t type1;
 	mm_camera_stream_type_t type2;
 
-	CDBG("%s:BEGIN, ch=%d,acquire=%d\n",__func__,ch_type,my_obj->ch[ch_type].acquired);
 	if(my_obj->ch[ch_type].acquired) {
 		rc = MM_CAMERA_OK;
 		goto end;
 	}
-
+	pthread_mutex_init(&my_obj->ch[ch_type].mutex, NULL);
 	switch(ch_type) {
-	case MM_CAMERA_CH_DEF:
-		stream1 = &my_obj->ch[ch_type].def.stream;
-		type1 = MM_CAMERA_STREAM_DEF;
+	case MM_CAMERA_CH_RAW:
+		stream1 = &my_obj->ch[ch_type].raw.stream;
+		type1 = MM_CAMERA_STREAM_RAW;
+		break;
 	case MM_CAMERA_CH_PREVIEW:
 		stream1 = &my_obj->ch[ch_type].preview.stream;
 		type1 = MM_CAMERA_STREAM_PREVIEW;
@@ -200,7 +180,6 @@ static int32_t mm_camera_ch_util_acquire(mm_camera_obj_t * my_obj,
 		if(!my_obj->ch[ch_type].acquired)	my_obj->ch[ch_type].acquired = TRUE;
 	}
 end:
-	CDBG("%s:END,ch=%d,acquire=%d\n",__func__,ch_type,my_obj->ch[ch_type].acquired);
 	return rc;
 }
 static int32_t mm_camera_ch_util_release(mm_camera_obj_t * my_obj, 
@@ -216,6 +195,7 @@ static int32_t mm_camera_ch_util_release(mm_camera_obj_t * my_obj,
 		mm_camera_stream_fsm_fn_vtbl(my_obj, stream1, evt, NULL);
 	if(stream2) 
 		mm_camera_stream_fsm_fn_vtbl(my_obj, stream2, evt, NULL);
+	pthread_mutex_destroy(&my_obj->ch[ch_type].mutex);
 	memset(&my_obj->ch[ch_type],0,sizeof(my_obj->ch[ch_type]));
 	return 0;	
 }
@@ -225,8 +205,8 @@ static int32_t mm_camera_ch_util_stream_null_val(mm_camera_obj_t * my_obj,
 {
 		int32_t rc = 0;
 		switch(ch_type) {
-		case MM_CAMERA_CH_DEF:
-			rc = mm_camera_stream_fsm_fn_vtbl(my_obj, &my_obj->ch[ch_type].def.stream, 
+		case MM_CAMERA_CH_RAW:
+			rc = mm_camera_stream_fsm_fn_vtbl(my_obj, &my_obj->ch[ch_type].raw.stream, 
 																		 evt, NULL);
 			break;
 		case MM_CAMERA_CH_PREVIEW:
@@ -272,9 +252,9 @@ static int32_t mm_camera_ch_util_reg_buf(mm_camera_obj_t * my_obj,
 {
 		int32_t rc = 0;
 		switch(ch_type) {
-		case MM_CAMERA_CH_DEF:
+		case MM_CAMERA_CH_RAW:
 			rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-																		 &my_obj->ch[ch_type].def.stream, evt, 
+																		 &my_obj->ch[ch_type].raw.stream, evt, 
 																		 (mm_camera_buf_def_t *)val);
 			break;
 		case MM_CAMERA_CH_PREVIEW:
@@ -288,7 +268,6 @@ static int32_t mm_camera_ch_util_reg_buf(mm_camera_obj_t * my_obj,
 				rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
 								&my_obj->ch[ch_type].video.video, evt, 
 								&buf->video);
-				CDBG("%s:video ch main=%d\n",__func__, my_obj->ch[ch_type].video.has_main);
 				if(!rc && my_obj->ch[ch_type].video.has_main) {
 					rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
 									&my_obj->ch[ch_type].video.main, evt, 
@@ -329,11 +308,36 @@ static int32_t mm_camera_ch_util_reg_buf(mm_camera_obj_t * my_obj,
 		return rc;
 }
 
+static int32_t mm_camera_ch_util_attr(mm_camera_obj_t *my_obj, 
+																						mm_camera_channel_type_t ch_type,
+																						mm_camera_channel_attr_t *val)
+{
+	int rc = -MM_CAMERA_E_NOT_SUPPORTED;
+	if(ch_type != MM_CAMERA_CH_RAW) {
+		CDBG("%s: attr type %d not support for ch %d\n", __func__, val->type, ch_type);
+		return rc;
+	}
+	if(my_obj->ch[ch_type].acquired== 0) return -MM_CAMERA_E_INVALID_OPERATION;
+	switch(val->type) {
+	case MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE:
+		if(val->raw_streaming_mode == MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE) {
+			my_obj->ch[ch_type].raw.mode = val->raw_streaming_mode;
+			rc = MM_CAMERA_OK;
+		}
+		break;
+	default:
+		break; 
+	}
+	return MM_CAMERA_OK;
+}
+
 static int32_t mm_camera_ch_util_reg_buf_cb(mm_camera_obj_t *my_obj, 
 																						mm_camera_channel_type_t ch_type,
 																						mm_camera_buf_cb_t *val)
 {
+	pthread_mutex_lock(&my_obj->ch[ch_type].mutex);
 	memcpy(&my_obj->ch[ch_type].buf_cb, val, sizeof(my_obj->ch[ch_type].buf_cb));
+	pthread_mutex_unlock(&my_obj->ch[ch_type].mutex);
 	return MM_CAMERA_OK;
 }
 
@@ -344,9 +348,9 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
 {
 	int32_t rc = -1;
 	switch(ch_type) {
-	case MM_CAMERA_CH_DEF:
+	case MM_CAMERA_CH_RAW:
 		rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-																	 &my_obj->ch[ch_type].def.stream, evt, 
+																	 &my_obj->ch[ch_type].raw.stream, evt, 
 																	 &val->def);
 		break;
 	case MM_CAMERA_CH_PREVIEW:
@@ -401,13 +405,17 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
 {
 	int32_t rc = MM_CAMERA_OK;
 
-	CDBG("%s:BEGIN, ch = %d, evt=%d\n", __func__, ch_type, evt);
+	CDBG("%s:ch = %d, evt=%d\n", __func__, ch_type, evt);
 	switch(evt) {
 	case MM_CAMERA_STATE_EVT_ACQUIRE:
 		rc = mm_camera_ch_util_acquire(my_obj, ch_type);
 		break;
 	case MM_CAMERA_STATE_EVT_RELEASE:
 		rc = mm_camera_ch_util_release(my_obj, ch_type, evt);
+		break;
+	case MM_CAMERA_STATE_EVT_ATTR:
+		rc = mm_camera_ch_util_attr(my_obj, ch_type, 
+																(mm_camera_channel_attr_t *)val);
 		break;
 	case MM_CAMERA_STATE_EVT_REG_BUF_CB:
 		rc = mm_camera_ch_util_reg_buf_cb(my_obj, ch_type, 
@@ -424,6 +432,14 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
 		rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
 		break;
 	case MM_CAMERA_STATE_EVT_STREAM_ON:
+		if(ch_type == MM_CAMERA_CH_RAW && 
+			 my_obj->ch[ch_type].raw.mode == MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE) {
+			if( MM_CAMERA_OK != (rc = mm_camera_util_s_ctrl(my_obj->ctrl_fd, 
+				MSM_V4L2_PID_CAM_MODE, MSM_V4L2_CAM_OP_RAW))) {
+				CDBG("%s:set MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE err=%d\n", __func__, rc);
+				break;
+			}
+		}
 		rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
 		break;
 	case MM_CAMERA_STATE_EVT_STREAM_OFF:
@@ -436,7 +452,6 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
 	default:
 		break;
 	}
-	CDBG("%s:END, rc=%d\n", __func__, rc);
 	return rc;
 }
 

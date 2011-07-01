@@ -55,9 +55,9 @@ static int32_t mm_camera_poll_task_sig(mm_camera_obj_t * my_obj,
 	/* send through pipe */
 	uint8_t tmp = (uint8_t)cmd;
 
-	CDBG("%s:BEGIN cmd=%d\n",__func__, cmd);
 	/* get the mutex */
 	pthread_mutex_lock(&my_obj->work_ctrl.mutex);
+	my_obj->work_ctrl.cmd = (uint8_t)cmd;
 	/* reset the statue to false */
 	my_obj->work_ctrl.worker_status = FALSE;
 	/* send cmd to worker */
@@ -70,26 +70,20 @@ static int32_t mm_camera_poll_task_sig(mm_camera_obj_t * my_obj,
 	}
 	/* done */
 	pthread_mutex_unlock(&my_obj->work_ctrl.mutex);
-	CDBG("%s:END cmd=%d\n",__func__, cmd);
 	return MM_CAMERA_OK;
 }
 
 static void mm_camera_poll_task_sig_done(mm_camera_obj_t * my_obj)
 {
-	CDBG("%s:BEGIN\n",__func__);
   pthread_mutex_lock(&my_obj->work_ctrl.mutex);
   my_obj->work_ctrl.worker_status = TRUE;
   pthread_cond_signal(&my_obj->work_ctrl.cond_v);
   pthread_mutex_unlock(&my_obj->work_ctrl.mutex);
-	CDBG("%s:END\n",__func__);
-
 }
 
 static void cm_camera_poll_task_set_state(	mm_camera_obj_t * my_obj, 
 																			mm_camera_poll_task_state_type_t state)
 {
-	CDBG("%s:cur state=%d, new state = %d\n", 
-			 __func__, my_obj->work_ctrl.state,state);  
 	my_obj->work_ctrl.state = state;
 }
 static void mm_camera_poll_refresh_fd(mm_camera_obj_t * my_obj)
@@ -117,7 +111,7 @@ static int32_t mm_camera_poll_task_fn_poll_proc_msm(mm_camera_obj_t * my_obj,
 
 	for(i = 1; i < num_fds; i++) {
 		if((fds[i].revents & POLLIN) && (fds[i].revents & POLLRDNORM)) {
-			CDBG("%s:data stream fd=%d, type=%d\n",__func__, fds[i].fd, type[i]); 
+			CDBG("%s:data stream type=%d,fd=%d\n",__func__, type[i], fds[i].fd); 
 			mm_camera_msm_data_notify(my_obj, fds[i].fd, type[i]);
 		}
 	}
@@ -130,8 +124,7 @@ static void mm_camera_poll_task_fn_poll_proc_pipe(mm_camera_obj_t * my_obj)
 	uint8_t cmd;
 	read_len = read(my_obj->work_ctrl.pfds[0], &cmd, 
 									sizeof(cmd));
-	CDBG("%s: BEGIN,cmd=%d\n", __func__, cmd); 
-
+	cmd = my_obj->work_ctrl.cmd;
 	switch(cmd) {
 	case MM_CAMERA_PIPE_CMD_REFRESH_FD:
 		mm_camera_poll_refresh_fd(my_obj);
@@ -143,8 +136,6 @@ static void mm_camera_poll_task_fn_poll_proc_pipe(mm_camera_obj_t * my_obj)
 		mm_camera_poll_task_sig_done(my_obj);
 		break;
 	}
-	CDBG("%s: END,cmd=%d\n", __func__, cmd); 
-
 }
 
 static void *mm_camera_poll_task_fn_poll(mm_camera_obj_t * my_obj)
@@ -153,8 +144,6 @@ static void *mm_camera_poll_task_fn_poll(mm_camera_obj_t * my_obj)
   struct pollfd fds[MM_CAMERA_STREAM_MAX];
   int timeoutms;
 	ssize_t read_len;
-
-	CDBG("%s: BEGIN\n", __func__);
 
 	do {
 		for(i = 0; i < my_obj->work_ctrl.fd_cnt; i++) {
@@ -177,7 +166,6 @@ static void *mm_camera_poll_task_fn_poll(mm_camera_obj_t * my_obj)
 			continue;
 		}
 	} while (my_obj->work_ctrl.state == MM_CAMERA_POLL_TASK_STATE_POLL);
-	CDBG("%s: END\n", __func__);
 	return NULL;
 }
 
@@ -187,76 +175,62 @@ static void *mm_camera_poll_task(void *data)
 	void *ret = NULL;
 	mm_camera_obj_t * my_obj = (mm_camera_obj_t *)data;
 
-	CDBG("%s: BEGIN\n", __func__);
 	mm_camera_poll_refresh_fd(my_obj);
 	cm_camera_poll_task_set_state(my_obj, MM_CAMERA_POLL_TASK_STATE_POLL);
   mm_camera_poll_task_sig_done(my_obj);
-
-	CDBG("%s: Entering do loop\n", __func__);
 	do {
 		ret = mm_camera_poll_task_fn_poll(my_obj);
 	} while (my_obj->work_ctrl.state < MM_CAMERA_POLL_TASK_STATE_MAX);
-
-	CDBG("%s: exit\n", __func__);
 	return ret;
 }
 
 int mm_camera_poll_task_launch(mm_camera_obj_t * my_obj)
 {
-	CDBG("%s: BEGIN\n", __func__);
 	pthread_mutex_lock(&my_obj->work_ctrl.mutex);
 	pthread_create(&my_obj->work_ctrl.pid, NULL, 
 								 mm_camera_poll_task, 
 								 (void *)my_obj);
-	/* wait till worker task gives positive signal */
 	if(!my_obj->work_ctrl.worker_status) {
 		pthread_cond_wait(&my_obj->work_ctrl.cond_v, 
 											&my_obj->work_ctrl.mutex);
 	}
 	pthread_mutex_unlock(&my_obj->work_ctrl.mutex);
-	CDBG("%s: END\n", __func__);
 	return MM_CAMERA_OK;
 }
 
 int mm_camera_poll_task_release(mm_camera_obj_t * my_obj)
 {
-	CDBG("%s: BEGIN\n", __func__);
+	CDBG("%s, my_obj=0x%x\n", __func__, (uint32_t)my_obj);
 	mm_camera_poll_task_sig(my_obj, MM_CAMERA_PIPE_CMD_EXIT);
-	/* thread join may fail if worker exits very quick */
 	if (pthread_join(my_obj->work_ctrl.pid, NULL) != 0) {
-		CDBG("%s: pthread_join error!\n", __func__);
+		CDBG("%s: pthread dead already\n", __func__);
 	}
-	CDBG("%s: END\n", __func__);
 	return MM_CAMERA_OK;
 }
 
 int mm_camera_poll_add_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream)
 {
-	CDBG("%s: BEGIN, fd=%d,type=%d\n", __func__, stream->fd, stream->stream_type);
 	my_obj->work_ctrl.poll_streams[stream->stream_type] = stream;
 	mm_camera_poll_task_sig(my_obj, MM_CAMERA_PIPE_CMD_REFRESH_FD);
-	CDBG("%s: END\n", __func__);
+	CDBG("%s:fd=%d,type=%d,done\n", __func__, stream->fd, stream->stream_type);
 	return MM_CAMERA_OK;
 }
 
 int mm_camera_poll_del_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream)
 {
-	CDBG("%s: BEGIN, fd=%d,type=%d\n", __func__, stream->fd, stream->stream_type);
 	my_obj->work_ctrl.poll_streams[stream->stream_type] = NULL;
 	mm_camera_poll_task_sig(my_obj, MM_CAMERA_PIPE_CMD_REFRESH_FD);
-	CDBG("%s: END\n", __func__);
+	CDBG("%s: fd=%d,type=%d, done\n", __func__, stream->fd, stream->stream_type);
 	return MM_CAMERA_OK;
 }
-#if 1
+
 int mm_camera_poll_busy(mm_camera_obj_t * my_obj)
 {
 	int busy = 0;
-	//pthread_mutex_lock(&my_obj->work_ctrl.mutex);
 	busy = (my_obj->work_ctrl.fd_cnt > 1)? TRUE:FALSE;
-	//pthread_mutex_unlock(&my_obj->work_ctrl.mutex);
 	return busy;
 }
-#endif
+
 
 
 

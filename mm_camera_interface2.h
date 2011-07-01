@@ -32,7 +32,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <camera.h>
 
-#define MM_CAMERA_MAX_NUM_FRAMES		8
+#define MM_CAMERA_MAX_NUM_FRAMES		16
 
 typedef struct {
   uint32_t width;
@@ -69,6 +69,7 @@ typedef enum {
 	MM_CAMERA_PARM_SHARPNESS_CAP,       // 
   MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,  // num shots per snapshot action
   MM_CAMERA_PARM_LIVESHOT_MAIN,				// enable/disable full size live shot
+	MM_CAMERA_PARM_MAXZOOM,
   MM_CAMERA_PARM_ZOOM_RATIO,
   MM_CAMERA_PARM_HISTOGRAM,
   MM_CAMERA_PARM_FPS,
@@ -125,6 +126,10 @@ typedef enum {
   MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
+#define MM_CAMERA_PARM_SUPPORT_SET		0x01
+#define MM_CAMERA_PARM_SUPPORT_GET		0x02
+#define MM_CAMERA_PARM_SUPPORT_BOTH		0x03
+
 typedef enum {
   WHITE_BALANCE_AUTO         = 1,
   WHITE_BALANCE_OFF          = 2,
@@ -134,11 +139,11 @@ typedef enum {
 } White_Balance_modes;
 
 typedef enum {
-	MM_CAMERA_CH_DEF,	      // default ch: reserved.		
 	MM_CAMERA_CH_PREVIEW,
 	MM_CAMERA_CH_VIDEO,
 	MM_CAMERA_CH_SNAPSHOT,
 	MM_CAMERA_CH_ZSL,
+	MM_CAMERA_CH_RAW,
 	MM_CAMERA_CH_MAX
 } mm_camera_channel_type_t;
 
@@ -159,6 +164,11 @@ typedef struct {
 	mm_camera_image_fmt_t main;		
 	mm_camera_image_fmt_t thumbnail;		
 } mm_camera_ch_image_fmt_snapshot_t;
+
+typedef enum {
+	MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE,
+	MM_CAMERA_RAW_STREAMING_MAX
+} mm_camera_raw_streaming_type_t;
 
 typedef struct {
 	mm_camera_image_fmt_t main;		
@@ -189,12 +199,9 @@ typedef struct {
 } mm_camera_ctrl_cap_sharpness_t;
 
 typedef struct {
-	uint8_t name[32];
-	int32_t min_value;
-	int32_t max_value;
-	int32_t step;
-	int32_t default_value;
-} mm_camera_ctrl_cap_zoom_t;
+	int16_t *zoom_ratio_tbl;
+	int32_t size;
+} mm_camera_zoom_tbl_t;
 
 #define MM_CAMERA_MAX_FRAME_NUM 16
 
@@ -236,11 +243,24 @@ typedef enum {
   MM_CAMERA_OPS_VIDEO,						// start/stop video
   MM_CAMERA_OPS_PREPARE_SNAPSHOT,	// prepare capture in capture mode
   MM_CAMERA_OPS_SNAPSHOT,					// take snapshot (HDR,ZSL,live shot)
+  MM_CAMERA_OPS_RAW,							// take raw streaming (raw snapshot, etc)
   MM_CAMERA_OPS_ZSL,							// start/stop zsl
-  MM_CAMERA_OPS_FOCUS,						// change focus
+  MM_CAMERA_OPS_FOCUS,						// change focus,isp3a_af_mode_t* used in val
   MM_CAMERA_OPS_MAX								// max ops
 }mm_camera_ops_type_t;
 
+typedef enum {
+	MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE,
+	MM_CAMERA_CH_ATTR_MAX
+} mm_camera_channel_attr_type_t;
+
+typedef struct {
+	mm_camera_channel_attr_type_t type;
+	union {
+		/* add more if needed */
+		mm_camera_raw_streaming_type_t raw_streaming_mode;
+	};
+} mm_camera_channel_attr_t;
 typedef struct mm_camera mm_camera_t;
 
 typedef struct {
@@ -262,11 +282,13 @@ typedef struct {
   uint8_t (*is_op_supported)(mm_camera_t * camera, mm_camera_ops_type_t opcode);
 	/* val is reserved for some action such as MM_CAMERA_OPS_FOCUS */
 	int32_t (*action)(mm_camera_t * camera, uint8_t start, 
-																mm_camera_ops_type_t opcode, uint32_t val);
+																mm_camera_ops_type_t opcode, void *val);
 	int32_t (*open)(mm_camera_t * camera, mm_camera_op_mode_type_t op_mode); 
 	void (*close)(mm_camera_t * camera); 
 	int32_t (*ch_acquire)(mm_camera_t * camera, mm_camera_channel_type_t ch_type);
 	void (*ch_release)(mm_camera_t * camera, mm_camera_channel_type_t ch_type);
+	int32_t (*ch_set_attr)(mm_camera_t * camera, mm_camera_channel_type_t ch_type, 
+												 mm_camera_channel_attr_t *attr);
 } mm_camera_ops_t; 
 
 typedef enum {
@@ -435,8 +457,7 @@ typedef enum {
 mm_camera_t * mm_camera_query(uint8_t *num_cameras);
 extern uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd);
 extern int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size);
-extern void mm_camera_dump_yuv(void *addr, uint32_t size, char *filename);
-extern void mm_camera_dump_yuv2(void *yaddr, void *cbcraddr, uint32_t size, char *filename);
+extern int mm_camera_dump_image(void *addr, uint32_t size, char *filename);
 extern uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type, 
 																		 camera_mode_t mode, int w, int h, 
 																		 uint32_t *y_off, 

@@ -38,31 +38,67 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
-static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
+static int mm_camera_qbuf_to_kernel(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream)
 {
-	int rc = 0;
-	int idx;
-	mm_camera_stream_t *stream;
+	int rc = MM_CAMERA_OK;
 	mm_camera_frame_t *frame;
-	stream = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
 	frame = mm_camera_stream_frame_deq(&stream->frame.freeq);
+	pthread_mutex_lock(&stream->frame.mutex);
 	if(frame) {
-		//CDBG("%s:qbuf %d\n",__func__,frame->idx);
 		rc = mm_camera_stream_qbuf(my_obj, stream, 
 																frame->idx);
 		if(rc < 0) {
 			CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
 			} else stream->frame.no_buf = 0;
-	} else
+	} else {
+		CDBG("%s:no free frame, fd=%d,type=%d\n", 
+				 __func__, stream->fd, stream->stream_type);
 		stream->frame.no_buf = 1;
+	}
+	pthread_mutex_unlock(&stream->frame.mutex);
+	return rc;
+}
+static void mm_camera_read_raw_frame(mm_camera_obj_t * my_obj)
+{
+	int rc = 0;
+	int idx;
+	mm_camera_stream_t *stream;
 
-	idx =  mm_camera_read_msm_frame(my_obj,stream);
+	stream = &my_obj->ch[MM_CAMERA_CH_RAW].raw.stream;
+	rc = mm_camera_qbuf_to_kernel(my_obj, stream);
+	idx =  mm_camera_read_msm_frame(my_obj, stream);
 	if (idx < 0) {
 		return;
 	}
-	//mm_camera_stream_frame_enq(&stream->frame.freeq, &stream->frame.frame[idx]);
-	//return;
-	/* send to HAL */
+	pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_RAW].mutex);
+	if(my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb) {
+		mm_camera_ch_data_buf_t data;
+		data.type = MM_CAMERA_CH_RAW;
+		data.def.idx = idx;
+		data.def.frame = &my_obj->ch[MM_CAMERA_CH_RAW].raw.stream.frame.frame[idx].frame;
+		my_obj->ch[MM_CAMERA_CH_RAW].raw.stream.frame.ref_count[idx]++;
+		CDBG("%s:calling data notify cb 0x%x, 0x%x\n", __func__,
+				 (uint32_t)my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb,
+				 (uint32_t)my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.user_data);  
+		my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb(&data, 
+								my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.user_data);
+	} 
+	pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_RAW].mutex);
+}
+
+static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
+{
+	int rc = 0;
+	int idx;
+	mm_camera_stream_t *stream;
+
+	stream = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
+	rc = mm_camera_qbuf_to_kernel(my_obj, stream);
+	idx =  mm_camera_read_msm_frame(my_obj, stream);
+	if (idx < 0) {
+		return;
+	}
+	pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
 	if(my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb) {
 		mm_camera_ch_data_buf_t data;
 		data.type = MM_CAMERA_CH_PREVIEW;
@@ -75,6 +111,7 @@ static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
 		my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb(&data, 
 								my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.user_data);
 	} 
+	pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
 }
 static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
 {
@@ -83,20 +120,21 @@ static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
 	mm_camera_frame_t *frame;
 	s_q =	&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq;
 	t_q =	&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.readyq;
-
-		if(s_q->cnt && t_q->cnt && my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb) {
-			data.type = MM_CAMERA_CH_SNAPSHOT;
-			frame = mm_camera_stream_frame_deq(s_q);
-			data.snapshot.main.frame = &frame->frame;
-			data.snapshot.main.idx = frame->idx;
-			frame = mm_camera_stream_frame_deq(t_q);
-			data.snapshot.thumbnail.frame = &frame->frame;
-			data.snapshot.thumbnail.idx = frame->idx;
-			my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.ref_count[data.snapshot.main.idx]++;
-			my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.ref_count[data.snapshot.thumbnail.idx]++;
-			my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb(&data, 
-									my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.user_data);
-		}
+	pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
+	if(s_q->cnt && t_q->cnt && my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb) {
+		data.type = MM_CAMERA_CH_SNAPSHOT;
+		frame = mm_camera_stream_frame_deq(s_q);
+		data.snapshot.main.frame = &frame->frame;
+		data.snapshot.main.idx = frame->idx;
+		frame = mm_camera_stream_frame_deq(t_q);
+		data.snapshot.thumbnail.frame = &frame->frame;
+		data.snapshot.thumbnail.idx = frame->idx;
+		my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.ref_count[data.snapshot.main.idx]++;
+		my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.ref_count[data.snapshot.thumbnail.idx]++;
+		my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb(&data, 
+								my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.user_data);
+	}
+	pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
 }
 static void mm_camera_read_snapshot_main_frame(mm_camera_obj_t * my_obj)
 {
@@ -157,21 +195,13 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
 	int idx, rc = 0;
 	mm_camera_stream_t *stream;
 	mm_camera_frame_queue_t *q;
-	mm_camera_frame_t *frame;
 
 	stream = &my_obj->ch[MM_CAMERA_CH_VIDEO].video.video;
-	frame = mm_camera_stream_frame_deq(&stream->frame.freeq);
-	if(frame) {
-		rc = mm_camera_stream_qbuf(my_obj, stream, 
-																frame->idx);
-		if(rc < 0) {
-			CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-			return;
-		}
-	}
+	rc = mm_camera_qbuf_to_kernel(my_obj, stream);
 	idx =  mm_camera_read_msm_frame(my_obj,stream);
 	if (idx < 0)
 		return;
+	pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
 	if(my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb) {
 		mm_camera_ch_data_buf_t data;
 		data.type = MM_CAMERA_CH_VIDEO;
@@ -184,6 +214,7 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
 		my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb(&data, 
 								my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.user_data);
 	} 
+	pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
 }
 
 static void mm_camera_read_video_main_frame(mm_camera_obj_t * my_obj)
@@ -208,6 +239,9 @@ void mm_camera_msm_data_notify(mm_camera_obj_t * my_obj, int fd,
 																			mm_camera_stream_type_t stream_type)
 {
 	switch(stream_type) {
+	case MM_CAMERA_STREAM_RAW:
+		mm_camera_read_raw_frame(my_obj);
+		break;
 	case MM_CAMERA_STREAM_PREVIEW:
 		mm_camera_read_preview_frame(my_obj);
 		break;

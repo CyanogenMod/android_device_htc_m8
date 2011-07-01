@@ -4131,11 +4131,6 @@ void QualcommCameraHardware::stopPreviewInternal()
         LOGE("%s:Ureg video buf err=%d\n", __func__, rc);
     }
 
-    LOGD("Unmap Video frames");
-    for(int i=0;i<4;i++)
-    {
-        mm_do_munmap(videorecordframes[i].fd,&videorecordframes[i].buffer,mPreviewFrameSize);
-    }
 
     if( MM_CAMERA_OK !=
         HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(

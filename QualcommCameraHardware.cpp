@@ -4875,7 +4875,9 @@ extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int 
                 return NULL;
             }
             HAL_currentSnapshotMode = CAMERA_SNAPSHOT_NONZSL;
-            if(mode & CAMERA_SNAPSHOT_ZSL)
+            //Remove values set by app other than  supported values
+            mode = mode & HAL_cameraInfo[cameraId].modes_supported;
+            if((mode & CAMERA_SNAPSHOT_ZSL) == CAMERA_SNAPSHOT_ZSL)
                 HAL_currentSnapshotMode = CAMERA_SNAPSHOT_ZSL;
             LOGI("%s: HAL_currentSnapshotMode = %d", __FUNCTION__, HAL_currentSnapshotMode);
 
@@ -7690,6 +7692,8 @@ void QualcommCameraHardware::getCameraInfo()
         if((HAL_cameraInfo[i].position == BACK_CAMERA )&&
             mCurrentTarget == TARGET_MSM8660){
             HAL_cameraInfo[i].modes_supported |= CAMERA_ZSL_MODE;
+        } else{
+            HAL_cameraInfo[i].modes_supported |= CAMERA_NONZSL_MODE;
         }
         LOGI("Camera sensor %d info:", i);
         LOGI("camera_id: %d", HAL_cameraInfo[i].camera_id);
@@ -7758,6 +7762,8 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             if((HAL_cameraInfo[i].position == BACK_CAMERA )&&
                 !strncmp(mDeviceName, "msm8660", 7)){
                 cameraInfo->mode |= CAMERA_ZSL_MODE;
+            } else{
+                cameraInfo->mode |= CAMERA_NONZSL_MODE;
             }
 
             LOGI("%s: modes supported = %d", __FUNCTION__, cameraInfo->mode);

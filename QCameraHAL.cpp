@@ -72,8 +72,8 @@ extern "C" {
 
 #define DUMP_LIVESHOT_JPEG_FILE 0
 
-#define DEFAULT_PICTURE_WIDTH  1280 //640
-#define DEFAULT_PICTURE_HEIGHT 960 //480
+#define DEFAULT_PICTURE_WIDTH  640
+#define DEFAULT_PICTURE_HEIGHT 480
 #define THUMBNAIL_BUFFER_SIZE (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define MAX_ZOOM_LEVEL 5
 
@@ -1054,7 +1054,7 @@ QualcommCameraHardware::QualcommCameraHardware()
    
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
-   
+
     kPreviewBufferCountActual = kPreviewBufferCount;
     kRecordBufferCount = RECORD_BUFFERS;
     recordframes = new msm_frame[kRecordBufferCount];
@@ -1097,7 +1097,6 @@ void QualcommCameraHardware::hasAutoFocusSupport(){
         mHasAutoFocusSupport = false;
     }
     else {
-        LOGE("AutoFocus is supported");
         mHasAutoFocusSupport = true;
     }
     if(mZslEnable)
@@ -1171,6 +1170,19 @@ void QualcommCameraHardware::initDefaultParameters()
 #if 1
     mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
     mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
+
+    mDimension.display_width = DEFAULT_PREVIEW_WIDTH;
+    mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
+    mDimension.ui_thumbnail_width =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
+    mDimension.ui_thumbnail_height =
+            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
+     mDimension.video_width = DEFAULT_PREVIEW_WIDTH;
+     mDimension.video_height = DEFAULT_PREVIEW_HEIGHT;
+
+     mDimension.thumbnail_height = mDimension.ui_thumbnail_height;
+     mDimension.thumbnail_width = mDimension.ui_thumbnail_width;
+
     
     if( MM_CAMERA_OK != HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
         HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_DIMENSION, 
@@ -1770,6 +1782,7 @@ status_t QualcommCameraHardware::dump(int fd,
 /* Issue ioctl calls related to starting Camera Operations*/
 bool QualcommCameraHardware::native_start_ops(mm_camera_ops_type_t  type, void* arg_val)
 {
+
     if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action (HAL_camerahandle[HAL_currentCameraId],1,type,arg_val )) {
         LOGE("native_start_ops: type %d error %s", type,strerror(errno));
         return false;
@@ -2931,32 +2944,32 @@ static int mm_app_prepare_snapshot_buf2 (cam_format_t fmt_type, cam_format_t fmt
     thumbnailframe.cbcr_off = cbcr_off;
 
     memset(&reg_buf, 0, sizeof(reg_buf));
-	reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
-	reg_buf.snapshot.main.num = 1;
-	reg_buf.snapshot.main.frame = &snapshotframe;
-	reg_buf.snapshot.thumbnail.num = 1;
-	reg_buf.snapshot.thumbnail.frame = &thumbnailframe;
-	rc = HAL_camerahandle[HAL_currentCameraId]->cfg->prepare_buf(HAL_camerahandle[HAL_currentCameraId],&reg_buf);
-	if(rc != MM_CAMERA_OK) {
-		LOGE("%s:reg snapshot buf err=%d\n", __func__, rc);
-	}
+    reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
+    reg_buf.snapshot.main.num = 1;
+    reg_buf.snapshot.main.frame = &snapshotframe;
+    reg_buf.snapshot.thumbnail.num = 1;
+    reg_buf.snapshot.thumbnail.frame = &thumbnailframe;
+    rc = HAL_camerahandle[HAL_currentCameraId]->cfg->prepare_buf(HAL_camerahandle[HAL_currentCameraId],&reg_buf);
+    if(rc != MM_CAMERA_OK) {
+        LOGE("%s:reg snapshot buf err=%d\n", __func__, rc);
+    }
 end:
     LOGE("%s: END, rc=%d\n", __func__, rc); 
     return rc;
 }
 
-static int mm_app_unprepare_snapshot_buf2()
+static int mm_app_unprepare_snapshot_buf2(mm_camera_channel_type_t ch_type)
 {
 
-	int rc = MM_CAMERA_OK;
-	LOGV("%s: BEGIN\n", __func__);
+    int rc = MM_CAMERA_OK;
+    LOGV("%s: BEGIN\n", __func__);
 
     LOGD("Unpreparing Snapshot Buffer");
     rc = HAL_camerahandle[HAL_currentCameraId]->cfg->unprepare_buf(HAL_camerahandle[HAL_currentCameraId],
-                                                                   MM_CAMERA_CH_SNAPSHOT);
-	if(rc != MM_CAMERA_OK) {
-		LOGE("%s:unreg snapshot buf err=%d\n", __func__, rc);
-	}
+                                                                   ch_type);
+    if(rc != MM_CAMERA_OK) {
+        LOGE("%s:unreg snapshot buf err=%d\n", __func__, rc);
+    }
 
 //    LOGE("Unmapping snapshot frame");
 //	(void)mm_do_munmap(snapshotframe.fd, (void *)snapshotframe.buffer, g_dbg_snapshot_main_size);
@@ -2966,20 +2979,49 @@ static int mm_app_unprepare_snapshot_buf2()
     
 
 	// zero out the buf stuct 
-	memset(&snapshotframe,  0,  sizeof(struct msm_frame));
+    memset(&snapshotframe,  0,  sizeof(struct msm_frame));
     memset(&thumbnailframe,  0,  sizeof(struct msm_frame));
 end:
-	LOGV("%s: END, rc=%d\n", __func__, rc);
+    LOGV("%s: END, rc=%d\n", __func__, rc);
 
-	return rc;
+    return rc;
 }
 
-void QualcommCameraHardware::deinitSnapshotBuffer()
+
+void QualcommCameraHardware::deinitRawSnapshot()
+{
+    LOGV("%s: Deinit Raw snapshot Begin", __func__);
+
+    LOGD("Unmap snapshot buffers");
+    mm_app_unprepare_snapshot_buf2(MM_CAMERA_CH_RAW);
+
+    mRawSnapShotPmemHeap.clear();
+
+    /* unreg buf notify*/
+    LOGD("Unregister buf notification");
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(
+            HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_CH_RAW,
+            NULL, NULL)
+            ) {
+        LOGE("takePicture: Failure setting snapshot callback");
+    }
+
+    LOGD("Release Raw snapshot channel");
+    HAL_camerahandle[HAL_currentCameraId]->ops->ch_release(HAL_camerahandle[HAL_currentCameraId],
+                                                           MM_CAMERA_CH_RAW);
+
+    LOGV("%s: Deinit Raw snapshot End",__func__);
+
+}
+
+
+void QualcommCameraHardware::deinitRaw()
 {
     LOGV("%s: Deinit snapshot Begin", __func__);
 
     LOGD("Unmap snapshot buffers");
-    mm_app_unprepare_snapshot_buf2();
+    mm_app_unprepare_snapshot_buf2(MM_CAMERA_CH_SNAPSHOT);
 
     mRawHeap.clear();
     mPostviewHeap.clear();
@@ -3006,11 +3048,10 @@ bool QualcommCameraHardware::initPreview()
     mm_camera_reg_buf_t reg_buf;
     mm_camera_ch_image_fmt_parm_t fmt;
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
-    //previewWidth=videoWidth=640;
-    //previewHeight=videoHeight=480;
-    LOGE("initPreview E 1: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
-    //previewWidth=videoWidth=640;
-    //previewHeight=videoHeight=480;
+
+    LOGD("initPreview E 1: preview size=%dx%d videosize = %d x %d", 
+         previewWidth, previewHeight, videoWidth, videoHeight );
+
     videoWidth=previewWidth;
     videoHeight=previewHeight;
 
@@ -3048,8 +3089,6 @@ bool QualcommCameraHardware::initPreview()
     }
     mInSnapshotModeWaitLock.unlock();
 
-    pmem_region = "/dev/pmem_adsp";
-
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
     g_mPreviewFrameSize=mPreviewFrameSize;
@@ -3083,26 +3122,13 @@ bool QualcommCameraHardware::initPreview()
     //and height for record buffer allocation
     mDimension.orig_video_width = videoWidth;
     mDimension.orig_video_height = videoHeight;
-#if 0
-    if(mZslEnable){
-        //Limitation of ZSL  where the thumbnail and display dimensions should be the same
-        mDimension.ui_thumbnail_width = mDimension.display_width;
-        mDimension.ui_thumbnail_height = mDimension.display_height;
-        mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
-        if (updatePictureDimension(mParameters, mPictureWidth,
-          mPictureHeight)) {
-          mDimension.picture_width = mPictureWidth;
-          mDimension.picture_height = mPictureHeight;
-        }
-    }
-#endif
+
     // mDimension will be filled with thumbnail_width, thumbnail_height,
     // orig_picture_dx, and orig_picture_dy after this function call. We need to
     // keep it for jpeg_encoder_encode.
     bool ret=true;
-#if 1
- /*mnsr*/
-    LOGE("initPreview 3:######## preview size=%dx%d videosize = %d x %d previewFormat= %d ", previewWidth, previewHeight, videoWidth, videoHeight,mPreviewFormat);
+
+    LOGD("initPreview 3:######## preview size=%dx%d videosize = %d x %d previewFormat= %d ", previewWidth, previewHeight, videoWidth, videoHeight,mPreviewFormat);
     if( MM_CAMERA_OK != HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
         HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_DIMENSION, 
         &mDimension)) {
@@ -3110,9 +3136,7 @@ bool QualcommCameraHardware::initPreview()
         return UNKNOWN_ERROR;
     }
 
-#endif
     /* here we set both preview and video */
-
     memset(&fmt, 0, sizeof(fmt));
     fmt.ch_type = MM_CAMERA_CH_VIDEO;
     fmt.video.video.fmt = CAMERA_YUV_420_NV21;
@@ -3135,165 +3159,30 @@ bool QualcommCameraHardware::initPreview()
         return UNKNOWN_ERROR;
     }
 
-
-
-
-
-    if(mIs3DModeOn != true) {
-        mPreviewHeap = new PmemPool(pmem_region,
-                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                                MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
-                                mPreviewFrameSize,
-                                kPreviewBufferCountActual,
-                                mPreviewFrameSize,
-                                CbCrOffset,
-                                0,
-                                "preview");
-
-        if (!mPreviewHeap->initialized()) {
-            mPreviewHeap.clear();
-            LOGE("initPreview X: could not initialize Camera preview heap.");
-            return false;
-        }
-
-        //set DIS value to get the updated video width and height to calculate
-        //the required record buffer size
-        if(mVpeEnabled) {
-            bool status = setDIS();
-            if(status) {
-                LOGE("Failed to set DIS");
-                return false;
-            }
-        }
+    // Allocate video buffers after allocating preview buffers.
+    bool status = initRecord();
+    if(status != true) {
+        LOGE("Failed to allocate video bufers");
+        return false;
     }
 
- 
-  if(mIs3DModeOn != true) {
-      for(int ii = 0; ii < 4; ii++) {
-            mPreviewHeapx[ii] = new PmemPool(pmem_region,
-                                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                                    MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
-                                    mPreviewFrameSize,
-                                    1,
-                                    mPreviewFrameSize,
-                                    CbCrOffset,
-                                    0,
-                                    "preview");
-    
-            if (!mPreviewHeapx[ii]->initialized()) {
-                mPreviewHeapx[ii].clear();
-                LOGE("initPreview X: could not initialize Camera preview heap.");
-                return false;
-            }
-    
-            //set DIS value to get the updated video width and height to calculate
-            //the required record buffer size
-            if(mVpeEnabled) {
-                bool status = setDIS();
-                if(status) {
-                    LOGE("Failed to set DIS");
-                    return false;
-                }
-            }
-      }
+    mm_app_prepare_buf2(CAMERA_YUV_420_NV21, CAMERA_MODE_2D,PREVIEW_BUFFER_COUNT,previewWidth,previewHeight);
+    if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(
+        HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_CH_PREVIEW,
+        do_receive_camframe_callback,&obj)) {
+        LOGE("InitPreview: mm_camera_register_buf_notify failed: ");
+        return FALSE;
+        }
+
+    if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action(
+        HAL_camerahandle[HAL_currentCameraId],TRUE,MM_CAMERA_OPS_PREVIEW,0)) {
+            LOGE("InitPreview: Stream on failed: ");
+            return FALSE;
     }
- 
-    //if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)(mCurrentTarget == TARGET_MSM8960)) {
 
-        // Allocate video buffers after allocating preview buffers.
-        bool status = initRecord();
-        if(status != true) {
-            LOGE("Failed to allocate video bufers");
-            return false;
-        }
-    //}
-
-    if (ret) {
-        if(mIs3DModeOn != true) {
-            for (cnt = 0; cnt < kPreviewBufferCount; cnt++) {
-                frames[cnt].fd = mPreviewHeapx[cnt]->mHeap->getHeapID();//mPreviewHeap->mHeap->getHeapID();
-                LOGE("#############frame fd:%d",frames[cnt].fd);
-
-                frames[cnt].buffer = (uint32_t)mPreviewHeapx[cnt]->mHeap->base();// + mPreviewHeap->mAlignedBufferSize * cnt;
-                    //(uint32_t)mPreviewHeapx[cnt]->mHeap->base();
-                LOGE("##########buffer: 0x%lx",frames[cnt].buffer);
-                frames[cnt].y_off = 0;
-                frames[cnt].cbcr_off = CbCrOffset;
-                frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
-            }
-
-            mPreviewBusyQueue.init();
-        //    LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
-            reg_buf.ch_type = MM_CAMERA_CH_PREVIEW;
-            reg_buf.preview.num = PREVIEW_BUFFER_COUNT;//kPreviewBufferCount;
-            reg_buf.preview.frame = &frames[0];
-          //  reg_buf.preview.frame_offset[0]
-         //   for(int i=ACTIVE_PREVIEW_BUFFERS ;i <kPreviewBufferCount; i++)
-          //  {
-               
-                //LINK_camframe_add_frame(CAM_PREVIEW_FRAME,&frames[i]);
-           // }
-         #if 0
-            if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->cfg->prepare_buf(HAL_camerahandle[HAL_currentCameraId],&reg_buf))
-            {
-                LOGE("InitPreview: prepare_buf failed: ");
-                return FALSE;
-            }
-         #endif
-            mm_app_prepare_buf2(CAMERA_YUV_420_NV21, CAMERA_MODE_2D,PREVIEW_BUFFER_COUNT,previewWidth,previewHeight);
-            if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(HAL_camerahandle[HAL_currentCameraId],MM_CAMERA_CH_PREVIEW,do_receive_camframe_callback,&obj)) {
-                LOGE("InitPreview: mm_camera_register_buf_notify failed: ");
-                return FALSE;
-            }
-
-            if(MM_CAMERA_OK!=HAL_camerahandle[HAL_currentCameraId]->ops->action(HAL_camerahandle[HAL_currentCameraId],1,MM_CAMERA_OPS_PREVIEW,0)) {
-                LOGE("InitPreview: Stream on failed: ");
-                return FALSE;
-            }
-
-            return true;
-           /* mPreviewThreadWaitLock.lock();
-            pthread_attr_t pattr;
-            pthread_attr_init(&pattr);
-            pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_DETACHED);
-
-            mPreviewThreadRunning = !pthread_create(&mPreviewThread,
-                                      &pattr,
-                                      preview_thread,
-                                      (void*)NULL);
-            ret = mPreviewThreadRunning;
-            mPreviewThreadWaitLock.unlock();
-*/
-            if(ret == false)
-                return ret;
-        }
-
-#if 0
-        mFrameThreadWaitLock.lock();
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-#if 0
-        camframeParams.cammode = CAMERA_MODE_2D;
-
-        if (mIs3DModeOn) {
-            camframeParams.cammode = CAMERA_MODE_3D;
-        } else {
-            camframeParams.cammode = CAMERA_MODE_2D;
-        }
-#endif
-        mFrameThreadRunning = !pthread_create(&mFrameThread,
-                                              &attr,
-                                              frame_thread,
-                                              /*&camframeParams*/(void*)NULL);
-        ret = mFrameThreadRunning;
-        mFrameThreadWaitLock.unlock();
-#endif    
-    }
-    mFirstFrame = true;
 
     LOGV("initPreview X: %d", ret);
-    return ret;
+    return TRUE;
 }
 
 void QualcommCameraHardware::deinitPreview(void)
@@ -3322,43 +3211,55 @@ void QualcommCameraHardware::deinitPreview(void)
 
 bool QualcommCameraHardware::initRawSnapshot()
 {
-    LOGV("initRawSnapshot E");
-#if 0
-    const char * pmem_region;
+    uint32_t frame_len, y_off, cbcr_off;
+    mm_camera_reg_buf_t reg_buf;
+    bool rc = true;
+ 
+    LOGV("%s: BEGIN\n", __func__);
 
-    //get width and height from Dimension Object
-    bool ret = native_set_parms(CAMERA_PARM_DIMENSION,
-                               sizeof(cam_ctrl_dimension_t), &mDimension);
-
-
-    if(!ret){
-        LOGE("initRawSnapshot X: failed to set dimension");
-        return false;
+    /* Set dimension - we'll get raw width/raw height in mDimension*/
+    LOGD("Set Raw snapshot dimension");
+    if( MM_CAMERA_OK != HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
+        HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_DIMENSION, 
+        &mDimension)) {
+        LOGE("INITRAW: Set DIMENSION failed");
+        rc = false;
+        goto end;
     }
-    int rawSnapshotSize = mDimension.raw_picture_height *
-                           mDimension.raw_picture_width;
 
-    LOGV("raw_snapshot_buffer_size = %d, raw_picture_height = %d, "\
-         "raw_picture_width = %d",
-          rawSnapshotSize, mDimension.raw_picture_height,
-          mDimension.raw_picture_width);
+    LOGD("Raw Snapshot dimension: %dx%d", mDimension.raw_picture_width, 
+         mDimension.raw_picture_height);
+    /* Set format */
+    LOGD("Set Raw Snapshot Format");
+    mm_camera_ch_image_fmt_parm_t raw_img_fmt;
+    memset((mm_camera_ch_image_fmt_parm_t *)&raw_img_fmt, 0, sizeof(raw_img_fmt));
+    raw_img_fmt.ch_type = MM_CAMERA_CH_RAW;
+    raw_img_fmt.def.fmt = CAMERA_BAYER_SBGGR10;
+    raw_img_fmt.def.dim.width = mDimension.raw_picture_width; 
+    raw_img_fmt.def.dim.height = mDimension.raw_picture_height; 
 
-    if (mRawSnapShotPmemHeap != NULL) {
-        LOGV("initRawSnapshot: clearing old mRawSnapShotPmemHeap.");
-        mRawSnapShotPmemHeap.clear();
+    if( MM_CAMERA_OK != HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
+        HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_CH_IMAGE_FMT,
+        &raw_img_fmt)) {
+        LOGE("Set Raw Snapshot Image Format failed");
+        rc = false;
+        goto end;
     }
-    if(mCurrentTarget == TARGET_MSM8660)
-       pmem_region = "/dev/pmem_smipool";
-    else
-       pmem_region = "/dev/pmem_adsp";
 
-    //Pmem based pool for Camera Driver
-    mRawSnapShotPmemHeap = new PmemPool(pmem_region,
+    memset(&snapshotframe,  0,  sizeof(struct msm_frame));
+    frame_len = mm_camera_get_msm_frame_len(CAMERA_BAYER_SBGGR10, CAMERA_MODE_2D, 
+                                            mDimension.raw_picture_width, mDimension.raw_picture_height,
+                                            &y_off, &cbcr_off,MM_CAMERA_PAD_WORD);
+
+    g_dbg_snapshot_main_size = frame_len;
+
+    //Main Raw Image
+     mRawSnapShotPmemHeap = new PmemPool("/dev/pmem_adsp",
                                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                     MSM_PMEM_RAW_MAINIMG,
-                                    rawSnapshotSize,
+                                    frame_len,
                                     1,
-                                    rawSnapshotSize,
+                                    frame_len,
                                     0,
                                     0,
                                     "raw pmem snapshot camera");
@@ -3366,17 +3267,33 @@ bool QualcommCameraHardware::initRawSnapshot()
     if (!mRawSnapShotPmemHeap->initialized()) {
         mRawSnapShotPmemHeap.clear();
         LOGE("initRawSnapshot X: error initializing mRawSnapshotHeap");
-        return false;
+        rc = false;
+        goto end;
     }
+    snapshotframe.fd = mRawSnapShotPmemHeap->mHeap->getHeapID();
+    snapshotframe.buffer = (uint32_t)mRawSnapShotPmemHeap->mHeap->base();
+    snapshotframe.path = OUTPUT_TYPE_S;
+    snapshotframe.y_off= y_off;
+    snapshotframe.cbcr_off = cbcr_off;
 
-    mRawCaptureParms.num_captures = numCapture;
-    mRawCaptureParms.raw_picture_width = mDimension.raw_picture_width;
-    mRawCaptureParms.raw_picture_height = mDimension.raw_picture_height;
-#endif
-    LOGV("initRawSnapshot X");
-    return true;
-
+    memset(&reg_buf, 0, sizeof(reg_buf));
+    reg_buf.ch_type = MM_CAMERA_CH_RAW;
+    reg_buf.def.num = 1;
+    reg_buf.def.frame = &snapshotframe;
+	
+    if( MM_CAMERA_OK != 
+        HAL_camerahandle[HAL_currentCameraId]->cfg->prepare_buf(
+            HAL_camerahandle[HAL_currentCameraId],&reg_buf)){
+        LOGE("Registering Raw Snapshot buffer failed\n", __func__);
+        mRawSnapShotPmemHeap.clear();
+        rc = false;
+        goto end;
+        }
+end:
+	LOGV("%s: END, rc=%d\n", __func__, rc);
+	return rc;
 }
+
 bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     LOGE("Init ZSL buffers E");
 #if 0
@@ -3539,17 +3456,29 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     
     LOGV("%s: BEGIN\n", __func__);
 
-    mDimension.picture_width =1280;
-    mDimension.picture_height = 960;
-    mDimension.ui_thumbnail_width = previewWidth/*320*/;
-    mDimension.ui_thumbnail_height = previewHeight/*240*/;
+    mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
+    if (updatePictureDimension(mParameters, mPictureWidth, mPictureHeight)) {
+        mDimension.picture_width = mPictureWidth;
+        mDimension.picture_height = mPictureHeight;
+    }
+
+    LOGD("initRaw: picture size set %d x %d",
+         mDimension.picture_width, mDimension.picture_height);
+
+    mDimension.ui_thumbnail_width = previewWidth;
+    mDimension.ui_thumbnail_height = previewHeight;
     LOGD("Set snapshot dimension");
     if( MM_CAMERA_OK != HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
         HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_DIMENSION, 
         &mDimension)) {
         LOGE("INITRAW: Set DIMENSION failed");
-        return UNKNOWN_ERROR;
+        rc = false;
+        goto end;
     }
+
+    LOGD("initRaw: picture size set after Set Dimension: main: %dx%d thumbnail: %dx%d",
+         mDimension.picture_width, mDimension.picture_height,
+         mDimension.ui_thumbnail_width, mDimension.ui_thumbnail_height);
 
     /* Set format */
     LOGD("Set snapshot format");
@@ -3568,15 +3497,21 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_PARM_CH_IMAGE_FMT, 
         &snapshot_img_fmt)) {
         LOGE("INITRAW: Set Snapshot Image Format failed");
-        return UNKNOWN_ERROR;
+        rc = false;
+        goto end;
     }
 
     memset(&snapshotframe,  0,  sizeof(struct msm_frame));
     memset(&thumbnailframe,  0,  sizeof(struct msm_frame));
-	
-	frame_len = mm_camera_get_msm_frame_len(mDimension.main_img_format, CAMERA_MODE_2D, 
-                                            mDimension.picture_width, mDimension.picture_width,
+
+    /*frame_len = mm_camera_get_msm_frame_len(mDimension.main_img_format, CAMERA_MODE_2D,
+                                            mDimension.picture_width, mDimension.picture_height,
                                             &y_off, &cbcr_off,MM_CAMERA_PAD_WORD);
+    */
+
+    /*TBD: to be modified for 3D*/
+    mm_jpeg_encoder_get_buffer_offset( mDimension.picture_width, mDimension.picture_height,
+                                       &y_off, &cbcr_off, &frame_len);
     g_dbg_snapshot_main_size = frame_len;
 
     //Main Raw Image
@@ -3656,56 +3591,25 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     thumbnailframe.buffer = (uint32_t)mPostviewHeap->mHeap->base();
 
     memset(&reg_buf, 0, sizeof(reg_buf));
-	reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
-	reg_buf.snapshot.main.num = 1;
-	reg_buf.snapshot.main.frame = &snapshotframe;
-	reg_buf.snapshot.thumbnail.num = 1;
-	reg_buf.snapshot.thumbnail.frame = &thumbnailframe;
-	if( MM_CAMERA_OK != 
+    reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
+    reg_buf.snapshot.main.num = 1;
+    reg_buf.snapshot.main.frame = &snapshotframe;
+    reg_buf.snapshot.thumbnail.num = 1;
+    reg_buf.snapshot.thumbnail.frame = &thumbnailframe;
+    if( MM_CAMERA_OK != 
         HAL_camerahandle[HAL_currentCameraId]->cfg->prepare_buf(
             HAL_camerahandle[HAL_currentCameraId],&reg_buf)){
-		LOGE("%s:reg snapshot buf failed\n", __func__);
+        LOGE("%s:reg snapshot buf failed\n", __func__);
+        mRawHeap.clear();
+        mPostviewHeap.clear();
         rc = false;
         goto end;
-	}
-end:
-	LOGV("%s: END, rc=%d\n", __func__, rc);
-	return rc;
-}
-
-
-void QualcommCameraHardware::deinitRawSnapshot()
-{
-    LOGV("deinitRawSnapshot E");
-    //mRawSnapShotPmemHeap.clear();
-    LOGV("deinitRawSnapshot X");
-}
-
-void QualcommCameraHardware::deinitRaw()
-{
-    LOGV("deinitRaw E");
-
-    LOGD("Unmap snapshot buffers");
-    mm_app_unprepare_snapshot_buf2();
-
-    mRawHeap.clear();
-    mPostviewHeap.clear();
-
-    /* unreg buf notify*/
-    LOGD("Unregister buf notification");
-    if( MM_CAMERA_OK !=
-        HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(
-            HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_CH_SNAPSHOT,
-            NULL, NULL)
-            ) {
-        LOGE("takePicture: Failure setting snapshot callback");
     }
-
-    LOGD("Release snapshot channel");
-    HAL_camerahandle[HAL_currentCameraId]->ops->ch_release(HAL_camerahandle[HAL_currentCameraId],MM_CAMERA_CH_SNAPSHOT);
-   
-    LOGV("deinitRaw X");
+end:
+    LOGV("%s: END, rc=%d\n", __func__, rc);
+    return rc;
 }
+
 void QualcommCameraHardware::release()
 {
     LOGI("release E");
@@ -4118,7 +4022,7 @@ void snapshot_jpeg_cb(jpeg_event_t event){
     mm_jpeg_encoder_join();
 
     //cleanup
-    obj->deinitSnapshotBuffer();
+    obj->deinitRaw();
 
 }
 
@@ -4132,25 +4036,46 @@ void snapshot_jpeg_fragment_cb(uint8_t *ptr, uint32_t size){
         LOGW("receive jepeg fragment cb obj null");
 }
 
-
-static void receive_snapshot_frame_cb(mm_camera_ch_data_buf_t *recvd_frame, void *user)
+static void receive_raw_snapshot_frame_cb(mm_camera_ch_data_buf_t *recvd_frame, void *user)
 {
     static int loop = 0;
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
 
-    LOGV("Receive snapshot frame callback");
+    LOGV("Receive raw snapshot frame callback");
     
-    //mm_app_dump_snapshot_frame(recvd_frame->snapshot.main.frame, g_dbg_snapshot_main_size, TRUE, loop);
-	//mm_app_dump_snapshot_frame(recvd_frame->snapshot.thumbnail.frame, g_dbg_snapshot_thumb_size, FALSE, loop++);
+    //mm_app_dump_snapshot_frame(recvd_frame->def.frame, g_dbg_snapshot_main_size, TRUE, loop++);
+       
+    if (obj != 0) {
+        LOGD("Calling receiveRawPicture");
+        obj->receiveRawPicture(NO_ERROR, NULL, recvd_frame->def.frame);
+    }
+    else
+        LOGW("receive_raw_snapshot_frame_cb: Unable to find QualcommCameraHardware obj");
 
-   
+    LOGD("Calling buf_done");
+    HAL_camerahandle[HAL_currentCameraId]->evt->buf_done(HAL_camerahandle[HAL_currentCameraId],recvd_frame);
+    mm_app_snapshot_done();
+
+    LOGV("mm_app_snapshot_done called");
+}
+
+static void receive_snapshot_frame_cb(mm_camera_ch_data_buf_t *recvd_frame, void *user)
+{
+    //static int loop = 0;
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+
+    LOGV("Receive snapshot frame callback");
+    //mm_app_dump_snapshot_frame(recvd_frame->snapshot.main.frame, g_dbg_snapshot_main_size, TRUE, loop);
+    //mm_app_dump_snapshot_frame(recvd_frame->snapshot.thumbnail.frame, g_dbg_snapshot_thumb_size, FALSE, loop++);
+
+
     LOGD("Calling receiveRawPicture");
     if (obj != 0) {
         obj->receiveRawPicture(NO_ERROR, recvd_frame->snapshot.thumbnail.frame, recvd_frame->snapshot.main.frame);
     }
     else
         LOGW("receive_snapshot_frame_cb: Unable to find QualcommCameraHardware obj");
-    
+
     LOGD("Calling buf_done");
     HAL_camerahandle[HAL_currentCameraId]->evt->buf_done(HAL_camerahandle[HAL_currentCameraId],recvd_frame);
     mm_app_snapshot_done();
@@ -4205,6 +4130,7 @@ void QualcommCameraHardware::receiveCompleteJpegPicture(jpeg_event_t event){
       LOGV("JPEG callback was cancelled--not delivering image.");
     }
 
+
     //reset jpeg_offset
     jpeg_offset = 0;
 
@@ -4221,45 +4147,59 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
 
     LOGD("Inside receiveRawPicture");
 
-    cam_ctrl_dimension_t dimension;
-    dimension.orig_picture_dx = mDimension.picture_width;
-    dimension.orig_picture_dy = mDimension.picture_height;
-    dimension.thumbnail_width = mDimension.ui_thumbnail_width;
-    dimension.thumbnail_height = mDimension.ui_thumbnail_height;
-
-    jpeg_offset = 0;
-
-    LOGD("Allocating memory to store jpeg image.");
-    mJpegHeap =
-            new AshmemPool(g_dbg_snapshot_main_size,
-                           1,
-                           0, // we do not know how big the picture will be
-                           "jpeg");
-
-        if (!mJpegHeap->initialized()) {
-            mJpegHeap.clear();
-            LOGE("initRaw X failed: error initializing mJpegHeap.");
-            return;
+    /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
+    if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
+        notifyShutter(NULL, FALSE);
+        LOGD("Sending Raw Snapshot Callback to Upperlayer");
+        if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)){
+                mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mRawSnapShotPmemHeap->mBuffers[0],
+                           mCallbackCookie);
         }
 
-    common_crop_t crop;
-    crop.in2_w = 0;
-    crop.in2_h =0;
-    crop.out2_w = 0;
-    crop.out2_h =0;
+    }
+    else{
 
-    crop.in1_w = 0;
-    crop.in1_h =0;
-    crop.out1_w = 0;
-    crop.out1_h =0;
+        common_crop_t *cropp = (common_crop_t *)postviewframe->cropinfo;
+        common_crop_t *crop;
+        notifyShutter(cropp, FALSE);
 
-    LOGD("Setting callbacks, initializing encoder and start encoding.");
-    set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb);
-    mm_jpeg_encoder_init();
-    mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension, (uint8_t *)postviewframe->buffer,  postviewframe->fd,
-            (uint8_t *)mainframe->buffer, mainframe->fd, &crop, NULL, 0, -1, NULL, NULL);
+        cam_ctrl_dimension_t dimension;
+        dimension.orig_picture_dx = mDimension.picture_width;
+        dimension.orig_picture_dy = mDimension.picture_height;
+        dimension.thumbnail_width = mDimension.ui_thumbnail_width;
+        dimension.thumbnail_height = mDimension.ui_thumbnail_height;
 
-    mJpegThreadRunning = true;
+        jpeg_offset = 0;
+
+        LOGD("Allocating memory to store jpeg image.");
+        mJpegHeap =
+                new AshmemPool(g_dbg_snapshot_main_size,
+                               1,
+                               0, // we do not know how big the picture will be
+                               "jpeg");
+
+            if (!mJpegHeap->initialized()) {
+                mJpegHeap.clear();
+                LOGE("initRaw X failed: error initializing mJpegHeap.");
+                return;
+            }
+
+        common_crop_t crop_info;
+        memset(&crop_info, 0, sizeof(crop_info));
+
+        LOGD("Setting callbacks, initializing encoder and start encoding.");
+        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb);
+        mm_jpeg_encoder_init();
+        mm_jpeg_encoder_setMainImageQuality(mParameters.getInt(CameraParameters::KEY_JPEG_QUALITY));
+        LOGD("Dimension to encode: main: %dx%d thumbnail: %dx%d",
+             dimension.orig_picture_dx, dimension.orig_picture_dy,
+             dimension.thumbnail_width, dimension.thumbnail_height);
+
+        mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension, (uint8_t *)postviewframe->buffer,  postviewframe->fd,
+                (uint8_t *)mainframe->buffer, mainframe->fd, &crop_info, NULL, 0, -1, NULL, NULL);
+
+        mJpegThreadRunning = true;
+
 
     /* Display postview image*/
     LOGV("Displaying Postview Image");
@@ -4267,40 +4207,211 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
             mOverlayLock.lock();
             if(mOverlay != NULL) {
                 mOverlay->setFd(postviewframe->fd);
-                //mOverlay->setCrop(0, 0, previewWidth, previewWidth);
+                if(cropp != NULL){
+                    crop = (common_crop_t *)cropp;
+                    if (crop->in1_w != 0 && crop->in1_h != 0) {
+                        int x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
+                        int y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
+                        int w = crop->in1_w;
+                        int h = crop->in1_h;
+                        if(x < 0) x = 0;
+                        if(y < 0) y = 0;
+                        mOverlay->setCrop(x, y,w,h);
+                        mResetOverlayCrop = true;
+                    }else {
+                        mOverlay->setCrop(0, 0, mPostviewWidth, mPostviewHeight);
+                    }
                 }
                 LOGV(" Queueing Postview for display ");
                 mOverlay->queueBuffer((void *)0);
-            
+            }
             mOverlayLock.unlock();
         }
-
-     // send upperlayer callback
-    // if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
-
-    //     mDataCallback(CAMERA_MSG_RAW_IMAGE, ???,
-    //                            mCallbackCookie);
-     //}
-     LOGV("Leaving receiveRawPicture");
+     
+        // send upperlayer callback
+         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
+    
+             mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[0],
+                                    mCallbackCookie);
+         }
+         LOGV("Leaving receiveRawPicture");
+    }
 }
 
 
+void QualcommCameraHardware::runSnapshotThread(void *data)
+{
+    /* play shutter sound */
+    LOGD("Play shutter sound only");
+    notifyShutter(NULL, TRUE);
+
+    LOGD("Waiting for Snapshot notifcation done");
+    mm_app_snapshot_wait();
+
+    LOGD("Disabling Snapshot");
+    
+
+    /* deinit RAW snapshot here as we can't call it from callback function*/
+    if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
+            if( MM_CAMERA_OK !=
+                HAL_camerahandle[HAL_currentCameraId]->ops->action(
+                    HAL_camerahandle[HAL_currentCameraId], FALSE, 
+                    MM_CAMERA_OPS_RAW,0)) {
+                LOGE("Failure taking snapshot");
+           }
+           deinitRawSnapshot();
+    }
+    else{
+        if( MM_CAMERA_OK !=
+                HAL_camerahandle[HAL_currentCameraId]->ops->action(
+                    HAL_camerahandle[HAL_currentCameraId], FALSE, 
+                    MM_CAMERA_OPS_SNAPSHOT,0)) {
+                LOGE("Failure taking snapshot");
+           }
+    }
+}
+
+void *snapshot_thread(void *user)
+{
+    LOGD("snapshot_thread E");
+    CAMERA_HAL_UNUSED(user);
+    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
+    if (obj != 0) {
+        obj->runSnapshotThread(user);
+    }
+    else LOGW("not starting snapshot thread: the object went away!");
+    LOGD("snapshot_thread X");
+    return NULL;
+}
+
+status_t QualcommCameraHardware::takeRawPicture()
+{
+    status_t rc = NO_ERROR;
+    mm_camera_op_mode_type_t op_mode;
+    mm_camera_channel_attr_t ch_attr;
+
+    LOGV("takeRawPicture E");
+    LOGD("Stop Preview");
+    stopPreviewInternal();
+
+    /* Acquire Raw Snapshot channel */
+    LOGD("Acquire Raw Snapshot channel");
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->ops->ch_acquire(
+            HAL_camerahandle[HAL_currentCameraId],
+            MM_CAMERA_CH_RAW)) {
+        LOGD("Acquire MM_CAMERA_CH_RAW channel failed");
+        rc = UNKNOWN_ERROR;
+        goto end;
+    }
+
+    /* Set channel attribute */
+    LOGD("Set Raw Snapshot Channel attribute");
+    memset(&ch_attr, 0, sizeof(ch_attr));
+    ch_attr.type = MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE;
+    ch_attr.raw_streaming_mode = MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
+
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->ops->ch_set_attr(
+            HAL_camerahandle[HAL_currentCameraId],
+            MM_CAMERA_CH_RAW, &ch_attr)) {
+        LOGD("Failure setting Raw channel attribute.");
+        rc = UNKNOWN_ERROR;
+        goto end;
+    }
+
+
+     /* Set camera op mode to MM_CAMERA_OP_MODE_CAPTURE */
+    LOGD("Setting OP_MODE_CAPTURE");
+    op_mode = MM_CAMERA_OP_MODE_CAPTURE;
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
+            HAL_camerahandle[HAL_currentCameraId], 
+            MM_CAMERA_PARM_OP_MODE, &op_mode)) {
+        LOGE("SET MODE: MM_CAMERA_OP_MODE_CAPTURE failed");
+        rc = UNKNOWN_ERROR;
+        goto end;
+    }
+
+    /* Set dimension, format and allocate memory for snapshot main image/thumbnail*/
+    LOGD("Get Raw dimension/format and allocate memory");
+    if(initRawSnapshot() != true){
+        LOGE("Failure initialzing Raw Snapshot buffers");
+        rc = UNKNOWN_ERROR;
+        goto end;
+    }
+
+
+    LOGD("Set Raw Snapshot callback");
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->evt->register_buf_notify(
+            HAL_camerahandle[HAL_currentCameraId], MM_CAMERA_CH_RAW,
+            receive_raw_snapshot_frame_cb, NULL)
+            ) {
+        LOGE("takePicture: Failure setting snapshot callback");
+        rc = UNKNOWN_ERROR;
+        goto end;
+    }
+
+    LOGD("Call MM_CAMERA_OPS_SNAPSHOT");
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->ops->action(
+        HAL_camerahandle[HAL_currentCameraId], TRUE, MM_CAMERA_OPS_RAW,
+        0)
+        ) {
+           LOGE("Failure taking raw snapshot");
+           rc = UNKNOWN_ERROR;
+           goto end;
+    }
+
+    /* Wait for snapshot frame callback to return*/
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    mSnapshotThreadRunning = !pthread_create(&mSnapshotThread,
+                                             &attr,
+                                             snapshot_thread,
+                                             NULL);
+
+/*
+    LOGD("Waiting for Snapshot notifcation done");
+    mm_app_snapshot_wait();
+
+    LOGD("Disabling Snapshot");
+    if( MM_CAMERA_OK !=
+        HAL_camerahandle[HAL_currentCameraId]->ops->action(
+        HAL_camerahandle[HAL_currentCameraId], FALSE, MM_CAMERA_OPS_SNAPSHOT,
+        0)
+        ) {
+           LOGE("Failure taking snapshot");
+    }
+*/
+    LOGV("takeRawPicture: X");
+
+end:
+    return rc;
+}
+
 status_t QualcommCameraHardware::takePicture()
 {
+    status_t rc = NO_ERROR;
+    mm_camera_op_mode_type_t op_mode;
+
+
     LOGV("takePicture(%d)", mMsgEnabled);
 
 
-    LOGD("Stope preview");
-    stopPreviewInternal();
-
-/*    if( MM_CAMERA_OK != 
-        HAL_camerahandle[HAL_currentCameraId]->ops->action(
-            HAL_camerahandle[HAL_currentCameraId], 
-            FALSE, MM_CAMERA_OPS_PREVIEW, 0)) {
-        LOGE("Stop Preview Failed");
-        return UNKNOWN_ERROR;
+    /* Check if it's a raw snapshot or JPEG*/
+    if( isRawSnapshot()) {
+        mSnapshotFormat = PICTURE_FORMAT_RAW;
+        return takeRawPicture();
     }
-*/
+    else{
+        mSnapshotFormat = PICTURE_FORMAT_JPEG;
+    }
+
+    LOGD("Stop preview");
+    stopPreviewInternal();
 
     /* Acquire Snapshot channel */
     LOGD("Acquire snapshot channel");
@@ -4309,25 +4420,28 @@ status_t QualcommCameraHardware::takePicture()
             HAL_camerahandle[HAL_currentCameraId],
             MM_CAMERA_CH_SNAPSHOT)) {
         LOGE("CHANNEL ACQUIRE: Acquire MM_CAMERA_CH_SNAPSHOT channel failed");
-        return UNKNOWN_ERROR;
+        rc = UNKNOWN_ERROR;
+        goto end;
     }
 
      /* Set camera op mode to MM_CAMERA_OP_MODE_CAPTURE */
     LOGD("Setting OP_MODE_CAPTURE");
-    mm_camera_op_mode_type_t op_mode = MM_CAMERA_OP_MODE_CAPTURE;
+    op_mode = MM_CAMERA_OP_MODE_CAPTURE;
     if( MM_CAMERA_OK != 
         HAL_camerahandle[HAL_currentCameraId]->cfg->set_parm(
             HAL_camerahandle[HAL_currentCameraId], 
             MM_CAMERA_PARM_OP_MODE, &op_mode)) {
         LOGE("SET MODE: MM_CAMERA_OP_MODE_CAPTURE failed");
-        return UNKNOWN_ERROR;
+        rc = UNKNOWN_ERROR;
+        goto end;
     }
 
     /* Set dimension, format and allocate memory for snapshot main image/thumbnail*/
     LOGD("Set dimension/format and allocate memory");
     if(initRaw(1) != true){
         LOGE("Failure initialzing snapshot buffers");
-        return UNKNOWN_ERROR;
+        rc = UNKNOWN_ERROR;
+        goto end;
     }
 
 
@@ -4338,7 +4452,8 @@ status_t QualcommCameraHardware::takePicture()
             receive_snapshot_frame_cb, NULL)
             ) {
         LOGE("takePicture: Failure setting snapshot callback");
-        return UNKNOWN_ERROR;
+        rc = UNKNOWN_ERROR;
+        goto end;
     }
 
     /* Prepare snapshot*/
@@ -4349,7 +4464,8 @@ status_t QualcommCameraHardware::takePicture()
             0)
             ) {
         LOGE("takePicture: Failure preparing snapshot");
-        return UNKNOWN_ERROR;
+        rc = UNKNOWN_ERROR;
+        goto end;
     }
 
 
@@ -4360,24 +4476,24 @@ status_t QualcommCameraHardware::takePicture()
         0)
         ) {
            LOGE("Failure taking snapshot");
-           return UNKNOWN_ERROR;
+           rc = UNKNOWN_ERROR;
+           goto end;
     }
+
+    mShutterPending = true;
 
     /* Wait for snapshot frame callback to return*/
-    LOGD("Waiting for Snapshot notifcation done");
-    mm_app_snapshot_wait();
-
-    LOGD("Disabling Snapshot");
-    if( MM_CAMERA_OK != 
-        HAL_camerahandle[HAL_currentCameraId]->ops->action(
-        HAL_camerahandle[HAL_currentCameraId], FALSE, MM_CAMERA_OPS_SNAPSHOT,
-        0)
-        ) {
-           LOGE("runSnapshotThread: Failure taking snapshot");
-    }
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    mSnapshotThreadRunning = !pthread_create(&mSnapshotThread,
+                                             &attr,
+                                             snapshot_thread,
+                                             NULL);
 
     LOGV("takePicture: X");
-       
+end:
+
     return NO_ERROR;
 }
 
@@ -4857,7 +4973,11 @@ sp<QualcommCameraHardware> QualcommCameraHardware::getInstance()
 }
 void QualcommCameraHardware::receiveRecordingFrame(mm_camera_ch_data_buf_t*frame)
 {
-   LOGV("receiveRecordingFrame E");
+    LOGV("receiveRecordingFrame E");
+
+    if (UNLIKELY(mDebugFps)) {
+            debugShowVideoFPS();
+    }
    #if 0
     // post busy frame
     if (frame)
@@ -6866,6 +6986,9 @@ void QualcommCameraHardware::receive_camframe_callback(mm_camera_ch_data_buf_t* 
      void *mdata = mCallbackCookie;
      mCallbackLock.unlock();
 
+    if (UNLIKELY(mDebugFps)) {
+            debugShowPreviewFPS();
+    }
      //packed_frame->def.frame;
  //    sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
   //   if (obj != 0) {
@@ -6942,7 +7065,6 @@ void QualcommCameraHardware::receive_camframe_callback(mm_camera_ch_data_buf_t* 
         LOGE("###############BUF DONE FAILED");
     }         
 #endif             
-   // LOGE("####mansoor/Bikas:receive_camframe_callback X");
 }
 
 static void receive_camstats_callback(camstats_type stype, camera_preview_histogram_info* histinfo)

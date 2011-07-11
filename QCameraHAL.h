@@ -125,7 +125,9 @@ public:
     void receive_camframe_error_timeout();
     static void getCameraInfo();
     void receiveRawPicture(status_t status, struct msm_frame *postviewframe, struct msm_frame *mainframe);
-    void deinitSnapshotBuffer();
+    void deinitRaw();
+    void deinitRawSnapshot();
+
 private:
     QualcommCameraHardware();
     virtual ~QualcommCameraHardware();
@@ -258,8 +260,8 @@ private:
     bool deinitZslBuffers();
     bool initLiveSnapshot(int videowidth, int videoheight);
     bool initRawSnapshot();
-    void deinitRaw();
-    void deinitRawSnapshot();
+    bool isRawSnapshot();
+    status_t takeRawPicture();
     bool mPreviewThreadRunning;
     Mutex mPreviewThreadWaitLock;
     Condition mPreviewThreadWait;

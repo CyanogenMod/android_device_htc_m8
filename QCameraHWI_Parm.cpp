@@ -367,9 +367,9 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;
-//    if ((rc = setPictureSize(params)))  final_rc = rc;
-//    if ((rc = setJpegThumbnailSize(params))) final_rc = rc;
-//    if ((rc = setJpegQuality(params)))  final_rc = rc;
+    if ((rc = setPictureSize(params)))  final_rc = rc;
+//  if ((rc = setJpegThumbnailSize(params))) final_rc = rc;
+    if ((rc = setJpegQuality(params)))  final_rc = rc;
     if ((rc = setEffect(params)))       final_rc = rc;
     LOGE("setEffect rc:%d",final_rc);
     final_rc = 0;
@@ -1176,6 +1176,18 @@ status_t QualcommCameraHardware::setSkinToneEnhancement(const CameraParameters& 
           return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     return NO_ERROR;
+}
+
+bool QualcommCameraHardware::isRawSnapshot()
+{
+    if(mParameters.getPictureFormat() != 0 &&
+            !strcmp(mParameters.getPictureFormat(),
+                    CameraParameters::PIXEL_FORMAT_RAW)){
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
 } /*namespace android */

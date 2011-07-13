@@ -3849,7 +3849,7 @@ void QualcommCameraHardware::stopPreviewInternal()
     LOGD("Unmap Preview frames");
     for(int i=0;i<4;i++)
     {
-        mm_do_munmap(previewframes[i].fd,&previewframes[i].buffer,mPreviewFrameSize);
+        mm_do_munmap(previewframes[i].fd,(void *)previewframes[i].buffer,mPreviewFrameSize);
     }
 
     LOGD("Unprepare Video Buf");

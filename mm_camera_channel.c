@@ -38,7 +38,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
-static void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj, 
+void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj, 
 															mm_camera_channel_type_t ch_type, 
 															mm_camera_stream_t **stream1, 
 															mm_camera_stream_t **stream2)
@@ -62,10 +62,6 @@ static void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
 	case MM_CAMERA_CH_SNAPSHOT:
 		*stream1 = &my_obj->ch[ch_type].snapshot.main;
 		*stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
-		break;
-	case MM_CAMERA_CH_ZSL:
-		*stream1 = &my_obj->ch[ch_type].zsl.main;
-		*stream2 = &my_obj->ch[ch_type].zsl.postview;
 		break;
 	default:
 		break;
@@ -105,12 +101,6 @@ static int32_t mm_camera_ch_util_set_fmt(mm_camera_obj_t * my_obj,
 		fmt1 = &fmt->snapshot.main;
 		stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
 		fmt2 = &fmt->snapshot.thumbnail;
-		break;
-	case MM_CAMERA_CH_ZSL:
-		stream1 = &my_obj->ch[ch_type].zsl.main;
-		fmt1 = &fmt->zsl.main;
-		stream2 = &my_obj->ch[ch_type].zsl.postview;
-		fmt2 = &fmt->zsl.postview;
 		break;
 	default:
 		rc = -1;
@@ -161,12 +151,6 @@ static int32_t mm_camera_ch_util_acquire(mm_camera_obj_t * my_obj,
 		type1 = MM_CAMERA_STREAM_SNAPSHOT;
 		stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
 		type2 = MM_CAMERA_STREAM_THUMBNAIL;
-		break;
-	case MM_CAMERA_CH_ZSL:
-		stream1 = &my_obj->ch[ch_type].zsl.main;
-		type1 = MM_CAMERA_STREAM_ZSL_MAIN;
-		stream2 = &my_obj->ch[ch_type].zsl.postview;
-		type2 = MM_CAMERA_STREAM_ZSL_POST_VIEW;
 		break;
 	default:
 		return -1;
@@ -231,15 +215,6 @@ static int32_t mm_camera_ch_util_stream_null_val(mm_camera_obj_t * my_obj,
 								&my_obj->ch[ch_type].snapshot.thumbnail, evt, 
 								NULL);
 			break;
-		case MM_CAMERA_CH_ZSL:
-			rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-							&my_obj->ch[ch_type].zsl.main, evt, 
-							NULL);
-			if(!rc) 
-				rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-								&my_obj->ch[ch_type].zsl.postview, evt, 
-								NULL);
-			break;
 		default:
 			return -1;
 			break;
@@ -288,19 +263,6 @@ static int32_t mm_camera_ch_util_reg_buf(mm_camera_obj_t * my_obj,
 				}
 			}
 			break;
-		case MM_CAMERA_CH_ZSL:
-			{
-				mm_camera_buf_zsl_t * buf = (mm_camera_buf_zsl_t *)val;
-				rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-								&my_obj->ch[ch_type].zsl.main, evt, 
-								&buf->main);
-				if(!rc) {
-					rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-									&my_obj->ch[ch_type].zsl.postview, evt, 
-									&buf->postview);
-				}
-			}
-			break;
 		default:
 			return -1;
 			break;
@@ -325,6 +287,10 @@ static int32_t mm_camera_ch_util_attr(mm_camera_obj_t *my_obj,
 			rc = MM_CAMERA_OK;
 		}
 		break;
+	case MM_CAMERA_CH_ATTR_BUFFERING_FRAME:
+	  /* it's good to check the stream state. TBD later  */
+	  memcpy(&my_obj->ch[ch_type].buffering_frame, &val->buffering_frame, sizeof(val->buffering_frame));
+	  break;
 	default:
 		break; 
 	}
@@ -342,9 +308,9 @@ static int32_t mm_camera_ch_util_reg_buf_cb(mm_camera_obj_t *my_obj,
 }
 
 static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj, 
-																mm_camera_channel_type_t ch_type, 
-																mm_camera_state_evt_type_t evt,
-																mm_camera_ch_data_buf_t *val)
+									mm_camera_channel_type_t ch_type, 
+									mm_camera_state_evt_type_t evt,
+									mm_camera_ch_data_buf_t *val)
 {
 	int32_t rc = -1;
 	switch(ch_type) {
@@ -381,17 +347,6 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
 			}
 		}
 		break;
-	case MM_CAMERA_CH_ZSL:
-		{
-			rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-							&my_obj->ch[ch_type].zsl.main, evt, 
-							&val->zsl.main);
-			if(!rc) 
-				rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
-								&my_obj->ch[ch_type].zsl.postview, evt, 
-								&val->zsl.postview);
-		}
-		break;
 	default:
 		return -1;
 		break;
@@ -399,9 +354,276 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
 	return rc;
 }
 
+static int mm_camera_ch_util_get_crop(mm_camera_obj_t *my_obj, 
+								mm_camera_channel_type_t ch_type, 
+								mm_camera_state_evt_type_t evt, 
+								mm_camera_ch_crop_t *crop)
+{
+  int rc = MM_CAMERA_OK;
+  switch(ch_type) {
+  case MM_CAMERA_CH_RAW:
+	  rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
+									   &my_obj->ch[ch_type].raw.stream, evt, 
+									   &crop->crop);
+	  break;
+  case MM_CAMERA_CH_PREVIEW:
+	  rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
+									&my_obj->ch[ch_type].preview.stream, evt, 
+									&crop->crop);
+	  break;
+  case MM_CAMERA_CH_VIDEO:
+	  rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
+						  &my_obj->ch[ch_type].video.video, evt, 
+						  &crop->crop);
+	  break;
+  case MM_CAMERA_CH_SNAPSHOT:
+	  {
+		  rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
+						  &my_obj->ch[ch_type].snapshot.main, evt, 
+						  &crop->snapshot.main_crop);
+		  if(!rc) {
+			  rc = mm_camera_stream_fsm_fn_vtbl(my_obj, 
+							  &my_obj->ch[ch_type].snapshot.thumbnail, evt, 
+							  &crop->snapshot.thumbnail_crop);
+		  }
+	  }
+	  break;
+  default:
+	  return -1;
+	  break;
+  }
+  return rc;
+
+}
+
+static int mm_camera_ch_util_dispatch_buffered_frame(mm_camera_obj_t *my_obj, 
+				mm_camera_channel_type_t ch_type)
+{
+  return mm_camera_poll_dispatch_buffered_frames(my_obj, ch_type);
+}
+static int mm_camera_dispatch_buffered_frames_multi(mm_camera_obj_t *my_obj, 
+												mm_camera_ch_t *ch, 
+												mm_camera_channel_type_t ch_type,
+												mm_camera_stream_t *mstream,
+												mm_camera_stream_t *sstream,
+												mm_camera_frame_queue_t *mq,
+												mm_camera_frame_queue_t *sq)
+{
+  int mcnt, i, rc = MM_CAMERA_OK;
+  mm_camera_ch_data_buf_t data;
+  mm_camera_frame_t *mframe, *sframe, *qmframe = NULL, *qsframe = NULL;
+
+  pthread_mutex_lock(&ch->mutex);
+  mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+  for(i = 0; i < mcnt; i++) {
+	mframe = mm_camera_stream_frame_deq(mq);
+	sframe = mm_camera_stream_frame_deq(sq);
+	if(mframe && sframe) {
+	  /* dispatch this pair of frames */
+	  memset(&data, 0, sizeof(data));
+	  data.type = ch_type;
+	  data.snapshot.main.frame = &mframe->frame;
+	  data.snapshot.main.idx = mframe->idx;
+	  data.snapshot.thumbnail.frame = &sframe->frame;
+	  data.snapshot.thumbnail.idx = sframe->idx;
+	  mstream->frame.ref_count[data.snapshot.main.idx]++;
+	  sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
+	  ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+	} else {
+	  qmframe = mframe; 
+	  qsframe = sframe; 
+	  rc = -1;
+	  break;
+	}
+  }
+  if(qmframe) {
+	mm_camera_stream_frame_enq(mq, &mstream->frame.frame[qmframe->idx]);
+	qmframe = NULL;
+  }
+  if(qsframe) {
+	mm_camera_stream_frame_enq(sq, &sstream->frame.frame[qsframe->idx]);
+	qsframe = NULL;
+  }
+  pthread_mutex_unlock(&ch->mutex);
+  return rc;
+}
+int mm_camera_channel_get_time_diff(struct timespec *cur_ts, int usec_target, struct timespec *frame_ts)
+{
+  int dtusec = (cur_ts->tv_nsec - frame_ts->tv_nsec)/1000;
+  dtusec += (cur_ts->tv_sec - frame_ts->tv_sec)*1000000 - usec_target;
+  return dtusec;
+}
+static int mm_camera_dispatch_buffered_frames_single(mm_camera_obj_t *my_obj, 
+												 mm_camera_ch_t *ch, 
+												 mm_camera_channel_type_t ch_type,
+												 mm_camera_stream_t *mstream,
+                                                 mm_camera_stream_t *sstream,
+												 mm_camera_frame_queue_t *mq,
+												 mm_camera_frame_queue_t *sq)
+{
+  int mcnt, i, rc = MM_CAMERA_OK;
+  mm_camera_ch_data_buf_t data;
+  int dt1, dt2;
+  mm_camera_frame_t *mframe1, *sframe1, *qmframe = NULL;
+  mm_camera_frame_t *mframe2, *sframe2, *qsframe = NULL;
+  struct timeval tv;
+  struct timespec cur_ts;
+
+  gettimeofday(&tv, NULL);
+  cur_ts.tv_sec  = tv.tv_sec;
+  cur_ts.tv_nsec = tv.tv_usec * 1000;
+
+  pthread_mutex_lock(&ch->mutex);
+  mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+  mframe1 = mm_camera_stream_frame_deq(mq);
+  sframe1 = mm_camera_stream_frame_deq(sq);
+  if(!mframe1 || !sframe1) {
+	CDBG("%s: no frames raedy.\n", __func__);
+	qmframe = mframe1; 
+	qsframe = sframe1; 
+	rc = -1;
+	goto end;
+  }
+  dt1 = mm_camera_channel_get_time_diff(&cur_ts, ch->buffering_frame.ms, &mframe1->frame.ts);
+  if (dt1 > 0) {
+	for(i = 0; i < mcnt-1; i++) {
+	  /* be sure to queue old frames back to kernel */
+	  if(qmframe) {
+		mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
+		qmframe = NULL;
+	  }
+	  if(qsframe) {
+		mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
+		qsframe = NULL;
+	  }
+	  mframe2 = mm_camera_stream_frame_deq(mq);
+	  sframe2 = mm_camera_stream_frame_deq(sq);
+	  if(!mframe2 || !sframe2) {
+		qmframe = mframe2; 
+		qsframe = sframe2; 
+		goto done;
+	  } else {
+		/* dispatch this pair of frames */
+		dt2 = mm_camera_channel_get_time_diff(&cur_ts, ch->buffering_frame.ms, &mframe2->frame.ts);
+		if(dt2 == 0) {
+		  /* right on target */
+		  qmframe = mframe1; 
+		  qsframe = sframe1; 
+		  mframe1 = mframe2;
+		  sframe1 = sframe2;
+		  goto done;
+		}
+		else if(dt2 > 0) {
+		  /* not find the best match */
+		  qmframe = mframe1; 
+		  qsframe = sframe1; 
+		  mframe1 = mframe2;
+		  sframe1 = sframe2;
+		  dt1 = dt2;
+		  continue;
+		}
+		else if(dt2 < 0) {
+		  dt2 = -dt2;
+		  if(dt1 < dt2) {
+			/* dt1 is better match */
+			qmframe = mframe2; 
+			qsframe = sframe2; 
+			goto done;
+		  } else {
+			qmframe = mframe1; 
+			qsframe = sframe1; 
+			mframe1 = mframe2;
+			sframe1 = sframe2;
+			goto done;
+		  }
+		}
+	  }
+	}
+	rc = -1;
+	CDBG("%s: unexpected error. Should not hit here. bug!!\n", __func__);
+	goto end;
+  }
+done:
+  memset(&data, 0, sizeof(data));
+  data.type = ch_type;
+  data.snapshot.main.frame = &mframe1->frame;
+  data.snapshot.main.idx = mframe1->idx;
+  data.snapshot.thumbnail.frame = &sframe1->frame;
+  data.snapshot.thumbnail.idx = sframe1->idx;
+  mstream->frame.ref_count[data.snapshot.main.idx]++;
+  sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
+  ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+end:
+  if(qmframe && qsframe) { 
+	/* queue to kernel */
+	if(qmframe) {
+	  mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
+	  qmframe = NULL;
+	}
+	if(qsframe) {
+	  mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
+	  qsframe = NULL;
+	}
+  } else {
+	/* queue back ready queue */
+	if(qmframe) {
+	  mm_camera_stream_frame_enq(mq, &mstream->frame.frame[qmframe->idx]);
+	  qmframe = NULL;
+	}
+	if(qsframe) {
+	  mm_camera_stream_frame_enq(sq, &sstream->frame.frame[qsframe->idx]);
+	  qsframe = NULL;
+	}
+  }
+  pthread_mutex_unlock(&ch->mutex);
+  return rc;
+
+}
+void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj, 
+				mm_camera_channel_type_t ch_type)
+{
+  int rc = 0;
+  mm_camera_ch_t *ch = &my_obj->ch[ch_type];
+  mm_camera_frame_queue_t *mq = NULL;
+  mm_camera_frame_queue_t *sq = NULL;
+  mm_camera_stream_t *stream1 = NULL;
+  mm_camera_stream_t *stream2 = NULL;
+
+  mm_camera_ch_util_get_stream_objs(my_obj, ch_type, &stream1, &stream2);
+  mq = &stream1->frame.readyq;
+  if(stream2) {
+	sq = &stream2->frame.readyq;
+  }
+
+  if(ch->buffering_frame.multi_frame) {
+	/* dispatch all frames to app */
+	rc = mm_camera_dispatch_buffered_frames_multi(my_obj, ch, ch_type, 
+												  stream1, stream2, mq, sq);
+  } else {
+	rc = mm_camera_dispatch_buffered_frames_single(my_obj, ch, ch_type, 
+												   stream1, stream2, mq, sq);
+  }
+  if(rc == MM_CAMERA_OK) {
+	/* call evt cb to send frame delivered event to app */
+	mm_camera_evt_obj_t evtcb;
+	mm_camera_event_t data;
+	int i;
+	pthread_mutex_lock(&my_obj->mutex);
+	memcpy(&evtcb, &my_obj->evt[MM_CAMERA_EVT_TYPE_CH], sizeof(mm_camera_evt_obj_t));
+	pthread_mutex_unlock(&my_obj->mutex);
+	data.evt_type = MM_CAMERA_EVT_TYPE_CH;
+	data.ch_evt.evt = MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE;
+	data.ch_evt.ch = ch_type;
+	for(i = 0; i < MM_CAMERA_EVT_ENTRY_MAX; i++) {
+	  if(evtcb.evt[i].evt_cb) {
+		evtcb.evt[i].evt_cb(&data, evtcb.evt[i].user_data);
+	  }
+	}
+  }
+}
 int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj, 
-																	mm_camera_channel_type_t ch_type, 
-																	mm_camera_state_evt_type_t evt, void *val)
+		mm_camera_channel_type_t ch_type, 
+		mm_camera_state_evt_type_t evt, void *val)
 {
 	int32_t rc = MM_CAMERA_OK;
 
@@ -411,6 +633,8 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
 		rc = mm_camera_ch_util_acquire(my_obj, ch_type);
 		break;
 	case MM_CAMERA_STATE_EVT_RELEASE:
+	  /* safe code in case no stream off before release. */
+		mm_camera_poll_thread_release(my_obj, ch_type);
 		rc = mm_camera_ch_util_release(my_obj, ch_type, evt);
 		break;
 	case MM_CAMERA_STATE_EVT_ATTR:
@@ -440,15 +664,26 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
 				break;
 			}
 		}
+		mm_camera_poll_thread_launch(my_obj, ch_type);
 		rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
+		if(rc < 0) 
+		  mm_camera_poll_thread_release(my_obj, ch_type);
 		break;
 	case MM_CAMERA_STATE_EVT_STREAM_OFF:
+		mm_camera_poll_thread_release(my_obj, ch_type);
 		rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
 		break;
 	case MM_CAMERA_STATE_EVT_QBUF:
 		rc = mm_camera_ch_util_qbuf(my_obj, ch_type, evt, 
-																(mm_camera_ch_data_buf_t *)val);
+									(mm_camera_ch_data_buf_t *)val);
 		break;
+	case MM_CAMERA_STATE_EVT_GET_CROP:
+	  rc = mm_camera_ch_util_get_crop(my_obj, ch_type, evt, 
+								  (mm_camera_ch_crop_t *)val);
+	  break;
+	case MM_CAMERA_STATE_EVT_DISPATCH_BUFFERED_FRAME:
+	  rc = mm_camera_ch_util_dispatch_buffered_frame(my_obj, ch_type);
+	  break;
 	default:
 		break;
 	}

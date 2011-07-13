@@ -54,8 +54,8 @@ typedef enum {
 }mm_camera_status_type_t;
 
 typedef enum {
-	MM_CAMERA_OP_MODE_NOTUSED,
-	MM_CAMERA_OP_MODE_CAPTURE,
+  MM_CAMERA_OP_MODE_NOTUSED,
+  MM_CAMERA_OP_MODE_CAPTURE,
   MM_CAMERA_OP_MODE_VIDEO,
   MM_CAMERA_OP_MODE_ZSL,
   MM_CAMERA_OP_MODE_MAX
@@ -108,7 +108,7 @@ typedef enum {
   MM_CAMERA_PARM_JPEG_ROTATION,
   MM_CAMERA_PARM_JPEG_MAINIMG_QUALITY, 
   MM_CAMERA_PARM_JPEG_THUMB_QUALITY,
-  MM_CAMERA_PARM_ZSL_ENABLE,
+  MM_CAMERA_PARM_ZSLENABLE,
   MM_CAMERA_PARM_FOCAL_LENGTH,
   MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
   MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE, 
@@ -122,13 +122,21 @@ typedef enum {
   MM_CAMERA_PARM_3D_VIEW_ANGLE,
   MM_CAMERA_PARM_PREVIEW_FORMAT,
   MM_CAMERA_PARM_HFR_SIZE,
-	MM_CAMERA_PARM_HDR,
+  MM_CAMERA_PARM_HDR,
+  MM_CAMERA_PARM_CROP,
   MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
 #define MM_CAMERA_PARM_SUPPORT_SET		0x01
 #define MM_CAMERA_PARM_SUPPORT_GET		0x02
 #define MM_CAMERA_PARM_SUPPORT_BOTH		0x03
+
+typedef struct  {
+	int32_t left;
+	int32_t top;
+	int32_t width;
+	int32_t height;
+} mm_camera_rect_t;
 
 typedef enum {
   WHITE_BALANCE_AUTO         = 1,
@@ -142,7 +150,6 @@ typedef enum {
 	MM_CAMERA_CH_PREVIEW,
 	MM_CAMERA_CH_VIDEO,
 	MM_CAMERA_CH_SNAPSHOT,
-	MM_CAMERA_CH_ZSL,
 	MM_CAMERA_CH_RAW,
 	MM_CAMERA_CH_MAX
 } mm_camera_channel_type_t;
@@ -172,11 +179,6 @@ typedef enum {
 
 typedef struct {
 	mm_camera_image_fmt_t main;		
-	mm_camera_image_fmt_t postview;		
-} mm_camera_ch_image_fmt_zsl_t;
-
-typedef struct {
-	mm_camera_image_fmt_t main;		
 	mm_camera_image_fmt_t video;		
 } mm_camera_ch_image_fmt_video_t;
 
@@ -185,10 +187,21 @@ typedef struct {
 	union {
 		mm_camera_image_fmt_t def;			
 		mm_camera_ch_image_fmt_snapshot_t snapshot;
-		mm_camera_ch_image_fmt_zsl_t zsl;
 		mm_camera_ch_image_fmt_video_t video;
 	};
 } mm_camera_ch_image_fmt_parm_t;
+typedef struct {
+  mm_camera_rect_t main_crop;
+  mm_camera_rect_t thumbnail_crop;
+} mm_camera_crop_snapshot_t;
+
+typedef struct {
+  mm_camera_channel_type_t ch_type;
+  union {
+	mm_camera_rect_t crop;
+	mm_camera_crop_snapshot_t snapshot;
+  };
+} mm_camera_ch_crop_t;
 
 typedef struct {
 	uint8_t name[32];
@@ -223,44 +236,56 @@ typedef struct {
 } mm_camera_buf_video_t;
 
 typedef struct {
-	mm_camera_buf_def_t postview;
-	mm_camera_buf_def_t main;
-} mm_camera_buf_zsl_t;
-
-typedef struct {
 	mm_camera_channel_type_t ch_type;
 	union {
 		mm_camera_buf_def_t def;
 		mm_camera_buf_def_t preview;
 		mm_camera_buf_snapshot_t snapshot;
 		mm_camera_buf_video_t video;
-		mm_camera_buf_zsl_t zsl; 
 	};
 } mm_camera_reg_buf_t;
 
 typedef enum {
   MM_CAMERA_OPS_PREVIEW,					// start/stop preview
   MM_CAMERA_OPS_VIDEO,						// start/stop video
-  MM_CAMERA_OPS_PREPARE_SNAPSHOT,	// prepare capture in capture mode
+  MM_CAMERA_OPS_PREPARE_SNAPSHOT,           // prepare capture in capture mode
   MM_CAMERA_OPS_SNAPSHOT,					// take snapshot (HDR,ZSL,live shot)
-  MM_CAMERA_OPS_RAW,							// take raw streaming (raw snapshot, etc)
-  MM_CAMERA_OPS_ZSL,							// start/stop zsl
+  MM_CAMERA_OPS_RAW,						// take raw streaming (raw snapshot, etc)
+  MM_CAMERA_OPS_ZSL,						// start/stop zsl
+  // mm_camera_ops_parm_get_buffered_frame_t is used for MM_CAMERA_OPS_GET_BUFFERED_FRAME
+  MM_CAMERA_OPS_GET_BUFFERED_FRAME,         // channel to dispatch buffered frame to app through call back
   MM_CAMERA_OPS_FOCUS,						// change focus,isp3a_af_mode_t* used in val
-  MM_CAMERA_OPS_MAX								// max ops
+  MM_CAMERA_OPS_MAX                         // max ops
 }mm_camera_ops_type_t;
 
 typedef enum {
 	MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE,
+	MM_CAMERA_CH_ATTR_BUFFERING_FRAME,
 	MM_CAMERA_CH_ATTR_MAX
 } mm_camera_channel_attr_type_t;
+
+typedef struct {
+  /* how deep the circular frame queue */
+  int water_mark;
+  /* back up look up time in milisecond */				
+  int ms; 
+  /* dispatch one farme, or dispatch all queued frames to app */
+  int multi_frame;         
+} mm_camera_channel_attr_buffering_frame_t;
 
 typedef struct {
 	mm_camera_channel_attr_type_t type;
 	union {
 		/* add more if needed */
 		mm_camera_raw_streaming_type_t raw_streaming_mode;
+		mm_camera_channel_attr_buffering_frame_t buffering_frame;
 	};
 } mm_camera_channel_attr_t;
+
+typedef struct {
+  mm_camera_channel_type_t ch_type;
+} mm_camera_ops_parm_get_buffered_frame_t;
+
 typedef struct mm_camera mm_camera_t;
 
 typedef struct {
@@ -282,7 +307,7 @@ typedef struct {
   uint8_t (*is_op_supported)(mm_camera_t * camera, mm_camera_ops_type_t opcode);
 	/* val is reserved for some action such as MM_CAMERA_OPS_FOCUS */
 	int32_t (*action)(mm_camera_t * camera, uint8_t start, 
-																mm_camera_ops_type_t opcode, void *val);
+					mm_camera_ops_type_t opcode, void *val);
 	int32_t (*open)(mm_camera_t * camera, mm_camera_op_mode_type_t op_mode); 
 	void (*close)(mm_camera_t * camera); 
 	int32_t (*ch_acquire)(mm_camera_t * camera, mm_camera_channel_type_t ch_type);
@@ -291,8 +316,15 @@ typedef struct {
 												 mm_camera_channel_attr_t *attr);
 } mm_camera_ops_t; 
 
+typedef struct {
+  int type;
+  uint32_t length;
+  void *value;
+} mm_camera_stats_t;
 typedef enum {
-	MM_CAMERA_CTRL_EVT_ZOOM_DONE,
+	MM_CAMERA_CTRL_EVT_ZOOM,
+	MM_CAMERA_CTRL_EVT_AUTO_FOCUS,
+	MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT,
 	MM_CAMERA_CTRL_EVT_MAX
 }mm_camera_ctrl_event_type_t;
 
@@ -307,16 +339,18 @@ typedef enum {
 typedef enum { 
 	MM_CAMERA_EVT_TYPE_CH,
 	MM_CAMERA_EVT_TYPE_CTRL,									
+	MM_CAMERA_EVT_TYPE_STATS,									
 	MM_CAMERA_EVT_TYPE_MAX
 } mm_camera_event_type_t;
 
 typedef struct {
 	mm_camera_ctrl_event_type_t evt;
-	//uint32_t value;
+	cam_ctrl_status_t status;
 } mm_camera_ctrl_event_t;
 
 typedef struct {
 	mm_camera_ch_event_type_t evt;
+	mm_camera_channel_type_t ch;
 } mm_camera_ch_event_t;
 
 
@@ -325,6 +359,7 @@ typedef struct {
 	union {
 		mm_camera_ch_event_t ch_evt;
 		mm_camera_ctrl_event_t ctrl_evt;
+		mm_camera_stats_t stats;
 	};
 } mm_camera_event_t;
 
@@ -344,14 +379,8 @@ typedef struct {
 } mm_camera_notify_snapshot_buf_t;
 
 typedef struct {
-	mm_camera_notify_frame_t postview;
-	mm_camera_notify_frame_t main;
-} mm_camera_notify_zsl_buf_t;
-
-typedef struct {
 	mm_camera_channel_type_t type;
 	union {
-		mm_camera_notify_zsl_buf_t zsl;
 		mm_camera_notify_snapshot_buf_t snapshot;
 		mm_camera_notify_video_buf_t video;
 		mm_camera_notify_frame_t def;
@@ -365,15 +394,16 @@ typedef void (*mm_camera_buf_notify_t)(mm_camera_ch_data_buf_t *bufs,
 	void *user_data);
 
 typedef struct { 
-   uint8_t (*is_event_supported)(mm_camera_t * camera, 
-																 mm_camera_event_type_t evt_type);
-   int32_t (*register_event_notify)(mm_camera_t * camera, 
-																 mm_camera_event_notify_t evt_cb, 
-																 void * user_data, mm_camera_channel_type_t ch_type);
-   int32_t (*register_buf_notify)(mm_camera_t * camera, 
-																 mm_camera_channel_type_t ch_type, 
-																 mm_camera_buf_notify_t buf_cb, 
-																 void * user_data);
+   uint8_t (*is_event_supported)(mm_camera_t * camera,
+								 mm_camera_event_type_t evt_type);
+   int32_t (*register_event_notify)(mm_camera_t * camera,
+									mm_camera_event_notify_t evt_cb, 
+									 void * user_data,
+									mm_camera_event_type_t evt_type);
+   int32_t (*register_buf_notify)(mm_camera_t * camera,
+								mm_camera_channel_type_t ch_type, 
+								mm_camera_buf_notify_t buf_cb, 
+								void * user_data);
    int32_t (*buf_done)(mm_camera_t * camera, mm_camera_ch_data_buf_t *bufs);
 } mm_camera_notify_t; 
 

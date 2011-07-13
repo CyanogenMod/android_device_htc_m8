@@ -52,6 +52,8 @@ typedef enum {
 	MM_CAMERA_STATE_EVT_STREAM_ON,
 	MM_CAMERA_STATE_EVT_STREAM_OFF,
 	MM_CAMERA_STATE_EVT_QBUF,
+	MM_CAMERA_STATE_EVT_GET_CROP,
+    MM_CAMERA_STATE_EVT_DISPATCH_BUFFERED_FRAME,
 	MM_CAMERA_STATE_EVT_MAX
 } mm_camera_state_evt_type_t;
 
@@ -72,8 +74,6 @@ typedef enum {
 	MM_CAMERA_STREAM_SNAPSHOT,
 	MM_CAMERA_STREAM_THUMBNAIL,
 	MM_CAMERA_STREAM_RAW,
-	MM_CAMERA_STREAM_ZSL_MAIN,
-	MM_CAMERA_STREAM_ZSL_POST_VIEW,
 	MM_CAMERA_STREAM_VIDEO_MAIN,
 	MM_CAMERA_STREAM_MAX
 } mm_camera_stream_type_t;
@@ -140,11 +140,6 @@ typedef struct {
 } mm_camera_circule_fifo_t;
 
 typedef struct {
-	mm_camera_stream_t main;
-	mm_camera_stream_t postview;
-} mm_camera_ch_zsl_t;
-
-typedef struct {
 	mm_camera_stream_t video;
 	mm_camera_stream_t main;
 	uint8_t has_main;
@@ -155,42 +150,76 @@ typedef struct {
 	pthread_mutex_t mutex;
 	uint8_t acquired;
 	mm_camera_buf_cb_t buf_cb;
+	mm_camera_channel_attr_buffering_frame_t buffering_frame;
 	union {
 		mm_camera_ch_raw_t raw;
 		mm_camera_ch_preview_t preview;
 		mm_camera_ch_snapshot_t snapshot;
-		mm_camera_ch_zsl_t zsl;
 		mm_camera_ch_video_t video;
 	};
 } mm_camera_ch_t;
 
+#define MM_CAMERA_EVT_ENTRY_MAX 4
 typedef struct {
-	int32_t pfds[2];
-	int state;
-	pthread_t pid;
-	pthread_mutex_t mutex;
-	pthread_cond_t cond_v;
-	uint8_t cmd;
-	mm_camera_stream_t *poll_streams[MM_CAMERA_STREAM_MAX];
-  int fds[MM_CAMERA_STREAM_MAX];
-	mm_camera_stream_type_t stream_type[MM_CAMERA_STREAM_MAX];
-	int fd_cnt;
-	int32_t worker_status;
-	int timeoutms;
-} mm_camera_work_ctrl_t;
+  mm_camera_event_notify_t evt_cb; 
+  void *user_data;
+} mm_camera_evt_entry_t;
 
+typedef struct {
+  mm_camera_evt_entry_t evt[MM_CAMERA_EVT_ENTRY_MAX];
+  int reg_count;
+} mm_camera_evt_obj_t;
+
+#define MM_CAMERA_CH_STREAM_MAX	2
+typedef enum {
+  MM_CAMERA_POLL_TYPE_EVT,
+  MM_CAMERA_POLL_TYPE_CH,
+  MM_CAMERA_POLL_TYPE_MAX
+} mm_camera_poll_thread_type_t;
+
+typedef struct {
+  mm_camera_poll_thread_type_t poll_type;
+  int32_t pfds[2];
+  int poll_fd[MM_CAMERA_CH_STREAM_MAX+1];
+  int num_fds;
+  int used;
+  pthread_t pid;
+  int32_t state;
+  int timeoutms;
+  void *my_obj;
+  mm_camera_channel_type_t ch_type;
+  mm_camera_stream_t *poll_streams[MM_CAMERA_CH_STREAM_MAX];
+} mm_camera_poll_thread_data_t;
+
+typedef struct {
+  pthread_mutex_t mutex;
+  pthread_cond_t cond_v;
+  int32_t status;
+  mm_camera_poll_thread_data_t data;
+} mm_camera_poll_thread_t;
+
+typedef struct {
+  int stream_on_count_cfg;
+  int stream_off_count_cfg;
+  int stream_on_count;
+  int stream_off_count;
+} mm_camera_ch_stream_count_t;
+#define MM_CAMERA_POLL_THRAED_MAX (MM_CAMERA_CH_MAX+1)
 typedef struct {
 	int8_t my_id;
 	camera_mode_t current_mode;
 	mm_camera_op_mode_type_t op_mode;
 	mm_camera_notify_cb_t *notify;
 	mm_camera_ch_t ch[MM_CAMERA_CH_MAX];
-	mm_camera_work_ctrl_t work_ctrl;
 	int ref_count;
 	uint32_t ch_streaming_mask;
 	int32_t ctrl_fd;
 	cam_ctrl_dimension_t dim;
 	pthread_mutex_t mutex;
+	mm_camera_evt_obj_t evt[MM_CAMERA_EVT_TYPE_MAX];
+	mm_camera_ch_stream_count_t ch_stream_count[MM_CAMERA_CH_MAX];
+	uint32_t evt_type_mask;
+	mm_camera_poll_thread_t poll_threads[MM_CAMERA_POLL_THRAED_MAX];
 } mm_camera_obj_t;
 
 #define MM_CAMERA_DEV_NAME_LEN 32
@@ -233,20 +262,24 @@ extern int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
 											mm_camera_parm_t *parm);
 extern int32_t mm_camera_prepare_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf);
 extern int32_t mm_camera_unprepare_buf(mm_camera_obj_t * my_obj, mm_camera_channel_type_t ch_type);
+extern int mm_camera_poll_thread_launch(mm_camera_obj_t * my_obj, int ch_type);
+extern int32_t mm_camera_poll_dispatch_buffered_frames(mm_camera_obj_t * my_obj, int ch_type);
+extern int mm_camera_poll_thread_release(mm_camera_obj_t * my_obj, int ch_type);
+extern void mm_camera_poll_threads_init(mm_camera_obj_t * my_obj);
+extern void mm_camera_poll_threads_deinit(mm_camera_obj_t * my_obj);
 extern int mm_camera_poll_busy(mm_camera_obj_t * my_obj);
-//extern int32_t mm_camera_send_poll_task_sig(mm_camera_obj_t * my_obj, 
-//											mm_camera_pipe_cmd_type_t cmd);
-//extern void *mm_camera_poll_task(void *data);
-extern int mm_camera_poll_task_launch(mm_camera_obj_t * my_obj);
-extern int mm_camera_poll_task_release(mm_camera_obj_t * my_obj);
 extern void mm_camera_msm_data_notify(mm_camera_obj_t * my_obj, int fd, 
 											mm_camera_stream_type_t stream_type);
+extern void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd);
 extern int mm_camera_read_msm_frame(mm_camera_obj_t * my_obj, 
 						mm_camera_stream_t *stream);
 extern int32_t mm_camera_ch_acquire(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_type);
 extern void mm_camera_ch_release(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_type);
 extern int mm_camera_ch_is_active(mm_camera_obj_t * my_obj, mm_camera_channel_type_t ch_type);
-
+extern void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj, 
+															mm_camera_channel_type_t ch_type, 
+															mm_camera_stream_t **stream1, 
+															mm_camera_stream_t **stream2);
 extern int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj, 
 															mm_camera_stream_t *stream, 
 															int idx);
@@ -258,7 +291,8 @@ extern int mm_camera_stream_is_active(mm_camera_stream_t *stream);
 extern int mm_camera_poll_add_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream);
 extern int mm_camera_poll_del_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream);
 extern int mm_camera_dev_open(int *fd, char *dev_name);
-
+extern int mm_camera_reg_event(mm_camera_obj_t * my_obj, mm_camera_event_notify_t evt_cb, 
+						   void *user_data, mm_camera_event_type_t evt_type);
 #endif /* __MM_CAMERA_H__ */
 
 

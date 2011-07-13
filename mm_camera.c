@@ -175,8 +175,6 @@ static mm_camera_channel_type_t mm_camera_util_opcode_2_ch_type(
 		return MM_CAMERA_CH_SNAPSHOT;
 	case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
 		return MM_CAMERA_CH_SNAPSHOT;
-	case MM_CAMERA_OPS_ZSL:
-		return MM_CAMERA_CH_ZSL;
 	case MM_CAMERA_OPS_RAW:
 		return MM_CAMERA_CH_RAW;
 	default:
@@ -199,14 +197,14 @@ static int32_t mm_camera_util_set_op_mode(mm_camera_obj_t * my_obj,
 		goto end;
 	}
 	switch(*op_mode) {
+	case MM_CAMERA_OP_MODE_ZSL:
+		v4l2_op_mode = MSM_V4L2_CAM_OP_ZSL;
+			break;
 	case MM_CAMERA_OP_MODE_CAPTURE:
 		v4l2_op_mode = MSM_V4L2_CAM_OP_CAPTURE;
 			break;
 	case MM_CAMERA_OP_MODE_VIDEO:
 		v4l2_op_mode = MSM_V4L2_CAM_OP_VIDEO;
-			break;
-	case MM_CAMERA_OP_MODE_ZSL:
-		v4l2_op_mode = MSM_V4L2_CAM_OP_ZSL;
 			break;
 	default:
 		rc = - MM_CAMERA_E_INVALID_INPUT;
@@ -400,7 +398,7 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
 		CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,raw_w=%d,raw_h=%d\n",
 				 __func__,
 				 my_obj->dim.display_width,my_obj->dim.display_height,
-				 my_obj->dim.video_width,my_obj->dim.video_height,
+				 my_obj->dim.video_width, my_obj->dim.video_height,
 				 my_obj->dim.picture_width,my_obj->dim.picture_height,
 				 my_obj->dim.ui_thumbnail_width,my_obj->dim.ui_thumbnail_height,
 				 my_obj->dim.raw_picture_width,my_obj->dim.raw_picture_height);
@@ -423,11 +421,16 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
 }
 
 int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj, 
-																								mm_camera_parm_t *parm)
+							mm_camera_parm_t *parm)
 {
 	int32_t rc = MM_CAMERA_OK;
 
 	switch(parm->parm_type) {
+	case MM_CAMERA_PARM_CROP:
+	  return rc = mm_camera_ch_fn(my_obj, 
+					((mm_camera_ch_crop_t *)parm->p_value)->ch_type, 
+					MM_CAMERA_STATE_EVT_GET_CROP, parm);
+	  break;
 	case MM_CAMERA_PARM_DIMENSION:
 		memcpy(parm->p_value, &my_obj->dim, sizeof(my_obj->dim));
 		CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,ovx=%x,ovy=%d,opx=%d,opy=%d\n",
@@ -484,24 +487,114 @@ int32_t mm_camera_unprepare_buf(mm_camera_obj_t * my_obj, mm_camera_channel_type
 					MM_CAMERA_STATE_EVT_UNREG_BUF, NULL);
 	return rc;
 }
-
+static int mm_camera_evt_sub(mm_camera_obj_t * my_obj, 
+							 mm_camera_event_type_t evt_type, int reg_count)
+{
+  int rc = MM_CAMERA_OK;
+  struct v4l2_event_subscription sub;
+  
+  memset(&sub, 0, sizeof(sub));
+  switch(evt_type) {
+  case MM_CAMERA_EVT_TYPE_CH:
+	  sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_STREAM;
+  break;
+  case MM_CAMERA_EVT_TYPE_CTRL:
+		sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_CTRL;
+	break;
+  case MM_CAMERA_EVT_TYPE_STATS:
+		sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_STATS;
+	break;
+  default:
+	return -1;
+  }    
+  if(reg_count == 0) {
+	/* unsubscribe */
+	if(my_obj->evt_type_mask & (1 << evt_type)) {
+	  rc = ioctl(my_obj->ctrl_fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
+	  my_obj->evt_type_mask &= ~(1 << evt_type);
+	}
+	if(my_obj->evt_type_mask == 0) {
+	  mm_camera_poll_thread_release(my_obj, MM_CAMERA_CH_MAX);
+	}
+  } else {
+	uint32_t old_mask = my_obj->evt_type_mask;
+	if(!(my_obj->evt_type_mask & (1 << evt_type))) {
+	  rc = ioctl(my_obj->ctrl_fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+	  if (rc < 0) {
+		CDBG("error: ioctl VIDIOC_SUBSCRIBE_EVENT failed : %s\n",
+		  strerror(errno));
+		goto end;
+	  }  
+	  my_obj->evt_type_mask |= (1 << evt_type);
+	}
+	if(!old_mask) {
+	  /* launch event polling when subscribe the first event */
+	  rc = mm_camera_poll_thread_launch(my_obj, MM_CAMERA_POLL_THRAED_MAX-1);
+	}
+  }
+end:
+  return rc;
+}
+int mm_camera_reg_event(mm_camera_obj_t * my_obj, mm_camera_event_notify_t evt_cb, 
+						   void *user_data, mm_camera_event_type_t evt_type)
+{
+  int i;
+  int rc = -1;
+  mm_camera_evt_obj_t *evt_array = &my_obj->evt[evt_type];
+  if(evt_cb) {
+	/* this is reg case */
+	for(i = 0; i < MM_CAMERA_EVT_ENTRY_MAX; i++) {
+	  if(evt_array->evt[i].user_data == NULL) {
+		evt_array->evt[i].evt_cb = evt_cb;
+		evt_array->evt[i].user_data = user_data;
+		evt_array->reg_count++;
+		rc = MM_CAMERA_OK;
+		break;
+	  }
+	}
+  } else {
+	/* this is unreg case */
+	for(i = 0; i < MM_CAMERA_EVT_ENTRY_MAX; i++) {
+	  if(evt_array->evt[i].user_data == user_data) {
+		evt_array->evt[i].evt_cb = NULL;
+		evt_array->evt[i].user_data = NULL;
+		evt_array->reg_count--;
+		rc = MM_CAMERA_OK;
+		break;
+	  }
+	}
+  }
+  if(rc == MM_CAMERA_OK && evt_array->reg_count <= 1) {
+	/* subscribe/unsubscribe event to kernel */
+	rc = mm_camera_evt_sub(my_obj, evt_type, evt_array->reg_count);
+  }
+  return rc;
+}
 int32_t mm_camera_action_start(mm_camera_obj_t *my_obj, 
-															 mm_camera_ops_type_t opcode, void *parm)
+							mm_camera_ops_type_t opcode, void *parm)
 {
 	int32_t rc = -MM_CAMERA_E_GENERAL;
 	mm_camera_channel_type_t ch_type;
-	if(opcode == MM_CAMERA_OPS_FOCUS) {
-		if(!parm) return rc;
-		return mm_camera_send_native_ctrl_cmd(my_obj,	
-					CAMERA_SET_PARM_AUTO_FOCUS, sizeof(isp3a_af_mode_t), parm);
-		/*return mm_camera_util_s_ctrl(my_obj->ctrl_fd,  
-																		MSM_V4L2_PID_FOCUS_MODE, 
-																			*((isp3a_af_mode_t *)parm));*/
+	switch(opcode) {
+	case MM_CAMERA_OPS_FOCUS:
+		  if(!parm) return rc;
+		  return mm_camera_send_native_ctrl_cmd(my_obj,	
+					  CAMERA_SET_PARM_AUTO_FOCUS, sizeof(isp3a_af_mode_t), parm);
+	case MM_CAMERA_OPS_GET_BUFFERED_FRAME: {
+	  mm_camera_ops_parm_get_buffered_frame_t *tmp = 
+		(mm_camera_ops_parm_get_buffered_frame_t *)parm;
+	  rc = mm_camera_ch_fn(my_obj, tmp->ch_type, 
+					  MM_CAMERA_STATE_EVT_DISPATCH_BUFFERED_FRAME, NULL);
+	  return rc;
+	}
+	default:
+	  break;
 	}
 	ch_type = mm_camera_util_opcode_2_ch_type(my_obj, opcode);
 	CDBG("%s:ch=%d,op_mode=%d,opcode=%d\n",
 			 __func__,ch_type,my_obj->op_mode,opcode);
 	switch(my_obj->op_mode) {
+	case MM_CAMERA_OP_MODE_ZSL:
 	case MM_CAMERA_OP_MODE_CAPTURE:
 		switch(opcode) {
 		case MM_CAMERA_OPS_PREVIEW:
@@ -531,17 +624,6 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
 			break;
 		}
 		break;
-	case MM_CAMERA_OP_MODE_ZSL:
-		switch(opcode) {
-		case MM_CAMERA_OPS_PREVIEW:
-		case MM_CAMERA_OPS_ZSL:
-			rc = mm_camera_ch_fn(my_obj,	ch_type, 
-							MM_CAMERA_STATE_EVT_STREAM_ON, NULL);
-			break;
-		default:
-			break;
-		}
-		break;
 	default:
 		break;
 	}
@@ -561,6 +643,7 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
 
 	ch_type = mm_camera_util_opcode_2_ch_type(my_obj, opcode);
 	switch(my_obj->op_mode) {
+	case MM_CAMERA_OP_MODE_ZSL:
 	case MM_CAMERA_OP_MODE_CAPTURE:
 		switch(opcode) {
 		case MM_CAMERA_OPS_PREVIEW:
@@ -586,25 +669,28 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
 			break;
 		}
 		break;
-	case MM_CAMERA_OP_MODE_ZSL:
-		switch(opcode) {
-		case MM_CAMERA_OPS_PREVIEW:
-		case MM_CAMERA_OPS_ZSL:
-			rc = mm_camera_ch_fn(my_obj,	ch_type, 
-							MM_CAMERA_STATE_EVT_STREAM_OFF, NULL);
-			break;
-		default:
-			break;
-		}
-		break;
 	default:
 		break;
 	}
 	CDBG("%s:ch=%d\n",__func__, ch_type);
 	return rc;
 }
+static void mm_camera_init_ch_stream_count(mm_camera_obj_t *my_obj)
+{
+  int i;
+
+  for(i = 0; i < MM_CAMERA_CH_MAX; i++) {
+	if(i == MM_CAMERA_CH_SNAPSHOT) {
+	  my_obj->ch_stream_count[i].stream_on_count_cfg = 2;
+	  my_obj->ch_stream_count[i].stream_off_count_cfg = 2;
+	} else {
+	  my_obj->ch_stream_count[i].stream_on_count_cfg = 1;
+	  my_obj->ch_stream_count[i].stream_off_count_cfg = 1;
+	}
+  }
+}
 int32_t mm_camera_open(mm_camera_obj_t *my_obj, 
-																						mm_camera_op_mode_type_t op_mode)
+					mm_camera_op_mode_type_t op_mode)
 {
 	char dev_name[MM_CAMERA_DEV_NAME_LEN];
 	int32_t rc = MM_CAMERA_OK;
@@ -635,6 +721,8 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 		my_obj->op_mode = op_mode;
 		my_obj->current_mode = CAMERA_MODE_2D; /* set geo mode to 2D by default */
 	}
+	mm_camera_poll_threads_init(my_obj);
+	mm_camera_init_ch_stream_count(my_obj);
 	CDBG("%s: '%s', ctrl_fd=%d,op_mode=%d,rc=%d\n", 
 			 __func__, dev_name, my_obj->ctrl_fd, my_obj->op_mode, rc); 
 	return rc;
@@ -645,8 +733,9 @@ int32_t mm_camera_close(mm_camera_obj_t *my_obj)
 
 	for(i = 0; i < MM_CAMERA_CH_MAX; i++){ 
 		mm_camera_ch_fn(my_obj, (mm_camera_channel_type_t)i, 
-																	MM_CAMERA_STATE_EVT_RELEASE, NULL);
+								MM_CAMERA_STATE_EVT_RELEASE, NULL);
 	}
+	mm_camera_poll_threads_deinit(my_obj);
 	my_obj->op_mode = MM_CAMERA_OP_MODE_NOTUSED;
 	if(my_obj->ctrl_fd > 0) {
 		close(my_obj->ctrl_fd);
@@ -655,13 +744,13 @@ int32_t mm_camera_close(mm_camera_obj_t *my_obj)
 	return MM_CAMERA_OK;
 }
 int32_t mm_camera_action(mm_camera_obj_t *my_obj, uint8_t start,
-																 mm_camera_ops_type_t opcode, void *parm)
+						mm_camera_ops_type_t opcode, void *parm)
 {
 	int32_t rc = - MM_CAMERA_E_INVALID_OPERATION;
 
 	if(start)	rc = mm_camera_action_start(my_obj, opcode, parm);
 	else rc = mm_camera_action_stop(my_obj, opcode, parm);
-	CDBG("%s:start_flag=%d,opcode=%d,parm=%d,rc=%d\n",__func__,start,opcode,parm, rc);
+	CDBG("%s:start_flag=%d,opcode=%d,parm=%p,rc=%d\n",__func__,start,opcode,parm, rc);
 	return rc;
 }
 int32_t mm_camera_ch_acquire(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_type)

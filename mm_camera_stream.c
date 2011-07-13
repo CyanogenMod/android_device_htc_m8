@@ -166,6 +166,23 @@ int mm_camera_read_msm_frame(mm_camera_obj_t * my_obj,
   stream->frame.frame[idx].frame.ts.tv_nsec = vb.timestamp.tv_usec * 1000;
 	return idx;
 }
+static int mm_camera_stream_util_proc_get_crop(mm_camera_obj_t *my_obj,
+							mm_camera_stream_t *stream, 
+							mm_camera_rect_t *val)
+{
+  struct v4l2_crop crop;
+  int rc = MM_CAMERA_OK;
+  memset(&crop, 0, sizeof(crop));
+  crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  rc = ioctl(stream->fd, VIDIOC_G_CROP, &crop);
+  if (rc < 0)
+	  return rc;
+  val->left = crop.c.left;
+  val->top = crop.c.top;
+  val->width = crop.c.width;
+  val->height = crop.c.height;
+  return rc;
+}
 
 int32_t mm_camera_util_s_ctrl( int32_t fd,	uint32_t id, int32_t value)
 {
@@ -243,14 +260,6 @@ static int mm_camera_stream_util_set_ext_mode(mm_camera_stream_t *stream)
 				s_parm.parm.capture.extendedmode = MSM_V4L2_EXT_CAPTURE_MODE_MAIN; //MSM_V4L2_EXT_CAPTURE_MODE_RAW;
 				break;
 		case MM_CAMERA_STREAM_VIDEO_MAIN:
-			//s_parm.parm.capture.extendedmode = MSM_V4L2_EXT_CAPTURE_MODE_VIDEO_MAIN;
-			//break;
-		case MM_CAMERA_STREAM_ZSL_MAIN:
-			//s_parm.parm.capture.extendedmode = MSM_V4L2_EXT_CAPTURE_MODE_ZSL_MAIN;
-			//break;
-		case MM_CAMERA_STREAM_ZSL_POST_VIEW:
-		//	s_parm.parm.capture.extendedmode = MSM_V4L2_EXT_CAPTURE_MODE_ZSL_POST;
-		//	break;
 		default: 
 			return 0;
 		}
@@ -491,6 +500,9 @@ static int32_t mm_camera_stream_fsm_acquired(mm_camera_obj_t * my_obj,
 	case MM_CAMERA_STATE_EVT_RELEASE:
 		mm_camera_stream_release(stream);
 		break;
+	case MM_CAMERA_STATE_EVT_GET_CROP:
+	  rc = mm_camera_stream_util_proc_get_crop(my_obj,stream, val);
+	  break;
 	default:
 		return -1;
 	}
@@ -513,6 +525,9 @@ static int32_t mm_camera_stream_fsm_cfg(mm_camera_obj_t * my_obj,
 		rc = mm_camera_stream_util_reg_buf(my_obj, stream, (mm_camera_buf_def_t *)val);
 		if(!rc) mm_camera_stream_util_set_state(stream, MM_CAMERA_STREAM_STATE_REG);
 		break;
+	case MM_CAMERA_STATE_EVT_GET_CROP:
+	  rc = mm_camera_stream_util_proc_get_crop(my_obj,stream, val);
+	  break;
 	default:
 		return -1;
 	}
@@ -552,6 +567,9 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
 {
 	int32_t rc = 0;
 	switch(evt) {
+	case MM_CAMERA_STATE_EVT_GET_CROP:
+	  rc = mm_camera_stream_util_proc_get_crop(my_obj,stream, val);
+	  break;
 	case MM_CAMERA_STATE_EVT_QBUF:
 		rc = mm_camera_stream_util_buf_done(my_obj, stream, 
 																				(mm_camera_notify_frame_t *)val);
@@ -583,7 +601,7 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
 			}
 				stream->frame.qbuf = 1;
 			}
-			rc = mm_camera_poll_add_stream(my_obj, stream);
+			//rc = mm_camera_poll_add_stream(my_obj, stream);
 			buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 			CDBG("%s: STREAMON,fd=%d,stream_type=%d\n",
 					 __func__, stream->fd, stream->stream_type);
@@ -591,7 +609,7 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
 			if (rc < 0) {
 					CDBG("%s: ioctl VIDIOC_STREAMON failed: rc=%d\n", 
 						__func__, rc);
-					mm_camera_poll_del_stream(my_obj, stream);
+					/*mm_camera_poll_del_stream(my_obj, stream);*/
 			}
 			else
 				mm_camera_stream_util_set_state(stream, MM_CAMERA_STREAM_STATE_ACTIVE);
@@ -608,9 +626,11 @@ static int32_t mm_camera_stream_fsm_active(mm_camera_obj_t * my_obj,
 {
 	int32_t rc = 0;
 	switch(evt) {
+	case MM_CAMERA_STATE_EVT_GET_CROP:
+	  rc = mm_camera_stream_util_proc_get_crop(my_obj,stream, val);
+	  break;
 	case MM_CAMERA_STATE_EVT_QBUF:
-		rc = mm_camera_stream_util_buf_done(my_obj, stream, 
-																				(mm_camera_notify_frame_t *)val);
+		rc = mm_camera_stream_util_buf_done(my_obj, stream, (mm_camera_notify_frame_t *)val);
 		break;
 	case MM_CAMERA_STATE_EVT_RELEASE:
 		mm_camera_stream_release(stream);
@@ -618,7 +638,7 @@ static int32_t mm_camera_stream_fsm_active(mm_camera_obj_t * my_obj,
 	case MM_CAMERA_STATE_EVT_STREAM_OFF:
 		{
 			enum v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			mm_camera_poll_del_stream(my_obj, stream);
+			/*mm_camera_poll_del_stream(my_obj, stream);*/
 			CDBG("%s: STREAMOFF,fd=%d,type=%d\n", 
 				__func__, stream->fd, stream->stream_type);
 			rc = ioctl(stream->fd, VIDIOC_STREAMOFF, &buf_type);

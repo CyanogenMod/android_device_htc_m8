@@ -47,13 +47,12 @@ static int mm_camera_util_opcode_2_ch_type(mm_camera_obj_t *my_obj,
 {
 	switch(opcode) {
 			case MM_CAMERA_OPS_PREVIEW:
-        return MM_CAMERA_CH_PREVIEW;
+                return MM_CAMERA_CH_PREVIEW;
+	        case MM_CAMERA_OPS_ZSL:
 			case MM_CAMERA_OPS_SNAPSHOT:
 				return MM_CAMERA_CH_SNAPSHOT;
 			case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
 				return MM_CAMERA_CH_SNAPSHOT;
-      case MM_CAMERA_OPS_ZSL:
-				return MM_CAMERA_CH_ZSL;
 			case MM_CAMERA_OPS_RAW:
 				return MM_CAMERA_CH_RAW;
 	default:
@@ -80,16 +79,17 @@ static uint8_t mm_camera_cfg_is_parm_supported (mm_camera_t * camera,
 																							 mm_camera_parm_type_t parm_type)
 {
 	switch(parm_type) {
-  case MM_CAMERA_PARM_CH_IMAGE_FMT:
-  case MM_CAMERA_PARM_OP_MODE:
+	case MM_CAMERA_PARM_CH_IMAGE_FMT:
+	case MM_CAMERA_PARM_OP_MODE:
 	case MM_CAMERA_PARM_DIMENSION:
 		return MM_CAMERA_PARM_SUPPORT_BOTH;
 	case MM_CAMERA_PARM_HDR:
 	case MM_CAMERA_PARM_HISTOGRAM:
-  case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
+	case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
 		return MM_CAMERA_PARM_SUPPORT_SET;
 	case MM_CAMERA_PARM_MAXZOOM:
 	case MM_CAMERA_PARM_ZOOM_RATIO:
+	case MM_CAMERA_PARM_CROP:
 		return MM_CAMERA_PARM_SUPPORT_GET;
 	default:
 		break;
@@ -106,7 +106,6 @@ static uint8_t mm_camera_cfg_is_ch_supported (mm_camera_t * camera, mm_camera_ch
 	case MM_CAMERA_CH_SNAPSHOT:
 	case MM_CAMERA_CH_RAW:
 		return TRUE;
-	case MM_CAMERA_CH_ZSL:
 	case MM_CAMERA_CH_MAX:
 	default:
 		return FALSE;
@@ -202,7 +201,7 @@ static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera,
 	return TRUE;
 }
 static int32_t mm_camera_ops_action (mm_camera_t * camera, uint8_t start, 
-																mm_camera_ops_type_t opcode, uint32_t val)
+									mm_camera_ops_type_t opcode, void *val)
 {
 	int32_t rc = -MM_CAMERA_E_GENERAL;
 	mm_camera_obj_t * my_obj = NULL;
@@ -243,29 +242,11 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
 	g_cam_ctrl.cam_obj[camera_id]->ref_count++;
 	g_cam_ctrl.cam_obj[camera_id]->my_id=camera_id;
 
-	/* TODO: this per obj mutex is not used so far. 
-	 	 Need to see if g_mutex add significent delay or not.
-		 If not the per obj mutex needs to be removed */
 	pthread_mutex_init(&g_cam_ctrl.cam_obj[camera_id]->mutex, NULL);
-	/* init condv, mutex, fork worker thread */
-	pthread_mutex_init(&g_cam_ctrl.cam_obj[camera_id]->work_ctrl.mutex, NULL);
-	pthread_cond_init(&g_cam_ctrl.cam_obj[camera_id]->work_ctrl.cond_v, NULL);
-	//g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds[0] = -1;
-	//g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds[1] = -1;
-	//rc = mm_camera_open_pipe(g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds);
-	rc = pipe(g_cam_ctrl.cam_obj[camera_id]->work_ctrl.pfds);
-	if(rc < 0) {
-		CDBG("%s: camera_id = %d, pipe open rc=%d\n", __func__, camera_id, rc);
-		rc = - MM_CAMERA_E_GENERAL;
-	} else {
-		(void)mm_camera_poll_task_launch(g_cam_ctrl.cam_obj[camera_id]);
-		CDBG("%s: calling mm_camera_open()\n", __func__);
-		rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
-		if(rc < 0) CDBG("%s: open failed\n", __func__);
-	}
+	rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
+	if(rc < 0) CDBG("%s: open failed\n", __func__);
 end:
 	pthread_mutex_unlock(&g_mutex);
-
 	CDBG("%s: END, rc=%d\n", __func__, rc);
 	return rc;
 }
@@ -284,16 +265,8 @@ static void mm_camera_ops_close (mm_camera_t * camera)
 	if(my_obj->ref_count > 0) {
 		goto end;
 	}
-	if(my_obj->work_ctrl.pfds[0] > 0) {
-		mm_camera_poll_task_release(my_obj);
-		/* close pipe */
-		close(my_obj->work_ctrl.pfds[0]);
-		if(my_obj->work_ctrl.pfds[1] > 0)	close(my_obj->work_ctrl.pfds[1]);
-		(void)mm_camera_close(g_cam_ctrl.cam_obj[camera_id]);
-	}
-	/* obj clean up */
-	pthread_mutex_destroy(&my_obj->work_ctrl.mutex);
-	pthread_cond_destroy(&my_obj->work_ctrl.cond_v);
+	mm_camera_poll_thread_release(my_obj, MM_CAMERA_CH_MAX);
+	(void)mm_camera_close(g_cam_ctrl.cam_obj[camera_id]);
 	pthread_mutex_destroy(&my_obj->mutex);
 	free(my_obj);
 	g_cam_ctrl.cam_obj[camera_id] = NULL;
@@ -342,7 +315,7 @@ static int32_t mm_camera_ops_ch_attr(mm_camera_t * camera,
 	if(my_obj) {
 		pthread_mutex_lock(&my_obj->mutex);
 		rc = mm_camera_ch_fn(my_obj, ch_type, MM_CAMERA_STATE_EVT_ATTR, 
-																	(void *)attr);
+							(void *)attr);
 		pthread_mutex_unlock(&my_obj->mutex);
 	}
 	return rc;
@@ -358,17 +331,38 @@ static mm_camera_ops_t mm_camera_ops = {
 	.ch_set_attr = mm_camera_ops_ch_attr
 };
 
-static uint8_t mm_camera_notify_is_event_supported(mm_camera_t * camera, 
-																 mm_camera_event_type_t evt_type)
+static uint8_t mm_camera_notify_is_event_supported(mm_camera_t * camera,
+								mm_camera_event_type_t evt_type)
 {
-	return FALSE;
+  switch(evt_type) {
+  case MM_CAMERA_EVT_TYPE_CH:
+  case MM_CAMERA_EVT_TYPE_CTRL:
+	return 1;									
+  case MM_CAMERA_EVT_TYPE_STATS:									
+  default:
+	return 0;
+  }
+  return 0;
 }
 
-static int32_t mm_camera_notify_register_event_cb(mm_camera_t * camera, 
-																mm_camera_event_notify_t evt_cb, 
-																void * user_data, mm_camera_channel_type_t ch_type)
+static int32_t mm_camera_notify_register_event_cb(mm_camera_t * camera,
+								   mm_camera_event_notify_t evt_cb, 
+									void * user_data,
+								   mm_camera_event_type_t evt_type)
 {
-	return -1;
+  mm_camera_obj_t * my_obj = NULL;
+  mm_camera_buf_cb_t reg ;
+  int rc = -1;
+
+  pthread_mutex_lock(&g_mutex);
+  my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
+  pthread_mutex_unlock(&g_mutex);
+  if(my_obj) {
+	  pthread_mutex_lock(&my_obj->mutex);
+	  rc = mm_camera_reg_event(my_obj, evt_cb, user_data, evt_type);
+	  pthread_mutex_unlock(&my_obj->mutex);
+  }
+  return rc;
 }
 
 static int32_t mm_camera_register_buf_notify (mm_camera_t * camera, 
@@ -409,7 +403,7 @@ static int32_t mm_camera_buf_done(mm_camera_t * camera, mm_camera_ch_data_buf_t 
 
 static mm_camera_notify_t mm_camera_notify = { 
 	.is_event_supported = mm_camera_notify_is_event_supported,
-  .register_event_notify = mm_camera_notify_register_event_cb,
+	.register_event_notify = mm_camera_notify_register_event_cb,
 	.register_buf_notify = mm_camera_register_buf_notify,
 	.buf_done = mm_camera_buf_done
 }; 

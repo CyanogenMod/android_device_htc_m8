@@ -132,10 +132,10 @@ typedef enum {
 
 typedef enum {
   WHITE_BALANCE_AUTO         = 1,
-  WHITE_BALANCE_OFF          = 2,
-  WHITE_BALANCE_DAYLIGHT     = 3,
-  WHITE_BALANCE_INCANDESCENT = 4,
-  WHITE_BALANCE_FLUORESCENT  = 5,
+  WHITE_BALANCE_INCANDESCENT = 3,
+  WHITE_BALANCE_FLUORESCENT  = 4,
+  WHITE_BALANCE_DAYLIGHT     = 5,
+  WHITE_BALANCE_OFF          = 9,
 } White_Balance_modes;
 
 typedef enum {

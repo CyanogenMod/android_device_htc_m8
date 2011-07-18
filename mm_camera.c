@@ -127,7 +127,7 @@ static int32_t mm_camera_ctrl_set_whitebalance (mm_camera_obj_t *my_obj, int mod
 			value = 4200;
 	}
 	if(0 != (rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd, 
-			MSM_V4L2_PID_EXP_METERING, value))){
+			id, value))){
 		CDBG("%s: error, exp_metering_action_param=%d, rc = %d\n", __func__, value, rc);
 		goto end;
 	}

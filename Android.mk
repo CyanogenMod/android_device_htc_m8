@@ -15,26 +15,33 @@ include $(CLEAR_VARS)
 LOCAL_CFLAGS:= -DDLOPEN_LIBMMCAMERA=$(DLOPEN_LIBMMCAMERA)
 
 
-# yyan: select different HAL code for newer targets
-ifeq "$(findstring msm8960,$(QCOM_TARGET_PRODUCT))" "msm8960"
-LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp \
-        mm_camera_interface2.c \
-        mm_camera_stream.c \
-        mm_camera_channel.c \
-        mm_camera.c \
-        mm_camera_poll_thread.c \
-        mm_camera_notify.c mm_camera_helper.c \
-        mm_jpeg_encoder.c
+MM_CAM_FILES:= \
+	mm_camera_interface2.c \
+	mm_camera_stream.c \
+	mm_camera_channel.c \
+	mm_camera.c \
+	mm_camera_poll_thread.c \
+	mm_camera_notify.c mm_camera_helper.c \
+	mm_jpeg_encoder.c
+
 LOCAL_CFLAGS+= -DHW_ENCODE
+
+ifeq "$(findstring msm8960,$(QCOM_TARGET_PRODUCT))" "msm8960"
+LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
+                   QCameraHWI.cpp QCameraHWI_Preview.cpp \
+                   QCameraHWI_Record.cpp QCameraHWI_Still.cpp \
+                   QCameraHWI_Mem.cpp QCameraHWI_Display.cpp \
+                   QCameraStream.cpp
 else
 LOCAL_HAL_FILES := QualcommCameraHardware.cpp
+MM_CAM_FILES:=
 endif
 
 #yyan if debug service layer and up , use stub camera!
 LOCAL_C_INCLUDES += \
         frameworks/base/services/camera/libcameraservice #
 
-LOCAL_SRC_FILES := $(LOCAL_HAL_FILES)
+LOCAL_SRC_FILES := $(MM_CAM_FILES) $(LOCAL_HAL_FILES)
 
 
 

@@ -54,11 +54,14 @@ extern void mm_jpeg_encoder_join(void);
 extern int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height, uint32_t* p_y_offset,
   uint32_t* p_cbcr_offset, uint32_t* p_buf_size);
 extern void mm_jpeg_encoder_set_3D_info(cam_3d_frame_format_t format);
-typedef void (*jpegfragment_callback_t)(uint8_t * buff_ptr, uint32_t buff_size);
-typedef void (*jpeg_callback_t)(jpeg_event_t);
+typedef void (*jpegfragment_callback_t)(uint8_t * buff_ptr,
+                                        uint32_t buff_size,
+                                        void* user_data);
+typedef void (*jpeg_callback_t)(jpeg_event_t, void *);
 
 extern void set_callbacks(
    jpegfragment_callback_t fragcallback,
-   jpeg_callback_t eventcallback  
+   jpeg_callback_t eventcallback,
+   void* userdata 
 );
 #endif //MMCAMERA_JPEG_ENCODER_H

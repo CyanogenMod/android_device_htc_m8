@@ -308,7 +308,7 @@ static int32_t mm_camera_ops_ch_attr(mm_camera_t * camera,
 																	mm_camera_channel_attr_t *attr)
 {
 	mm_camera_obj_t * my_obj = NULL;
-	int32_t rc;
+	int32_t rc = -MM_CAMERA_E_GENERAL;
 	pthread_mutex_lock(&g_mutex);
 	my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
 	pthread_mutex_unlock(&g_mutex);
@@ -365,7 +365,8 @@ static int32_t mm_camera_notify_register_event_cb(mm_camera_t * camera,
   return rc;
 }
 
-static int32_t mm_camera_register_buf_notify (mm_camera_t * camera, 
+static int32_t mm_camera_register_buf_notify (
+  mm_camera_t * camera,
 														 mm_camera_channel_type_t ch_type, 
 														 mm_camera_buf_notify_t  buf_cb, 
 														 void * user_data)

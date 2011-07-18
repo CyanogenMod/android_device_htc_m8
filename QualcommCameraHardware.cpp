@@ -706,7 +706,7 @@ static const str_map iso_3D[] = {
 };
 
 
-#define DONT_CARE 0
+#define DONT_CARE AF_MODE_MAX
 static const str_map focus_modes[] = {
     { CameraParameters::FOCUS_MODE_AUTO,     AF_MODE_AUTO},
     { CameraParameters::FOCUS_MODE_INFINITY, DONT_CARE },

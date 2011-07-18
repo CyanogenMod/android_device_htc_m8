@@ -55,22 +55,7 @@ static int32_t mm_camera_ctrl_set_specialEffect (mm_camera_obj_t *my_obj, int ef
 static int32_t mm_camera_ctrl_set_antibanding (mm_camera_obj_t *my_obj, int antibanding) {
   int rc = 0;
   struct v4l2_control ctrl;
-  switch (antibanding) {
-    case CAMERA_ANTIBANDING_OFF:
-      CDBG("Set anti flicking 50Hz\n");
-      antibanding = CAMERA_ANTIBANDING_50HZ;
-      break;
-    case CAMERA_ANTIBANDING_50HZ:
-      CDBG("Set anti flicking 60Hz\n");
-      antibanding = CAMERA_ANTIBANDING_60HZ;
-      break;
-    case CAMERA_ANTIBANDING_60HZ:
-      CDBG("Turn off anti flicking\n");
-      antibanding = CAMERA_ANTIBANDING_OFF;
-      break;
-    default:
-      break;
-  }
+
   ctrl.id = V4L2_CID_POWER_LINE_FREQUENCY;
   ctrl.value = antibanding;
   rc = ioctl(my_obj->ctrl_fd, VIDIOC_S_CTRL, &ctrl);
@@ -248,7 +233,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
 		return mm_camera_ctrl_set_whitebalance (my_obj,	*((int *)(parm->p_value)));
 	case MM_CAMERA_PARM_ISO:
 		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_ISO, 
-																			*((int *)(parm->p_value)) -1);
+																			*((int *)(parm->p_value)));
 	case MM_CAMERA_PARM_ZOOM:
 		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, V4L2_CID_ZOOM_ABSOLUTE, 
 																			*((int *)(parm->p_value)));
@@ -260,8 +245,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
   case MM_CAMERA_PARM_CONTINUOUS_AF:
 		return mm_camera_ctrl_set_auto_focus(my_obj, *((int *)(parm->p_value)));
 	case MM_CAMERA_PARM_HJR:
-		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_HJR, 
-																			*((int *)(parm->p_value)));
+		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_HJR, *((int *)(parm->p_value)));
 	case MM_CAMERA_PARM_EFFECT:
 		return mm_camera_ctrl_set_specialEffect (my_obj, *((int *)(parm->p_value)));
 	case MM_CAMERA_PARM_FPS:
@@ -603,10 +587,6 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
 			rc = mm_camera_ch_fn(my_obj, ch_type, 
 							MM_CAMERA_STATE_EVT_STREAM_ON, NULL);
 			break;
-		case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
-			/* TBD: do g_ext_ctrl */
-			rc = MM_CAMERA_OK;
-			break;
 		default:
 			break;
 		}
@@ -619,6 +599,10 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
 							MM_CAMERA_STATE_EVT_STREAM_ON, NULL);
 			CDBG("%s: op_mode=%d, ch %d, rc=%d\n",
 					 __func__, MM_CAMERA_OP_MODE_VIDEO, ch_type ,rc);
+			break;
+		case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,CAMERA_PREPARE_SNAPSHOT, 0, NULL);
+        CDBG("%s: prepare snapshot done opcode = %d, rc= %d\n", __func__, opcode, rc);
 			break;
 		default:
 			break;

@@ -92,7 +92,7 @@ int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size)
   int rc;
 
 	if (pmem_fd <= 0) {
-		CDBG("%%s:invalid fd=%d\n", __func__, pmem_fd);
+		CDBG("%s:invalid fd=%d\n", __func__, pmem_fd);
 		return -1;
 	}
   size = (size + 4095) & (~4095);

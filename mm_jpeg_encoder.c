@@ -80,6 +80,7 @@ static cam_3d_frame_format_t img_format_3d;
 jpegfragment_callback_t mmcamera_jpegfragment_callback;
 jpeg_callback_t mmcamera_jpeg_callback;
 
+void* user_data;
 #define JPEGE_FRAGMENT_SIZE (64*1024)
 
 /*===========================================================================
@@ -95,12 +96,13 @@ inline void jpege_use_thumb_padding(uint8_t a_use_thumb_padding)
 
 void set_callbacks(
    jpegfragment_callback_t fragcallback,
-   jpeg_callback_t eventcallback  
+   jpeg_callback_t eventcallback,
+   void* userdata
    
 ){
    mmcamera_jpegfragment_callback = fragcallback;
    mmcamera_jpeg_callback = eventcallback;
-
+   user_data = userdata;
 }
 
 /*===========================================================================
@@ -137,7 +139,7 @@ void mm_jpege_event_handler(void *p_user_data, jpeg_event_t event, void *p_arg)
 //    mmcamera_util_profile("encoder done");
   }
   if(mmcamera_jpeg_callback)
-    mmcamera_jpeg_callback(event);
+    mmcamera_jpeg_callback(event, user_data);
 
 }
 
@@ -161,7 +163,7 @@ void mm_jpege_output_produced_handler(void *p_user_data, void *p_arg,
   jpeg_buffer_get_addr(buffer, &buf_ptr);
 
   if(mmcamera_jpegfragment_callback)
-    mmcamera_jpegfragment_callback(buf_ptr, buf_size);
+    mmcamera_jpegfragment_callback(buf_ptr, buf_size, user_data);
 }
 
 #if !defined(_TARGET_7x2x_) && !defined(_TARGET_7x27A_)
@@ -185,7 +187,7 @@ int mm_jpege_output_produced_handler2(void *p_user_data, void *p_arg,
   jpeg_buffer_get_addr(buffer, &buf_ptr);
 
   if(mmcamera_jpegfragment_callback)
-    mmcamera_jpegfragment_callback(buf_ptr, buf_size);
+    mmcamera_jpegfragment_callback(buf_ptr, buf_size, user_data);
 
   rv = jpeg_buffer_set_actual_size(buffer, 0);
   if(rv == JPEGERR_SUCCESS){

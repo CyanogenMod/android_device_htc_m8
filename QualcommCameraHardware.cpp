@@ -3158,6 +3158,16 @@ bool QualcommCameraHardware::initPreview()
     LOGV("mDimension.display_chroma_height = %d", mDimension.display_chroma_height);
 
     dstOffset = 0;
+    //set DIS value to get the updated video width and height to calculate
+    //the required record buffer size
+    if(mVpeEnabled) {
+        bool status = setDIS();
+        if(status) {
+            LOGE("Failed to set DIS");
+            return false;
+        }
+    }
+
   //Pass the original video width and height and get the required width
     //and height for record buffer allocation
     mDimension.orig_video_width = videoWidth;
@@ -3217,15 +3227,6 @@ bool QualcommCameraHardware::initPreview()
                   return false;
               }
           }
-      }
-      //set DIS value to get the updated video width and height to calculate
-      //the required record buffer size
-      if(mVpeEnabled) {
-        bool status = setDIS();
-        if(status) {
-          LOGE("Failed to set DIS");
-          return false;
-        }
       }
       // if 7x27A , YV12 format is set as preview format , if width is not 32
       // bit aligned , we need seperate buffer to hold YV12 data

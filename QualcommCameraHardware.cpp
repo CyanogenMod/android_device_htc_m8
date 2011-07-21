@@ -1121,9 +1121,12 @@ void QualcommCameraHardware::storeTargetType(void) {
 
 void *openCamera(void *data) {
     LOGV(" openCamera : E");
+    int ret_val = TRUE;
+
     if (!libmmcamera) {
         LOGE("FATAL ERROR: could not dlopen liboemcamera.so: %s", dlerror());
-        return false;
+        ret_val = FALSE;
+        pthread_exit((void*) ret_val);
     }
 
     *(void **)&LINK_mm_camera_init =
@@ -1138,26 +1141,30 @@ void *openCamera(void *data) {
 
     if (MM_CAMERA_SUCCESS != LINK_mm_camera_init(&mCfgControl, &mCamNotify, &mCamOps, 0)) {
         LOGE("startCamera: mm_camera_init failed:");
-        return FALSE;
+        ret_val = FALSE;
+        pthread_exit((void*) ret_val);
     }
 
     uint8_t camera_id8 = (uint8_t)HAL_currentCameraId;
     if (MM_CAMERA_SUCCESS != mCfgControl.mm_camera_set_parm(CAMERA_PARM_CAMERA_ID, &camera_id8)) {
         LOGE("setting camera id failed");
         LINK_mm_camera_deinit();
-        return FALSE;
+        ret_val = FALSE;
+        pthread_exit((void*) ret_val);
     }
 
     camera_mode_t mode = (camera_mode_t)HAL_currentCameraMode;
     if (MM_CAMERA_SUCCESS != mCfgControl.mm_camera_set_parm(CAMERA_PARM_MODE, &mode)) {
         LOGE("startCamera: CAMERA_PARM_MODE failed:");
         LINK_mm_camera_deinit();
-        return FALSE;
+        ret_val = FALSE;
+        pthread_exit((void*) ret_val);
     }
 
     if (MM_CAMERA_SUCCESS != LINK_mm_camera_exec()) {
         LOGE("startCamera: mm_camera_exec failed:");
-        return FALSE;
+        ret_val = FALSE;
+        pthread_exit((void*) ret_val);
     }
 
     if (CAMERA_MODE_3D == mode) {
@@ -1168,7 +1175,8 @@ void *openCamera(void *data) {
                 (void *)&snapshotFrame)){
             LOGE("%s: get 3D format failed", __func__);
             LINK_mm_camera_deinit();
-            return FALSE;
+            ret_val = FALSE;
+            pthread_exit((void*) ret_val);
         }
         sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
         if (obj != 0) {
@@ -1177,7 +1185,9 @@ void *openCamera(void *data) {
         }
     }
 
-    LOGV(" openCamera : X");
+    LOGV("openCamera : X");
+    pthread_exit((void*) ret_val);
+
     return NULL;
 }
 //-------------------------------------------------------------------------------------
@@ -2020,10 +2030,17 @@ bool QualcommCameraHardware::startCamera()
             return FALSE;
         }
     }
-    if (pthread_join(mDeviceOpenThread, NULL) != 0) {
+    int ret_val;
+    if (pthread_join(mDeviceOpenThread, (void**)&ret_val) != 0) {
          LOGE("openCamera thread exit failed");
          return false;
     }
+
+    if (!ret_val) {
+        LOGE("openCamera() failed");
+        return false;
+    }
+
 
     mCfgControl.mm_camera_query_parms(CAMERA_PARM_PICT_SIZE, (void **)&picture_sizes, &PICTURE_SIZE_COUNT);
     if ((picture_sizes == NULL) || (!PICTURE_SIZE_COUNT)) {

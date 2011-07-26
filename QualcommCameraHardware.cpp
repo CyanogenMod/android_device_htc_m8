@@ -93,16 +93,8 @@ extern "C" {
 
 
 // Conversion routines from YV420sp to YV12 format
-int (*LINK_neon_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtr);
-int (*LINK_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtr);
-int (*LINK_yuv_convert_ycrcb420sp_to_yv12_ver2) (yuv_image_type* yuvStructPtrin, yuv_image_type* yuvStructPtrout);
-#ifdef USE_NEON_CONVERSION
-    #define HAL_CONVERT_YUV420SP_YV12_INPLACE LINK_neon_yuv_convert_ycrcb420sp_to_yv12
-    #define HAL_CONVERT_YUV420SP_YV12
-#else
-    #define HAL_CONVERT_YUV420SP_YV12_INPLACE LINK_yuv_convert_ycrcb420sp_to_yv12
-    #define HAL_CONVERT_YUV420SP_YV12         LINK_yuv_convert_ycrcb420sp_to_yv12_ver2
-#endif
+int (*LINK_yuv_convert_ycrcb420sp_to_yv12_inplace) (yuv_image_type* yuvStructPtr);
+int (*LINK_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtrin, yuv_image_type* yuvStructPtrout);
 #define NUM_YV12_FRAMES 1
 
 
@@ -1982,13 +1974,10 @@ bool QualcommCameraHardware::startCamera()
     *(void **)&LINK_mm_camera_destroy =
         ::dlsym(libmmcamera, "mm_camera_destroy");
 
-    *(void **)&LINK_neon_yuv_convert_ycrcb420sp_to_yv12 =
-        ::dlsym(libmmcamera, "neon_yuv_convert_ycrcb420sp_to_yv12");
-
-    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12 =
+    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12_inplace =
         ::dlsym(libmmcamera, "yuv_convert_ycrcb420sp_to_yv12");
 
-    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12_ver2 =
+    *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12 =
         ::dlsym(libmmcamera, "yuv_convert_ycrcb420sp_to_yv12_ver2");
 
 /* Disabling until support is available.
@@ -2739,13 +2728,13 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 in_buf.imgPtr = (unsigned char*)mPreviewHeap->mBuffers[offset]->pointer();
                 in_buf.dx = out_buf.dx = previewWidth;
                 in_buf.dy = in_buf.dy = previewHeight;
-                HAL_CONVERT_YUV420SP_YV12(&in_buf, &out_buf);
+                conversion_result = LINK_yuv_convert_ycrcb420sp_to_yv12(&in_buf, &out_buf);
             } else {
                 //LOGD("Doing inplace conversion from 420sp to yv12");
                 in_buf.imgPtr = (unsigned char *)mPreviewHeap->mBuffers[offset]->pointer();
                 in_buf.dx  = previewWidth;
                 in_buf.dy  = previewHeight;
-                conversion_result = HAL_CONVERT_YUV420SP_YV12_INPLACE(&in_buf);
+                conversion_result = LINK_yuv_convert_ycrcb420sp_to_yv12_inplace(&in_buf);
             }
         }
 
@@ -3247,7 +3236,7 @@ bool QualcommCameraHardware::initPreview()
                                 yv12framesize,
                                 CbCrOffset,
                                 0,
-                                "preview");
+                                "postview");
             if (!mYV12Heap->initialized()) {
                 mYV12Heap.clear();
                 LOGE("initPreview X: could not initialize YV12 Camera preview heap.");

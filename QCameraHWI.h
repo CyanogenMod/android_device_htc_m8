@@ -43,6 +43,10 @@ typedef struct {
 
 } //extern C
 
+
+//Error codes
+#define  NOT_FOUND -1
+
 #define VIDEO_BUFFER_COUNT 8
 #define PREVIEW_BUFFER_COUNT 4
 
@@ -159,7 +163,6 @@ private:
     static const int kBufferCount = 4;
 
 
-    void initBasicValues();
     void initDefaultParameters();
 
 

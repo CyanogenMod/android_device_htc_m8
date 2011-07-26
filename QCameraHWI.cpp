@@ -105,9 +105,6 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
        enum definition between upper and lower layer*/
     setMyMode(mode);
 
-	/* yyan TODO: init basic parmameters with hardcoded values to!*/
-    initBasicValues();
-
     /* yyan TODO: init other parmameters with default values to!*/
     initDefaultParameters();
 
@@ -381,75 +378,6 @@ status_t QCameraHardwareInterface::getBufferInfo(sp<IMemory>& Frame, size_t *ali
     return ret;
 }
 
-
-/* private functions*/
-
-/* yyan: this function set the basice value to satisfy Android framework*/
-void QCameraHardwareInterface::initBasicValues()
-{
-    LOGI("initBasicValues: E");
-    CameraParameters p;
-
-    /* yyan: don't change this!!
-    if you want to set some default values, use initDefaultParameters*/
-    p.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES, "320x240");
-    p.setPreviewSize(DEFAULT_STREAM_WIDTH, DEFAULT_STREAM_HEIGHT);
-    p.setPreviewFrameRate(15);
-    /* CAMERA_YUV_420_NV21 is the default format*/
-    p.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
-
-    /* yyan: qcom specific*/
-    p.set("record-size", "320x240");
-
-    p.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES, "320x240");
-    p.setPictureSize(320, 240);
-    p.setPictureFormat(CameraParameters::PIXEL_FORMAT_JPEG);
-
-
-    LOGV("%s: E", __func__);
-
-    if (mmCamera) {
-      cam_ctrl_dimension_t dim;
-      memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-      dim.video_width     = DEFAULT_STREAM_WIDTH;
-      dim.video_height    = DEFAULT_STREAM_HEIGHT;
-      dim.picture_width   = DEFAULT_STREAM_WIDTH;
-      dim.picture_height  = DEFAULT_STREAM_HEIGHT;
-      dim.display_width   = DEFAULT_STREAM_WIDTH;
-      dim.display_height  = DEFAULT_STREAM_HEIGHT;
-      dim.orig_picture_dx = dim.picture_width;
-      dim.orig_picture_dy = dim.picture_height;
-      dim.ui_thumbnail_width = DEFAULT_STREAM_WIDTH;
-      dim.ui_thumbnail_height = DEFAULT_STREAM_HEIGHT;
-      dim.orig_video_width = DEFAULT_STREAM_WIDTH;
-      dim.orig_video_height = DEFAULT_STREAM_HEIGHT;
-
-      dim.prev_format     = CAMERA_YUV_420_NV21;
-      dim.enc_format      = CAMERA_YUV_420_NV12;
-      dim.main_img_format = CAMERA_YUV_420_NV21;
-      dim.thumb_format    = CAMERA_YUV_420_NV21;
-      (void) mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
-    }
-
-    /* start: deal with error in JAVA */
-      p.set(CameraParameters::KEY_SHARPNESS, 10);
-      p.set(CameraParameters::KEY_MAX_SHARPNESS, 30);
-
-      p.set(CameraParameters::KEY_CONTRAST, 5);
-      p.set(CameraParameters::KEY_MAX_CONTRAST, 10);
-
-      p.set(CameraParameters::KEY_SATURATION, 5);
-      p.set(CameraParameters::KEY_MAX_SATURATION, 10);
-
-      /* end: deal with error in JAVA */
-
-    if (setParameters(p) != NO_ERROR) {
-        LOGE("Failed to set basic values?!");
-    }
-    LOGI("initBasicValues: X");
-    return;
-}
-
 void QCameraHardwareInterface::setMyMode(int mode)
 {
     LOGI("setMyMode: E");
@@ -712,21 +640,17 @@ bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
     else
         matching = false;
 
-    /* if the preview resolution is the same, check the format*/
-    if (!matching) {
-        /* yyan TODO: use the real format, not the default one*/
+    cam_format_t value = getPreviewFormat();
+
+    if(value != NOT_FOUND && value != dim->prev_format ) {
+        //Setting to Parameter requested by the Upper layer
+        dim->prev_format = value;
+    }else{
+        //Setting to default Format.
         dim->prev_format = CAMERA_YUV_420_NV21;
     }
-    else
-    {
-        cam_format_t fmt = dim->prev_format;
-        str = parm.getPreviewFormat();
-        /* yyan: TODO check if the format matches dim's, if not change it,
-           note some format change doesn't require size changes
-           e.g.: NV12 --> NV21 */
-    }
 
-    dim->enc_format = CAMERA_YUV_420_NV21;
+    dim->enc_format = CAMERA_YUV_420_NV12;
     dim->orig_video_width = mDimension.orig_video_width;
     dim->orig_video_height = mDimension.orig_video_height;
     dim->video_width = mDimension.video_width;

@@ -351,7 +351,7 @@ status_t QCameraStream_record::initEncodeBuffers()
     }
 
     //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
-    frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, CAMERA_MODE_2D,
+    frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
                                    width,height, &y_off, &cbcr_off, MM_CAMERA_PAD_2K);
     record_frame_len = frame_len;
     mRecordHeap = new PmemPool(pmem_region,

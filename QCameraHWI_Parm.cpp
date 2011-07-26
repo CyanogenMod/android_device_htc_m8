@@ -68,9 +68,6 @@ extern "C" {
 
 #include "QCameraHWI.h"
 
-//Error codes
-#define  NOT_FOUND -1
-
 /* QCameraHardwareInterface class implementation goes here*/
 /* following code implements the parameter logic of this class*/
 #define EXPOSURE_COMPENSATION_MAXIMUM_NUMERATOR 12
@@ -622,31 +619,38 @@ bool QCameraHardwareInterface::supportsSelectableZoneAf() {
 
 void QCameraHardwareInterface::initDefaultParameters()
 {
+    bool ret;
     LOGI("%s: E", __func__);
 
-    mDimension.picture_width = DEFAULT_PICTURE_WIDTH;
-    mDimension.picture_height = DEFAULT_PICTURE_HEIGHT;
+    if (mmCamera) {
+      //cam_ctrl_dimension_t dim;
+      memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
+      mDimension.video_width     = DEFAULT_STREAM_WIDTH;
+      mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
+      mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
+      mDimension.picture_height  = DEFAULT_STREAM_HEIGHT;
+      mDimension.display_width   = DEFAULT_STREAM_WIDTH;
+      mDimension.display_height  = DEFAULT_STREAM_HEIGHT;
+      mDimension.orig_picture_dx = mDimension.picture_width;
+      mDimension.orig_picture_dy = mDimension.picture_height;
+      mDimension.ui_thumbnail_width = DEFAULT_STREAM_WIDTH;
+      mDimension.ui_thumbnail_height = DEFAULT_STREAM_HEIGHT;
+      mDimension.orig_video_width = DEFAULT_STREAM_WIDTH;
+      mDimension.orig_video_height = DEFAULT_STREAM_HEIGHT;
 
-    mDimension.display_width = DEFAULT_PREVIEW_WIDTH;
-    mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
-    mDimension.ui_thumbnail_width =
-            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
-    mDimension.ui_thumbnail_height =
-            thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
-    mDimension.video_width = DEFAULT_PREVIEW_WIDTH;
-    mDimension.video_height = DEFAULT_PREVIEW_HEIGHT;
+      mDimension.prev_format     = CAMERA_YUV_420_NV21;
+      mDimension.enc_format      = CAMERA_YUV_420_NV12;
+      mDimension.main_img_format = CAMERA_YUV_420_NV21;
+      mDimension.thumb_format    = CAMERA_YUV_420_NV21;
 
-    mDimension.thumbnail_height = mDimension.ui_thumbnail_height;
-    mDimension.thumbnail_width = mDimension.ui_thumbnail_width;
-
-    mDimension.orig_video_width = DEFAULT_PREVIEW_WIDTH;
-    mDimension.orig_video_height = DEFAULT_PREVIEW_HEIGHT;
-
-    bool ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
+      ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
                                 sizeof(cam_ctrl_dimension_t), (void *) &mDimension);
-    if(!ret) {
+      if(!ret) {
         LOGE("CAMERA_PARM_DIMENSION Failed.");
         return;
+      }
+    }else{
+        LOGE("Native Camera is not set.");
     }
 
     hasAutoFocusSupport();
@@ -798,7 +802,8 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
 
     //Set Preview Format
-    mParameters.setPreviewFormat("yuv420sp"); // informative
+    //mParameters.setPreviewFormat("yuv420sp"); // informative
+    mParameters.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
     if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250)
         && (mCurrentTarget != TARGET_MSM8660)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
@@ -818,6 +823,9 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
     mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
                     picture_size_values.string());
+
+    //Set Record Size
+    mParameters.set("record-size", "320x240");
 
     //Set Picture Format
     mParameters.setPictureFormat("jpeg"); // informative

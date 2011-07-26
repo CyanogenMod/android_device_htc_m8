@@ -2137,9 +2137,9 @@ static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
 
     int index = exif_table_numEntries;
     exif_data[index].tag_id = tagid;
-	exif_data[index].tag_entry.type = type;
-	exif_data[index].tag_entry.count = count;
-	exif_data[index].tag_entry.copy = copy;
+    exif_data[index].tag_entry.type = type;
+    exif_data[index].tag_entry.count = count;
+    exif_data[index].tag_entry.copy = copy;
     if((type == EXIF_RATIONAL) && (count > 1))
         exif_data[index].tag_entry.data._rats = (rat_t *)data;
     if((type == EXIF_RATIONAL) && (count == 1))
@@ -3939,8 +3939,8 @@ status_t QualcommCameraHardware::startPreviewInternal()
        mCamOps.mm_camera_start(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
        if (mCurrentTarget == TARGET_MSM8660) {
            if(mLastPreviewFrameHeap != NULL)
-	       mLastPreviewFrameHeap.clear();
-	}
+           mLastPreviewFrameHeap.clear();
+    }
     }
     if(mCameraRunning) {
         LOGV("startPreview X: preview already running.");
@@ -3988,7 +3988,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
             if(!mZslEnable){
                 LOGE("Calling CAMERA_OPS_STREAMING_VIDEO");
                 mCameraRunning = native_start_ops(CAMERA_OPS_STREAMING_VIDEO, NULL);
-	    }else {
+        }else {
                 initZslParameter();
                  mCameraRunning = false;
                  if (MM_CAMERA_SUCCESS == mCamOps.mm_camera_init(CAMERA_OPS_STREAMING_ZSL,
@@ -4529,7 +4529,7 @@ status_t QualcommCameraHardware::takePicture()
         current_ops_type = CAMERA_OPS_CAPTURE;
 
     if( !mZslEnable || mZslFlashEnable)
-	    mCamOps.mm_camera_init(current_ops_type, NULL, NULL);
+        mCamOps.mm_camera_init(current_ops_type, NULL, NULL);
 
     if(mSnapshotFormat == PICTURE_FORMAT_JPEG){
         if(!mZslEnable || mZslFlashEnable)
@@ -5932,9 +5932,9 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
                         mResetOverlayCrop = true;
                     }else {
                         mIs3DModeOn ?
-                            mOverlay->setCrop(0, 0, 
+                            mOverlay->setCrop(0, 0,
                                       2 * mPostviewWidth, mPostviewHeight) :
-                            mOverlay->setCrop(0, 0, 
+                            mOverlay->setCrop(0, 0,
                                       mPostviewWidth, mPostviewHeight);
                     }
                 }
@@ -6440,7 +6440,7 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
     LOGV("Setting saturation %d", saturation);
     mParameters.set(CameraParameters::KEY_SATURATION, saturation);
     bool ret = native_set_parms(CAMERA_PARM_SATURATION, sizeof(saturation),
-		(void *)&saturation, (int *)&result);
+        (void *)&saturation, (int *)&result);
     if(result == MM_CAMERA_ERR_INVALID_OPERATION)
         LOGI("Saturation Value: %d is not set as the selected value is not supported", saturation);
 
@@ -7595,8 +7595,8 @@ static void receive_camframe_video_callback(struct msm_frame *frame)
     LOGV("receive_camframe_video_callback E");
     sp<QualcommCameraHardware> obj = QualcommCameraHardware::getInstance();
     if (obj != 0) {
-			obj->receiveRecordingFrame(frame);
-		 }
+            obj->receiveRecordingFrame(frame);
+         }
     LOGV("receive_camframe_video_callback X");
 }
 
@@ -7766,39 +7766,39 @@ status_t QualcommCameraHardware::getBufferInfo(sp<IMemory>& Frame, size_t *align
     LOGV(" getBufferInfo : E ");
     if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660) )
     {
-	if( mRecordHeap != NULL){
-		LOGV(" Setting valid buffer information ");
-		Frame = mRecordHeap->mBuffers[0];
-		if( alignedSize != NULL) {
-			*alignedSize = mRecordHeap->mAlignedBufferSize;
-			LOGV(" HAL : alignedSize = %d ", *alignedSize);
-			ret = NO_ERROR;
-		} else {
-	        	LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
-	        	ret = UNKNOWN_ERROR;
-		}
+    if( mRecordHeap != NULL){
+        LOGV(" Setting valid buffer information ");
+        Frame = mRecordHeap->mBuffers[0];
+        if( alignedSize != NULL) {
+            *alignedSize = mRecordHeap->mAlignedBufferSize;
+            LOGV(" HAL : alignedSize = %d ", *alignedSize);
+            ret = NO_ERROR;
         } else {
-		LOGE(" RecordHeap is null. Buffer information wont be updated ");
-		Frame = NULL;
-		ret = UNKNOWN_ERROR;
-	}
+                LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
+                ret = UNKNOWN_ERROR;
+        }
+        } else {
+        LOGE(" RecordHeap is null. Buffer information wont be updated ");
+        Frame = NULL;
+        ret = UNKNOWN_ERROR;
+    }
     } else {
-	if(mPreviewHeap != NULL) {
-		LOGV(" Setting valid buffer information ");
-		Frame = mPreviewHeap->mBuffers[0];
-		if( alignedSize != NULL) {
-			*alignedSize = mPreviewHeap->mAlignedBufferSize;
-		        LOGV(" HAL : alignedSize = %d ", *alignedSize);
-		        ret = NO_ERROR;
-	        } else {
-		        LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
-		        ret = UNKNOWN_ERROR;
-	        }
-	} else {
-	        LOGE(" PreviewHeap is null. Buffer information wont be updated ");
-	        Frame = NULL;
-	        ret = UNKNOWN_ERROR;
-	}
+    if(mPreviewHeap != NULL) {
+        LOGV(" Setting valid buffer information ");
+        Frame = mPreviewHeap->mBuffers[0];
+        if( alignedSize != NULL) {
+            *alignedSize = mPreviewHeap->mAlignedBufferSize;
+                LOGV(" HAL : alignedSize = %d ", *alignedSize);
+                ret = NO_ERROR;
+            } else {
+                LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
+                ret = UNKNOWN_ERROR;
+            }
+    } else {
+            LOGE(" PreviewHeap is null. Buffer information wont be updated ");
+            Frame = NULL;
+            ret = UNKNOWN_ERROR;
+    }
     }
     LOGV(" getBufferInfo : X ");
     return ret;

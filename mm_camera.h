@@ -94,7 +94,6 @@ typedef struct {
 
 typedef struct {
 	mm_camera_frame_queue_t readyq;
-	mm_camera_frame_queue_t freeq;
 	int32_t num_frame;
 	uint32_t frame_len;
 	int8_t reg_flag;
@@ -103,7 +102,6 @@ typedef struct {
 	int8_t ref_count[MM_CAMERA_MAX_NUM_FRAMES];
 	int32_t use_multi_fd;
 	int qbuf;
-  int no_buf;
 	pthread_mutex_t mutex;
 } mm_camera_stream_frame_t;
 

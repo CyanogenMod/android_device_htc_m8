@@ -39,26 +39,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
-static int mm_camera_qbuf_to_kernel(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream)
-{
-    int rc = MM_CAMERA_OK;
-    mm_camera_frame_t *frame;
-    frame = mm_camera_stream_frame_deq(&stream->frame.freeq);
-    pthread_mutex_lock(&stream->frame.mutex);
-    if(frame) {
-        rc = mm_camera_stream_qbuf(my_obj, stream,
-                                                                frame->idx);
-        if(rc < 0) {
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-            } else stream->frame.no_buf = 0;
-    } else {
-        CDBG("%s:no free frame, fd=%d,type=%d\n",
-                 __func__, stream->fd, stream->stream_type);
-        stream->frame.no_buf = 1;
-    }
-    pthread_mutex_unlock(&stream->frame.mutex);
-    return rc;
-}
 static void mm_camera_read_raw_frame(mm_camera_obj_t * my_obj)
 {
     int rc = 0;
@@ -66,7 +46,6 @@ static void mm_camera_read_raw_frame(mm_camera_obj_t * my_obj)
     mm_camera_stream_t *stream;
 
     stream = &my_obj->ch[MM_CAMERA_CH_RAW].raw.stream;
-    rc = mm_camera_qbuf_to_kernel(my_obj, stream);
     idx =  mm_camera_read_msm_frame(my_obj, stream);
     if (idx < 0) {
         return;
@@ -94,7 +73,6 @@ static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
     mm_camera_stream_t *stream;
 
     stream = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
-    rc = mm_camera_qbuf_to_kernel(my_obj, stream);
     idx =  mm_camera_read_msm_frame(my_obj, stream);
     if (idx < 0) {
         return;
@@ -165,21 +143,9 @@ static void mm_camera_read_snapshot_main_frame(mm_camera_obj_t * my_obj)
     int idx;
     mm_camera_stream_t *stream;
     mm_camera_frame_queue_t *q;
-    mm_camera_frame_t *frame;
 
-    q = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq;
+    q =	&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq;
     stream = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main;
-
-    frame = mm_camera_stream_frame_deq(&stream->frame.freeq);
-    if(frame) {
-        rc = mm_camera_stream_qbuf(my_obj, stream,
-                                                                frame->idx);
-        if(rc < 0) {
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-            return;
-        }
-    }
-
     idx =  mm_camera_read_msm_frame(my_obj,stream);
     if (idx < 0)
         return;
@@ -192,20 +158,9 @@ static void mm_camera_read_snapshot_thumbnail_frame(mm_camera_obj_t * my_obj)
     int idx, rc = 0;
     mm_camera_stream_t *stream;
     mm_camera_frame_queue_t *q;
-    mm_camera_frame_t *frame;
 
-    q = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.readyq;
+    q =	&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.readyq;
     stream = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail;
-    frame = mm_camera_stream_frame_deq(&stream->frame.freeq);
-    if(frame) {
-        rc = mm_camera_stream_qbuf(my_obj, stream,
-                                                                frame->idx);
-        if(rc < 0) {
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-            return;
-        }
-    }
-
     idx =  mm_camera_read_msm_frame(my_obj,stream);
     if (idx < 0)
         return;
@@ -220,7 +175,6 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
     mm_camera_frame_queue_t *q;
 
     stream = &my_obj->ch[MM_CAMERA_CH_VIDEO].video.video;
-    rc = mm_camera_qbuf_to_kernel(my_obj, stream);
     idx =  mm_camera_read_msm_frame(my_obj,stream);
     if (idx < 0)
         return;
@@ -252,6 +206,7 @@ static void mm_camera_read_zsl_main_frame(mm_camera_obj_t * my_obj)
   mm_camera_stream_t *stream;
   mm_camera_frame_queue_t *q;
   mm_camera_frame_t *frame;
+  int cnt, watermark;
 
   q =   &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq;
   stream = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main;
@@ -259,16 +214,19 @@ static void mm_camera_read_zsl_main_frame(mm_camera_obj_t * my_obj)
   if (idx < 0)
       return;
   mm_camera_stream_frame_enq(q, &stream->frame.frame[idx]);
-  if(my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.water_mark > mm_camera_stream_frame_get_q_cnt(q)) {
-    /* water overflow, queue head back to kernel */
-    frame = mm_camera_stream_frame_deq(q);
-    if(frame) {
-        rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
-        if(rc < 0) {
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-            return;
-        }
-    }
+  cnt =	mm_camera_stream_frame_get_q_cnt(q);
+  watermark = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.water_mark;
+  if(watermark < cnt) {
+	/* water overflow, queue head back to kernel */
+	frame = mm_camera_stream_frame_deq(q);
+	if(frame) {
+		rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
+		if(rc < 0) {
+			CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", 
+				 __func__, frame->idx, rc);
+			return;
+		}
+	}
   }
 }
 
@@ -288,15 +246,16 @@ static void mm_camera_read_zsl_postview_frame(mm_camera_obj_t * my_obj)
   watermark = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.water_mark;
   cnt = mm_camera_stream_frame_get_q_cnt(q);
   if(watermark < cnt) {
-    /* water overflow, queue head back to kernel */
-    frame = mm_camera_stream_frame_deq(q);
-    if(frame) {
-        rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
-        if(rc < 0) {
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__, frame->idx, rc);
-            return;
-        }
-    }
+	/* water overflow, queue head back to kernel */
+	frame = mm_camera_stream_frame_deq(q);
+	if(frame) {
+		rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
+		if(rc < 0) {
+			CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", 
+				 __func__, frame->idx, rc);
+			return;
+		}
+	}
   }
 }
 

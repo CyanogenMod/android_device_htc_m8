@@ -180,6 +180,7 @@ private:
     bool isPreviewRunning();
     bool isRecordingRunning();
     bool isSnapshotRunning();
+    status_t storePreviewFrameForPostview(void);
 
     void processChannelEvent(mm_camera_ch_event_t *);
     void processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent);
@@ -342,6 +343,9 @@ private:
      friend class QCameraStream_preview;
      friend class QCameraStream_Snapshot;
      //cam_ctrl_dimension_t mDimension;
+
+     /* Temporary - can be removed after Honeycomb*/
+     mm_cameara_stream_buf_t mPrevForPostviewBuf;
 };
 
 }; // namespace android

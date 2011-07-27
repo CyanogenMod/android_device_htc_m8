@@ -146,7 +146,7 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
 			len = (uint32_t)(PAD_TO_2K(w*h)*3/2);
 			*y_off = 0;
 			*cbcr_off = PAD_TO_WORD(w*h);
-		} else if(CAMERA_MODE_2D == mode) {
+		} else if(CAMERA_MODE_2D == mode || CAMERA_ZSL_MODE == mode) {
 			if(MM_CAMERA_PAD_2K == cbcr_pad) {
 				len = (uint32_t)(PAD_TO_2K(w*h)+PAD_TO_2K(w*h/2));
 				*y_off = 0;

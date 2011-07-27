@@ -135,6 +135,9 @@ public:
     virtual sp<IMemoryHeap> getHeap() const{return NULL;}
     virtual status_t    initDisplayBuffers(){return NO_ERROR;}
     virtual sp<IMemoryHeap> getRawHeap() const {return NULL;}
+    virtual void *getLastQueuedFrame(void){return NULL;}
+    virtual status_t takePictureZSL(void){return NO_ERROR;}
+
     QCameraStream();
     virtual             ~QCameraStream();
     QCameraHardwareInterface*  mHalCamCtrl;
@@ -188,46 +191,6 @@ private:
 
 };
 
-
-#if 0
-class QCameraStream_noneZSL : public QCameraStream {
-public:
-    status_t    init(mm_camera_reg_buf_t*);
-    status_t    start() ;
-    void        stop()  ;
-    void        release() ;
-
-    void        usedData(void*);
-    void        newData(void*);
-    void*       getUsedData();
-
-    void        useData(void*);
-
-    static QCameraStream*  createInstance(mm_camera_t *, camera_mode_t);
-    static void            deleteInstance(QCameraStream *p);
-
-    QCameraStream_noneZSL() {};
-    virtual             ~QCameraStream_noneZSL();
-
-    status_t processPreviewFrame(void *data);
-
-private:
-    QCameraStream_noneZSL(mm_camera_t *, camera_mode_t);
-
-    mm_camera_t         *mmCamera;
-    bool                mActive;
-    int8_t              my_id;
-    mm_camera_op_mode_type_t op_mode;
-    cam_ctrl_dimension_t dim;
-    camera_mode_t        myMode;
-    int                  open_flag;
-
-    /*Channel Type : Preview, Video, Snapshot*/
-    int8_t ch_type;
-
-};
-
-#endif
 class QCameraStream_preview : public QCameraStream {
 public:
     status_t    init();
@@ -246,6 +209,7 @@ public:
 
     QCameraStream_preview() {};
     virtual             ~QCameraStream_preview();
+    void *getLastQueuedFrame(void);
     status_t initDisplayBuffers();
     status_t processPreviewFrame(mm_camera_ch_data_buf_t *frame);
     friend class QCameraHardwareInterface;
@@ -259,25 +223,11 @@ private:
     mm_camera_op_mode_type_t op_mode;
     cam_ctrl_dimension_t dim;
     int                  open_flag;
+    struct msm_frame *mLastQueuedFrame;
     mm_camera_reg_buf_t mDisplayBuf;
     mm_cameara_stream_buf_t mDisplayStreamBuf;
 
 };
-
-#if 0
-class QCameraStream_ZSL : public QCameraStream_noneZSL {
-public:
-    status_t    init(mm_camera_reg_buf_t*);
-    //status_t    start() ;
-    //void        stop()  ;
-    void        release() ;
-    static sp<QCameraStream> createInstance(mm_camera_t *, int);
-
-private:
-                        QCameraStream_ZSL(mm_camera_t *, camera_mode_t);
-    virtual             ~QCameraStream_ZSL();
-}; // QCameraStream_ZSL
-#endif
 
 /* Snapshot Class - handle data flow*/
 class QCameraStream_Snapshot : public QCameraStream {
@@ -290,15 +240,19 @@ public:
     static QCameraStream* createInstance(mm_camera_t *, camera_mode_t);
     static void deleteInstance(QCameraStream *p);
 
-    /* Member functions for static callbacks */
+    status_t takePictureZSL(void);
+    status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
+                                 cam_ctrl_dimension_t *dim,
+                                 int frame_len);
     void receiveRawPicture(mm_camera_ch_data_buf_t* recvd_frame);
     void receiveCompleteJpegPicture(jpeg_event_t event);
     void receiveJpegFragment(uint8_t *ptr, uint32_t size);
-    void deinit(bool have_to_release);
+    void deinit(void);
     sp<IMemoryHeap> getRawHeap() const;
     int getSnapshotState();
     /*Temp: Bikas: to be removed once event handling is enabled in mm-camera*/
     void runSnapshotThread(void *data);
+    bool isZSLMode();
 
     /* public members */
     mm_camera_t *mmCamera;
@@ -308,7 +262,7 @@ private:
 	virtual ~QCameraStream_Snapshot();
 
     /* snapshot related private members */
-    status_t initSnapshot(int num_of_snapshots);
+    status_t initJPEGSnapshot(int num_of_snapshots);
     status_t initRawSnapshot(int num_of_snapshots);
     status_t initZSLSnapshot(void);
     status_t cancelPicture();
@@ -325,15 +279,20 @@ private:
     status_t initSnapshotChannel(cam_ctrl_dimension_t *dim);
     status_t takePictureRaw(void);
     status_t takePictureJPEG(void);
-    status_t takePictureZSL(void);
+    status_t startStreamZSL(void);
     void deinitSnapshotChannel(mm_camera_channel_type_t);
     status_t configSnapshotDimension(cam_ctrl_dimension_t* dim);
-    status_t encodeData(mm_camera_ch_data_buf_t* recvd_frame);
+    status_t encodeData(mm_camera_ch_data_buf_t* recvd_frame,
+                        common_crop_t *crop_info,
+                        int frame_len);
     status_t encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame);
+    status_t setZSLChannelAttribute(int water_mark, int multi_frame, int ms);
     void handleError();
     void setSnapshotState(int state);
-    bool isZSLMode();
-
+    void setModeLiveSnapshot(bool);
+    bool isLiveSnapshot(void);
+    void stopPolling(void);
+    
 
     /* Member variables */
     int mSnapshotFormat;
@@ -347,6 +306,7 @@ private:
     int mJpegOffset;
     int mNumOfSnapshot;
     camera_mode_t myMode;
+    bool mModeLiveSnapshot;
     sp<AshmemPool> mJpegHeap;
     /*TBD:Bikas: This is defined in HWI too.*/
     sp<PmemPool>  mDisplayHeap;

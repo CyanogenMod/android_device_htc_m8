@@ -162,6 +162,8 @@ static mm_camera_channel_type_t mm_camera_util_opcode_2_ch_type(
         return MM_CAMERA_CH_SNAPSHOT;
     case MM_CAMERA_OPS_RAW:
         return MM_CAMERA_CH_RAW;
+    case MM_CAMERA_OPS_ZSL:
+        return MM_CAMERA_CH_SNAPSHOT;
     default:
         break;
     }
@@ -583,6 +585,7 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
 		switch(opcode) {
 		case MM_CAMERA_OPS_PREVIEW:
 		case MM_CAMERA_OPS_SNAPSHOT:
+		case MM_CAMERA_OPS_ZSL:
 		case MM_CAMERA_OPS_RAW:
 			rc = mm_camera_ch_fn(my_obj, ch_type, 
 							MM_CAMERA_STATE_EVT_STREAM_ON, NULL);

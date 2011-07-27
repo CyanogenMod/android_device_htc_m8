@@ -167,7 +167,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
 
   /* set 4 buffers for display */
   this->mDisplayStreamBuf.num = buffer_num;
-  this->myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
+  this->myMode=myMode; /*Need to assign this in constructor after translating from mask*/
   frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, this->myMode, width, height, &y_off, &cbcr_off, MM_CAMERA_PAD_WORD);
 
 /*mnsr*/
@@ -248,6 +248,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
     mHalCamCtrl->mOverlay->queueBuffer((void *)0/*offset_addr*/);
   }
   mHalCamCtrl->mOverlayLock.unlock();
+
+  /* Save the last displayed frame. We'll be using it to fill the gap between
+     when preview stops and postview start during snapshot.*/
+  mLastQueuedFrame = &(mDisplayStreamBuf.frame[frame->def.idx]);
+
   if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,frame))
   {
       LOGE("###############BUF DONE FAILED");
@@ -370,17 +375,23 @@ status_t QCameraStream_preview::start() {
 
 
 
-    /* yyan : treat preview and video....  */
+    /* For preview, the OP_MODE we set is dependent upon whether we are
+       starting camera or camcorder. For snapshot, anyway we disable preview.
+       However, for ZSL we need to set OP_MODE to OP_MODE_ZSL and not
+       OP_MODE_VIDEO. We'll set that for now in CamCtrl. So in case of
+       ZSL we skip setting Mode here */
 
-    LOGE("Setting OP MODE to MM_CAMERA_OP_MODE_VIDEO");
-    mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
-    ret = mmCamera->cfg->set_parm (mmCamera, MM_CAMERA_PARM_OP_MODE,
-                                    &op_mode);
-    LOGE("OP Mode Set");
-
-    if(MM_CAMERA_OK != ret) {
-      LOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
-      return BAD_VALUE;
+    if (myMode != CAMERA_ZSL_MODE) {
+        LOGE("Setting OP MODE to MM_CAMERA_OP_MODE_VIDEO");
+        mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
+        ret = mmCamera->cfg->set_parm (mmCamera, MM_CAMERA_PARM_OP_MODE,
+                                        &op_mode);
+        LOGE("OP Mode Set");
+    
+        if(MM_CAMERA_OK != ret) {
+          LOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
+          return BAD_VALUE;
+        }
     }
 
 
@@ -539,6 +550,11 @@ void QCameraStream_preview::deleteInstance(QCameraStream *p)
 }
 
 
+/* Temp helper function */
+void *QCameraStream_preview::getLastQueuedFrame(void)
+{
+    return mLastQueuedFrame;
+}
 
 
 

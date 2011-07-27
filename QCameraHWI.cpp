@@ -695,6 +695,14 @@ status_t QCameraHardwareInterface::startPreview()
       return BAD_VALUE;
     }
 
+    if (mPrevForPostviewBuf.frame[0].buffer != NULL) {
+        mm_camera_do_munmap(mPrevForPostviewBuf.frame[0].fd, 
+                            (void *)mPrevForPostviewBuf.frame[0].buffer,
+                            mPrevForPostviewBuf.frame_len);
+        memset(&mPrevForPostviewBuf, 0, sizeof(mPrevForPostviewBuf));
+    }
+
+
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
     ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
@@ -1071,6 +1079,14 @@ status_t  QCameraHardwareInterface::takePicture()
     /* Call prepareSnapshot before stopping preview */
     mStreamSnap->prepareHardware();
 
+    /* There's an issue where we have a glimpse of corrupted data between
+       a time we stop a preview and display the postview. It happens because
+       when we call stopPreview we deallocate the preview buffers hence overlay
+       displays garbage value till we enqueue postview buffer to be displayed.
+       Hence for temporary fix, we'll do memcopy of the last frame displayed and
+       queue it to overlay*/
+    storePreviewFrameForPostview();
+
     /* stop preview */
     stopPreviewInternal();
 
@@ -1245,5 +1261,85 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
     LOGI("zoomEvent: X");
 }
 
+/* This is temporary solution to hide the garbage screen seen during
+   snapshot between the time preview stops and postview is queued to
+   overlay for display. We won't have this problem after honeycomb.*/
+status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
+{
+    int width = 0;  /* width of channel  */
+    int height = 0; /* height of channel */
+    uint32_t frame_len = 0; /* frame planner length */
+    int buffer_num = 4; /* number of buffers for display */
+    uint32_t y_off=0;
+    uint32_t cbcr_off=0;
+    status_t ret = NO_ERROR;
+    struct msm_frame *preview_frame;
+     unsigned long buffer_addr = 0;
+
+    LOGI("%s: E", __func__);
+
+    if (mStreamDisplay == NULL) {
+        ret = FAILED_TRANSACTION;
+        goto end;
+    }
+    memset( &mPrevForPostviewBuf, 0, sizeof(mm_cameara_stream_buf_t));
+
+    /* get preview size */
+    getPreviewSize(&width, &height);
+    LOGE("%s: Preview Size: %dX%d", __func__, width, height);
+
+    frame_len = mm_camera_get_msm_frame_len(getPreviewFormat(),
+                                            myMode,
+                                            width,
+                                            height,
+                                            &y_off,
+                                            &cbcr_off,
+                                            MM_CAMERA_PAD_WORD);
+    mPrevForPostviewBuf.frame_len = frame_len;
+
+    LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
+
+    /* allocate the memory */
+    buffer_addr = 
+        (unsigned long) mm_camera_do_mmap(frame_len,
+                                          &(mPrevForPostviewBuf.frame[0].fd));
+
+    if (!buffer_addr) {
+        LOGE("%s: Error allocating memory to store Preview for Postview.",
+             __func__);
+        ret = NO_MEMORY;
+        goto end;
+    }
+
+    mPrevForPostviewBuf.frame[0].buffer = buffer_addr;
+
+    LOGE("%s: Get last queued preview frame", __func__);
+    preview_frame = (struct msm_frame *)mStreamDisplay->getLastQueuedFrame();
+    if (preview_frame == NULL) {
+        LOGE("%s: Error retrieving preview frame.", __func__);
+        ret = FAILED_TRANSACTION;
+        goto end;
+    }
+
+    /* Copy the frame */
+    LOGE("%s: Copy the frame buffer. buffer: %x  previe_buffer: %x",
+         __func__, mPrevForPostviewBuf.frame[0].buffer, preview_frame->buffer);
+    memcpy((void *)mPrevForPostviewBuf.frame[0].buffer,
+           (const void *)preview_frame->buffer,
+           frame_len);
+
+    /* Display the frame */
+    LOGE("%s: Queue the buffer for display.", __func__);
+    mOverlayLock.lock();
+    if (mOverlay != NULL) {
+        mOverlay->setFd(mPrevForPostviewBuf.frame[0].fd);
+        mOverlay->queueBuffer((void *)0);
+    }
+    mOverlayLock.unlock();
+ 
+end:
+    LOGI("%s: X", __func__);
+    return ret;
+}
 }; // namespace android
 

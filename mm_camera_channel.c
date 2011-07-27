@@ -275,10 +275,10 @@ static int32_t mm_camera_ch_util_attr(mm_camera_obj_t *my_obj,
 																						mm_camera_channel_attr_t *val)
 {
 	int rc = -MM_CAMERA_E_NOT_SUPPORTED;
-	if(ch_type != MM_CAMERA_CH_RAW) {
+	/*if(ch_type != MM_CAMERA_CH_RAW) {
 		CDBG("%s: attr type %d not support for ch %d\n", __func__, val->type, ch_type);
 		return rc;
-	}
+	}*/
 	if(my_obj->ch[ch_type].acquired== 0) return -MM_CAMERA_E_INVALID_OPERATION;
 	switch(val->type) {
 	case MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE:

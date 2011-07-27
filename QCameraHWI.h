@@ -94,6 +94,8 @@ typedef enum {
   CAMERA_STATE_SNAP_START_CMD_SENT,
   CAMERA_STATE_SNAP_STOP_CMD_SENT,
   CAMERA_STATE_SNAP_CMD_ACKED,  /*snapshot comd acked, snapshot not done yet*/
+  CAMERA_STATE_AF_START_CMD_SENT,
+  CAMERA_STATE_AF_STOP_CMD_SENT,
   CAMERA_STATE_ERROR,
 
   /*Add any new state above*/
@@ -131,7 +133,7 @@ public:
     virtual status_t    cancelAutoFocus();
     virtual status_t    takePicture();
     virtual status_t    cancelPicture();
-    
+
     virtual status_t    dump(int fd, const Vector<String16>& args) const;
     virtual status_t    setParameters(const CameraParameters& params);
     virtual CameraParameters  getParameters() const;
@@ -193,7 +195,7 @@ private:
     bool supportsSceneDetection();
     bool supportsSelectableZoneAf();
     bool supportsFaceDetection();
-	bool preview_parm_config (cam_ctrl_dimension_t* dim,CameraParameters& parm);
+    bool preview_parm_config (cam_ctrl_dimension_t* dim,CameraParameters& parm);
 
     void stopPreviewInternal();
     void stopRecordingInternal();
@@ -241,6 +243,7 @@ private:
     status_t setDenoise(const CameraParameters& params);
 
     void zoomEvent(cam_ctrl_status_t *status);
+    void autofocusevent(cam_ctrl_status_t *status);
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);

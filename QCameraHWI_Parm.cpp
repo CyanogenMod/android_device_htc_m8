@@ -410,7 +410,7 @@ static int attr_lookup(const str_map arr[], int len, const char *name)
 bool QCameraHardwareInterface::native_set_parms(
     mm_camera_parm_type_t type, uint16_t length, void *value)
 {
-    LOGE("%s : type : %d Value : %d",__func__,length,*((int *)value));
+    LOGE("%s : type : %d Value : %d",__func__,type,*((int *)value));
     if(MM_CAMERA_OK!=mmCamera->cfg->set_parm(mmCamera,type,value )) {
         LOGE("native_set_parms failed: type %d length %d error %s",
             type, length, strerror(errno));
@@ -565,20 +565,23 @@ bool QCameraHardwareInterface::isValidDimension(int width, int height) {
 }
 
 void QCameraHardwareInterface::hasAutoFocusSupport(){
-    LOGE("%s",__func__);
 
-    /* TBD: set auto-focus support to false to unblock snapshot*/
+    LOGV("%s",__func__);
     mHasAutoFocusSupport = false;
-    /*if(MM_CAMERA_OK==mmCamera->ops->is_op_supported (mmCamera,
+
+    if(mmCamera->ops->is_op_supported (mmCamera,
                                      MM_CAMERA_OPS_FOCUS )) {
+        mHasAutoFocusSupport = true;
+    }
+    else {
         LOGE("AutoFocus is not supported");
         mHasAutoFocusSupport = false;
     }
-    else {
-        mHasAutoFocusSupport = true;
-    }
     if(mZslEnable)
-        mHasAutoFocusSupport = false;*/
+        mHasAutoFocusSupport = false;
+
+    LOGV("%s:rc= %d",__func__, mHasAutoFocusSupport);
+
 }
 
 bool QCameraHardwareInterface::supportsSceneDetection() {
@@ -1255,7 +1258,7 @@ status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params
     LOGE("%s",__func__);
     bool retParm1, retParm2;
     int rc = MM_CAMERA_OK;
-    
+
     rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_BL_DETECTION);
     if(rc != MM_CAMERA_OK) {
         LOGE("%s:MM_CAMERA_PARM_BL_DETECTION not supported", __func__);
@@ -1383,26 +1386,26 @@ status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_FOCUS_MODE, str);
 
-/*
+#if 0
             if(mHasAutoFocusSupport && (updateFocusDistances(str) != NO_ERROR)) {
                 LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, str);
                 return UNKNOWN_ERROR;
             }
-            */
-            /*
+#endif
+
             if(mHasAutoFocusSupport){
                 int cafSupport = FALSE;
                 if(!strcmp(str, CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO)){
                     cafSupport = TRUE;
                 }
-                LOGV("Continuous Auto Focus %d", cafSupport);
-                native_set_parms(MM_CAMERA_PARM_CONTINUOUS_AF, sizeof(int8_t), (void *)&cafSupport);
+                LOGE("Continuous Auto Focus %d", cafSupport);
+                bool ret = native_set_parms(MM_CAMERA_PARM_CONTINUOUS_AF, sizeof(cafSupport),
+                                       (void *)&cafSupport);
             }
-            */
-            // Focus step is reset to infinity when preview is started. We do
-            // not need to do anything now.
+
             return NO_ERROR;
         }
+        LOGE("%s:Could not look up str value",__func__);
     }
     LOGE("Invalid focus mode value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
@@ -1814,7 +1817,7 @@ status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)
                 previewHeight = videoHeight;
                 mParameters.setPreviewSize(previewWidth, previewHeight);
             }
-            
+
             if(mIs3DModeOn == true) {
                 /* As preview and video frames are same in 3D mode,
                  * preview size should be same as video size. This
@@ -2086,7 +2089,7 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
 
 status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& params)
 {
-    
+
     int rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ROLLOFF);
     if(rc != MM_CAMERA_OK) {
         LOGE("%s:LENS SHADING not supported", __func__);

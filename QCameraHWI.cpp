@@ -117,9 +117,9 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
 
 QCameraHardwareInterface::~QCameraHardwareInterface()
 {
-	LOGI("~QCameraHardwareInterface: E");
+    LOGI("~QCameraHardwareInterface: E");
     int result;
-    if(mStreamDisplay){ 
+    if(mStreamDisplay){
         QCameraStream_preview::deleteInstance (mStreamDisplay);
         mStreamDisplay = NULL;
     }
@@ -133,13 +133,13 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     }
     mm_camera_t* current_camera = mmCamera;
     current_camera->ops->close(current_camera);
-	LOGI("~QCameraHardwareInterface: X");
+    LOGI("~QCameraHardwareInterface: X");
 
 }
 
 void QCameraHardwareInterface::release()
 {
-	LOGI("release: E");
+    LOGI("release: E");
     Mutex::Autolock l(&mLock);
 
     if (isRecordingRunning()) {
@@ -165,16 +165,16 @@ void QCameraHardwareInterface::release()
         fb_fd = -1;
     }*/
 
-	LOGI("release: X");
+    LOGI("release: X");
 }
 
 
 sp<IMemoryHeap> QCameraHardwareInterface::getPreviewHeap() const
 {
-	/* TBD - Need to access buffer with an interface to relevant class
-	LOGI("%s: E", __func__);
+    /* TBD - Need to access buffer with an interface to relevant class
+    LOGI("%s: E", __func__);
     if(mIs3DModeOn != true) {
-        //TBD - Need to pass mPreviewHeap after its implemented in QCameraHWI_Preview.cpp 
+        //TBD - Need to pass mPreviewHeap after its implemented in QCameraHWI_Preview.cpp
         return mStreamRecord->mRecordHeap != NULL ? mStreamRecord->mRecordHeap->mHeap : NULL;
     } else {
         return mStreamRecord->mRecordHeap != NULL ? mStreamRecord->mRecordHeap->mHeap : NULL;
@@ -184,7 +184,7 @@ sp<IMemoryHeap> QCameraHardwareInterface::getPreviewHeap() const
 
 sp<IMemoryHeap> QCameraHardwareInterface::getRawHeap() const
 {
-	LOGI("getRawHeap: E");
+    LOGI("getRawHeap: E");
     return (mStreamSnap)? mStreamSnap->getRawHeap() : NULL;
 }
 
@@ -372,7 +372,7 @@ status_t QCameraHardwareInterface::getBufferInfo(sp<IMemory>& Frame, size_t *ali
     LOGI("getBufferInfo: E");
     /*  yyan TODO: populate Frame and alignedSize. */
     status_t ret = MM_CAMERA_OK;
-    if (mStreamRecord) 
+    if (mStreamRecord)
         mStreamRecord->getBufferInfo(Frame,alignedSize);
     LOGI("getBufferInfo: X");
     return ret;
@@ -499,10 +499,10 @@ void QCameraHardwareInterface::processPreviewChannelEvent(mm_camera_ch_event_typ
     Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
-            mCameraState = CAMERA_STATE_PREVIEW; 
+            mCameraState = CAMERA_STATE_PREVIEW;
             break;
         case MM_CAMERA_CH_EVT_STREAMMING_OFF:
-            mCameraState = CAMERA_STATE_READY; 
+            mCameraState = CAMERA_STATE_READY;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
             break;
@@ -518,10 +518,10 @@ void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type
     Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
-            mCameraState = CAMERA_STATE_RECORD; 
+            mCameraState = CAMERA_STATE_RECORD;
             break;
         case MM_CAMERA_CH_EVT_STREAMMING_OFF:
-            mCameraState = CAMERA_STATE_PREVIEW; 
+            mCameraState = CAMERA_STATE_PREVIEW;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
             break;
@@ -537,10 +537,10 @@ void QCameraHardwareInterface::processSnapshotChannelEvent(mm_camera_ch_event_ty
     Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
-            mCameraState = CAMERA_STATE_SNAP_CMD_ACKED; 
+            mCameraState = CAMERA_STATE_SNAP_CMD_ACKED;
             break;
         case MM_CAMERA_CH_EVT_STREAMMING_OFF:
-            mCameraState = CAMERA_STATE_READY; 
+            mCameraState = CAMERA_STATE_READY;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
             break;
@@ -580,6 +580,7 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
             zoomEvent(&event->status);
             break;
         case MM_CAMERA_CTRL_EVT_AUTO_FOCUS:
+            autoFocusEvent(&event->status);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
             break;
@@ -737,7 +738,7 @@ status_t QCameraHardwareInterface::startPreview()
       /* yyan TODO: shall we delete it? */
       return BAD_VALUE;
     }
-    
+
     ret = mStreamDisplay->start();
     /* yyan TODO: call QCameraStream_noneZSL::start() */
     if (MM_CAMERA_OK != ret){
@@ -771,7 +772,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
     LOGI("stopPreviewInternal: E");
     status_t ret = NO_ERROR;
 
-    if(!mStreamDisplay) { 
+    if(!mStreamDisplay) {
         LOGE("mStreamDisplay is null");
         return;
     }
@@ -800,7 +801,7 @@ bool QCameraHardwareInterface::previewEnabled()
     //TBD - Need to check on target if this flag is enough
     return isPreviewRunning();
 }
-  
+
 status_t QCameraHardwareInterface::startRecording()
 {
     LOGI("startRecording: E");
@@ -892,7 +893,7 @@ void QCameraHardwareInterface::stopRecordingInternal()
     LOGI("stopRecordingInternal: E");
     status_t ret = NO_ERROR;
 
-    if(!mStreamRecord) { 
+    if(!mStreamRecord) {
         LOGE("mStreamRecord is null");
         return;
     }
@@ -950,11 +951,55 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
 
     Mutex::Autolock lock(mLock);
 
-    if (mMsgEnabled & CAMERA_MSG_FOCUS)
-        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+    if(mAutoFocusRunning==false) {
+      LOGE("%s:AF not running, discarding stale event",__func__);
+      return ret;
+    }
+
     mAutoFocusRunning = false;
+
+    if(status==NULL) {
+      LOGE("%s:NULL ptr received for status",__func__);
+      return BAD_VALUE;
+    }
+
+
+
+
+
+    /*(Do?) we need to make sure that the call back is the
+      last possible step in the execution flow since the same
+      context might be used if a fail triggers another round
+      of AF then the mAutoFocusRunning flag and other state
+      variables' validity will be under question*/
+
+    if (mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS)){
+      LOGD("%s:Issuing callback to service",__func__);
+
+      /* "Accepted" status is not appropriate it should be used for
+        initial cmd, event reporting should only give use SUCCESS/FAIL
+        */
+      if(*status==CAM_CTRL_SUCCESS || *status==CAM_CTRL_ACCEPTED) {
+        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+      }
+      else if(*status==CAM_CTRL_FAILED){
+        mNotifyCb(CAMERA_MSG_FOCUS, false, 0, mCallbackCookie);
+      }
+      else{
+        LOGE("%s:Unknown AF status (%d) received",__func__,*status);
+      }
+
+
+    }/*(mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS))*/
+    else{
+      LOGE("%s:Call back not enabled",__func__);
+    }
+
+
+
     LOGI("autoFocusEvent: X");
     return ret;
+
 }
 
 status_t QCameraHardwareInterface::cancelPicture()
@@ -975,7 +1020,7 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
     if(mCameraState != CAMERA_STATE_READY) {
         if(mStreamSnap) {
             mStreamSnap->stop();
-            mCameraState = CAMERA_STATE_SNAP_STOP_CMD_SENT; 
+            mCameraState = CAMERA_STATE_SNAP_STOP_CMD_SENT;
         }
     } else {
         LOGE("%s: Cannot process cancel picture as snapshot is already done",__func__);
@@ -996,7 +1041,7 @@ status_t  QCameraHardwareInterface::takePicture()
         return NO_ERROR;
     }
 
-    if((mCameraState != CAMERA_STATE_PREVIEW) 
+    if((mCameraState != CAMERA_STATE_PREVIEW)
             || (mCameraState != CAMERA_STATE_PREVIEW_START_CMD_SENT))
     {
         LOGE("%s:Preview is not Initialized. Cannot take picture",__func__);
@@ -1022,7 +1067,7 @@ status_t  QCameraHardwareInterface::takePicture()
 
     /* Store HAL object in snapshot stream Object */
     mStreamSnap->setHALCameraControl(this);
-    
+
     /* Call prepareSnapshot before stopping preview */
     mStreamSnap->prepareHardware();
 
@@ -1076,17 +1121,32 @@ status_t QCameraHardwareInterface::autoFocus()
     bool status = true;
     isp3a_af_mode_t afMode = getAutoFocusMode(mParameters);
 
+    if(mAutoFocusRunning==true){
+      LOGE("%s:AF already running should not have got this call",__func__);
+      return UNKNOWN_ERROR;
+    }
+
     // Skip autofocus if focus mode is infinity.
     if (afMode == AF_MODE_MAX ) {
-      LOGV("No Af (mode %d)", afMode);
-    } else {
-       LOGV("af start (mode %d)", afMode);
-       /*To do: starting autofocus*/
-       //status =  native_start_ops(CAMERA_OPS_FOCUS ,(void *)&afMode);
-       //TBD - Need to ask Mincheng
-       mAutoFocusRunning = true;
+      LOGE("%s:Invalid AF mode (%d)",__func__,afMode);
+
+      /*Issue a call back to service that AF failed
+      or the upper layer app might hang waiting for a callback msg*/
+      if (mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS)){
+          mNotifyCb(CAMERA_MSG_FOCUS, false, 0, mCallbackCookie);
+      }
+      return UNKNOWN_ERROR;
     }
-    LOGI("autoFocus: X");
+
+
+    LOGD("%s:AF start (mode %d)",__func__,afMode);
+    if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,TRUE,MM_CAMERA_OPS_FOCUS,&afMode )) {
+      LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
+      return UNKNOWN_ERROR;
+    }
+
+    mAutoFocusRunning = true;
+    LOGD("autoFocus: X");
     return ret;
 }
 
@@ -1095,11 +1155,19 @@ status_t QCameraHardwareInterface::cancelAutoFocus()
     LOGI("cancelAutoFocus: E");
     status_t ret = NO_ERROR;
     Mutex::Autolock lock(mLock);
-    if (mAutoFocusRunning) {
-      /*To Do cancel autofocu*/
-     //TBD - Need to ask Mincheng
-      mAutoFocusRunning = false;
+
+    if(!mAutoFocusRunning)
+      return NO_ERROR;
+
+
+    if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,FALSE,MM_CAMERA_OPS_FOCUS,NULL )) {
+      LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
+      mAutoFocusRunning = false; /*Should this be set to false ? or better to leave it*/
+      return UNKNOWN_ERROR;
     }
+
+    mAutoFocusRunning = false;
+
     LOGI("cancelAutoFocus: X");
     return ret;
 }
@@ -1176,5 +1244,6 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
     }
     LOGI("zoomEvent: X");
 }
+
 }; // namespace android
 

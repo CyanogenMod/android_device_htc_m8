@@ -229,7 +229,7 @@ end:
 
 status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *frame)
 {
-  LOGE("%s",__func__);
+  LOGV("%s",__func__);
 
 
   if(mHalCamCtrl==NULL) {

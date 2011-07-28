@@ -498,19 +498,7 @@ static int mm_camera_evt_sub(mm_camera_obj_t * my_obj,
   struct v4l2_event_subscription sub;
 
   memset(&sub, 0, sizeof(sub));
-  switch(evt_type) {
-  case MM_CAMERA_EVT_TYPE_CH:
-      sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_STREAM;
-  break;
-  case MM_CAMERA_EVT_TYPE_CTRL:
-        sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_CTRL;
-    break;
-  case MM_CAMERA_EVT_TYPE_STATS:
-        sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAMERA_EVT_TYPE_STATS;
-    break;
-  default:
-    return -1;
-  }
+  sub.type = MSM_CAMERA_EVT_TYPE_BASE+MSM_CAM_RESP_DONE_EVENT;
   if(reg_count == 0) {
     /* unsubscribe */
     if(my_obj->evt_type_mask & (1 << evt_type)) {

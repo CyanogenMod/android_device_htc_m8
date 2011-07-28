@@ -416,7 +416,7 @@ void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd)
       __func__, ev.type);
 
 
-    switch(ev.type - MSM_CAMERA_EVT_TYPE_BASE) {
+    switch(evt->event_type) {
     case MSM_CAMERA_EVT_TYPE_STREAM: {
       struct msm_camera_event_stream sev;
       memcpy(&sev, &(evt->e.stream), sizeof(sev));

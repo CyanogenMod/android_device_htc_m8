@@ -1003,10 +1003,10 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mDenoiseValues);
 
     //Set Touch AF/AEC
-    /*mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
+    mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
                     CameraParameters::TOUCH_AF_AEC_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_TOUCH_AF_AEC,
-                    mTouchAfAecValues);*/
+                    mTouchAfAecValues);
     mParameters.setTouchIndexAec(-1, -1);
     mParameters.setTouchIndexAf(-1, -1);
     mParameters.set("touchAfAec-dx","100");
@@ -1698,7 +1698,6 @@ status_t QCameraHardwareInterface::setPreviewFrameRateMode(const CameraParameter
 status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
 {
     LOGE("%s",__func__);
-    #if 0
     if(mHasAutoFocusSupport){
         int xAec, yAec, xAf, yAf;
 
@@ -1768,7 +1767,6 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
         LOGE("Invalid Touch AF/AEC value: %s", (str == NULL) ? "NULL" : str);
         return BAD_VALUE;
     }
-    #endif
     return NO_ERROR;
 }
 

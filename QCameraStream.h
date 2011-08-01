@@ -141,6 +141,7 @@ public:
     QCameraStream();
     virtual             ~QCameraStream();
     QCameraHardwareInterface*  mHalCamCtrl;
+    mm_camera_ch_crop_t mCrop;
 private:
    StreamQueue mBusyQueue;
    StreamQueue mFreeQueue;
@@ -259,7 +260,7 @@ public:
 
 private:
     QCameraStream_Snapshot(mm_camera_t *, camera_mode_t);
-	virtual ~QCameraStream_Snapshot();
+    virtual ~QCameraStream_Snapshot();
 
     /* snapshot related private members */
     status_t initJPEGSnapshot(int num_of_snapshots);
@@ -313,7 +314,7 @@ private:
     sp<PmemPool>  mRawHeap;
     sp<PmemPool>  mPostviewHeap;
     sp<PmemPool>  mRawSnapShotHeap;
-    
+
     mm_camera_ch_data_buf_t *mCurrentFrameEncoded;
     mm_cameara_stream_buf_t mSnapshotStreamBuf;
     mm_cameara_stream_buf_t mPostviewStreamBuf;

@@ -49,6 +49,8 @@ typedef struct {
 
 #define VIDEO_BUFFER_COUNT 8
 #define PREVIEW_BUFFER_COUNT 4
+#define MAX_ZOOM_RATIOS 62
+
 
 #ifdef Q12
 #undef Q12
@@ -158,6 +160,8 @@ public:
     bool isRawSnapshot();
     bool mUseOverlay;
     cam_format_t getPreviewFormat() const;
+    int16_t  zoomRatios[MAX_ZOOM_RATIOS];
+    mm_camera_ch_crop_t v4l2_crop;
 private:
                         QCameraHardwareInterface(mm_camera_t *, int);
     virtual             ~QCameraHardwareInterface();

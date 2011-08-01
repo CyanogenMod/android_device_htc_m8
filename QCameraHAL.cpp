@@ -125,7 +125,6 @@ extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int 
 {
     mm_camera_t *mm_camer_obj = 0;
     LOGV("%s: E", __func__);
-
     if (!HAL_numOfCameras || HAL_numOfCameras < cameraId)
         return NULL;
     else

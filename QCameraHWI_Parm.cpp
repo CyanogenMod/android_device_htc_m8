@@ -182,7 +182,6 @@ extern mm_camera_t * HAL_camerahandle[MSM_MAX_CAMERA_SENSORS];
 
 namespace android {
 
-static int16_t * zoomRatios;
 static uint32_t  HFR_SIZE_COUNT=2;
 static targetType mCurrentTarget = TARGET_MAX;
 static const int PICTURE_FORMAT_JPEG = 1;
@@ -580,6 +579,21 @@ bool QCameraHardwareInterface::supportsSelectableZoneAf() {
    }
    return false;
 }
+static String8 create_str(int16_t *arr, int length){
+    String8 str;
+    char buffer[32];
+
+    if(length > 0){
+        snprintf(buffer, sizeof(buffer), "%d", arr[0]);
+        str.append(buffer);
+    }
+
+    for (int i =1;i<length;i++){
+        snprintf(buffer, sizeof(buffer), ",%d",arr[i]);
+        str.append(buffer);
+    }
+    return str;
+}
 
 void QCameraHardwareInterface::initDefaultParameters()
 {
@@ -633,8 +647,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
-    if (!mParamStringInitialized) {
-        LOGE("%s:Init parm strings",__func__);
+    if (true/*!mParamStringInitialized*/) {
         //filter picture sizes
         filterPictureSizes();
         mPictureSizeValues = create_sizes_str(
@@ -697,6 +710,34 @@ void QCameraHardwareInterface::initDefaultParameters()
             mDenoiseValues = create_values_str(
                 denoise, sizeof(denoise) / sizeof(str_map));
         }
+
+        mZoomSupported=false;
+        mMaxZoom=0;
+        mm_camera_zoom_tbl_t zmt;
+        if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_MAXZOOM,&mMaxZoom)){
+            LOGE("%s:Failed to get max zoom",__func__);
+        }else{
+
+            LOGE("Max Zoom:%d",mMaxZoom);
+            /* Kernel driver limits the max amount of data that can be retreived through a control
+            command to 260 bytes hence we conservatively limit to 110 zoom ratios */
+            if(mMaxZoom>MAX_ZOOM_RATIOS) {
+                LOGE("%s:max zoom is larger than sizeof zoomRatios table",__func__);
+                mMaxZoom=MAX_ZOOM_RATIOS-1;
+            }
+            zmt.size=mMaxZoom;
+            zmt.zoom_ratio_tbl=&zoomRatios[0];
+            if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_ZOOM_RATIO,&zmt)){
+                LOGE("%s:Failed to get max zoom ratios",__func__);
+            }else{
+                mZoomSupported=true;
+                mZoomRatioValues =  create_str(zoomRatios, mMaxZoom);
+            }
+
+        }
+
+        LOGE("Zoom supported:%d",mZoomSupported);
+
   /*mansoor
      if( mCfgControl.mm_camera_query_parms(MM_CAMERA_PARM_ZOOM_RATIO, (void **)&zoomRatios, (uint32_t *) &mMaxZoom) == MM_CAMERA_SUCCESS)
        {
@@ -817,20 +858,17 @@ void QCameraHardwareInterface::initDefaultParameters()
 #ifdef CAMERA_SMOOTH_ZOOM
     mParameters.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, "true");
 #endif
-/*
-#if 0
     if(mZoomSupported){
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
-        LOGV("max zoom is %d", mMaxZoom-1);
+        LOGE("max zoom is %d", mMaxZoom-1);
         /* mMaxZoom value that the query interface returns is the size
          * of zoom table. So the actual max zoom value will be one
-         * less than that value.
-         * /
+         * less than that value.          */
+
         mParameters.set("max-zoom",mMaxZoom-1);
         mParameters.set(CameraParameters::KEY_ZOOM_RATIOS,
                             mZoomRatioValues);
     } else
-#endif*/
         {
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "false");
     }
@@ -904,9 +942,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     //Set Brightness/luma-adaptaion
     mParameters.set("luma-adaptation", "3");
 
-    //Set Zoom
-    mParameters.set("zoom-supported", "false");
-    mParameters.set("zoom", 0);
     mParameters.set(CameraParameters::KEY_PICTURE_FORMAT,
                     CameraParameters::PIXEL_FORMAT_JPEG);
 
@@ -1082,7 +1117,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setEffect(params)))                       final_rc = rc;
     //    if ((rc = setGpsLocation(params)))            final_rc = rc;
     //    if ((rc = setRotation(params)))               final_rc = rc;
-    //    if ((rc = setZoom(params)))                   final_rc = rc;  //@TODO : Need support to Query from Lower layer
+    if ((rc = setZoom(params)))                         final_rc = rc;
     //    if ((rc = setOrientation(params)))            final_rc = rc;
         if ((rc = setLensshadeValue(params)))         final_rc = rc;
     //    if ((rc = setMCEValue(params)))               final_rc = rc;
@@ -1268,8 +1303,8 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
 
     LOGE("%s",__func__);
 
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ZOOM);
-    if(!rc) {
+
+    if( !( mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ZOOM))) {
         LOGE("%s:MM_CAMERA_PARM_ZOOM not supported", __func__);
         return NO_ERROR;
     }
@@ -1289,6 +1324,9 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
         int32_t zoom_value = ZOOM_STEP * zoom_level;
         bool ret = native_set_parms(MM_CAMERA_PARM_ZOOM,
             sizeof(zoom_value), (void *)&zoom_value);
+        if(ret) {
+            mCurrentZoom=zoom_level;
+        }
         rc = ret ? NO_ERROR : UNKNOWN_ERROR;
     } else {
         rc = BAD_VALUE;

@@ -232,18 +232,18 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_util_s_ctrl(my_obj->ctrl_fd, V4L2_CID_BRIGHTNESS,
                                                                             *((int *)(parm->p_value)));
   case MM_CAMERA_PARM_WHITE_BALANCE:
-		return mm_camera_ctrl_set_whitebalance (my_obj,	*((int *)(parm->p_value)));
-	case MM_CAMERA_PARM_ISO:
-		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_ISO, 
-																			*((int *)(parm->p_value)));
-	case MM_CAMERA_PARM_ZOOM:
-		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, V4L2_CID_ZOOM_ABSOLUTE, 
-																			*((int *)(parm->p_value)));
-	case MM_CAMERA_PARM_LUMA_ADAPTATION:
-		return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_LUMA_ADAPTATION, 
-																			*((int *)(parm->p_value)));
-	case MM_CAMERA_PARM_ANTIBANDING:
-		return mm_camera_ctrl_set_antibanding (my_obj, *((int *)(parm->p_value)));
+        return mm_camera_ctrl_set_whitebalance (my_obj, *((int *)(parm->p_value)));
+    case MM_CAMERA_PARM_ISO:
+        return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_ISO,
+                                                                            *((int *)(parm->p_value)));
+    case MM_CAMERA_PARM_ZOOM:
+        return mm_camera_util_s_ctrl(my_obj->ctrl_fd, V4L2_CID_ZOOM_ABSOLUTE,
+                                                                            *((int *)(parm->p_value)));
+    case MM_CAMERA_PARM_LUMA_ADAPTATION:
+        return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_LUMA_ADAPTATION,
+                                                                            *((int *)(parm->p_value)));
+    case MM_CAMERA_PARM_ANTIBANDING:
+        return mm_camera_ctrl_set_antibanding (my_obj, *((int *)(parm->p_value)));
   case MM_CAMERA_PARM_CONTINUOUS_AF:
         return mm_camera_ctrl_set_auto_focus(my_obj, *((int *)(parm->p_value)));
     case MM_CAMERA_PARM_HJR:
@@ -415,7 +415,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     case MM_CAMERA_PARM_CROP:
       return rc = mm_camera_ch_fn(my_obj,
                     ((mm_camera_ch_crop_t *)parm->p_value)->ch_type,
-                    MM_CAMERA_STATE_EVT_GET_CROP, parm);
+                    MM_CAMERA_STATE_EVT_GET_CROP, parm->p_value);
       break;
     case MM_CAMERA_PARM_DIMENSION:
         memcpy(parm->p_value, &my_obj->dim, sizeof(my_obj->dim));
@@ -612,15 +612,15 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
 		case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,CAMERA_PREPARE_SNAPSHOT, 0, NULL);
         CDBG("%s: prepare snapshot done opcode = %d, rc= %d\n", __func__, opcode, rc);
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-	return rc;
+            break;
+        default:
+            break;
+        }
+        break;
+    default:
+        break;
+    }
+    return rc;
 }
 int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
     mm_camera_ops_type_t opcode, void *parm)

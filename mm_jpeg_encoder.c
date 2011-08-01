@@ -98,7 +98,7 @@ void set_callbacks(
    jpegfragment_callback_t fragcallback,
    jpeg_callback_t eventcallback,
    void* userdata
-   
+
 ){
    mmcamera_jpegfragment_callback = fragcallback;
    mmcamera_jpeg_callback = eventcallback;

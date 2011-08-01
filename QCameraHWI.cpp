@@ -76,8 +76,8 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mParamStringInitialized(false),
                     mPreviewFormat(0),
                     mMaxZoom(0),
-                    mZoomSupported(false)
-
+                    mZoomSupported(false),
+                    mCurrentZoom(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -242,7 +242,7 @@ void QCameraHardwareInterface::setCallbacks(notify_callback notify_cb,
                                       data_callback_timestamp data_cb_timestamp,
                                       void* user)
 {
-    LOGI("setCallbacks: E");
+    LOGE("setCallbacks: E");
     Mutex::Autolock lock(mLock);
     mNotifyCb = notify_cb;
     mDataCb = data_cb;
@@ -602,7 +602,7 @@ void QCameraHardwareInterface::processChannelEvent(mm_camera_ch_event_t *event)
 
 void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 {
-    LOGI("processCtrlEvent: E");
+    LOGI("processCtrlEvent: %d, E",event->evt);
     switch(event->evt)
     {
         case MM_CAMERA_CTRL_EVT_ZOOM:
@@ -1178,7 +1178,7 @@ status_t QCameraHardwareInterface::autoFocus()
     LOGI("autoFocus: E");
     status_t ret = NO_ERROR;
     Mutex::Autolock lock(mLock);
-
+    LOGI("autoFocus: Got lock");
     bool status = true;
     isp3a_af_mode_t afMode = getAutoFocusMode(mParameters);
 
@@ -1200,14 +1200,14 @@ status_t QCameraHardwareInterface::autoFocus()
     }
 
 
-    LOGD("%s:AF start (mode %d)",__func__,afMode);
+    LOGI("%s:AF start (mode %d)",__func__,afMode);
     if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,TRUE,MM_CAMERA_OPS_FOCUS,&afMode )) {
       LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
       return UNKNOWN_ERROR;
     }
 
     mAutoFocusRunning = true;
-    LOGD("autoFocus: X");
+    LOGI("autoFocus: X");
     return ret;
 }
 
@@ -1285,13 +1285,30 @@ void QCameraHardwareInterface::processprepareSnapshotEvent(cam_ctrl_status_t *st
 
 void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
 {
-    LOGI("zoomEvent: E");
+    LOGE("zoomEvent: state:%d E",mCameraState);
     Mutex::Autolock lock(mLock);
     switch(mCameraState ) {
+      case CAMERA_STATE_SNAP_CMD_ACKED:
+
+        memset(&v4l2_crop,0,sizeof(v4l2_crop));
+        v4l2_crop.ch_type=MM_CAMERA_CH_SNAPSHOT;
+        LOGI("Fetching crop info");
+        mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+        LOGI("Back from get parm");
+        LOGI("Crop info received for main: %d, %d, %d, %d ",v4l2_crop.snapshot.main_crop.left,v4l2_crop.snapshot.main_crop.top,v4l2_crop.snapshot.main_crop.width,v4l2_crop.snapshot.main_crop.height);
+        LOGI("Crop info received for main: %d, %d, %d, %d ",v4l2_crop.snapshot.thumbnail_crop.left,v4l2_crop.snapshot.thumbnail_crop.top,v4l2_crop.snapshot.thumbnail_crop.width,v4l2_crop.snapshot.thumbnail_crop.height);
+        if(mStreamSnap) {
+          mStreamSnap->mCrop=v4l2_crop;
+        }
+
+        break;
+
         case CAMERA_STATE_PREVIEW:
         case CAMERA_STATE_RECORD_START_CMD_SENT:
-        case CAMERA_STATE_RECORD:
+      	case CAMERA_STATE_RECORD:
+        default:
 
+        #if 0
             if(mSmoothZoomRunning) {
                 if (mCurrentZoom == mTargetSmoothZoom) {
                     mSmoothZoomRunning = false;
@@ -1306,14 +1323,36 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
                     mParameters.set("zoom", mCurrentZoom);
                     setZoom(mParameters);
                 }
-            } else { /*regular zooming or smooth zoom stopped*/
-                mNotifyCb(CAMERA_MSG_ZOOM,
-                        mCurrentZoom, 1, mCallbackCookie);
+            } else
+            #endif
+            { /*regular zooming or smooth zoom stopped*/
+
+                memset(&v4l2_crop,0,sizeof(v4l2_crop));
+                v4l2_crop.ch_type=MM_CAMERA_CH_PREVIEW;
+                LOGE("Fetching crop info");
+                mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+                LOGE("Back from get parm");
+                LOGE("Crop info received: %d, %d, %d, %d ",v4l2_crop.crop.left,v4l2_crop.crop.top,v4l2_crop.crop.width,v4l2_crop.crop.height);
+                mOverlayLock.lock();
+                if(mOverlay != NULL){
+                  LOGE("Setting crop");
+                  if(v4l2_crop.crop.width!=0 && v4l2_crop.crop.height!=0) {
+                    mOverlay->setCrop(v4l2_crop.crop.left, v4l2_crop.crop.top,
+                          v4l2_crop.crop.width, v4l2_crop.crop.height);
+                                    LOGE("Done setting crop");
+                  }else{
+                      LOGE("Resetting crop");
+                      mOverlay->setCrop(0, 0,
+                          previewWidth, previewHeight);
+                  }
+                }
+                mOverlayLock.unlock();
+                LOGI("Calling notify to service");
+                LOGI("Currrent zoom :%d",mCurrentZoom);
+
             }
             break;
-        default:
-            LOGV(" No preview, no smoothzoom ");
-            break;
+
     }
     LOGI("zoomEvent: X");
 }

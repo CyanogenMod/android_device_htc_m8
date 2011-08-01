@@ -99,16 +99,16 @@ static int mm_app_dump_snapshot_frame(char *filename,
 		(const void *)buffer, len);
 	close(file_fdp);
 end:
-	return rc;
+    return rc;
 }
 
 /* Callback received when a frame is available after snapshot*/
 static void snapshot_notify_cb(mm_camera_ch_data_buf_t *recvd_frame,
-							   void *user_data)
+                               void *user_data)
 {
-	QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)user_data;
+    QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)user_data;
 
-	LOGD("%s: E", __func__);
+    LOGD("%s: E", __func__);
 
     if (pme != NULL) {
         pme->receiveRawPicture(recvd_frame);
@@ -116,7 +116,7 @@ static void snapshot_notify_cb(mm_camera_ch_data_buf_t *recvd_frame,
     else{
         LOGW("%s: Snapshot obj NULL in callback", __func__);
     }
-   
+
     LOGD("%s: X", __func__);
 
 }
@@ -226,7 +226,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
        frame for encoding*/
     if (!mSnapshotQueue.isEmpty()) {
         LOGD("%s: JPEG Queue not empty. Dequeue and encode.", __func__);
-        mm_camera_ch_data_buf_t* buf = 
+        mm_camera_ch_data_buf_t* buf =
             (mm_camera_ch_data_buf_t *)mSnapshotQueue.dequeue();
         encodeDisplayAndSave(buf);
     }
@@ -296,7 +296,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             (mPostviewHeight * mPictureWidth) / mPictureHeight;
         }
         dim->ui_thumbnail_height = mThumbnailHeight = mPostviewHeight;
-        dim->ui_thumbnail_width = mThumbnailWidth = mPostviewWidth;       
+        dim->ui_thumbnail_width = mThumbnailWidth = mPostviewWidth;
     }
 
     /* Check the image format*/
@@ -320,7 +320,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             LOGE("%s: error - can't config snapshot parms!", __func__);
             ret = FAILED_TRANSACTION;
             goto end;
-        }    
+        }
     }
 
     /* set_parm will return corrected dimension based on aspect ratio and
@@ -335,7 +335,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
          dim->picture_width, dim->picture_height,
          dim->ui_thumbnail_width, dim->ui_thumbnail_height);
 
-    
+
 end:
     LOGD("%s: X", __func__);
     return ret;
@@ -354,7 +354,7 @@ initRawSnapshotChannel(cam_ctrl_dimension_t *dim,
     LOGD("%s: Acquire Raw Snapshot Channel", __func__);
     ret = mmCamera->ops->ch_acquire(mmCamera, MM_CAMERA_CH_RAW);
     if (NO_ERROR != ret) {
-        LOGE("%s: Failure Acquiring Raw Snapshot Channel error =%d\n", 
+        LOGE("%s: Failure Acquiring Raw Snapshot Channel error =%d\n",
              __func__, ret);
         ret = FAILED_TRANSACTION;
         goto end;
@@ -398,8 +398,8 @@ initRawSnapshotChannel(cam_ctrl_dimension_t *dim,
 
     LOGD("%s: Register buffer notification. My object: %x",
          __func__, (unsigned int) this);
-    (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_RAW, 
-                                                snapshot_notify_cb, 
+    (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_RAW,
+                                                snapshot_notify_cb,
                                                 this);
     /* Set the state to buffer notification completed */
     setSnapshotState(SNAPSHOT_STATE_BUF_NOTIF_REGD);
@@ -506,8 +506,8 @@ initSnapshotChannel(cam_ctrl_dimension_t *dim)
 
     LOGD("%s: Register buffer notification. My object: %x",
          __func__, (unsigned int) this);
-    (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_SNAPSHOT, 
-                                                snapshot_notify_cb, 
+    (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_SNAPSHOT,
+                                                snapshot_notify_cb,
                                                 this);
     /* Set the state to buffer notification completed */
     setSnapshotState(SNAPSHOT_STATE_BUF_NOTIF_REGD);
@@ -549,7 +549,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     struct msm_frame *frame;
     uint32_t frame_len, y_off, cbcr_off;
     mm_camera_reg_buf_t reg_buf;
-    
+
     LOGD("%s: E", __func__);
 
     if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
@@ -569,7 +569,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             dim->raw_picture_width,
                                             dim->raw_picture_height,
                                             &y_off, &cbcr_off,
-                                            MM_CAMERA_PAD_WORD); 
+                                            MM_CAMERA_PAD_WORD);
 
     mSnapshotStreamBuf.frame_len = frame_len;
 
@@ -596,7 +596,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         frame = &(mSnapshotStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
         frame->fd = mRawSnapShotHeap->mHeap->getHeapID();
-        frame->buffer = (uint32_t) mRawSnapShotHeap->mHeap->base() + 
+        frame->buffer = (uint32_t) mRawSnapShotHeap->mHeap->base() +
             mRawSnapShotHeap->mAlignedBufferSize * i;
         frame->path = OUTPUT_TYPE_S;
         frame->cbcr_off = cbcr_off;
@@ -647,14 +647,14 @@ status_t QCameraStream_Snapshot::deinitRawSnapshotBuffers(void)
             ret = FAILED_TRANSACTION;
             goto end;
         }
-    
+
         /* Clear raw heap*/
         if (mRawSnapShotHeap != NULL) {
             mRawSnapShotHeap.clear();
             mRawSnapShotHeap = NULL;
         }
     }
-    
+
 end:
     LOGD("%s: X", __func__);
     return ret;
@@ -669,7 +669,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     mm_camera_reg_buf_t reg_buf;
     uint32_t main_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
     uint32_t thumb_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
-    
+
     LOGD("%s: E", __func__);
 
     if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
@@ -720,13 +720,13 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         memset(frame, 0, sizeof(struct msm_frame));
         frame->fd = mRawHeap->mHeap->getHeapID();
         main_frame_offset[i] = mRawHeap->mAlignedBufferSize * i;
-        frame->buffer = (uint32_t) mRawHeap->mHeap->base() + 
+        frame->buffer = (uint32_t) mRawHeap->mHeap->base() +
             main_frame_offset[i];
         frame->path = OUTPUT_TYPE_S;
         frame->cbcr_off = cbcr_off;
         frame->y_off = y_off;
     }/*end of for loop*/
-   
+
 
     /* allocate memory for postview*/
     frame_len = mm_camera_get_msm_frame_len(dim->thumb_format, myMode,
@@ -734,7 +734,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             dim->ui_thumbnail_height,
                                             &y_off, &cbcr_off, MM_CAMERA_PAD_WORD);
     mPostviewStreamBuf.frame_len = frame_len;
-      
+
 
      //Postview Image
      mPostviewHeap =
@@ -814,7 +814,7 @@ deinitSnapshotBuffers(void)
             ret = FAILED_TRANSACTION;
             goto end;
         }
-    
+
         /* Clear main and thumbnail heap*/
         if (mRawHeap != NULL){
             mRawHeap.clear();
@@ -824,7 +824,7 @@ deinitSnapshotBuffers(void)
             mPostviewHeap.clear();
             mPostviewHeap = NULL;
         }
-    
+
     }
 end:
     LOGD("%s: X", __func__);
@@ -860,7 +860,7 @@ void QCameraStream_Snapshot::deinit(void)
     LOGD("%s: X", __func__);
 }
 
-/*Temp: Bikas: to be removed once event handling is enabled in mm-camera. 
+/*Temp: Bikas: to be removed once event handling is enabled in mm-camera.
   We need two events - one to call notifyShutter and other event for
   stream-off to disable OPS_SNAPSHOT*/
 void QCameraStream_Snapshot::runSnapshotThread(void *data)
@@ -965,7 +965,7 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
-	LOGV("%s: X", __func__);
+    LOGV("%s: X", __func__);
     return ret;
 
 }
@@ -977,7 +977,7 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
     bool initSnapshot = false;
     mm_camera_op_mode_type_t op_mode;
     mm_camera_reg_buf_t reg_buf;
-    mm_camera_raw_streaming_type_t raw_stream_type = 
+    mm_camera_raw_streaming_type_t raw_stream_type =
         MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
 
     LOGV("%s: E", __func__);
@@ -1009,7 +1009,7 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
       ret = FAILED_TRANSACTION;
       goto end;
     }
-    LOGD("%s: Raw Snapshot dimension: %dx%d", __func__, 
+    LOGD("%s: Raw Snapshot dimension: %dx%d", __func__,
          dim.raw_picture_width,
          dim.raw_picture_height);
 
@@ -1036,7 +1036,7 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
-	LOGV("%s: X", __func__);
+    LOGV("%s: X", __func__);
     return ret;
 }
 
@@ -1108,7 +1108,7 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
-	LOGV("%s: X", __func__);
+    LOGV("%s: X", __func__);
     return ret;
 
 }
@@ -1144,7 +1144,7 @@ end:
         handleError();
     }
 
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 
 }
@@ -1180,7 +1180,7 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 
 }
@@ -1306,6 +1306,10 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     cam_ctrl_dimension_t dimension;
     struct msm_frame *postviewframe;
     struct msm_frame *mainframe;
+    common_crop_t crop;
+    cam_point_t main_crop_offset;
+    cam_point_t thumb_crop_offset;
+
 
     LOGV("%s: E", __func__);
 
@@ -1330,7 +1334,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         ret = NO_MEMORY;
         goto end;
     }
-  
+
     /*TBD: Bikas: Move JPEG handling to the mm-camera library */
     LOGD("Setting callbacks, initializing encoder and start encoding.");
     LOGD(" Passing my obj: %x", (unsigned int) this);
@@ -1342,26 +1346,55 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
          dimension.thumbnail_width, dimension.thumbnail_height);
 
     /* Logic here:
-	If it's the only frame, we directly pass to encoder.
-	If not, we'll queue it and check during next jpeg callback*/
+    If it's the only frame, we directly pass to encoder.
+    If not, we'll queue it and check during next jpeg callback*/
     if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
         /* encoding is going on. Just queue the frame for now.*/
         mSnapshotQueue.enqueue((void *)recvd_frame);
-        
+
     }
     else{
+         /*TBD: Pass 0 as cropinfo for now as v4l2 doesn't provide
+           cropinfo. It'll be changed later.*/
+         memset(&crop,0,sizeof(common_crop_t));
+         memset(&main_crop_offset,0,sizeof(cam_point_t));
+         memset(&thumb_crop_offset,0,sizeof(cam_point_t));
+
+         //mCrop.snapshot.main_crop.width
+          //   mCrop.snapshot.thumbnail_crop.width
+
+         /*Main image*/
+
+          crop.in2_w=mCrop.snapshot.main_crop.width;// dimension.picture_width
+          crop.in2_h=mCrop.snapshot.main_crop.height;// dimension.picture_height;
+          crop.out2_w=mPictureWidth;
+          crop.out2_h=mPictureHeight;
+          main_crop_offset.x=mCrop.snapshot.main_crop.left;
+          main_crop_offset.y=mCrop.snapshot.main_crop.top;
+
+
+         /*Thumbnail image*/
+
+             crop.in1_w=mCrop.snapshot.thumbnail_crop.width; //dimension.thumbnail_width;
+             crop.in1_h=mCrop.snapshot.thumbnail_crop.height; // dimension.thumbnail_height;
+             crop.out1_w=mThumbnailWidth;
+             crop.out1_h=mThumbnailHeight;
+             thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
+             thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
+
+
          mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
                            (uint8_t *)postviewframe->buffer,
                            postviewframe->fd,
                            (uint8_t *)mainframe->buffer,
                            mainframe->fd,
-                           crop_info,
+                           &crop,
                            NULL,
                            0,
                            -1,
-                           NULL,
-                           NULL);
- 
+                           &main_crop_offset,
+                           &thumb_crop_offset);
+
         /* Save the pointer to the frame sent for encoding. we'll need it to
            tell kernel that we are done with the frame.*/
         mCurrentFrameEncoded = recvd_frame;
@@ -1371,7 +1404,7 @@ end:
     if (ret == NO_ERROR) {
         setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODING);
     }
-	LOGV("%s: X", __func__);
+    LOGV("%s: X", __func__);
     return ret;
 }
 
@@ -1391,13 +1424,13 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
          * to play shutter sound only or register the postview buffers.
          */
         LOGD("%s: Calling callback to play shutter sound", __func__);
-        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, 0, 
+        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, 0,
                                      mPlayShutterSoundOnly,
                                      mHalCamCtrl->mCallbackCookie);
         return;
     }
 
-    if (mHalCamCtrl->mNotifyCb && 
+    if (mHalCamCtrl->mNotifyCb &&
         (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER)) {
         /* TBD:Bikas: To be checked later.itz giving page fault */
         //mDisplayHeap = mPostviewHeap;
@@ -1434,18 +1467,15 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame)
 {
     status_t ret = NO_ERROR;
     struct msm_frame *postview_frame;
-    common_crop_t *crop;
-    common_crop_t *cropp;
-    common_crop_t crop_info;
     int buf_index = 0;
     ssize_t offset_addr = 0;
-
+    common_crop_t dummy_crop;
     /* send frame for encoding */
     LOGD("%s: Send frame for encoding", __func__);
     /*TBD: Pass 0 as cropinfo for now as v4l2 doesn't provide 
       cropinfo. It'll be changed later.*/
-    memset(&crop_info,0,sizeof(common_crop_t));
-    ret = encodeData(recvd_frame, &crop_info, mSnapshotStreamBuf.frame_len);
+    memset(&dummy_crop,0,sizeof(common_crop_t));
+    ret = encodeData(recvd_frame, &dummy_crop, mSnapshotStreamBuf.frame_len);
     if (ret != NO_ERROR) {
         LOGE("%s: Failure configuring JPEG encoder", __func__);
 
@@ -1465,8 +1495,6 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame)
 
     /* Display postview image*/
     postview_frame = recvd_frame->snapshot.thumbnail.frame;
-    /* TBD: currently we don't get cropinfo. So setting it to NULL*/
-    cropp = NULL;
     LOGD("%s: Displaying Postview Image", __func__);
     offset_addr = (ssize_t)postview_frame->buffer -
         (ssize_t)mPostviewHeap->mHeap->base();
@@ -1474,34 +1502,27 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame)
         mHalCamCtrl->mOverlayLock.lock();
         if(mHalCamCtrl->mOverlay != NULL) {
             mHalCamCtrl->mOverlay->setFd(postview_frame->fd);
-
-            if(cropp != NULL){
-                crop = (common_crop_t *)cropp;
-                if (crop->in1_w != 0 && crop->in1_h != 0) {
-                    int x = (crop->out1_w - crop->in1_w + 1) / 2 - 1;
-                    int y = (crop->out1_h - crop->in1_h + 1) / 2 - 1;
-                    int w = crop->in1_w;
-                    int h = crop->in1_h;
-                    if(x < 0) x = 0;
-                    if(y < 0) y = 0;
-                    mHalCamCtrl->mOverlay->setCrop(x, y,w,h);
+                if (mCrop.snapshot.thumbnail_crop.height != 0 && mCrop.snapshot.thumbnail_crop.width != 0) {
+                    mHalCamCtrl->mOverlay->setCrop(mCrop.snapshot.thumbnail_crop.left,
+                                                   mCrop.snapshot.thumbnail_crop.top ,
+                                                   mCrop.snapshot.thumbnail_crop.width,
+                                                   mCrop.snapshot.thumbnail_crop.height);
                 }else {
                     mHalCamCtrl->mOverlay->setCrop(0, 0,
                                                    mPostviewWidth,
                                                    mPostviewHeight);
                 }
-            }
             LOGD("%s: Queueing Postview for display", __func__);
             mHalCamCtrl->mOverlay->queueBuffer((void *)offset_addr);
         }
         mHalCamCtrl->mOverlayLock.unlock();
     }
-     
+
     // send upperlayer callback
-     if (mHalCamCtrl->mDataCb && 
+     if (mHalCamCtrl->mDataCb &&
          (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
          buf_index = recvd_frame->snapshot.main.idx;
-         mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE, 
+         mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE,
                                     mRawHeap->mBuffers[buf_index],
                                     mHalCamCtrl->mCallbackCookie);
      }
@@ -1533,7 +1554,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
         notifyShutter(NULL, FALSE);
         LOGD("%s: Sending Raw Snapshot Callback to Upperlayer", __func__);
         buf_index = recvd_frame->def.idx;
-        if (mHalCamCtrl->mDataCb && 
+        if (mHalCamCtrl->mDataCb &&
             (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)){
                 mHalCamCtrl->mDataCb(
                     CAMERA_MSG_COMPRESSED_IMAGE,
@@ -1545,9 +1566,18 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
         mm_app_snapshot_done();
     }
     else{
-        /*TBD: v4l2 doesn't have support to provide cropinfo along with 
+        /*TBD: v4l2 doesn't have support to provide cropinfo along with
           frame. We'll need to query.*/
         memset(&crop, 0, sizeof(common_crop_t));
+
+        /*maftab*/
+        #if 0
+        crop.in1_w=mCrop.snapshot.thumbnail_crop.width;
+        crop.in1_h=mCrop.snapshot.thumbnail_crop.height;
+        crop.out1_w=mThumbnailWidth;
+        crop.out1_h=mThumbnailHeight;
+        #endif
+
         LOGD("%s: Call notifyShutter 2nd time", __func__);
         notifyShutter(&crop, FALSE);
 
@@ -1559,7 +1589,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
     /* One more frame has been sent/queued for encoding. Update number of
        snapshots remaining (for burst/continuous mode) */
     mNumOfSnapshot--;
-    
+
     LOGD("%s: X", __func__);
 }
 
@@ -1602,7 +1632,7 @@ void QCameraStream_Snapshot::handleError()
         setSnapshotState(SNAPSHOT_STATE_ERROR);
         break;
     }
-    
+
     LOGD("%s: X", __func__);
 }
 
@@ -1673,7 +1703,7 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
 //------------------------------------------------------------------
 // Public Members
 //------------------------------------------------------------------
-status_t QCameraStream_Snapshot::init() 
+status_t QCameraStream_Snapshot::init()
 {
     status_t ret = NO_ERROR;
 
@@ -1808,7 +1838,7 @@ void QCameraStream_Snapshot::prepareHardware()
     LOGV("%s: E", __func__);
 
     /* Prepare snapshot*/
-    mmCamera->ops->action(mmCamera, 
+    mmCamera->ops->action(mmCamera,
                           TRUE,
                           MM_CAMERA_OPS_PREPARE_SNAPSHOT,
                           this);
@@ -1820,13 +1850,13 @@ sp<IMemoryHeap> QCameraStream_Snapshot::getRawHeap() const
     return ((mDisplayHeap != NULL) ? mDisplayHeap->mHeap : NULL);
 }
 
-QCameraStream* 
+QCameraStream*
 QCameraStream_Snapshot::createInstance(mm_camera_t *native_camera,
                                       camera_mode_t mode)
 {
 
   QCameraStream* pme = new QCameraStream_Snapshot(native_camera, mode);
-  
+
   return pme;
 }
 

@@ -367,6 +367,9 @@ static void mm_camera_msm_proc_ctrl_event(mm_camera_obj_t *my_obj,
   case MSM_CAM_EVT_AUTO_FOCUS_DONE:
     ctrl.ctrl_evt.evt = MM_CAMERA_CTRL_EVT_AUTO_FOCUS;
     break;
+  case MSM_CAM_EVT_ZOOM_DONE:
+    ctrl.ctrl_evt.evt = MM_CAMERA_CTRL_EVT_ZOOM;
+    break;
   default:
     ctrl.ctrl_evt.evt = event->event_id;
     break;

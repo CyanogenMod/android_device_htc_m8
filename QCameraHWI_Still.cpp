@@ -193,7 +193,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
 
     // Save jpeg for debugging
     /* mm_app_dump_snapshot_frame("/data/snapshot.jpg",
-                               mJpegHeap->mHeap->base(),
+                               (const void *)mJpegHeap->mHeap->base(),
                                mJpegOffset);*/
 
     LOGD("%s: Calling upperlayer callback to store JPEG image", __func__);
@@ -1519,10 +1519,10 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
     LOGD("%s: E", __func__);
 /*
     mm_app_dump_snapshot_frame("/data/main_frame.yuv",
-                               recvd_frame->snapshot.main.frame->buffer,
+                               (const void *)recvd_frame->snapshot.main.frame->buffer,
                                mSnapshotStreamBuf.frame_len);
     mm_app_dump_snapshot_frame("/data/thumb_frame.yuv",
-                               recvd_frame->snapshot.thumbnail.frame->buffer,
+                               (const void *)recvd_frame->snapshot.thumbnail.frame->buffer,
                                mSnapshotStreamBuf.frame_len);
 */
 

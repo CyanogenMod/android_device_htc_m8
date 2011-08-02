@@ -213,6 +213,7 @@ typedef struct {
 	uint32_t ch_streaming_mask;
 	int32_t ctrl_fd;
 	cam_ctrl_dimension_t dim;
+    cam_prop_t properties;
 	pthread_mutex_t mutex;
 	mm_camera_evt_obj_t evt[MM_CAMERA_EVT_TYPE_MAX];
 	mm_camera_ch_stream_count_t ch_stream_count[MM_CAMERA_CH_MAX];

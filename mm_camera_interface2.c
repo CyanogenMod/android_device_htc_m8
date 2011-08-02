@@ -38,6 +38,12 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
+#define SET_PARM_BIT32(parm, parm_arr) \
+  (parm_arr[parm/32] |= (1<<(parm%32)))
+
+#define GET_PARM_BIT32(parm, parm_arr) \
+  ((parm_arr[parm/32]>>(parm%32))& 0x1)
+
 static pthread_mutex_t g_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static mm_camera_ctrl_t g_cam_ctrl;
@@ -76,25 +82,39 @@ static const camera_info_t * mm_camera_cfg_query_camera_info (int8_t camera_id)
 }
 /* check if the parm is supported */
 static uint8_t mm_camera_cfg_is_parm_supported (mm_camera_t * camera, 
-																							 mm_camera_parm_type_t parm_type)
+												mm_camera_parm_type_t parm_type)
 {
-	switch(parm_type) {
+    int is_parm_supported = 0;
+    mm_camera_obj_t * my_obj = NULL;
+
+	/* Temp: These params are not defined in legacy implementation.
+	   To be modified later with proper action.*/
+	switch (parm_type) {
 	case MM_CAMERA_PARM_CH_IMAGE_FMT:
 	case MM_CAMERA_PARM_OP_MODE:
-	case MM_CAMERA_PARM_DIMENSION:
-		return MM_CAMERA_PARM_SUPPORT_BOTH;
-	case MM_CAMERA_PARM_HDR:
-	case MM_CAMERA_PARM_HISTOGRAM:
-	case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
-		return MM_CAMERA_PARM_SUPPORT_SET;
-	case MM_CAMERA_PARM_MAXZOOM:
-	case MM_CAMERA_PARM_ZOOM_RATIO:
-	case MM_CAMERA_PARM_CROP:
-		return MM_CAMERA_PARM_SUPPORT_GET;
-	default:
-		break;
+    case MM_CAMERA_PARM_SHARPNESS_CAP:
+    case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
+    case MM_CAMERA_PARM_LIVESHOT_MAIN:
+    case MM_CAMERA_PARM_MAXZOOM:
+    case MM_CAMERA_PARM_LUMA_ADAPTATION:
+    case MM_CAMERA_PARM_HDR:
+    case MM_CAMERA_PARM_CROP:
+    case MM_CAMERA_PARM_MAX_PICTURE_SIZE:
+    case MM_CAMERA_PARM_MAX_PREVIEW_SIZE:
+	case MM_CAMERA_PARM_MAX:
+		return 1;
 	}
-	return 0;
+    pthread_mutex_lock(&g_mutex);
+    my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
+    pthread_mutex_unlock(&g_mutex);
+    if(my_obj) {
+        pthread_mutex_lock(&my_obj->mutex);
+		is_parm_supported = GET_PARM_BIT32(parm_type,
+										   my_obj->properties.parm);
+        pthread_mutex_unlock(&my_obj->mutex);
+	}
+
+	return is_parm_supported;
 }
 
 /* check if the channel is supported */
@@ -121,6 +141,12 @@ static int32_t mm_camera_cfg_set_parm (mm_camera_t * camera, mm_camera_parm_type
 	uint32_t tmp;
 	mm_camera_obj_t * my_obj = NULL;
 	mm_camera_parm_t parm = {.parm_type = parm_type, .p_value = p_value};
+
+	if (!mm_camera_cfg_is_parm_supported(camera, 
+										parm_type)) {
+		CDBG("%s:parm %d not supported\n", __func__, parm_type);
+		return -MM_CAMERA_E_NOT_SUPPORTED;
+	}
 
 	pthread_mutex_lock(&g_mutex);
 	my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
@@ -195,11 +221,55 @@ static mm_camera_config_t mm_camera_cfg = {
 	.unprepare_buf = mm_camera_cfg_unprepare_buf
 };
 
-static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera, 
-																						 mm_camera_ops_type_t opcode)
+static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera,
+											  mm_camera_ops_type_t opcode)
 {
-	return TRUE;
+    uint8_t is_ops_supported = TRUE;
+	mm_camera_obj_t * my_obj = NULL;
+	int index = 0;
+    mm_camera_legacy_ops_type_t legacy_opcode;
+
+	/* Temp: We will be translating our new opcode
+	   to legacy ops type. This is just a hack to
+	   temporarily unblock APT team. New design is
+	   under discussion */
+    switch (opcode) {
+	case MM_CAMERA_OPS_PREVIEW:
+		legacy_opcode = CAMERA_OPS_STREAMING_PREVIEW;
+		break;
+	case MM_CAMERA_OPS_VIDEO:
+		legacy_opcode = CAMERA_OPS_STREAMING_VIDEO;
+		break;
+	case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
+		legacy_opcode = CAMERA_OPS_PREPARE_SNAPSHOT;
+		break;
+	case MM_CAMERA_OPS_SNAPSHOT:
+		legacy_opcode = CAMERA_OPS_SNAPSHOT;
+		break;
+	case MM_CAMERA_OPS_RAW:
+		legacy_opcode = CAMERA_OPS_RAW_CAPTURE;
+		break;
+	case MM_CAMERA_OPS_ZSL:
+		legacy_opcode = CAMERA_OPS_STREAMING_ZSL;
+		break;
+	case MM_CAMERA_OPS_FOCUS:
+		legacy_opcode = CAMERA_OPS_FOCUS;
+		break;
+	}
+  	pthread_mutex_lock(&g_mutex);
+    my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
+    pthread_mutex_unlock(&g_mutex);
+    if(my_obj) {
+        pthread_mutex_lock(&my_obj->mutex);
+		index = legacy_opcode/32;  /* 32 bits */
+		is_ops_supported = ((my_obj->properties.ops[index] &
+			(1<<legacy_opcode)) != 0);
+        pthread_mutex_unlock(&my_obj->mutex);
+	}
+
+	return is_ops_supported;
 }
+
 static int32_t mm_camera_ops_action (mm_camera_t * camera, uint8_t start, 
 									mm_camera_ops_type_t opcode, void *val)
 {

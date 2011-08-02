@@ -428,6 +428,24 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
                  my_obj->dim.orig_video_width,my_obj->dim.orig_video_height,
                  my_obj->dim.orig_picture_width,my_obj->dim.orig_picture_height);
         break;
+    case MM_CAMERA_PARM_MAX_PICTURE_SIZE: {
+        mm_camera_dimension_t *dim =
+            (mm_camera_dimension_t *)parm->p_value;
+        dim->height = my_obj->properties.max_pict_height;
+        dim->width = my_obj->properties.max_pict_width;
+        CDBG("%s: Max Picture Size: %d X %d\n", __func__,
+             dim->width, dim->height);
+    }
+        break;
+    case MM_CAMERA_PARM_MAX_PREVIEW_SIZE: {
+        mm_camera_dimension_t *dim =
+            (mm_camera_dimension_t *)parm->p_value;
+        dim->height = my_obj->properties.max_preview_height;
+        dim->width = my_obj->properties.max_preview_width;
+        CDBG("%s: Max Preview Size: %d X %d\n", __func__,
+             dim->width, dim->height);
+    }
+        break;
     case MM_CAMERA_PARM_FOCAL_LENGTH:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_FOCAL_LENGTH,
                                                      sizeof(focus_distances_info_t), (void *)parm->p_value);
@@ -707,6 +725,18 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
         my_obj->op_mode = op_mode;
         my_obj->current_mode = CAMERA_MODE_2D; /* set geo mode to 2D by default */
     }
+
+    /* get camera capabilities */
+    memset(&my_obj->properties, 0, sizeof(cam_prop_t));
+    rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                        CAMERA_GET_CAPABILITIES,
+                                        sizeof(cam_prop_t),
+                                        (void *)& my_obj->properties);
+    if (rc != MM_CAMERA_OK) {
+        CDBG("%s: cannot get camera capabilities\n", __func__);
+        return -MM_CAMERA_E_GENERAL;
+    }
+
     mm_camera_poll_threads_init(my_obj);
     mm_camera_init_ch_stream_count(my_obj);
     CDBG("%s: '%s', ctrl_fd=%d,op_mode=%d,rc=%d\n",

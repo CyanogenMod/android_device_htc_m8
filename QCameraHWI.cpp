@@ -50,7 +50,9 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                   : mParameters(),
                     mPreviewHeap(0),
                     mmCamera(native_camera),
-  mPreviewRunning (false), mRecordRunning (false), mAutoFocusRunning(false),
+                    mPreviewRunning (false),
+                    mRecordRunning (false),
+                    mAutoFocusRunning(false),
                     mPreviewFrameSize(0),
                     mNotifyCb(0),
                     mDataCb(0),
@@ -67,7 +69,15 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mDebugFps(0),
                     mInitialized(false),
                     mHasAutoFocusSupport(0),
-                    mIs3DModeOn(0)
+                    mIs3DModeOn(0),
+                    mPictureSizeCount(15),
+                    mPreviewSizeCount(13),
+                    mSupportedPictureSizesCount(15),
+                    mParamStringInitialized(false),
+                    mPreviewFormat(0),
+                    mMaxZoom(0),
+                    mZoomSupported(false)
+
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -79,7 +89,7 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
 
-    /* yyan open camera stack! */
+    /* Open camera stack! */
     if (mmCamera) {
         result=mmCamera->ops->open(mmCamera, MM_CAMERA_OP_MODE_NOTUSED);
         if (result == MM_CAMERA_OK) {
@@ -101,9 +111,25 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
       mCameraState = CAMERA_STATE_READY;
     }
 
+    /* Setup Picture Size and Preview size tables */
+    setPictureSizeTable();
+    LOGI("%s: Picture table size: %d", __func__, mPictureSizeCount);
+    LOGI("%s: Picture table: ", __func__);
+    for(int i=0; i < mPictureSizeCount;i++) {
+        LOGI(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
+    }
+
+    setPreviewSizeTable();
+    LOGI("%s: Preview table size: %d", __func__, mPreviewSizeCount);
+    LOGI("%s: Preview table: ", __func__);
+    for(int i=0; i < mPreviewSizeCount;i++) {
+        LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
+    }
+
     /* set my mode - update myMode member variable due to difference in
        enum definition between upper and lower layer*/
     setMyMode(mode);
+
 
     /* yyan TODO: init other parmameters with default values to!*/
     initDefaultParameters();

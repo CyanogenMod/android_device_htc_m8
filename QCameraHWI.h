@@ -202,6 +202,8 @@ private:
     void stopRecordingInternal();
     status_t cancelPictureInternal();
 
+    status_t setPictureSizeTable(void);
+    status_t setPreviewSizeTable(void);
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);
     status_t setPreviewFpsRange(const CameraParameters& params);
@@ -326,6 +328,45 @@ private:
      int mCurrentZoom;
      bool mSmoothZoomRunning;
      bool mPreparingSnapshot;
+
+    camera_size_type* mPictureSizes;
+    camera_size_type* mPreviewSizes;
+    const camera_size_type * mPictureSizesPtr;
+    int mSupportedPictureSizesCount;
+    unsigned int mPictureSizeCount;
+    unsigned int mPreviewSizeCount;
+    bool mParamStringInitialized;
+    String8 mEffectValues;
+    String8 mIsoValues;
+    String8 mSceneModeValues;
+    String8 mSceneDetectValues;
+    String8 mFocusModeValues;
+    String8 mSelectableZoneAfValues;
+    String8 mAutoExposureValues;
+    String8 mWhitebalanceValues;
+    String8 mAntibandingValues;
+    String8 mFrameRateModeValues;
+    String8 mTouchAfAecValues;
+    String8 mPreviewSizeValues;
+    String8 mPictureSizeValues;
+    String8 mFlashValues;
+    String8 mLensShadeValues;
+    String8 mMceValues;
+    String8 mHistogramValues;
+    String8 mSkinToneEnhancementValues;
+    String8 mPictureFormatValues;
+    String8 mDenoiseValues;
+    String8 mZoomRatioValues;
+    String8 mPreviewFrameRateValues;
+    String8 mPreviewFormatValues;
+    String8 mFaceDetectionValues;
+    String8 mHfrValues;
+    String8 mHfrSizeValues;
+    String8 mRedeyeReductionValues;
+    String8 mFpsRangesSupportedValues;
+    int mPreviewFormat;
+    int32_t mMaxZoom;
+    bool mZoomSupported;
 
      //For Face Detection
      int mFaceDetectOn;

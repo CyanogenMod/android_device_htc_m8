@@ -983,17 +983,33 @@ void QCameraHardwareInterface::releaseRecordingFrame(const sp<IMemory>& mem)
 
 status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
 {
-    LOGI("autoFocusEvent: E");
+    LOGE("autoFocusEvent: E");
     int ret = NO_ERROR;
 
     Mutex::Autolock lock(mLock);
 
+
+/**************************************************************
+  BEGIN MUTEX CODE
+  *************************************************************/
+
+    LOGE("%s:%d: Trying to acquire AF bit lock",__func__,__LINE__);
+    mAutofocusLock.lock();
+    LOGE("%s:%d: Acquired AF bit lock",__func__,__LINE__);
+
     if(mAutoFocusRunning==false) {
       LOGE("%s:AF not running, discarding stale event",__func__);
+      mAutofocusLock.unlock();
       return ret;
     }
 
     mAutoFocusRunning = false;
+    mAutofocusLock.unlock();
+
+/**************************************************************
+  END MUTEX CODE
+  *************************************************************/
+
 
     if(status==NULL) {
       LOGE("%s:NULL ptr received for status",__func__);
@@ -1011,7 +1027,7 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
       variables' validity will be under question*/
 
     if (mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS)){
-      LOGD("%s:Issuing callback to service",__func__);
+      LOGE("%s:Issuing callback to service",__func__);
 
       /* "Accepted" status is not appropriate it should be used for
         initial cmd, event reporting should only give use SUCCESS/FAIL
@@ -1034,7 +1050,7 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
 
 
 
-    LOGI("autoFocusEvent: X");
+    LOGE("autoFocusEvent: X");
     return ret;
 
 }
@@ -1197,26 +1213,38 @@ status_t QCameraHardwareInterface::autoFocus()
 
 status_t QCameraHardwareInterface::cancelAutoFocus()
 {
-    LOGI("cancelAutoFocus: E");
+    LOGE("cancelAutoFocus: E");
     status_t ret = NO_ERROR;
     Mutex::Autolock lock(mLock);
 
-    if(!mAutoFocusRunning)
+/**************************************************************
+  BEGIN MUTEX CODE
+*************************************************************/
+
+    mAutofocusLock.lock();
+    if(mAutoFocusRunning) {
+
+      mAutoFocusRunning = false;
+      mAutofocusLock.unlock();
+
+    }else/*(!mAutoFocusRunning)*/{
+
+      mAutofocusLock.unlock();
+      LOGE("%s:Af not running",__func__);
       return NO_ERROR;
+    }
+/**************************************************************
+  END MUTEX CODE
+*************************************************************/
 
 
     if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,FALSE,MM_CAMERA_OPS_FOCUS,NULL )) {
       LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
-      mAutoFocusRunning = false; /*Should this be set to false ? or better to leave it*/
-      return UNKNOWN_ERROR;
     }
 
-    mAutoFocusRunning = false;
-
-    LOGI("cancelAutoFocus: X");
-    return ret;
+    LOGE("cancelAutoFocus: X");
+    return NO_ERROR;
 }
-
 /*==========================================================================
  * FUNCTION    - prepareSnapshotAndWait -
  *

@@ -46,7 +46,7 @@ static void preview_notify_cb(mm_camera_ch_data_buf_t *frame,
   LOGV("%s: E", __func__);
   /* for peview data, there is no queue, so directly use*/
   if(pme==NULL) {
-    LOGE("%s: X : Incorrect cookie");
+    LOGE("%s: X : Incorrect cookie",__func__);
     /*Call buf done*/
     return;
   }
@@ -233,7 +233,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 
 
   if(mHalCamCtrl==NULL) {
-    LOGE("%s: X: HAL control object not set");
+    LOGE("%s: X: HAL control object not set",__func__);
     /*Call buf done*/
     return BAD_VALUE;
   }

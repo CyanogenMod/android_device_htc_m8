@@ -296,6 +296,7 @@ private:
 
      Mutex mCallbackLock;
      Mutex mOverlayLock;
+     Mutex mAutofocusLock;
 
      /*mm_camera_reg_buf_t mRecordBuf;
      sp<PmemPool> mRecordHeap;

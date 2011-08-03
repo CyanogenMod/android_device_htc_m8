@@ -309,12 +309,12 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
         }
     }
 
-    LOGD("%s: Image Sizes before set parm call: main: %dx%d thumbnail: %dx%d",
-         __func__,
-         dim->picture_width, dim->picture_height,
-         dim->ui_thumbnail_width, dim->ui_thumbnail_height);
-
     if (!matching) {
+         LOGD("%s: Image Sizes before set parm call: main: %dx%d thumbnail: %dx%d",
+              __func__,
+              dim->picture_width, dim->picture_height,
+              dim->ui_thumbnail_width, dim->ui_thumbnail_height);
+
         ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,dim);
         if (NO_ERROR != ret) {
             LOGE("%s: error - can't config snapshot parms!", __func__);
@@ -322,6 +322,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             goto end;
         }    
     }
+
     /* set_parm will return corrected dimension based on aspect ratio and
        ceiling size */
     mPictureWidth = dim->picture_width;

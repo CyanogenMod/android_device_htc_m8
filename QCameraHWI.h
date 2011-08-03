@@ -203,6 +203,7 @@ private:
     status_t cancelPictureInternal();
 
     status_t setPictureSizeTable(void);
+    void freePictureTable(void);
     status_t setPreviewSizeTable(void);
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);

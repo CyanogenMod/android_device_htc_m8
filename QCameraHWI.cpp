@@ -113,15 +113,15 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
 
     /* Setup Picture Size and Preview size tables */
     setPictureSizeTable();
-    LOGI("%s: Picture table size: %d", __func__, mPictureSizeCount);
-    LOGI("%s: Picture table: ", __func__);
+    LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
+    LOGD("%s: Picture table: ", __func__);
     for(int i=0; i < mPictureSizeCount;i++) {
-        LOGI(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
+        LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
     }
 
     setPreviewSizeTable();
-    LOGI("%s: Preview table size: %d", __func__, mPreviewSizeCount);
-    LOGI("%s: Preview table: ", __func__);
+    LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
+    LOGD("%s: Preview table: ", __func__);
     for(int i=0; i < mPreviewSizeCount;i++) {
         LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
     }
@@ -145,6 +145,9 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
 {
     LOGI("~QCameraHardwareInterface: E");
     int result;
+
+    freePictureTable();
+
     if(mStreamDisplay){
         QCameraStream_preview::deleteInstance (mStreamDisplay);
         mStreamDisplay = NULL;

@@ -2396,14 +2396,21 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
     mm_camera_dimension_t dim;
     struct camera_size_type* picture_size_table;
     int picture_table_size;
-    int i = 0;
+    int i = 0, count = 0;
 
     /* Initialize table with default values */
-    picture_size_table = default_picture_sizes;
     picture_table_size = sizeof(default_picture_sizes)/
         sizeof(default_preview_sizes[0]);
+    picture_size_table = default_picture_sizes;
+    mPictureSizes =
+        ( struct camera_size_type *)malloc(picture_table_size *
+                                           sizeof(struct camera_size_type));
+    if (mPictureSizes == NULL) {
+        LOGE("%s: Failre allocating memory to store picture size table");
+        goto end;
+    }
 
-    /* Get maximum preview size supported by sensor*/
+    /* Get maximum picture size supported by sensor*/
     memset(&dim, 0, sizeof(mm_camera_dimension_t));
     ret = mmCamera->cfg->get_parm(mmCamera,
                                   MM_CAMERA_PARM_MAX_PICTURE_SIZE,
@@ -2411,6 +2418,7 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
     if (ret != NO_ERROR) {
         LOGE("%s: Failure getting Max Picture Size supported by camera",
              __func__);
+        ret = NO_MEMORY;
         goto end;
     }
 
@@ -2418,26 +2426,38 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
          dim.width, dim.height);
 
     for (i = 0; i < picture_table_size; i++) {
-        LOGD("Bikas:%s: picture table: %d X %d  dim: %d X %d", __func__,
-             picture_size_table->width, picture_size_table->height,
-             dim.width, dim.height);
+        /* We'll store those dimensions whose width AND height
+           are less than or equal to maximum supported */
         if ((picture_size_table->width <= dim.width) &&
             (picture_size_table->height <= dim.height)) {
             LOGD("%s: Camera Picture Size Table "
                  "Max width: %d height %d table_size: %d",
                  __func__, picture_size_table->width,
-                 picture_size_table->height, picture_table_size - i);
-            break;
+                 picture_size_table->height, count+1);
+            mPictureSizes[count].height = picture_size_table->height;
+            mPictureSizes[count].width = picture_size_table->width;
+            count++;
         }
         picture_size_table++;
     }
+    mPictureSizeCount = count;
 
- end:
-    /* Save the table in global member*/
-    mPictureSizes = picture_size_table;
-    mPictureSizeCount = picture_table_size - i;
-    
+end:
+     /* In case of error, we use default picture sizes */
+     if (ret != NO_ERROR) {
+        mPictureSizes = default_picture_sizes;
+        mPictureSizeCount = picture_table_size;
+    }
     return ret;
 }
 
+void QCameraHardwareInterface::freePictureTable(void)
+{
+    /* If we couldn't allocate memory to store picture table
+       we use the picture table pointer to point to default
+       picture table array. In that case we cannot free it.*/
+    if (mPictureSizes != default_picture_sizes) {
+        free(mPictureSizes);
+    }
+}
 }; /*namespace android */

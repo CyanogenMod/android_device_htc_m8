@@ -78,7 +78,8 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mMaxZoom(0),
                     mZoomSupported(false),
                     mCurrentZoom(0),
-                    mFps(0)
+                    mFps(0),
+                    mPictureSizes(NULL)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -113,34 +114,28 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
           LOGE("startCamera: mm_camera_ops_open failed: handle used : 0x%p",mmCamera);
     } else {
       mCameraState = CAMERA_STATE_READY;
+
+      /* Setup Picture Size and Preview size tables */
+      setPictureSizeTable();
+      LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
+      LOGD("%s: Picture table: ", __func__);
+      for(int i=0; i < mPictureSizeCount;i++) {
+          LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
+      }
+
+      setPreviewSizeTable();
+      LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
+      LOGD("%s: Preview table: ", __func__);
+      for(int i=0; i < mPreviewSizeCount;i++) {
+          LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
+      }
+
+      /* set my mode - update myMode member variable due to difference in
+         enum definition between upper and lower layer*/
+      setMyMode(mode);
+
+      initDefaultParameters();
     }
-
-    /* Setup Picture Size and Preview size tables */
-    setPictureSizeTable();
-    LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
-    LOGD("%s: Picture table: ", __func__);
-    for(int i=0; i < mPictureSizeCount;i++) {
-        LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
-    }
-
-    setPreviewSizeTable();
-    LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
-    LOGD("%s: Preview table: ", __func__);
-    for(int i=0; i < mPreviewSizeCount;i++) {
-        LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
-    }
-
-    /* set my mode - update myMode member variable due to difference in
-       enum definition between upper and lower layer*/
-    setMyMode(mode);
-
-
-    /* yyan TODO: init other parmameters with default values to!*/
-    initDefaultParameters();
-
-    /* yyan TODO: move into init mode! */
-
-    /* yyan TODO: if every thing is ok inccrease the reference to qcamera server*/
     LOGI("QCameraHardwareInterface: X");
 }
 
@@ -439,9 +434,21 @@ sp<CameraHardwareInterface> QCameraHardwareInterface::createInstance(mm_camera_t
 {
     LOGI("createInstance: E");
     QCameraHardwareInterface *cam = new QCameraHardwareInterface(native_camera, mode);
-    sp<CameraHardwareInterface> hardware(cam);
-    LOGI("createInstance: X");
-    return hardware;
+    if (cam ) {
+      if (cam->mCameraState != CAMERA_STATE_READY) {
+        LOGE("createInstance: Failed");
+        delete cam;
+        cam = NULL;
+      }
+    }
+
+    if (cam) {
+      sp<CameraHardwareInterface> hardware(cam);
+      LOGI("createInstance: X");
+      return hardware;
+    } else {
+      return NULL;
+    }
 }
 
 /* external plug in function */
@@ -729,7 +736,7 @@ status_t QCameraHardwareInterface::startPreview()
     }
 
     if (mPrevForPostviewBuf.frame[0].buffer != NULL) {
-        mm_camera_do_munmap(mPrevForPostviewBuf.frame[0].fd, 
+        mm_camera_do_munmap(mPrevForPostviewBuf.frame[0].fd,
                             (void *)mPrevForPostviewBuf.frame[0].buffer,
                             mPrevForPostviewBuf.frame_len);
         memset(&mPrevForPostviewBuf, 0, sizeof(mPrevForPostviewBuf));
@@ -1309,7 +1316,7 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
 
         case CAMERA_STATE_PREVIEW:
         case CAMERA_STATE_RECORD_START_CMD_SENT:
-      	case CAMERA_STATE_RECORD:
+        case CAMERA_STATE_RECORD:
         default:
 
         #if 0
@@ -1400,7 +1407,7 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
     LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
 
     /* allocate the memory */
-    buffer_addr = 
+    buffer_addr =
         (unsigned long) mm_camera_do_mmap(frame_len,
                                           &(mPrevForPostviewBuf.frame[0].fd));
 
@@ -1436,7 +1443,7 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
         mOverlay->queueBuffer((void *)0);
     }
     mOverlayLock.unlock();
- 
+
 end:
     LOGI("%s: X", __func__);
     return ret;

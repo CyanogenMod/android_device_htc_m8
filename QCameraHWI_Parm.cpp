@@ -929,7 +929,7 @@ void QCameraHardwareInterface::initDefaultParameters()
                         CameraParameters::FLASH_MODE_OFF);
         mParameters.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES,
                         mFlashValues);
-    }  
+    }
 
     //Set Sharpness
     mParameters.set(CameraParameters::KEY_MAX_SHARPNESS,
@@ -2503,7 +2503,10 @@ void QCameraHardwareInterface::freePictureTable(void)
        we use the picture table pointer to point to default
        picture table array. In that case we cannot free it.*/
     if (mPictureSizes != default_picture_sizes) {
-        free(mPictureSizes);
+        if(mPictureSizes) {
+            free(mPictureSizes);
+        }
     }
 }
+
 }; /*namespace android */

@@ -2363,7 +2363,9 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     }
 
     int rotation = mParameters.getInt("rotation");
-    if(mCurrentTarget == TARGET_MSM7625A)
+    char mDeviceName[PROPERTY_VALUE_MAX];
+    property_get("ro.hw_plat", mDeviceName, "");
+    if(!strcmp(mDeviceName,"7x25A"))
         rotation = (rotation + 90)%360;
 
     if (mIs3DModeOn)
@@ -3671,7 +3673,9 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     }
 
     int rotation = mParameters.getInt("rotation");
-    if(mCurrentTarget == TARGET_MSM7625A)
+    char mDeviceName[PROPERTY_VALUE_MAX];
+    property_get("ro.hw_plat", mDeviceName, "");
+    if(!strcmp(mDeviceName,"7x25A"))
         rotation = (rotation + 90)%360;
 
     if (mIs3DModeOn)

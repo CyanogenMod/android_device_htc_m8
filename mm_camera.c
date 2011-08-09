@@ -686,6 +686,8 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 {
     char dev_name[MM_CAMERA_DEV_NAME_LEN];
     int32_t rc = MM_CAMERA_OK;
+    int8_t n_try=MM_CAMERA_DEV_OPEN_TRIES;
+    uint8_t sleep_msec=MM_CAMERA_DEV_OPEN_RETRY_SLEEP;
 
     if(my_obj->op_mode != MM_CAMERA_OP_MODE_NOTUSED) {
         CDBG("%s: not allowed in existing op mode %d\n",
@@ -699,8 +701,19 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     }
     sprintf(dev_name, "/dev/%s", mm_camera_util_get_dev_name(my_obj));
     //rc = mm_camera_dev_open(&my_obj->ctrl_fd, dev_name);
-    my_obj->ctrl_fd = open(dev_name,
-                                        O_RDWR | O_NONBLOCK);
+
+    do{
+        n_try--;
+        my_obj->ctrl_fd = open(dev_name,O_RDWR | O_NONBLOCK);
+        if( my_obj->ctrl_fd != -EIO || n_try <= 0 )
+            break;
+        CDBG("%s:failed with I/O error retrying after %d milli-seconds",
+             __func__,sleep_msec);
+        usleep(sleep_msec*1000);
+    }while(n_try>0);
+
+
+
     if (my_obj->ctrl_fd <= 0) {
         CDBG("%s: cannot open control fd of '%s'\n",
                  __func__, mm_camera_util_get_dev_name(my_obj));

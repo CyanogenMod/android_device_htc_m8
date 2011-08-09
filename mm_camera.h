@@ -222,6 +222,8 @@ typedef struct {
 } mm_camera_obj_t;
 
 #define MM_CAMERA_DEV_NAME_LEN 32
+#define MM_CAMERA_DEV_OPEN_TRIES 2
+#define MM_CAMERA_DEV_OPEN_RETRY_SLEEP 20
 
 typedef struct {
 	mm_camera_t camera[MSM_MAX_CAMERA_SENSORS];

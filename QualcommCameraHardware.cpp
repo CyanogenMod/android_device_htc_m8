@@ -6442,8 +6442,13 @@ status_t QualcommCameraHardware::setPreviewFormat(const CameraParameters& params
     if(previewFormat != NOT_FOUND) {
         mParameters.set(CameraParameters::KEY_PREVIEW_FORMAT, str);
         mPreviewFormat = previewFormat;
-        bool ret = native_set_parms(CAMERA_PARM_PREVIEW_FORMAT, sizeof(previewFormat),
-                                   (void *)&previewFormat);
+        if(HAL_currentCameraMode != CAMERA_MODE_3D) {
+            LOGI("Setting preview format to native");
+            bool ret = native_set_parms(CAMERA_PARM_PREVIEW_FORMAT, sizeof(previewFormat),
+                                       (void *)&previewFormat);
+        }else{
+            LOGI("Skipping set preview format call to native");
+        }
         return NO_ERROR;
     }
     LOGE("Invalid preview format value: %s", (str == NULL) ? "NULL" : str);

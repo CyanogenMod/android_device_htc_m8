@@ -77,7 +77,8 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mPreviewFormat(0),
                     mMaxZoom(0),
                     mZoomSupported(false),
-                    mCurrentZoom(0)
+                    mCurrentZoom(0),
+                    mFps(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -88,6 +89,9 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
 
     property_get("persist.debug.sf.showfps", value, "0");
     mDebugFps = atoi(value);
+
+    property_get("camera.hal.fps", value, "0");
+    mFps = atoi(value);
 
     /* Open camera stack! */
     if (mmCamera) {

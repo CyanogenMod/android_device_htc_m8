@@ -786,9 +786,15 @@ void QCameraHardwareInterface::initDefaultParameters()
     mDimension.display_height = DEFAULT_PREVIEW_HEIGHT;
 
     //Set Preview Frame Rate
-    mParameters.setPreviewFrameRate(DEFAULT_FPS);
-    mPreviewFrameRateValues = create_values_range_str(
+    if(mFps >= MINIMUM_FPS && mFps <= MAXIMUM_FPS) {
+        mPreviewFrameRateValues = create_values_range_str(
+        MINIMUM_FPS, mFps);
+    }else{
+        mPreviewFrameRateValues = create_values_range_str(
         MINIMUM_FPS, MAXIMUM_FPS);
+    }
+
+
     if (mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
                         mPreviewFrameRateValues.string());
@@ -829,6 +835,13 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
     mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
                     mPictureSizeValues.string());
+
+    //Set Preview Frame Rate
+    if(mFps >= MINIMUM_FPS && mFps <= MAXIMUM_FPS) {
+        mParameters.setPreviewFrameRate(mFps);
+    }else{
+        mParameters.setPreviewFrameRate(DEFAULT_FPS);
+    }
 
     //Set Record Size
     mParameters.set("record-size", "320x240");
@@ -1629,7 +1642,7 @@ status_t QCameraHardwareInterface::setPreviewFrameRate(const CameraParameters& p
     status_t rc = NO_ERROR;
     rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS);
     if(!rc) {
-       LOGE("MM_CAMERA_PARM_WHITE_BALANCE mode is not supported for this sensor");
+       LOGE("MM_CAMERA_PARM_FPS is not supported for this sensor");
        return NO_ERROR;
     }
     uint16_t previousFps = (uint16_t)mParameters.getPreviewFrameRate();
@@ -1637,7 +1650,7 @@ status_t QCameraHardwareInterface::setPreviewFrameRate(const CameraParameters& p
     LOGV("requested preview frame rate  is %u", fps);
 
     if(mInitialized && (fps == previousFps)){
-        LOGE("fps same as previous fps");
+        LOGV("No change is FPS Value %d",fps );
         return NO_ERROR;
     }
 

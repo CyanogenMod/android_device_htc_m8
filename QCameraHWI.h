@@ -314,6 +314,7 @@ private:
 
      int previewWidth, previewHeight;
      int videoWidth, videoHeight;
+     int mFps;
 
      bool mHasAutoFocusSupport;
      int mDebugFps;

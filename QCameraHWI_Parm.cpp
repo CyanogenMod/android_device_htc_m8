@@ -843,9 +843,6 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.setPreviewFrameRate(DEFAULT_FPS);
     }
 
-    //Set Record Size
-    mParameters.set("record-size", "320x240");
-
     //Set Picture Format
     mParameters.setPictureFormat("jpeg"); // informative
     mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_FORMATS,

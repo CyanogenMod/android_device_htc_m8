@@ -617,10 +617,10 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
     LOGI("processCtrlEvent: %d, E",event->evt);
     switch(event->evt)
     {
-        case MM_CAMERA_CTRL_EVT_ZOOM:
+        case MM_CAMERA_CTRL_EVT_ZOOM_DONE:
             zoomEvent(&event->status);
             break;
-        case MM_CAMERA_CTRL_EVT_AUTO_FOCUS:
+        case MM_CAMERA_CTRL_EVT_AUTO_FOCUS_DONE:
             autoFocusEvent(&event->status);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
@@ -631,7 +631,7 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
     LOGI("processCtrlEvent: X");
     return;
 }
-void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_t *event)
+void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
   return;
 }
@@ -639,16 +639,16 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_t *event)
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
     LOGI("processEvent: E");
-    switch(event->evt_type)
+    switch(event->event_type)
     {
         case MM_CAMERA_EVT_TYPE_CH:
-            processChannelEvent(&event->ch_evt);
+            processChannelEvent(&event->e.ch);
             break;
         case MM_CAMERA_EVT_TYPE_CTRL:
-            processCtrlEvent(&event->ctrl_evt);
+            processCtrlEvent(&event->e.ctrl);
             break;
         case MM_CAMERA_EVT_TYPE_STATS:
-            processStatsEvent(&event->stats);
+            processStatsEvent(&event->e.stats);
             break;
         default:
             break;

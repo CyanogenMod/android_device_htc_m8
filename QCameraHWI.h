@@ -208,7 +208,7 @@ private:
     void processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent);
 
     void processCtrlEvent(mm_camera_ctrl_event_t *);
-    void processStatsEvent(mm_camera_stats_t *);
+    void processStatsEvent(mm_camera_stats_event_t *);
 
     void processprepareSnapshotEvent(cam_ctrl_status_t *);
     status_t autoFocusEvent(cam_ctrl_status_t *);

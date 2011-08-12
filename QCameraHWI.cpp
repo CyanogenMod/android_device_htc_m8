@@ -79,7 +79,8 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mZoomSupported(false),
                     mCurrentZoom(0),
                     mFps(0),
-                    mPictureSizes(NULL)
+                    mPictureSizes(NULL),
+                    mDumpFrmCnt(0), mDumpSkipCnt(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -1448,5 +1449,86 @@ end:
     LOGI("%s: X", __func__);
     return ret;
 }
+
+void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
+  HAL_cam_dump_frm_type_t frm_type)
+{
+  int32_t enabled = 0;
+  int frm_num;
+  uint32_t  skip_mode;
+  char value[PROPERTY_VALUE_MAX];
+  char buf[128];
+  property_get("persist.camera.dumpimg", value, "0");
+  enabled = atoi(value);
+
+
+  LOGV(" newFrame =%p, frm_type = %d", newFrame, frm_type);
+  if(enabled & HAL_DUMP_FRM_MASK_ALL) {
+    if((enabled & frm_type) && newFrame) {
+      frm_num = ((enabled & 0xffff0000) >> 16);
+      if(frm_num == 0) frm_num = 10; /*default 10 frames*/
+      if(frm_num > 256) frm_num = 256; /*256 buffers cycle around*/
+      skip_mode = ((enabled & 0x0000ff00) >> 8);
+      if(skip_mode == 0) skip_mode = 1; /*no -skip */
+
+      if( mDumpSkipCnt % skip_mode == 0) {
+        if (mDumpFrmCnt >= 0 && mDumpFrmCnt <= frm_num) {
+          int w, h;
+          cam_ctrl_dimension_t dim = mDimension;
+          status_t ret = mmCamera->cfg->get_parm(mmCamera,
+            MM_CAMERA_PARM_DIMENSION, &dim);
+          int file_fd;
+          switch (frm_type) {
+          case  HAL_DUMP_FRM_PREVIEW:
+            w = dim.display_width;
+            h = dim.display_height;
+            sprintf(buf, "/data/%dp_%dx%d.yuv", mDumpFrmCnt, w, h);
+            file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+            break;
+          case HAL_DUMP_FRM_VIDEO:
+            w = dim.video_width;
+            h = dim.video_height;
+            sprintf(buf, "/data/%dv_%dx%d.yuv", mDumpFrmCnt, w, h);
+            file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+            break;
+          case HAL_DUMP_FRM_MAIN:
+            w = dim.picture_width;
+            h = dim.picture_height;
+            sprintf(buf, "/data/%dm_%dx%d.yuv", mDumpFrmCnt, w, h);
+            file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+            break;
+          case HAL_DUMP_FRM_THUMBNAIL:
+            w = dim.ui_thumbnail_width;
+            h = dim.ui_thumbnail_height;
+            sprintf(buf, "/data/%dt_%dx%d.yuv", mDumpFrmCnt, w, h);
+            file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+            break;
+          default:
+            w = h = 0;
+            file_fd = -1;
+            break;
+          }
+
+          if (file_fd < 0) {
+            LOGE("%s: cannot open file:type=%d\n", __func__, frm_type);
+          } else {
+            write(file_fd, (const void *)newFrame->buffer, w * h);
+            write(file_fd, (const void *)
+              (newFrame->buffer + newFrame->cbcr_off), w * h / 2);
+            close(file_fd);
+            LOGE("dump %s", buf);
+          }
+        } else if(frm_num == 256){
+          mDumpFrmCnt = 0;
+        }
+        mDumpFrmCnt++;
+      }
+      mDumpSkipCnt++;
+    }
+  }  else {
+    mDumpFrmCnt = 0;
+  }
+}
+
 }; // namespace android
 

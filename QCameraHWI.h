@@ -24,6 +24,7 @@
 #include <binder/MemoryHeapBase.h>
 #include <binder/MemoryHeapPmem.h>
 #include <utils/threads.h>
+#include <cutils/properties.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -104,6 +105,20 @@ typedef enum {
   CAMERA_STATE_MAX
 } HAL_camera_state_type_t;
 
+
+typedef enum {
+  HAL_DUMP_FRM_PREVIEW = 1,
+  HAL_DUMP_FRM_VIDEO = 1<<1,
+  HAL_DUMP_FRM_MAIN = 1<<2,
+  HAL_DUMP_FRM_THUMBNAIL = 1<<3,
+
+  /*8 bits mask*/
+  HAL_DUMP_FRM_MAX = 1 << 8
+} HAL_cam_dump_frm_type_t;
+
+#define HAL_DUMP_FRM_MASK_ALL ( HAL_DUMP_FRM_PREVIEW + HAL_DUMP_FRM_VIDEO + \
+    HAL_DUMP_FRM_MAIN + HAL_DUMP_FRM_THUMBNAIL)
+
 namespace android {
 
 class QCameraStream;
@@ -158,6 +173,7 @@ public:
                                      int *picture_width,
                                      int *picture_height);
     bool isRawSnapshot();
+    void dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
     bool mUseOverlay;
     cam_format_t getPreviewFormat() const;
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
@@ -256,6 +272,7 @@ private:
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);
     String8 create_values_str(const str_map *values, int len);
+
 
     mutable Mutex       mLock;
     Mutex mParametersLock;
@@ -394,6 +411,8 @@ private:
 
      /* Temporary - can be removed after Honeycomb*/
      mm_cameara_stream_buf_t mPrevForPostviewBuf;
+     int mDumpFrmCnt;
+     int mDumpSkipCnt;
 };
 
 }; // namespace android

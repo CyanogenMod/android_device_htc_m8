@@ -241,6 +241,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   if (UNLIKELY(mHalCamCtrl->mDebugFps)) {
       mHalCamCtrl->debugShowPreviewFPS();
   }
+  mHalCamCtrl->dumpFrameToFile(frame->def.frame, HAL_DUMP_FRM_PREVIEW);
 
   mHalCamCtrl->mOverlayLock.lock();
   if(mHalCamCtrl->mOverlay != NULL) {
@@ -387,7 +388,7 @@ status_t QCameraStream_preview::start() {
         ret = mmCamera->cfg->set_parm (mmCamera, MM_CAMERA_PARM_OP_MODE,
                                         &op_mode);
         LOGE("OP Mode Set");
-    
+
         if(MM_CAMERA_OK != ret) {
           LOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
           return BAD_VALUE;

@@ -85,19 +85,19 @@ static int mm_app_dump_snapshot_frame(char *filename,
                                       const void *buffer,
                                       uint32_t len)
 {
-	char bufp[128];
-	int file_fdp;
-	int rc = 0;
+    char bufp[128];
+    int file_fdp;
+    int rc = 0;
 
     file_fdp = open(filename, O_RDWR | O_CREAT, 0777);
 
-	if (file_fdp < 0) {
-		rc = -1;
-		goto end;
-	}
-	write(file_fdp,
-		(const void *)buffer, len);
-	close(file_fdp);
+    if (file_fdp < 0) {
+        rc = -1;
+        goto end;
+    }
+    write(file_fdp,
+        (const void *)buffer, len);
+    close(file_fdp);
 end:
     return rc;
 }
@@ -197,7 +197,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
                                mJpegOffset);*/
 
     LOGD("%s: Calling upperlayer callback to store JPEG image", __func__);
-    msg_type = isLiveSnapshot() ? 
+    msg_type = isLiveSnapshot() ?
         MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : CAMERA_MSG_COMPRESSED_IMAGE;
     if (mHalCamCtrl->mDataCb &&
         (mHalCamCtrl->mMsgEnabled & msg_type)) {
@@ -836,7 +836,7 @@ void QCameraStream_Snapshot::deinit(void)
     mm_camera_channel_type_t ch_type;
 
     LOGD("%s: E", __func__);
-   
+
 
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
         /* deinit buffer */
@@ -1269,7 +1269,7 @@ takePictureZSL(void)
                    snapshot_thread, (void *)this);
 
 end:
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 }
 
@@ -1292,7 +1292,7 @@ startStreamZSL(void)
     }
 
 end:
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 
 }
@@ -1472,7 +1472,7 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame)
     common_crop_t dummy_crop;
     /* send frame for encoding */
     LOGD("%s: Send frame for encoding", __func__);
-    /*TBD: Pass 0 as cropinfo for now as v4l2 doesn't provide 
+    /*TBD: Pass 0 as cropinfo for now as v4l2 doesn't provide
       cropinfo. It'll be changed later.*/
     memset(&dummy_crop,0,sizeof(common_crop_t));
     ret = encodeData(recvd_frame, &dummy_crop, mSnapshotStreamBuf.frame_len);
@@ -1538,7 +1538,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
     int buf_index = 0;
     common_crop_t crop;
 
-    LOGD("%s: E", __func__);
+    LOGE("%s: E", __func__);
 /*
     mm_app_dump_snapshot_frame("/data/main_frame.yuv",
                                (const void *)recvd_frame->snapshot.main.frame->buffer,
@@ -1548,6 +1548,10 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
                                mSnapshotStreamBuf.frame_len);
 */
 
+    mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
+    mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame, HAL_DUMP_FRM_THUMBNAIL);
+
+    LOGE("%s: after dump", __func__);
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
         LOGD("%s: Call notifyShutter 2nd time", __func__);

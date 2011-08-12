@@ -704,13 +704,6 @@ void QCameraHardwareInterface::initDefaultParameters()
         mPictureFormatValues = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
 
-        if(mCurrentTarget == TARGET_MSM8660 ||
-          (mCurrentTarget == TARGET_MSM7625A ||
-           mCurrentTarget == TARGET_MSM7627A)) {
-            mDenoiseValues = create_values_str(
-                denoise, sizeof(denoise) / sizeof(str_map));
-        }
-
         mZoomSupported=false;
         mMaxZoom=0;
         mm_camera_zoom_tbl_t zmt;
@@ -738,6 +731,8 @@ void QCameraHardwareInterface::initDefaultParameters()
 
         LOGE("Zoom supported:%d",mZoomSupported);
 
+        denoise_value = create_values_str(
+            denoise, sizeof(denoise) / sizeof(str_map));
   /*mansoor
      if( mCfgControl.mm_camera_query_parms(MM_CAMERA_PARM_ZOOM_RATIO, (void **)&zoomRatios, (uint32_t *) &mMaxZoom) == MM_CAMERA_SUCCESS)
        {
@@ -872,6 +867,8 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.set(CameraParameters::KEY_ZOOM_SUPPORTED, "true");
         LOGE("max zoom is %d", mMaxZoom-1);
         /* mMaxZoom value that the query interface returns is the size
+        LOGV("max zoom is %d", mMaxZoom-1);
+        * mMaxZoom value that the query interface returns is the size
          * of zoom table. So the actual max zoom value will be one
          * less than that value.          */
 
@@ -1010,8 +1007,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_DENOISE,
                     CameraParameters::DENOISE_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_DENOISE,
-                    mDenoiseValues);
-
+                        denoise_value);
     //Set Touch AF/AEC
     mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
                     CameraParameters::TOUCH_AF_AEC_OFF);
@@ -1141,6 +1137,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     //    if ((rc = setStrTextures(params)))            final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))          final_rc = rc;
+    if ((rc = setWaveletDenoise(params)))               final_rc = rc;
     if ((rc = setAntibanding(params)))                  final_rc = rc;
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
     //    if ((rc = setRedeyeReduction(params)))        final_rc = rc;
@@ -1798,6 +1795,32 @@ status_t QCameraHardwareInterface::setSkinToneEnhancement(const CameraParameters
           return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     return NO_ERROR;
+}
+
+status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& params) {
+    LOGE("%s",__func__);
+    status_t rc = NO_ERROR;
+    rc = mmCamera->cfg->is_parm_supported(mmCamera, MM_CAMERA_PARM_WAVELET_DENOISE);
+    if(rc != MM_CAMERA_PARM_SUPPORT_SET) {
+        LOGE("Wavelet Denoise is not supported for this sensor");
+        /* TO DO */
+//        return NO_ERROR;
+    }
+    const char *str = params.get(CameraParameters::KEY_DENOISE);
+    if (str != NULL) {
+        int value = attr_lookup(denoise,
+                sizeof(denoise) / sizeof(str_map), str);
+        if ((value != NOT_FOUND) &&  (mDenoiseValue != value)) {
+            mDenoiseValue =  value;
+            mParameters.set(CameraParameters::KEY_DENOISE, str);
+            bool ret = native_set_parms(MM_CAMERA_PARM_WAVELET_DENOISE, sizeof(value),
+                    (void *)&value);
+            return ret ? NO_ERROR : UNKNOWN_ERROR;
+        }
+        return NO_ERROR;
+    }
+    LOGE("Invalid Denoise value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
 }
 
 status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)

@@ -253,6 +253,7 @@ private:
     status_t setSharpness(const CameraParameters& params);
     status_t setContrast(const CameraParameters& params);
     status_t setSaturation(const CameraParameters& params);
+    status_t setWaveletDenoise(const CameraParameters& params);
     status_t setSceneMode(const CameraParameters& params);
     status_t setContinuousAf(const CameraParameters& params);
     status_t setTouchAfAec(const CameraParameters& params);
@@ -342,6 +343,7 @@ private:
      bool mInitialized;
      int mBrightness;
      int mSkinToneEnhancement;
+     int mDenoiseValue;
      int mHJR;
      bool strTexturesOn;
      bool mIs3DModeOn;
@@ -387,6 +389,7 @@ private:
     String8 mHfrValues;
     String8 mHfrSizeValues;
     String8 mRedeyeReductionValues;
+    String8 denoise_value;
     String8 mFpsRangesSupportedValues;
     int mPreviewFormat;
     int32_t mMaxZoom;

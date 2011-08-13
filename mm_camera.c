@@ -705,7 +705,8 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     do{
         n_try--;
         my_obj->ctrl_fd = open(dev_name,O_RDWR | O_NONBLOCK);
-        if( my_obj->ctrl_fd != -EIO || n_try <= 0 )
+        LOGE("Errno:%d",errno);
+        if((my_obj->ctrl_fd != -1) || (errno != -EIO) || (n_try <= 0 ))
             break;
         CDBG("%s:failed with I/O error retrying after %d milli-seconds",
              __func__,sleep_msec);
@@ -715,8 +716,8 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 
 
     if (my_obj->ctrl_fd <= 0) {
-        CDBG("%s: cannot open control fd of '%s'\n",
-                 __func__, mm_camera_util_get_dev_name(my_obj));
+        CDBG("%s: cannot open control fd of '%s' Errno = %d\n",
+                 __func__, mm_camera_util_get_dev_name(my_obj),errno);
         return -MM_CAMERA_E_GENERAL;
     }
     if(op_mode != MM_CAMERA_OP_MODE_NOTUSED)

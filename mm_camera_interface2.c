@@ -104,6 +104,8 @@ static uint8_t mm_camera_cfg_is_parm_supported (mm_camera_t * camera,
     case MM_CAMERA_PARM_MAX_PREVIEW_SIZE:
     case MM_CAMERA_PARM_MAX:
         return 1;
+    default:
+        break;
     }
     pthread_mutex_lock(&g_mutex);
     my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];

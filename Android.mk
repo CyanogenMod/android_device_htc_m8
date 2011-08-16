@@ -26,7 +26,7 @@ MM_CAM_FILES:= \
 
 LOCAL_CFLAGS+= -DHW_ENCODE
 
-ifeq "$(findstring msm8960,$(QCOM_TARGET_PRODUCT))" "msm8960"
+ifeq ($(call is-board-platform,msm8960),true)
 LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
                    QCameraHWI.cpp QCameraHWI_Preview.cpp \
                    QCameraHWI_Record.cpp QCameraHWI_Still.cpp \
@@ -46,7 +46,7 @@ LOCAL_SRC_FILES := $(MM_CAM_FILES) $(LOCAL_HAL_FILES)
 
 
 
-ifeq "$(findstring msm7627,$(QCOM_TARGET_PRODUCT))" "msm7627"
+ifeq ($(call is-chipset-prefix-in-board-platform,msm7627),true)
 LOCAL_CFLAGS+= -DNUM_PREVIEW_BUFFERS=6 -D_ANDROID_
 else
 LOCAL_CFLAGS+= -DNUM_PREVIEW_BUFFERS=4 -D_ANDROID_

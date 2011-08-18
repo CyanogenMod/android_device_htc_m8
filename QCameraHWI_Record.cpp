@@ -354,7 +354,8 @@ status_t QCameraStream_record::initEncodeBuffers()
 
     //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
     frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
-                                   width,height, &y_off, &cbcr_off, MM_CAMERA_PAD_2K);
+                                   width,height, OUTPUT_TYPE_V,
+                                   &y_off, &cbcr_off);
     record_frame_len = frame_len;
     mRecordHeap = new PmemPool(pmem_region,
                         MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,

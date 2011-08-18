@@ -95,7 +95,7 @@ typedef enum {
     MM_CAMERA_PARM_SCE_FACTOR,
     MM_CAMERA_PARM_FD, /*30*/
     MM_CAMERA_PARM_MODE,
-  /* 2nd 32 bits */
+    /* 2nd 32 bits */
     MM_CAMERA_PARM_3D_FRAME_FORMAT,
     MM_CAMERA_PARM_CAMERA_ID,
     MM_CAMERA_PARM_CAMERA_INFO,
@@ -483,8 +483,11 @@ extern uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd);
 extern int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size);
 extern int mm_camera_dump_image(void *addr, uint32_t size, char *filename);
 extern uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
-                                            camera_mode_t mode, int w, int h,
-                                            uint32_t *y_off,
-                                            uint32_t *cbcr_off,
-                                            mm_camera_pad_type_t cbcr_pad);
+                                            camera_mode_t mode,
+                                            int width,
+                                            int height,
+                                            int image_type,
+                                            uint32_t *yoffset,
+                                            uint32_t *cbcroffset);
+
 #endif /*__MM_CAMERA_INTERFACE2_H__*/

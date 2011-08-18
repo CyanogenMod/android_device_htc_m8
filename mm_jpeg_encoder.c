@@ -272,7 +272,7 @@ int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
     *p_buf_size = padded_size * 3/2;
   } else {
     *p_y_offset = 0;
-    *p_cbcr_offset = PAD_TO_WORD(width*height);
+    *p_cbcr_offset = PAD_TO_WORD(width*CEILING16(height));
     *p_buf_size = *p_cbcr_offset * 3/2;
   }
   return TRUE;

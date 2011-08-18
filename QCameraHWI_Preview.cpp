@@ -168,7 +168,9 @@ status_t QCameraStream_preview::initDisplayBuffers()
   /* set 4 buffers for display */
   this->mDisplayStreamBuf.num = buffer_num;
   this->myMode=myMode; /*Need to assign this in constructor after translating from mask*/
-  frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, this->myMode, width, height, &y_off, &cbcr_off, MM_CAMERA_PAD_WORD);
+  frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, this->myMode,
+                                          width, height, OUTPUT_TYPE_P,
+                                          &y_off, &cbcr_off);
 
 /*mnsr*/
 #if 0

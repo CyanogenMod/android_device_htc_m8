@@ -1400,9 +1400,9 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                                             myMode,
                                             width,
                                             height,
+                                            OUTPUT_TYPE_P,
                                             &y_off,
-                                            &cbcr_off,
-                                            MM_CAMERA_PAD_WORD);
+                                            &cbcr_off);
     mPrevForPostviewBuf.frame_len = frame_len;
 
     LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
@@ -1430,8 +1430,10 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
     }
 
     /* Copy the frame */
-    LOGE("%s: Copy the frame buffer. buffer: %x  previe_buffer: %x",
-         __func__, mPrevForPostviewBuf.frame[0].buffer, preview_frame->buffer);
+    LOGE("%s: Copy the frame buffer. buffer: %x  preview_buffer: %x",
+         __func__, (uint32_t)mPrevForPostviewBuf.frame[0].buffer,
+         (uint32_t)preview_frame->buffer);
+
     memcpy((void *)mPrevForPostviewBuf.frame[0].buffer,
            (const void *)preview_frame->buffer,
            frame_len);

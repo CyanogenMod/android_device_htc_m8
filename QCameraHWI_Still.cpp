@@ -568,8 +568,8 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             myMode,
                                             dim->raw_picture_width,
                                             dim->raw_picture_height,
-                                            &y_off, &cbcr_off,
-                                            MM_CAMERA_PAD_WORD);
+                                            OUTPUT_TYPE_S,
+                                            &y_off, &cbcr_off);
 
     mSnapshotStreamBuf.frame_len = frame_len;
 
@@ -732,7 +732,8 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     frame_len = mm_camera_get_msm_frame_len(dim->thumb_format, myMode,
                                             dim->ui_thumbnail_width,
                                             dim->ui_thumbnail_height,
-                                            &y_off, &cbcr_off, MM_CAMERA_PAD_WORD);
+                                            OUTPUT_TYPE_T,
+                                            &y_off, &cbcr_off);
     mPostviewStreamBuf.frame_len = frame_len;
 
 

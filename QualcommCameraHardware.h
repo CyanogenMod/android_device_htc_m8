@@ -497,6 +497,10 @@ private:
     bool mUseJpegDownScaling;
     bool mPreviewStopping;
     bool mInHFRThread;
+    Mutex mPmemWaitLock;
+    Condition mPmemWait;
+    bool mPrevHeapDeallocRunning;
+
 };
 
 }; // namespace android

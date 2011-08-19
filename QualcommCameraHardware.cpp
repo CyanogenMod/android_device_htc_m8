@@ -87,6 +87,7 @@ extern "C" {
 #define ACTIVE_PREVIEW_BUFFERS 3
 #define ACTIVE_ZSL_BUFFERS 3
 #define APP_ORIENTATION 90
+#define HDR_HAL_FRAME 2
 
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
@@ -724,6 +725,11 @@ static const str_map mce[] = {
     { CameraParameters::MCE_DISABLE, FALSE }
 };
 
+static const str_map hdr[] = {
+    { CameraParameters::HDR_ENABLE, TRUE },
+    { CameraParameters::HDR_DISABLE, FALSE }
+};
+
 static const str_map histogram[] = {
     { CameraParameters::HISTOGRAM_ENABLE, TRUE },
     { CameraParameters::HISTOGRAM_DISABLE, FALSE }
@@ -820,6 +826,7 @@ static String8 focus_mode_values;
 static String8 iso_values;
 static String8 lensshade_values;
 static String8 mce_values;
+static String8 hdr_values;
 static String8 histogram_values;
 static String8 skinToneEnhancement_values;
 static String8 touchafaec_values;
@@ -1272,8 +1279,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       mDenoiseValue(0),
       mPreviewStopping(false),
       mInHFRThread(false),
-      mPrevHeapDeallocRunning(false)
-
+      mPrevHeapDeallocRunning(false),
+      mHdrMode(false ),
+      mExpBracketMode(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -1521,6 +1529,9 @@ void QualcommCameraHardware::initDefaultParameters()
           hfr_values = create_values_str(
             hfr,sizeof(hfr)/sizeof(str_map));
         }
+        if(mCurrentTarget == TARGET_MSM8660)
+            hdr_values = create_values_str(
+                hdr,sizeof(hdr)/sizeof(str_map));
         //Currently Enabling Histogram for 8x60
         if(mCurrentTarget == TARGET_MSM8660) {
             histogram_values = create_values_str(
@@ -1781,10 +1792,14 @@ void QualcommCameraHardware::initDefaultParameters()
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,
                     hfr_size_values.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
-                    hfr_values);}
-     else
+                    hfr_values);
+    } else
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
 
+    mParameters.set(CameraParameters::KEY_HIGH_DYNAMIC_RANGE_IMAGING,
+                    CameraParameters::MCE_DISABLE);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_HDR_IMAGING_MODES,
+                    hdr_values);
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
                     CameraParameters::HISTOGRAM_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_HISTOGRAM_MODES,
@@ -3558,7 +3573,6 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     int postViewBufferSize;
     uint32_t pictureAspectRatio;
     uint32_t i;
-
     mParameters.getPictureSize(&mPictureWidth, &mPictureHeight);
     if (updatePictureDimension(mParameters, mPictureWidth, mPictureHeight)) {
         mDimension.picture_width = mPictureWidth;
@@ -3700,7 +3714,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                      MSM_PMEM_MAINIMG,
                      mJpegMaxSize,
-                     kRawBufferCount,
+                     numCapture,
                      mRawSize,
                      mCbCrOffsetRaw,
                      yOffset,
@@ -3725,7 +3739,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         LOGV("initRaw: initializing mJpegHeap.");
         mJpegHeap =
             new AshmemPool(mJpegMaxSize,
-                           kJpegBufferCount,
+                           numCapture,
                            0, // we do not know how big the picture will be
                            "jpeg");
 
@@ -3745,7 +3759,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                          MSM_PMEM_THUMBNAIL,
                          postViewBufferSize,
-                         1,
+                         numCapture,
                          postViewBufferSize,
                          CbCrOffsetPostview,
                          0,
@@ -3761,10 +3775,10 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     /* frame all the exif and encode information into encode_params_t */
 
-    initImageEncodeParameters(1);
+    initImageEncodeParameters(numCapture);
     /* fill main image size, thumbnail size, postview size into capture_params_t*/
     memset(&mImageCaptureParms, 0, sizeof(capture_params_t));
-    mImageCaptureParms.num_captures = 1;
+    mImageCaptureParms.num_captures = numCapture;
     mImageCaptureParms.picture_width = mPictureWidth;
     mImageCaptureParms.picture_height = mPictureHeight;
     mImageCaptureParms.postview_width = mPostviewWidth;
@@ -4714,6 +4728,8 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setOrientation(params)))  final_rc = rc;
     if ((rc = setLensshadeValue(params)))  final_rc = rc;
     if ((rc = setMCEValue(params)))  final_rc = rc;
+    if ((rc = setHDRImaging(params)))  final_rc = rc;
+    if ((rc = setExpBracketing(params)))  final_rc = rc;
     if ((rc = setPictureFormat(params))) final_rc = rc;
     if ((rc = setSharpness(params)))    final_rc = rc;
     if ((rc = setSaturation(params)))   final_rc = rc;
@@ -6046,7 +6062,7 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
               mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
           buffer = NULL;
       } else {
-        LOGV("JPEG callback was cancelled--not delivering image.");
+        LOGE("JPEG callback was cancelled--not delivering image.");
       }
       if(numJpegReceived == numCapture){
           mJpegThreadWaitLock.lock();
@@ -6564,6 +6580,7 @@ status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
                                        sizeof(value), (void *)&value);
             if(mZslEnable && (value != LED_MODE_OFF)){
                     mParameters.set("num-snaps-per-shutter", "1");
+                    LOGI("%s Setting num-snaps-per-shutter to 1", __FUNCTION__);
                     numCapture = 1;
             }
             return ret ? NO_ERROR : UNKNOWN_ERROR;
@@ -6677,6 +6694,70 @@ status_t QualcommCameraHardware::setHighFrameRate(const CameraParameters& params
     }
     LOGE("Invalid HFR value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setHDRImaging(const CameraParameters& params)
+{
+
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HDR) && mZslEnable) {
+        LOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
+        return NO_ERROR;
+    }
+    const char *str = params.get(CameraParameters::KEY_HIGH_DYNAMIC_RANGE_IMAGING);
+    if (str != NULL) {
+        int value = attr_lookup(hdr, sizeof(hdr) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            exp_bracketing_t temp;
+            temp.hdr_enable= (int32_t)value;
+            temp.mode = HDR_MODE;
+            temp.total_frames = 3;
+            temp.total_hal_frames = HDR_HAL_FRAME;
+            mHdrMode = temp.hdr_enable;
+            LOGI("%s: setting HDR value of %s", __FUNCTION__, str);
+            mParameters.set(CameraParameters::KEY_HIGH_DYNAMIC_RANGE_IMAGING, str);
+            if(mHdrMode){
+                numCapture = temp.total_hal_frames;
+            } else
+                numCapture = 1;
+            native_set_parms(CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    LOGE("Invalid HDR value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params)
+{
+    if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HDR) && mZslEnable) {
+        LOGI("Parameter Exposure Bracketing is not supported for this sensor/ZSL mode");
+        return NO_ERROR;
+    }
+    const char *str = params.get("capture-burst-exposures");
+    if ((str != NULL) && (!mHdrMode)) {
+        char  exp_val[10];
+        exp_bracketing_t temp;
+        mExpBracketMode = true;
+        temp.mode = EXP_BRACKETING_MODE;
+        temp.hdr_enable = true;
+        /* App sets values separated by comma.
+           Thus total number of snapshot to capture is strlen(str)/2
+           eg: "-1,1,2" */
+        strcpy(exp_val,str);
+        temp.total_frames = (strlen(exp_val) >  MAX_SNAPSHOT_BUFFERS -2) ?
+            MAX_SNAPSHOT_BUFFERS -2 : strlen(exp_val);
+        temp.total_hal_frames = temp.total_frames;
+        temp.values = exp_val;
+        LOGI("%s: setting Exposure Bracketing value of %s", __FUNCTION__, temp.values);
+        mParameters.set("capture-burst-exposures", str);
+        if(!mZslEnable){
+            numCapture = temp.total_frames;
+        }
+        native_set_parms(CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+        return NO_ERROR;
+    } else
+        mExpBracketMode = false;
+    return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
@@ -7101,24 +7182,29 @@ status_t QualcommCameraHardware::setZslParam(const CameraParameters& params)
 
 status_t QualcommCameraHardware::setSnapshotCount(const CameraParameters& params)
 {
+    int value;
+    char snapshotCount[5];
     if(!mZslEnable){
-        numCapture = 1;
+        value = numCapture;
     } else {
-        /* ZSL case */
+        /* ZSL case: Get value from App */
         const char *str = params.get("num-snaps-per-shutter");
         if (str != NULL) {
-            char snapshotCount[5];
-            int value = atoi(str);
-            if(value > MAX_SNAPSHOT_BUFFERS -2)
-                value = MAX_SNAPSHOT_BUFFERS -2;
-            else if(value < 1)
-                value = 1;
-            sprintf(snapshotCount,"%d",value);
-            numCapture = value;
-            mParameters.set("num-snaps-per-shutter", snapshotCount);
-        }
+            value = atoi(str);
+        } else
+            value = 1;
     }
+    /* Sanity check */
+    if(value > MAX_SNAPSHOT_BUFFERS -2)
+        value = MAX_SNAPSHOT_BUFFERS -2;
+    else if(value < 1)
+        value = 1;
+    sprintf(snapshotCount,"%d",value);
+    numCapture = value;
+    mParameters.set("num-snaps-per-shutter", snapshotCount);
+    LOGI("%s setting num-snaps-per-shutter to %s", __FUNCTION__, snapshotCount);
     return NO_ERROR;
+
 }
 
 status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
@@ -7491,7 +7577,6 @@ QualcommCameraHardware::MemPool::~MemPool()
     mHeap.clear();
     LOGV("destroying MemPool %s completed", mName);
 }
-
 
 status_t QualcommCameraHardware::MemPool::dump(int fd, const Vector<String16>& args) const
 {

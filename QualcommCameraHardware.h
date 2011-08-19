@@ -377,6 +377,8 @@ private:
     status_t setOrientation(const CameraParameters& params);
     status_t setLensshadeValue(const CameraParameters& params);
     status_t setMCEValue(const CameraParameters& params);
+    status_t setHDRImaging(const CameraParameters& params);
+    status_t setExpBracketing(const CameraParameters& params);
     status_t setISOValue(const CameraParameters& params);
     status_t setPictureFormat(const CameraParameters& params);
     status_t setSharpness(const CameraParameters& params);
@@ -500,7 +502,8 @@ private:
     Mutex mPmemWaitLock;
     Condition mPmemWait;
     bool mPrevHeapDeallocRunning;
-
+    bool mHdrMode;
+    bool mExpBracketMode;
 };
 
 }; // namespace android

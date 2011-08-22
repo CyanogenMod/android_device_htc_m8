@@ -733,7 +733,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
         n_try--;
         my_obj->ctrl_fd = open(dev_name,O_RDWR | O_NONBLOCK);
         LOGE("Errno:%d",errno);
-        if((my_obj->ctrl_fd != -1) || (errno != -EIO) || (n_try <= 0 ))
+        if((my_obj->ctrl_fd != -1) || (errno != EIO) || (n_try <= 0 ))
             break;
         CDBG("%s:failed with I/O error retrying after %d milli-seconds",
              __func__,sleep_msec);

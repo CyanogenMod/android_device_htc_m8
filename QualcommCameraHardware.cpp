@@ -2129,10 +2129,10 @@ static rat_t gpsTimestamp[3];
 static char gpsDatestamp[20];
 static char dateTime[20];
 static rat_t focalLength;
+static uint16_t flashMode;
+static int iso_arr[] = {0,1,100,200,400,800,1600};
+static uint16_t isoMode;
 static char gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE];
-
-
-
 static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
                         uint32_t count, uint8_t copy, void *data) {
 
@@ -2154,7 +2154,10 @@ static void addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
         exif_data[index].tag_entry.data._ascii = (char *)data;
     else if(type == EXIF_BYTE)
         exif_data[index].tag_entry.data._byte = *(uint8_t *)data;
-
+    else if((type == EXIF_SHORT) && (count > 1))
+        exif_data[index].tag_entry.data._shorts = (uint16_t *)data;
+    else if((type == EXIF_SHORT) && (count == 1))
+        exif_data[index].tag_entry.data._short = *(uint16_t *)data;
     // Increase number of entries
     exif_table_numEntries++;
 }
@@ -2392,6 +2395,11 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     memcpy(&focalLength, &focalLengthRational, sizeof(focalLengthRational));
     addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1,
                 1, (void *)&focalLength);
+    //Adding ExifTag for ISOSpeedRating
+    const char *iso_str = mParameters.get(CameraParameters::KEY_ISO_MODE);
+    int iso_value = attr_lookup(iso, sizeof(iso) / sizeof(str_map), iso_str);
+    isoMode = iso_arr[iso_value];
+    addExifTag(EXIFTAGID_ISO_SPEED_RATING,EXIF_SHORT,1,1,(void *)&isoMode);
 
     if (mUseJpegDownScaling) {
       LOGV("initImageEncodeParameters: update main image", __func__);
@@ -4507,7 +4515,24 @@ status_t QualcommCameraHardware::takePicture()
             mZslFlashEnable = true;
         }
     }
+    //Adding ExifTag for Flash
+    const char *flash_str = mParameters.get(CameraParameters::KEY_FLASH_MODE);
+    if(!strcmp(flash_str,"on"))
+        flashMode = 1;
 
+    if(!strcmp(flash_str,"off"))
+        flashMode = 0;
+    //for AUTO mode bits 3 & 4 will be 1.
+    if(!strcmp(flash_str,"auto")){
+         flashMode  = 24;//for flash not fired,bit 0 will be 0
+         int is_flash_fired = 0;
+         if(mCfgControl.mm_camera_get_parm(CAMERA_PARM_QUERY_FALSH4SNAP,
+                      (void *)&is_flash_fired) != MM_CAMERA_SUCCESS)
+           flashMode = 32 ; //for No Flash support,bit 5 will be 0
+         else if(is_flash_fired)
+           flashMode = (is_flash_fired>>1) | flashMode ;//for flash fired,bit 0 will be 1
+    }
+    addExifTag(EXIFTAGID_FLASH,EXIF_SHORT,1,1,(void *)&flashMode);
     if(mParameters.getPictureFormat() != 0 &&
             !strcmp(mParameters.getPictureFormat(),
                     CameraParameters::PIXEL_FORMAT_RAW)){

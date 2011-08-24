@@ -1046,17 +1046,17 @@ void QCameraHardwareInterface::initDefaultParameters()
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
     float verticalViewAngle = 0.0f;
-
-//   mCfgControl.mm_camera_get_parm(MM_CAMERA_PARM_FOCAL_LENGTH,
-//            (void *)&focalLength);
+    LOGE("<DEBUG> Setting focal length");
+    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_FOCAL_LENGTH,
+            (void *)&focalLength);
     mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
                     focalLength);
-//    mCfgControl.mm_camera_get_parm(MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
-//            (void *)&horizontalViewAngle);
+    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
+            (void *)&horizontalViewAngle);
     mParameters.setFloat(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE,
                     horizontalViewAngle);
-//    mCfgControl.mm_camera_get_parm(MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE,
-//            (void *)&verticalViewAngle);
+    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE,
+            (void *)&verticalViewAngle);
     mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
                     verticalViewAngle);
 

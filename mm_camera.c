@@ -449,6 +449,12 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     case MM_CAMERA_PARM_FOCAL_LENGTH:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_FOCAL_LENGTH,
                      sizeof(focus_distances_info_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE:
+        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_HORIZONTAL_VIEW_ANGLE,
+                                                     sizeof(focus_distances_info_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE:
+        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_VERTICAL_VIEW_ANGLE,
+                                                     sizeof(focus_distances_info_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_FOCUS_DISTANCES:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_FOCUS_DISTANCES,
                      sizeof(focus_distances_info_t), (void *)parm->p_value);

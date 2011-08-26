@@ -1755,6 +1755,7 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
 
                     af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
                     af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
+                    af_roi_value.is_multiwindow = mMultiTouch;
                 }
                 else {
                     //Set Touch AEC params

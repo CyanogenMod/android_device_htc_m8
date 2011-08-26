@@ -95,6 +95,9 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
     property_get("camera.hal.fps", value, "0");
     mFps = atoi(value);
 
+    property_get("persist.camera.hal.multitouchaf", value, "0");
+    mMultiTouch = atoi(value);
+
     /* Open camera stack! */
     if (mmCamera) {
         result=mmCamera->ops->open(mmCamera, MM_CAMERA_OP_MODE_NOTUSED);

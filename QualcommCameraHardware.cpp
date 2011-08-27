@@ -105,6 +105,7 @@ int (*LINK_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtrin, yuv_
 void *libmmcamera;
 void* (*LINK_cam_conf)(void *data);
 void* (*LINK_cam_frame)(void *data);
+void* (*LINK_cam_frame_set_exit_flag)(int flag);
 bool  (*LINK_jpeg_encoder_init)();
 void  (*LINK_jpeg_encoder_join)();
 bool  (*LINK_jpeg_encoder_encode)(const cam_ctrl_dimension_t *dimen,
@@ -150,6 +151,7 @@ int8_t  (*LINK_set_liveshot_params)(uint32_t a_width, uint32_t a_height, exif_ta
 #else
 #define LINK_cam_conf cam_conf
 #define LINK_cam_frame cam_frame
+#define LINK_cam_frame cam_frame_set_exit_flag
 #define LINK_jpeg_encoder_init jpeg_encoder_init
 #define LINK_jpeg_encoder_join jpeg_encoder_join
 #define LINK_jpeg_encoder_encode jpeg_encoder_encode
@@ -1928,6 +1930,8 @@ bool QualcommCameraHardware::startCamera()
 
     *(void **)&LINK_cam_frame =
         ::dlsym(libmmcamera, "cam_frame");
+    *(void **)&LINK_cam_frame_set_exit_flag =
+        ::dlsym(libmmcamera, "cam_frame_set_exit_flag");
     *(void **)&LINK_camframe_terminate =
         ::dlsym(libmmcamera, "camframe_terminate");
 
@@ -3351,6 +3355,7 @@ bool QualcommCameraHardware::initPreview()
         } else {
             camframeParams.cammode = CAMERA_MODE_2D;
         }
+        LINK_cam_frame_set_exit_flag(0);
 
         mFrameThreadRunning = !pthread_create(&mFrameThread,
                                               &attr,

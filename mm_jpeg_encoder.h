@@ -69,6 +69,8 @@ typedef void (*jpeg_callback_t)(jpeg_event_t, void *);
 extern void set_callbacks(
    jpegfragment_callback_t fragcallback,
    jpeg_callback_t eventcallback,
-   void* userdata 
+   void* userdata
 );
+
+extern void mm_jpeg_encoder_cancel();
 #endif //MMCAMERA_JPEG_ENCODER_H

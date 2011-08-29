@@ -303,7 +303,8 @@ QCameraStream_preview::
 QCameraStream_preview(mm_camera_t *native_camera, camera_mode_t mode)
   : QCameraStream(),
     mmCamera(native_camera),
-    myMode (mode),  open_flag(0)
+    myMode (mode),  open_flag(0),
+    mLastQueuedFrame(NULL)
   {
     mHalCamCtrl = NULL;
     LOGV("%s: E", __func__);

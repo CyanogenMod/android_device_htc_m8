@@ -1424,6 +1424,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
                                    "jpeg");
         if (!mJpegHeap->initialized()) {
             mJpegHeap.clear();
+            mJpegHeap = NULL;
             LOGE("%s: Error allocating JPEG memory", __func__);
             ret = NO_MEMORY;
             goto end;
@@ -1940,6 +1941,10 @@ void QCameraStream_Snapshot::stop(void)
         if (getSnapshotState() != SNAPSHOT_STATE_UNINIT) {
             /* Stop polling for further frames */
             stopPolling();
+
+            if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
+                mm_jpeg_encoder_cancel();
+            }
 
             /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
             deinit();

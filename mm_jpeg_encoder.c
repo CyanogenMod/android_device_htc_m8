@@ -53,6 +53,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 int is_encoding = 0;
 pthread_mutex_t jpege_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t jpegcb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int rc;
 jpege_src_t jpege_source;
@@ -77,10 +78,10 @@ static uint8_t hw_encode = false;
 #endif
 static int8_t is_3dmode = 0;
 static cam_3d_frame_format_t img_format_3d;
-jpegfragment_callback_t mmcamera_jpegfragment_callback;
-jpeg_callback_t mmcamera_jpeg_callback;
+jpegfragment_callback_t mmcamera_jpegfragment_callback = NULL;
+jpeg_callback_t mmcamera_jpeg_callback = NULL;
 
-void* user_data;
+void* user_data = NULL;
 #define JPEGE_FRAGMENT_SIZE (64*1024)
 
 /*===========================================================================
@@ -93,6 +94,15 @@ inline void jpege_use_thumb_padding(uint8_t a_use_thumb_padding)
   use_thumbnail_padding = a_use_thumb_padding;
 }
 
+void mm_jpeg_encoder_cancel()
+{
+    pthread_mutex_lock(&jpegcb_mutex);
+    mmcamera_jpegfragment_callback = NULL;
+    mmcamera_jpeg_callback = NULL;
+    user_data = NULL;
+    pthread_mutex_unlock(&jpegcb_mutex);
+    mm_jpeg_encoder_join();
+}
 
 void set_callbacks(
    jpegfragment_callback_t fragcallback,
@@ -100,9 +110,11 @@ void set_callbacks(
    void* userdata
 
 ){
-   mmcamera_jpegfragment_callback = fragcallback;
-   mmcamera_jpeg_callback = eventcallback;
-   user_data = userdata;
+    pthread_mutex_lock(&jpegcb_mutex);
+    mmcamera_jpegfragment_callback = fragcallback;
+    mmcamera_jpeg_callback = eventcallback;
+    user_data = userdata;
+    pthread_mutex_unlock(&jpegcb_mutex);
 }
 
 /*===========================================================================
@@ -138,8 +150,10 @@ void mm_jpege_event_handler(void *p_user_data, jpeg_event_t event, void *p_arg)
 #endif
 //    mmcamera_util_profile("encoder done");
   }
+  pthread_mutex_lock(&jpegcb_mutex);
   if(mmcamera_jpeg_callback)
     mmcamera_jpeg_callback(event, user_data);
+  pthread_mutex_unlock(&jpegcb_mutex);
 
 }
 
@@ -162,8 +176,10 @@ void mm_jpege_output_produced_handler(void *p_user_data, void *p_arg,
   jpeg_buffer_get_actual_size(buffer, &buf_size);
   jpeg_buffer_get_addr(buffer, &buf_ptr);
 
+  pthread_mutex_lock(&jpegcb_mutex);
   if(mmcamera_jpegfragment_callback)
     mmcamera_jpegfragment_callback(buf_ptr, buf_size, user_data);
+  pthread_mutex_unlock(&jpegcb_mutex);
 }
 
 #if !defined(_TARGET_7x2x_) && !defined(_TARGET_7x27A_)
@@ -186,8 +202,10 @@ int mm_jpege_output_produced_handler2(void *p_user_data, void *p_arg,
   jpeg_buffer_get_actual_size(buffer, &buf_size);
   jpeg_buffer_get_addr(buffer, &buf_ptr);
 
+  pthread_mutex_lock(&jpegcb_mutex);
   if(mmcamera_jpegfragment_callback)
     mmcamera_jpegfragment_callback(buf_ptr, buf_size, user_data);
+  pthread_mutex_unlock(&jpegcb_mutex);
 
   rv = jpeg_buffer_set_actual_size(buffer, 0);
   if(rv == JPEGERR_SUCCESS){

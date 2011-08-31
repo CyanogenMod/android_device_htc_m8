@@ -502,27 +502,27 @@ static int mm_camera_evt_sub(mm_camera_obj_t * my_obj,
     sub.type = V4L2_EVENT_PRIVATE_START+MSM_CAM_APP_NOTIFY_EVENT;
     if(reg_count == 0) {
         /* unsubscribe */
-        if(my_obj->evt_type_mask & (1 << evt_type)) {
+        if(my_obj->evt_type_mask == (uint32_t)(1 << evt_type)) {
             rc = ioctl(my_obj->ctrl_fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
-            my_obj->evt_type_mask &= ~(1 << evt_type);
+            CDBG("%s: unsubscribe event 0x%x, rc = %d", __func__, sub.type, rc);
         }
+        my_obj->evt_type_mask &= ~(1 << evt_type);
         if(my_obj->evt_type_mask == 0) {
+            /* kill the polling thraed when unreg the last event */
             mm_camera_poll_thread_release(my_obj, MM_CAMERA_CH_MAX);
         }
     } else {
-        uint32_t old_mask = my_obj->evt_type_mask;
-        if(!(my_obj->evt_type_mask & (1 << evt_type))) {
+        if(!my_obj->evt_type_mask) {
+            /* this is the first reg event */
             rc = ioctl(my_obj->ctrl_fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
-            if (rc < 0) {
-                CDBG("error: ioctl VIDIOC_SUBSCRIBE_EVENT failed : %s\n",
-                strerror(errno));
+            CDBG("%s: subscribe event 0x%x, rc = %d", __func__, sub.type, rc);
+            if (rc < 0)
                 goto end;
-            }
-            my_obj->evt_type_mask |= (1 << evt_type);
         }
-        if(!old_mask) {
+        my_obj->evt_type_mask |= (1 << evt_type);
+        if(my_obj->evt_type_mask == (uint32_t)(1 << evt_type)) {
             /* launch event polling when subscribe the first event */
-            rc = mm_camera_poll_thread_launch(my_obj, MM_CAMERA_POLL_THRAED_MAX-1);
+            rc = mm_camera_poll_thread_launch(my_obj, MM_CAMERA_CH_MAX);
         }
     }
 end:
@@ -745,6 +745,15 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);
         return -MM_CAMERA_E_GENERAL;
     }
+
+    /* set ctrl_fd to be the mem_mapping fd */
+    rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
+                        MSM_V4L2_PID_MMAP_INST, 0);
+    if (rc < 0) {
+        CDBG("error: ioctl VIDIOC_S_CTRL MSM_V4L2_PID_MMAP_INST failed: %s\n",
+        strerror(errno));
+        return -MM_CAMERA_E_GENERAL;
+    }
     if(op_mode != MM_CAMERA_OP_MODE_NOTUSED)
         rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
                             MSM_V4L2_PID_CAM_MODE, op_mode);
@@ -773,7 +782,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 
 int32_t mm_camera_close(mm_camera_obj_t *my_obj)
 {
-    int i;
+    int i, rc = 0;
 
     for(i = 0; i < MM_CAMERA_CH_MAX; i++){
         mm_camera_ch_fn(my_obj, (mm_camera_channel_type_t)i,
@@ -782,7 +791,13 @@ int32_t mm_camera_close(mm_camera_obj_t *my_obj)
     mm_camera_poll_threads_deinit(my_obj);
     my_obj->op_mode = MM_CAMERA_OP_MODE_NOTUSED;
     if(my_obj->ctrl_fd > 0) {
-        close(my_obj->ctrl_fd);
+        mm_camera_histo_mmap(my_obj, NULL);
+        rc = close(my_obj->ctrl_fd);
+        if(rc < 0) {
+            /* this is a dead end. */
+            CDBG("%s: !!!!FATAL ERROR!!!! ctrl_fd = %d, rc = %d",
+                 __func__, my_obj->ctrl_fd, rc);
+        }
         my_obj->ctrl_fd = 0;
     }
     return MM_CAMERA_OK;

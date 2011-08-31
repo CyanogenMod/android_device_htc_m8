@@ -314,21 +314,124 @@ void mm_camera_dispatch_app_event(mm_camera_obj_t *my_obj, mm_camera_event_t *ev
     }
 }
 
+void mm_camera_histo_mmap(mm_camera_obj_t * my_obj, mm_camera_event_t *evt)
+{
+    int i, *ret;
+    int rc = MM_CAMERA_OK;
+    off_t offset = 0;
+
+    CDBG("%s", __func__);
+    if(!evt || evt->e.info.e.histo_mem_info.num == 0 || my_obj->hist_mem_map.num) {
+        for(i = 0; i < my_obj->hist_mem_map.num; i++) {
+            munmap((void *)my_obj->hist_mem_map.entry[i].vaddr,
+            my_obj->hist_mem_map.entry[i].cookie.length);
+        }
+        memset(&my_obj->hist_mem_map, 0,
+            sizeof(my_obj->hist_mem_map));
+    }
+    if(!evt)
+        return;
+    if (evt->e.info.e.histo_mem_info.num > 0) {
+        for(i = 0; i < evt->e.info.e.histo_mem_info.num; i++) {
+            my_obj->hist_mem_map.entry[i].cookie.cookie =
+            evt->e.info.e.histo_mem_info.vaddr[i];
+            my_obj->hist_mem_map.entry[i].cookie.length =
+            evt->e.info.e.histo_mem_info.buf_len;
+            my_obj->hist_mem_map.entry[i].cookie.mem_type =
+            evt->e.info.e.histo_mem_info.pmem_type;
+            rc = mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_MMAP_ENTRY,
+                    (int)&my_obj->hist_mem_map.entry[i].cookie);
+            if( rc < 0) {
+                CDBG("%s: MSM_V4L2_PID_MMAP_ENTRY error", __func__);
+                goto err;
+            }
+            ret = mmap(NULL, my_obj->hist_mem_map.entry[i].cookie.length,
+                  (PROT_READ  | PROT_WRITE), MAP_SHARED, my_obj->ctrl_fd, offset);
+            if(ret == MAP_FAILED) {
+                CDBG("%s: mmap error at idx %d", __func__, i);
+                goto err;
+            }
+            my_obj->hist_mem_map.entry[i].vaddr = (uint32_t)ret;
+            my_obj->hist_mem_map.num++;
+            CDBG("%s: mmap, idx=%d,cookie=0x%x,length=%d,pmem_type=%d,vaddr=0x%x",
+                __func__, i,
+                my_obj->hist_mem_map.entry[i].cookie.cookie,
+                my_obj->hist_mem_map.entry[i].cookie.length,
+                my_obj->hist_mem_map.entry[i].cookie.mem_type,
+                my_obj->hist_mem_map.entry[i].vaddr);
+        }
+    }
+    return;
+err:
+    for(i = 0; i < my_obj->hist_mem_map.num; i++) {
+        munmap((void *)my_obj->hist_mem_map.entry[i].vaddr,
+        my_obj->hist_mem_map.entry[i].cookie.length);
+    }
+    memset(&my_obj->hist_mem_map, 0,
+    sizeof(my_obj->hist_mem_map));
+}
+
+static int mm_camera_histo_fill_vaddr(mm_camera_obj_t *my_obj, mm_camera_event_t *evt)
+{
+    int i, rc = -1;
+
+    for(i = 0; i < my_obj->hist_mem_map.num; i++) {
+        if(my_obj->hist_mem_map.entry[i].cookie.cookie ==
+                evt->e.stats.e.stats_histo.cookie) {
+            rc = MM_CAMERA_OK;
+            evt->e.stats.e.stats_histo.cookie = my_obj->hist_mem_map.entry[i].vaddr;
+            CDBG("%s: histo stats addr: cookie=0x%x, vaddr = 0x%x, len = %d",
+                __func__, my_obj->hist_mem_map.entry[i].cookie.cookie,
+                evt->e.stats.e.stats_histo.cookie,
+                my_obj->hist_mem_map.entry[i].cookie.length);
+            break;
+        }
+    }
+    return rc;
+}
+
 void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd)
 {
     struct v4l2_event ev;
     int rc;
     mm_camera_event_t *evt = NULL;
 
-    CDBG("%s:E",__func__);
     memset(&ev, 0, sizeof(ev));
     rc = ioctl(fd, VIDIOC_DQEVENT, &ev);
     evt = (mm_camera_event_t *)ev.u.data;
-    CDBG("%s:ioctl :rc :%d",__func__,rc);
 
     if (rc >= 0) {
-        CDBG("%s: VIDIOC_DQEVENT type = 0x%x\n",
-        __func__, ev.type);
+        CDBG("%s: VIDIOC_DQEVENT type = 0x%x, app event type = %d\n",
+            __func__, ev.type, evt->event_type);
+        switch(evt->event_type) {
+        case MM_CAMERA_EVT_TYPE_INFO:
+            switch(evt->e.info.event_id) {
+            case MM_CAMERA_INFO_EVT_HISTO_MEM_INFO:
+                /* now mm_camear_interface2 hides the
+                 * pmem mapping logic from HAL */
+                mm_camera_histo_mmap(my_obj, evt);
+                return;
+            default:
+                break;
+            }
+            break;
+        case MM_CAMERA_EVT_TYPE_STATS:
+            switch(evt->e.stats.event_id) {
+            case MM_CAMERA_STATS_EVT_HISTO:
+                rc = mm_camera_histo_fill_vaddr(my_obj, evt);
+                if(rc != MM_CAMERA_OK) {
+                    CDBG("%s:cannot find histo stat's vaddr (cookie=0x%x)",
+                        __func__, evt->e.stats.e.stats_histo.cookie);
+                    return;
+                }
+                break;
+           default:
+               break;
+           }
+           break;
+        default:
+            break;
+        }
         mm_camera_dispatch_app_event(my_obj, evt);
     }
 }

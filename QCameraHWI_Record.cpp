@@ -38,11 +38,11 @@
 // ---------------------------------------------------------------------------
 namespace android {
 
-QCameraStream* QCameraStream_record::createInstance(mm_camera_t *native_camera,
+QCameraStream* QCameraStream_record::createInstance(int cameraId,
                                       camera_mode_t mode)
 {
   LOGV("%s: BEGIN", __func__);
-  QCameraStream* pme = new QCameraStream_record(native_camera, mode);
+  QCameraStream* pme = new QCameraStream_record(cameraId, mode);
   LOGV("%s: END", __func__);
   return pme;
 }
@@ -63,10 +63,10 @@ void QCameraStream_record::deleteInstance(QCameraStream *ptr)
 // ---------------------------------------------------------------------------
 // QCameraStream_record Constructor
 // ---------------------------------------------------------------------------
-QCameraStream_record::QCameraStream_record(mm_camera_t *native_camera,
+QCameraStream_record::QCameraStream_record(int cameraId,
                                            camera_mode_t mode)
   :QCameraStream(),
-  mmCamera(native_camera),
+  mCameraId(cameraId),
   myMode (mode),
   mDebugFps(false)
 {
@@ -134,13 +134,13 @@ status_t QCameraStream_record::init()
   /*
   *  Acquiring Video Channel
   */
-  ret = QCameraStream::initChannel (mmCamera, MM_CAMERA_CH_VIDEO_MASK);
+  ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_VIDEO_MASK);
   if (NO_ERROR!=ret) {
     LOGE("%s ERROR: Can't init native cammera preview ch\n",__func__);
     return ret;
   }
 
-  ret = mmCamera->cfg->prepare_buf(mmCamera, &mRecordBuf);
+  ret = cam_config_prepare_buf(mCameraId, &mRecordBuf);
   if(ret != MM_CAMERA_OK) {
     LOGV("%s ERROR: Reg preview buf err=%d\n", __func__, ret);
     ret = BAD_VALUE;
@@ -170,16 +170,16 @@ status_t QCameraStream_record::start()
   }
 
   /*
-  * Register the Callback with mmcamera
+  * Register the Callback with camera
   */
-  (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_VIDEO,
+  (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
                                             record_notify_cb,
                                             this);
 
   /*
   * Start Video Streaming
   */
-  ret = mmCamera->ops->action(mmCamera, TRUE, MM_CAMERA_OPS_VIDEO, 0);
+  ret = cam_ops_action(mCameraId, TRUE, MM_CAMERA_OPS_VIDEO, 0);
   if (MM_CAMERA_OK != ret) {
     LOGE ("%s ERROR: Video streaming start err=%d\n", __func__, ret);
     ret = BAD_VALUE;
@@ -213,7 +213,7 @@ void QCameraStream_record::stop()
     mRecordFreeQueueLock.unlock();
     LOGE("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__,
                                               releasedBuf.video.video.idx);
-    if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,&releasedBuf))
+    if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId,&releasedBuf))
         LOGE("%s : Buf Done Failed",__func__);
   }
   mRecordFreeQueueLock.unlock();
@@ -222,16 +222,15 @@ void QCameraStream_record::stop()
         LOGE("%s : Waiting for Encoder to release all buffer!\n", __FUNCTION__);
   }
 #endif
-  /* yyan TODO: unregister the notify fn from the mmmm_camera_t object*/
+  /* unregister the notify fn from the mmmm_camera_t object
+   *  call stop() in parent class to stop the monitor thread */
 
-  /* yyan TODO: call stop() in parent class to stop the monitor thread*/
-
-  ret = mmCamera->ops->action(mmCamera, FALSE, MM_CAMERA_OPS_VIDEO, 0);
+  ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_VIDEO, 0);
   if (MM_CAMERA_OK != ret) {
     LOGE ("%s ERROR: Video streaming Stop err=%d\n", __func__, ret);
   }
 
- (void)mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_VIDEO,
+ (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
                                             NULL,
                                             NULL);
   mActive = false;
@@ -254,12 +253,12 @@ void QCameraStream_record::release()
     return;
   }
 
-  ret = mmCamera->cfg->unprepare_buf(mmCamera,MM_CAMERA_CH_VIDEO);
+  ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_VIDEO);
   if(ret != MM_CAMERA_OK){
     LOGE("%s ERROR: Ureg video buf \n", __func__);
   }
 
-  ret= QCameraStream::deinitChannel(mmCamera,MM_CAMERA_CH_VIDEO);
+  ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_VIDEO);
   if(ret != MM_CAMERA_OK) {
     LOGE("%s:Deinit Video channel failed=%d\n", __func__, ret);
   }
@@ -320,7 +319,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
       }
       frameCnt++;
     }
-    if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,frame))
+    if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId, frame))
       LOGE("%s : BUF DONE FAILED",__func__);
 #endif
   LOGE("%s : END",__func__);
@@ -342,7 +341,7 @@ status_t QCameraStream_record::initEncodeBuffers()
   {
     pmem_region = "/dev/pmem_adsp";
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-    ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: ERROR - can't get camera dimension!", __func__);
       return BAD_VALUE;
@@ -426,7 +425,7 @@ void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)
   mRecordFreeQueueLock.unlock();
   LOGI("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__,
                                             releasedBuf.video.video.idx);
-  if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,&releasedBuf))
+  if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &releasedBuf))
       LOGE("%s : Buf Done Failed",__func__);
   LOGE("%s : END",__func__);
   return;

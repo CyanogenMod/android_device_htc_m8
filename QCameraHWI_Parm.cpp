@@ -370,7 +370,7 @@ bool QCameraHardwareInterface::native_set_parms(
     mm_camera_parm_type_t type, uint16_t length, void *value)
 {
     LOGE("%s : type : %d Value : %d",__func__,type,*((int *)value));
-    if(MM_CAMERA_OK!=mmCamera->cfg->set_parm(mmCamera,type,value )) {
+    if(MM_CAMERA_OK != cam_config_set_parm(mCameraId, type,value )) {
         LOGE("native_set_parms failed: type %d length %d error %s",
             type, length, strerror(errno));
         return false;
@@ -384,7 +384,7 @@ bool QCameraHardwareInterface::native_set_parms(
     mm_camera_parm_type_t type, uint16_t length, void *value, int *result)
 {
 
-    *result= mmCamera->cfg->set_parm(mmCamera,type,value );
+    *result= cam_config_set_parm(mCameraId, type,value );
     if(MM_CAMERA_OK!=*result) {
         LOGE("native_set_parms failed: type %d length %d error %s",
             type, length, strerror(errno));
@@ -533,8 +533,7 @@ void QCameraHardwareInterface::hasAutoFocusSupport(){
         return;
     }
 
-    if(mmCamera->ops->is_op_supported (mmCamera,
-                                     MM_CAMERA_OPS_FOCUS )) {
+    if(cam_ops_is_op_supported (mCameraId, MM_CAMERA_OPS_FOCUS )) {
         mHasAutoFocusSupport = true;
     }
     else {
@@ -559,7 +558,7 @@ bool QCameraHardwareInterface::supportsSceneDetection() {
 }
 
 bool QCameraHardwareInterface::supportsFaceDetection() {
-    bool rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FD);
+    bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_FD);
     return rc;
 }
 
@@ -595,35 +594,31 @@ void QCameraHardwareInterface::initDefaultParameters()
     bool ret;
     LOGI("%s: E", __func__);
 
-    if (mmCamera) {
-      //cam_ctrl_dimension_t dim;
-      memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
-      mDimension.video_width     = DEFAULT_STREAM_WIDTH;
-      mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
-      mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
-      mDimension.picture_height  = DEFAULT_STREAM_HEIGHT;
-      mDimension.display_width   = DEFAULT_STREAM_WIDTH;
-      mDimension.display_height  = DEFAULT_STREAM_HEIGHT;
-      mDimension.orig_picture_dx = mDimension.picture_width;
-      mDimension.orig_picture_dy = mDimension.picture_height;
-      mDimension.ui_thumbnail_width = DEFAULT_STREAM_WIDTH;
-      mDimension.ui_thumbnail_height = DEFAULT_STREAM_HEIGHT;
-      mDimension.orig_video_width = DEFAULT_STREAM_WIDTH;
-      mDimension.orig_video_height = DEFAULT_STREAM_HEIGHT;
+    //cam_ctrl_dimension_t dim;
+    memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
+    mDimension.video_width     = DEFAULT_STREAM_WIDTH;
+    mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
+    mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
+    mDimension.picture_height  = DEFAULT_STREAM_HEIGHT;
+    mDimension.display_width   = DEFAULT_STREAM_WIDTH;
+    mDimension.display_height  = DEFAULT_STREAM_HEIGHT;
+    mDimension.orig_picture_dx = mDimension.picture_width;
+    mDimension.orig_picture_dy = mDimension.picture_height;
+    mDimension.ui_thumbnail_width = DEFAULT_STREAM_WIDTH;
+    mDimension.ui_thumbnail_height = DEFAULT_STREAM_HEIGHT;
+    mDimension.orig_video_width = DEFAULT_STREAM_WIDTH;
+    mDimension.orig_video_height = DEFAULT_STREAM_HEIGHT;
 
-      mDimension.prev_format     = CAMERA_YUV_420_NV21;
-      mDimension.enc_format      = CAMERA_YUV_420_NV12;
-      mDimension.main_img_format = CAMERA_YUV_420_NV21;
-      mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+    mDimension.prev_format     = CAMERA_YUV_420_NV21;
+    mDimension.enc_format      = CAMERA_YUV_420_NV12;
+    mDimension.main_img_format = CAMERA_YUV_420_NV21;
+    mDimension.thumb_format    = CAMERA_YUV_420_NV21;
 
-      ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
-                                sizeof(cam_ctrl_dimension_t), (void *) &mDimension);
-      if(!ret) {
-        LOGE("MM_CAMERA_PARM_DIMENSION Failed.");
-        return;
-      }
-    }else{
-        LOGE("Native Camera is not set.");
+    ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
+                              sizeof(cam_ctrl_dimension_t), (void *) &mDimension);
+    if(!ret) {
+      LOGE("MM_CAMERA_PARM_DIMENSION Failed.");
+      return;
     }
 
     hasAutoFocusSupport();
@@ -700,7 +695,8 @@ void QCameraHardwareInterface::initDefaultParameters()
         mZoomSupported=false;
         mMaxZoom=0;
         mm_camera_zoom_tbl_t zmt;
-        if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_MAXZOOM,&mMaxZoom)){
+        if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
+                             MM_CAMERA_PARM_MAXZOOM, &mMaxZoom)){
             LOGE("%s:Failed to get max zoom",__func__);
         }else{
 
@@ -713,7 +709,8 @@ void QCameraHardwareInterface::initDefaultParameters()
             }
             zmt.size=mMaxZoom;
             zmt.zoom_ratio_tbl=&zoomRatios[0];
-            if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_ZOOM_RATIO,&zmt)){
+            if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
+                                 MM_CAMERA_PARM_ZOOM_RATIO, &zmt)){
                 LOGE("%s:Failed to get max zoom ratios",__func__);
             }else{
                 mZoomSupported=true;
@@ -782,7 +779,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
 
 
-    if (mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS)) {
+    if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
                         mPreviewFrameRateValues.string());
      } /* Apurva else {
@@ -795,7 +792,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.setPreviewFrameRateMode("frame-rate-auto");
     mFrameRateModeValues = create_values_str(
             frame_rate_modes, sizeof(frame_rate_modes) / sizeof(str_map));
-      if(mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS_MODE)){
+      if(cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS_MODE)){
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATE_MODES,
                     mFrameRateModeValues.string());
     }
@@ -913,7 +910,7 @@ void QCameraHardwareInterface::initDefaultParameters()
                    CameraParameters::FOCUS_MODE_INFINITY);
     }
     //Set Flash
-    if (mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_LED_MODE)) {
+    if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_LED_MODE)) {
         mParameters.set(CameraParameters::KEY_FLASH_MODE,
                         CameraParameters::FLASH_MODE_OFF);
         mParameters.set(CameraParameters::KEY_SUPPORTED_FLASH_MODES,
@@ -962,8 +959,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_MEM_COLOR_ENHANCE_MODES,
                     mMceValues);
     //Set HFR
-    if (mmCamera->cfg->is_parm_supported(mmCamera,
-                                                         MM_CAMERA_PARM_HFR)) {
+    if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_HFR)) {
         mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE,
                     CameraParameters::VIDEO_HFR_OFF);
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,
@@ -1038,15 +1034,15 @@ void QCameraHardwareInterface::initDefaultParameters()
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
     float verticalViewAngle = 0.0f;
-    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_FOCAL_LENGTH,
+    cam_config_get_parm(mCameraId, MM_CAMERA_PARM_FOCAL_LENGTH,
             (void *)&focalLength);
     mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
                     focalLength);
-    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
+    cam_config_get_parm(mCameraId, MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE,
             (void *)&horizontalViewAngle);
     mParameters.setFloat(CameraParameters::KEY_HORIZONTAL_VIEW_ANGLE,
                     horizontalViewAngle);
-    mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE,
+    cam_config_get_parm(mCameraId, MM_CAMERA_PARM_VERTICAL_VIEW_ANGLE,
             (void *)&verticalViewAngle);
     mParameters.setFloat(CameraParameters::KEY_VERTICAL_VIEW_ANGLE,
                     verticalViewAngle);
@@ -1196,9 +1192,9 @@ status_t QCameraHardwareInterface::runFaceDetection()
         }
         mMetaDataWaitLock.unlock();
 		cam_ctrl_dimension_t dim;
-		ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+		cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 	    preview_parm_config (&dim, mParameters);
-        ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+        ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
         ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
         return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
@@ -1211,7 +1207,7 @@ status_t QCameraHardwareInterface::setSharpness(const CameraParameters& params)
     bool ret = false;
     int rc = MM_CAMERA_OK;
     LOGE("%s",__func__);
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_SHARPNESS);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_SHARPNESS);
     if(!rc) {
         LOGE("%s:CONTRAST not supported", __func__);
         return NO_ERROR;
@@ -1233,7 +1229,7 @@ status_t QCameraHardwareInterface::setSaturation(const CameraParameters& params)
     bool ret = false;
     int rc = MM_CAMERA_OK;
     LOGE("%s",__func__);
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_SATURATION);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_SATURATION);
     if(!rc) {
         LOGE("%s:MM_CAMERA_PARM_SATURATION not supported", __func__);
         return NO_ERROR;
@@ -1258,7 +1254,7 @@ status_t QCameraHardwareInterface::setContrast(const CameraParameters& params)
 {
    LOGE("%s E", __func__ );
    int rc = MM_CAMERA_OK;
-   rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_CONTRAST);
+   rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_CONTRAST);
    if(!rc) {
         LOGE("%s:CONTRAST not supported", __func__);
         return NO_ERROR;
@@ -1295,7 +1291,7 @@ status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params
     bool retParm;
     int rc = MM_CAMERA_OK;
 
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ASD_ENABLE);
+    rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_ASD_ENABLE);
     if(!rc) {
         LOGE("%s:MM_CAMERA_PARM_ASD_ENABLE not supported", __func__);
         return NO_ERROR;
@@ -1325,7 +1321,7 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
     LOGE("%s: E",__func__);
 
 
-    if( !( mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ZOOM))) {
+    if( !( cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_ZOOM))) {
         LOGE("%s:MM_CAMERA_PARM_ZOOM not supported", __func__);
         return NO_ERROR;
     }
@@ -1362,7 +1358,7 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
     status_t rc = NO_ERROR;
     LOGE("%s",__func__);
 
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ISO);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_ISO);
     if(!rc) {
         LOGE("%s:MM_CAMERA_PARM_ISO not supported", __func__);
         return NO_ERROR;
@@ -1438,7 +1434,7 @@ status_t QCameraHardwareInterface::setSceneMode(const CameraParameters& params)
     status_t rc = NO_ERROR;
     LOGE("%s",__func__);
 
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_BESTSHOT_MODE);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_BESTSHOT_MODE);
     if(!rc) {
         LOGE("%s:Parameter Scenemode is not supported for this sensor", __func__);
         return NO_ERROR;
@@ -1490,7 +1486,7 @@ status_t QCameraHardwareInterface::setEffect(const CameraParameters& params)
         LOGE("Setting effect %s",str);
         int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-           rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_EFFECT);
+           rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_EFFECT);
            if(!rc) {
                LOGE("Camera Effect - %s mode is not supported for this sensor",str);
                return NO_ERROR;
@@ -1515,7 +1511,7 @@ status_t QCameraHardwareInterface::setBrightness(const CameraParameters& params)
 
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_BRIGHTNESS);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_BRIGHTNESS);
    if(!rc) {
        LOGE("MM_CAMERA_PARM_BRIGHTNESS mode is not supported for this sensor");
        return NO_ERROR;
@@ -1538,7 +1534,7 @@ status_t QCameraHardwareInterface::setAutoExposure(const CameraParameters& param
 
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_EXPOSURE);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_EXPOSURE);
    if(!rc) {
        LOGE("MM_CAMERA_PARM_EXPOSURE mode is not supported for this sensor");
        return NO_ERROR;
@@ -1561,7 +1557,7 @@ status_t QCameraHardwareInterface::setExposureCompensation(
         const CameraParameters & params){
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_EXPOSURE_COMPENSATION);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_EXPOSURE_COMPENSATION);
     if(!rc) {
        LOGE("MM_CAMERA_PARM_EXPOSURE_COMPENSATION mode is not supported for this sensor");
        return NO_ERROR;
@@ -1589,7 +1585,7 @@ status_t QCameraHardwareInterface::setWhiteBalance(const CameraParameters& param
 
      LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_WHITE_BALANCE);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_WHITE_BALANCE);
     if(!rc) {
        LOGE("MM_CAMERA_PARM_WHITE_BALANCE mode is not supported for this sensor");
        return NO_ERROR;
@@ -1618,7 +1614,7 @@ status_t QCameraHardwareInterface::setAntibanding(const CameraParameters& params
 
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ANTIBANDING);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_ANTIBANDING);
     if(!rc) {
        LOGE("ANTIBANDING mode is not supported for this sensor");
        return NO_ERROR;
@@ -1648,7 +1644,7 @@ status_t QCameraHardwareInterface::setPreviewFrameRate(const CameraParameters& p
 {
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS);
     if(!rc) {
        LOGE("MM_CAMERA_PARM_FPS is not supported for this sensor");
        return NO_ERROR;
@@ -1676,12 +1672,12 @@ status_t QCameraHardwareInterface::setPreviewFrameRateMode(const CameraParameter
 
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS);
     if(!rc) {
        LOGE(" CAMERA FPS mode is not supported for this sensor");
        return NO_ERROR;
     }
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FPS_MODE);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS_MODE);
     if(!rc) {
        LOGE("CAMERA FPS MODE mode is not supported for this sensor");
        return NO_ERROR;
@@ -1795,7 +1791,7 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
 status_t QCameraHardwareInterface::setSkinToneEnhancement(const CameraParameters& params) {
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_SCE_FACTOR);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_SCE_FACTOR);
     if(!rc) {
        LOGE("SkinToneEnhancement is not supported for this sensor");
        return NO_ERROR;
@@ -1815,7 +1811,7 @@ status_t QCameraHardwareInterface::setSkinToneEnhancement(const CameraParameters
 status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& params) {
     LOGE("%s",__func__);
     status_t rc = NO_ERROR;
-    rc = mmCamera->cfg->is_parm_supported(mmCamera, MM_CAMERA_PARM_WAVELET_DENOISE);
+    rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_WAVELET_DENOISE);
     if(rc != MM_CAMERA_PARM_SUPPORT_SET) {
         LOGE("Wavelet Denoise is not supported for this sensor");
         /* TO DO */
@@ -2060,7 +2056,7 @@ status_t QCameraHardwareInterface::setStrTextures(const CameraParameters& params
 status_t QCameraHardwareInterface::setFlash(const CameraParameters& params)
 {
     LOGI("%s: E",__func__);
-    int rc = mmCamera->cfg->is_parm_supported(mmCamera, MM_CAMERA_PARM_LED_MODE);
+    int rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_LED_MODE);
     if(!rc) {
         LOGE("%s:LED FLASH not supported", __func__);
         return NO_ERROR;
@@ -2161,7 +2157,7 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
 status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& params)
 {
 
-    int rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ROLLOFF);
+    int rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_ROLLOFF);
     if(!rc) {
         LOGE("%s:LENS SHADING not supported", __func__);
         return NO_ERROR;
@@ -2431,7 +2427,7 @@ int QCameraHardwareInterface::getRemainingSnapshots(void)
 {
     int remaining_snapshot = 0;
 
-    if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,
+    if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
                                              MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
                                              &remaining_snapshot)){
         LOGE("%s:Failed to get max zoom",__func__);
@@ -2498,9 +2494,8 @@ status_t QCameraHardwareInterface::setPreviewSizeTable(void)
 
     /* Get maximum preview size supported by sensor*/
     memset(&dim, 0, sizeof(mm_camera_dimension_t));
-    ret = mmCamera->cfg->get_parm(mmCamera,
-                                  MM_CAMERA_PARM_MAX_PREVIEW_SIZE,
-                                  &dim);
+    ret = cam_config_get_parm(mCameraId,
+                              MM_CAMERA_PARM_MAX_PREVIEW_SIZE, &dim);
     if (ret != NO_ERROR) {
         LOGE("%s: Failure getting Max Preview Size supported by camera",
              __func__);
@@ -2552,9 +2547,8 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
 
     /* Get maximum picture size supported by sensor*/
     memset(&dim, 0, sizeof(mm_camera_dimension_t));
-    ret = mmCamera->cfg->get_parm(mmCamera,
-                                  MM_CAMERA_PARM_MAX_PICTURE_SIZE,
-                                  &dim);
+    ret = cam_config_get_parm(mCameraId,
+                              MM_CAMERA_PARM_MAX_PICTURE_SIZE, &dim);
     if (ret != NO_ERROR) {
         LOGE("%s: Failure getting Max Picture Size supported by camera",
              __func__);

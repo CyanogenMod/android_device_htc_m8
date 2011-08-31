@@ -277,7 +277,8 @@ typedef enum {
     to query capabilities based on V4L2 interface is being
     discussed. */
 typedef enum {
-    CAMERA_OPS_STREAMING_PREVIEW,
+    CAMERA_OPS_LOCAL = -1,  /*no need to query mm-camera*/
+    CAMERA_OPS_STREAMING_PREVIEW = 0,
     CAMERA_OPS_STREAMING_ZSL,
     CAMERA_OPS_STREAMING_VIDEO,
     CAMERA_OPS_CAPTURE, /*not supported*/
@@ -294,6 +295,8 @@ typedef enum {
     CAMERA_OPS_RAW_CAPTURE,
     CAMERA_OPS_ENCODE, /*15*/
     CAMERA_OPS_ZSL_STREAMING_CB,
+    /* add new above*/
+    CAMERA_OPS_MAX
 }mm_camera_legacy_ops_type_t;
 
 typedef enum {
@@ -480,6 +483,61 @@ typedef enum {
     MM_CAMERA_PAD_2K,
     MM_CAMERA_PAD_MAX
 } mm_camera_pad_type_t;
+
+/*configure methods*/
+uint8_t cam_config_is_parm_supported(
+  int cam_id,
+  mm_camera_parm_type_t parm_type);
+uint8_t cam_config_is_ch_supported(
+  int cam_id,
+  mm_camera_channel_type_t ch_type);
+/* set a parm’s current value */
+int32_t cam_config_set_parm(
+  int cam_id,
+  mm_camera_parm_type_t parm_type,
+  void* p_value);
+/* get a parm’s current value */
+int32_t cam_config_get_parm(
+  int cam_id,
+  mm_camera_parm_type_t parm_type,
+  void* p_value);
+int32_t cam_config_prepare_buf(int cam_id, mm_camera_reg_buf_t *buf);
+int32_t cam_config_unprepare_buf(int cam_id, mm_camera_channel_type_t ch_type);
+
+/*operation methods*/
+uint8_t cam_ops_is_op_supported(int cam_id, mm_camera_ops_type_t opcode);
+/* val is reserved for some action such as MM_CAMERA_OPS_FOCUS */
+int32_t cam_ops_action(int cam_id, uint8_t start,
+  mm_camera_ops_type_t opcode, void *val);
+int32_t cam_ops_open(int cam_id, mm_camera_op_mode_type_t op_mode);
+void cam_ops_close(int cam_id);
+int32_t cam_ops_ch_acquire(int cam_id, mm_camera_channel_type_t ch_type);
+void cam_ops_ch_release(int cam_id, mm_camera_channel_type_t ch_type);
+int32_t cam_ops_ch_set_attr(int cam_id, mm_camera_channel_type_t ch_type,
+  mm_camera_channel_attr_t *attr);
+
+/*call-back notify methods*/
+uint8_t cam_evt_is_event_supported(int cam_id, mm_camera_event_type_t evt_type);
+int32_t cam_evt_register_event_notify(int cam_id,
+  mm_camera_event_notify_t evt_cb,
+  void * user_data,
+  mm_camera_event_type_t evt_type);
+int32_t cam_evt_register_buf_notify(int cam_id,
+  mm_camera_channel_type_t ch_type,
+  mm_camera_buf_notify_t buf_cb,
+  void * user_data);
+int32_t cam_evt_buf_done(int cam_id, mm_camera_ch_data_buf_t *bufs);
+
+/*camera JPEG methods*/
+uint8_t cam_jpeg_is_jpeg_supported(int cam_id);
+int32_t cam_jpeg_set_parm(int cam_id, mm_camera_jpeg_parm_type_t parm_type,
+  void* p_value);
+int32_t cam_jpeg_get_parm(int cam_id, mm_camera_jpeg_parm_type_t parm_type,
+  void* p_value);
+int32_t cam_jpeg_register_event_cb(int cam_id, mm_camera_jpeg_cb_t * evt_cb,
+  void * user_data);
+int32_t cam_jpeg_encode(int cam_id, uint8_t start,
+  mm_camera_jpeg_encode_t *data);
 
 mm_camera_t * mm_camera_query(uint8_t *num_cameras);
 extern uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd);

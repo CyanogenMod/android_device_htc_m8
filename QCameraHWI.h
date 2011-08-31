@@ -165,7 +165,7 @@ public:
     virtual void     encodeData();
     virtual void release();
 
-    static sp<CameraHardwareInterface> createInstance(mm_camera_t *, int);
+    static sp<CameraHardwareInterface> createInstance(int, int);
     virtual status_t    takeLiveSnapshot();
     virtual bool useOverlay(void);
     virtual status_t setOverlay(const sp<Overlay> &overlay);
@@ -186,7 +186,7 @@ public:
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
 
 private:
-                        QCameraHardwareInterface(mm_camera_t *, int);
+                        QCameraHardwareInterface(int  cameraId, int);
     virtual             ~QCameraHardwareInterface();
 
     static const int kBufferCount = 4;
@@ -291,6 +291,7 @@ private:
     String8 create_values_str(const str_map *values, int len);
 
 
+    int              mCameraId;
     mutable Mutex       mLock;
     mutable Mutex       eventLock;
     Mutex mParametersLock;
@@ -302,7 +303,6 @@ private:
     sp<MemoryHeapBase>  mPreviewHeap;
     sp<MemoryBase>      mBuffers[kBufferCount];
 
-    mm_camera_t         *mmCamera;
     bool                mPreviewRunning;
     bool                mRecordRunning;
     int                 mPreviewFrameSize;

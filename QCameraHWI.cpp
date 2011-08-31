@@ -46,10 +46,10 @@ static void HAL_event_cb(mm_camera_event_t *evt, void *user_data)
 
 /* constructor */
 QCameraHardwareInterface::
-QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
+QCameraHardwareInterface(int cameraId, int mode)
                   : mParameters(),
                     mPreviewHeap(0),
-                    mmCamera(native_camera),
+                    mCameraId(cameraId),
                     mPreviewRunning (false),
                     mRecordRunning (false),
                     mAutoFocusRunning(false),
@@ -100,23 +100,21 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
     mMultiTouch = atoi(value);
 
     /* Open camera stack! */
-    if (mmCamera) {
-        result=mmCamera->ops->open(mmCamera, MM_CAMERA_OP_MODE_NOTUSED);
-        if (result == MM_CAMERA_OK) {
-          int i;
-          mm_camera_event_type_t evt;
-          for (i = 0; i < MM_CAMERA_EVT_TYPE_MAX; i++) {
-            evt = (mm_camera_event_type_t) i;
-            if (mmCamera->evt->is_event_supported(mmCamera, evt)){
-                mmCamera->evt->register_event_notify(mmCamera,
-                  HAL_event_cb, (void *)this, evt);
-            }
-          }
+    result=cam_ops_open(mCameraId, MM_CAMERA_OP_MODE_NOTUSED);
+    if (result == MM_CAMERA_OK) {
+      int i;
+      mm_camera_event_type_t evt;
+      for (i = 0; i < MM_CAMERA_EVT_TYPE_MAX; i++) {
+        evt = (mm_camera_event_type_t) i;
+        if (cam_evt_is_event_supported(mCameraId, evt)){
+            cam_evt_register_event_notify(mCameraId,
+              HAL_event_cb, (void *)this, evt);
         }
+      }
     }
     LOGE("Cam open returned %d",result);
     if(MM_CAMERA_OK != result) {
-          LOGE("startCamera: mm_camera_ops_open failed: handle used : 0x%p",mmCamera);
+          LOGE("startCamera: cam_ops_open failed: id = %d", mCameraId);
     } else {
       mCameraState = CAMERA_STATE_READY;
 
@@ -168,8 +166,7 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
         mStreamSnap = NULL;
     }
-    mm_camera_t* current_camera = mmCamera;
-    current_camera->ops->close(current_camera);
+    cam_ops_close(mCameraId);
     LOGI("~QCameraHardwareInterface: X");
 }
 
@@ -301,12 +298,9 @@ status_t QCameraHardwareInterface::dump(int fd, const Vector<String16>& args) co
 status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
                                          int32_t arg2)
 {
-    LOGI("sendCommand: E");
-    status_t rc = NO_ERROR;
-    if (!mmCamera) {
-        rc = BAD_VALUE;
-    } else {
-      Mutex::Autolock l(&mLock);
+  LOGI("sendCommand: E");
+  status_t rc = NO_ERROR;
+  Mutex::Autolock l(&mLock);
 
       switch (command) {
         case CAMERA_CMD_HISTOGRAM_ON:
@@ -384,23 +378,22 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
           default:
             LOGV(" No preview, no smoothzoom ");
             break;
-          }
-          rc = NO_ERROR;
-          break;
-
-          case CAMERA_CMD_STOP_SMOOTH_ZOOM:
-            if(mSmoothZoomRunning) {
-              mSmoothZoomRunning = false;
-              /*To Do: send cmd to stop zooming*/
-            }
-             LOGV("HAL sendcmd stop smooth zoom");
-             rc = NO_ERROR;
-             break;
-#endif
-          default:
-            break;
       }
-    }
+      rc = NO_ERROR;
+      break;
+
+      case CAMERA_CMD_STOP_SMOOTH_ZOOM:
+        if(mSmoothZoomRunning) {
+          mSmoothZoomRunning = false;
+          /*To Do: send cmd to stop zooming*/
+        }
+         LOGV("HAL sendcmd stop smooth zoom");
+         rc = NO_ERROR;
+         break;
+#endif
+      default:
+        break;
+  }
     LOGI("sendCommand: X");
     return rc;
 }
@@ -440,10 +433,10 @@ void QCameraHardwareInterface::setMyMode(int mode)
 }
 
 /* static factory function */
-sp<CameraHardwareInterface> QCameraHardwareInterface::createInstance(mm_camera_t *native_camera, int mode)
+sp<CameraHardwareInterface> QCameraHardwareInterface::createInstance(int cameraId, int mode)
 {
     LOGI("createInstance: E");
-    QCameraHardwareInterface *cam = new QCameraHardwareInterface(native_camera, mode);
+    QCameraHardwareInterface *cam = new QCameraHardwareInterface(cameraId, mode);
     if (cam ) {
       if (cam->mCameraState != CAMERA_STATE_READY) {
         LOGE("createInstance: Failed");
@@ -463,10 +456,10 @@ sp<CameraHardwareInterface> QCameraHardwareInterface::createInstance(mm_camera_t
 
 /* external plug in function */
 extern "C" sp<CameraHardwareInterface>
-QCameraHAL_openCameraHardware(mm_camera_t *native_camera, int mode)
+QCameraHAL_openCameraHardware(int  cameraId, int mode)
 {
     LOGI("QCameraHAL_openCameraHardware: E");
-    return QCameraHardwareInterface::createInstance(native_camera, mode);
+    return QCameraHardwareInterface::createInstance(cameraId, mode);
 }
 
 bool QCameraHardwareInterface::useOverlay(void)
@@ -803,16 +796,9 @@ status_t QCameraHardwareInterface::startPreview()
         return startPreviewZSL();
     }
 
-    if (!mmCamera) {
-        LOGE("%s: error - native camera is NULL!", __func__);
-        LOGE("%s: X", __func__);
-        return BAD_VALUE;
-    }
-    else{
-      /* yyan : get existing preview information, by qury mm_camera*/
-      memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-      ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
-    }
+    /*  get existing preview information, by qury mm_camera*/
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't get preview dimension!", __func__);
@@ -830,7 +816,7 @@ status_t QCameraHardwareInterface::startPreview()
 
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
-    ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't config preview parms!", __func__);
       LOGE("%s: X", __func__);
@@ -850,7 +836,7 @@ status_t QCameraHardwareInterface::startPreview()
        and call mPreviewStream->start() later ,
       */
     if (!mStreamDisplay){
-      mStreamDisplay = QCameraStream_preview::createInstance(mmCamera,
+      mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
                                                       CAMERA_MODE_2D);
       LOGE("%s:Creating new stream instance",__func__);
     }
@@ -902,16 +888,9 @@ status_t QCameraHardwareInterface::startPreviewZSL()
         return NO_ERROR;
     }
 
-    if (!mmCamera) {
-        LOGE("%s: error - native camera is NULL!", __func__);
-        LOGE("%s: X", __func__);
-        return BAD_VALUE;
-    }
-    else{
       /* Get existing preview information by querying mm_camera*/
       memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-      ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
-    }
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't get preview dimension!", __func__);
@@ -921,7 +900,7 @@ status_t QCameraHardwareInterface::startPreviewZSL()
 
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
-    ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't config preview parms!", __func__);
       LOGE("%s: X", __func__);
@@ -941,7 +920,7 @@ status_t QCameraHardwareInterface::startPreviewZSL()
        and call mPreviewStream->start() later ,
       */
     if (!mStreamDisplay){
-      mStreamDisplay = QCameraStream_preview::createInstance(mmCamera,
+      mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
                                                              CAMERA_ZSL_MODE);
       LOGD("%s:Creating new stream instance",__func__);
     }
@@ -971,7 +950,7 @@ status_t QCameraHardwareInterface::startPreviewZSL()
     /*
      * Creating Instance of snapshot stream.
      */
-    mStreamSnap = QCameraStream_Snapshot::createInstance(mmCamera,
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
                                                          CAMERA_ZSL_MODE);
 
     if (!mStreamSnap) {
@@ -1127,7 +1106,7 @@ status_t QCameraHardwareInterface::startRecording()
     /*
      * Creating Instance of record stream.
      */
-    mStreamRecord = QCameraStream_record::createInstance(mmCamera,
+    mStreamRecord = QCameraStream_record::createInstance(mCameraId,
             CAMERA_MODE_2D);
 
     if (!mStreamRecord) {
@@ -1385,7 +1364,7 @@ status_t  QCameraHardwareInterface::takePicture()
     /*
      * Creating Instance of snapshot stream.
      */
-    mStreamSnap = QCameraStream_Snapshot::createInstance(mmCamera,
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
                                                        myMode);
 
     if (!mStreamSnap) {
@@ -1476,7 +1455,7 @@ status_t QCameraHardwareInterface::autoFocus()
 
 
     LOGI("%s:AF start (mode %d)",__func__,afMode);
-    if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,TRUE,MM_CAMERA_OPS_FOCUS,&afMode )) {
+    if(MM_CAMERA_OK!=cam_ops_action(mCameraId,TRUE,MM_CAMERA_OPS_FOCUS,&afMode )) {
       LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
       return UNKNOWN_ERROR;
     }
@@ -1513,7 +1492,7 @@ status_t QCameraHardwareInterface::cancelAutoFocus()
 *************************************************************/
 
 
-    if(MM_CAMERA_OK!=mmCamera->ops->action(mmCamera,FALSE,MM_CAMERA_OPS_FOCUS,NULL )) {
+    if(MM_CAMERA_OK!=cam_ops_action(mCameraId,FALSE,MM_CAMERA_OPS_FOCUS,NULL )) {
       LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
     }
 
@@ -1617,7 +1596,7 @@ void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
     v4l2_crop.ch_type=MM_CAMERA_CH_SNAPSHOT;
 
     LOGI("%s: Fetching crop info", __func__);
-    mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+    cam_config_get_parm(mCameraId,MM_CAMERA_PARM_CROP,&v4l2_crop);
 
     LOGI("%s: Crop info received for main: %d, %d, %d, %d ", __func__,
          v4l2_crop.snapshot.main_crop.left,
@@ -1650,7 +1629,7 @@ void QCameraHardwareInterface::handleZoomEventForPreview(void)
         v4l2_crop.ch_type = MM_CAMERA_CH_PREVIEW;
 
         LOGI("%s: Fetching crop info", __func__);
-        mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+        cam_config_get_parm(mCameraId,MM_CAMERA_PARM_CROP,&v4l2_crop);
 
         LOGE("%s: Crop info received: %d, %d, %d, %d ", __func__,
              v4l2_crop.crop.left,
@@ -1826,7 +1805,7 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
         if (mDumpFrmCnt >= 0 && mDumpFrmCnt <= frm_num) {
           int w, h;
           cam_ctrl_dimension_t dim = mDimension;
-          status_t ret = mmCamera->cfg->get_parm(mmCamera,
+          status_t ret = cam_config_get_parm(mCameraId,
             MM_CAMERA_PARM_DIMENSION, &dim);
           int file_fd;
           switch (frm_type) {

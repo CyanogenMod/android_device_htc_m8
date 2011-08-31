@@ -226,10 +226,10 @@ static mm_camera_config_t mm_camera_cfg = {
 static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera,
                                               mm_camera_ops_type_t opcode)
 {
-    uint8_t is_ops_supported = TRUE;
+    uint8_t is_ops_supported;
     mm_camera_obj_t * my_obj = NULL;
     int index = 0;
-    mm_camera_legacy_ops_type_t legacy_opcode;
+    mm_camera_legacy_ops_type_t legacy_opcode = CAMERA_OPS_MAX;
 
     /* Temp: We will be translating our new opcode
        to legacy ops type. This is just a hack to
@@ -257,7 +257,18 @@ static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera,
     case MM_CAMERA_OPS_FOCUS:
         legacy_opcode = CAMERA_OPS_FOCUS;
         break;
+    case MM_CAMERA_OPS_GET_BUFFERED_FRAME:
+      legacy_opcode = CAMERA_OPS_LOCAL;
+      is_ops_supported = TRUE;
+      CDBG("MM_CAMERA_OPS_GET_BUFFERED_FRAME not handled");
+      break;
+    default:
+      CDBG_ERROR("%s: case %d not handled", __func__, opcode);
+      legacy_opcode = CAMERA_OPS_LOCAL;
+      is_ops_supported = FALSE;
+      break;
     }
+    if (legacy_opcode != CAMERA_OPS_LOCAL) {
     pthread_mutex_lock(&g_mutex);
     my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
     pthread_mutex_unlock(&g_mutex);
@@ -267,6 +278,9 @@ static uint8_t mm_camera_ops_is_op_supported (mm_camera_t * camera,
         is_ops_supported = ((my_obj->properties.ops[index] &
             (1<<legacy_opcode)) != 0);
         pthread_mutex_unlock(&my_obj->mutex);
+      } else {
+        is_ops_supported = FALSE;
+      }
     }
 
     return is_ops_supported;
@@ -597,4 +611,262 @@ end:
     else
         return NULL;
 }
+
+
+static mm_camera_t * get_camera_by_id( int cam_id)
+{
+  mm_camera_t * mm_cam;
+  if( cam_id < 0 || cam_id >= g_cam_ctrl.num_cam) {
+     mm_cam = NULL;
+  } else {
+    mm_cam = & g_cam_ctrl.camera[cam_id];
+  }
+  return mm_cam;
+}
+
+/*configure methods*/
+uint8_t cam_config_is_parm_supported(
+  int cam_id,
+  mm_camera_parm_type_t parm_type)
+{
+  uint8_t rc = 0;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam && mm_cam->cfg) {
+    rc = mm_cam->cfg->is_parm_supported(mm_cam, parm_type);
+  }
+  return rc;
+}
+
+uint8_t cam_config_is_ch_supported(
+  int cam_id,
+  mm_camera_channel_type_t ch_type)
+{
+  uint8_t rc = 0;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->cfg->is_ch_supported(mm_cam, ch_type);
+  }
+  return rc;
+
+}
+
+/* set a parm’s current value */
+int32_t cam_config_set_parm(
+  int cam_id,
+  mm_camera_parm_type_t parm_type,
+  void* p_value)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->cfg->set_parm(mm_cam, parm_type, p_value);
+  }
+  return rc;
+}
+
+/* get a parm’s current value */
+int32_t cam_config_get_parm(
+  int cam_id,
+  mm_camera_parm_type_t parm_type,
+  void* p_value)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->cfg->get_parm(mm_cam, parm_type, p_value);
+  }
+  return rc;
+}
+
+int32_t cam_config_prepare_buf(int cam_id, mm_camera_reg_buf_t *buf)
+{
+
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->cfg->prepare_buf(mm_cam, buf);
+  }
+  return rc;
+}
+int32_t cam_config_unprepare_buf(int cam_id, mm_camera_channel_type_t ch_type)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->cfg->unprepare_buf(mm_cam, ch_type);
+  }
+  return rc;
+}
+
+/*operation methods*/
+uint8_t cam_ops_is_op_supported(int cam_id, mm_camera_ops_type_t opcode)
+{
+  uint8_t rc = 0;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->ops->is_op_supported(mm_cam, opcode);
+  }
+  return rc;
+}
+/* val is reserved for some action such as MM_CAMERA_OPS_FOCUS */
+int32_t cam_ops_action(int cam_id, uint8_t start,
+  mm_camera_ops_type_t opcode, void *val)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->ops->action(mm_cam, start, opcode, val);
+  }
+  return rc;
+}
+
+int32_t cam_ops_open(int cam_id, mm_camera_op_mode_type_t op_mode)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->ops->open(mm_cam, op_mode);
+  }
+  return rc;
+}
+
+void cam_ops_close(int cam_id)
+{
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    mm_cam->ops->close(mm_cam);
+  }
+}
+
+int32_t cam_ops_ch_acquire(int cam_id, mm_camera_channel_type_t ch_type)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->ops->ch_acquire(mm_cam, ch_type);
+  }
+  return rc;
+}
+
+void cam_ops_ch_release(int cam_id, mm_camera_channel_type_t ch_type)
+{
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    mm_cam->ops->ch_release(mm_cam, ch_type);
+  }
+}
+
+int32_t cam_ops_ch_set_attr(int cam_id, mm_camera_channel_type_t ch_type,
+  mm_camera_channel_attr_t *attr)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->ops->ch_set_attr(mm_cam, ch_type, attr);
+  }
+  return rc;
+}
+
+/*call-back notify methods*/
+uint8_t cam_evt_is_event_supported(int cam_id, mm_camera_event_type_t evt_type)
+{
+  uint8_t rc = 0;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->evt->is_event_supported(mm_cam, evt_type);
+  }
+  return rc;
+}
+
+int32_t cam_evt_register_event_notify(int cam_id,
+  mm_camera_event_notify_t evt_cb,
+  void * user_data,
+  mm_camera_event_type_t evt_type)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->evt->register_event_notify(
+      mm_cam, evt_cb, user_data, evt_type);
+  }
+  return rc;
+}
+
+int32_t cam_evt_register_buf_notify(int cam_id,
+  mm_camera_channel_type_t ch_type,
+  mm_camera_buf_notify_t buf_cb,
+  void * user_data)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->evt->register_buf_notify(
+      mm_cam, ch_type, buf_cb, user_data);
+  }
+  return rc;
+}
+
+int32_t cam_evt_buf_done(int cam_id, mm_camera_ch_data_buf_t *bufs)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->evt->buf_done(mm_cam, bufs);
+  }
+  return rc;
+}
+
+/*camera JPEG methods*/
+uint8_t cam_jpeg_is_jpeg_supported(int cam_id)
+{
+  uint8_t rc = 0;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->jpeg_ops->is_jpeg_supported(mm_cam);
+  }
+  return rc;
+}
+
+int32_t cam_jpeg_set_parm(int cam_id, mm_camera_jpeg_parm_type_t parm_type,
+  void* p_value)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->jpeg_ops->set_parm(mm_cam, parm_type, p_value);
+  }
+  return rc;
+}
+
+int32_t cam_jpeg_get_parm(int cam_id, mm_camera_jpeg_parm_type_t parm_type,
+  void* p_value)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->jpeg_ops->get_parm(mm_cam, parm_type, p_value);
+  }
+  return rc;
+}
+int32_t cam_jpeg_register_event_cb(int cam_id, mm_camera_jpeg_cb_t * evt_cb,
+  void * user_data)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->jpeg_ops->register_event_cb(mm_cam, evt_cb, user_data);
+  }
+  return rc;
+}
+int32_t cam_jpeg_encode(int cam_id, uint8_t start,
+  mm_camera_jpeg_encode_t *data)
+{
+  int32_t rc = -1;
+  mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+  if (mm_cam) {
+    rc = mm_cam->jpeg_ops->encode(mm_cam, start, data);
+  }
+  return rc;
+}
+
 

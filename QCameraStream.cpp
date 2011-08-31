@@ -101,7 +101,7 @@ void StreamQueue::flush(){
 // ---------------------------------------------------------------------------
 
 /* initialize a streaming channel*/
-status_t QCameraStream::initChannel(mm_camera_t *native_camera,
+status_t QCameraStream::initChannel(int cameraId,
                                     uint32_t ch_type_mask)
 {
 
@@ -113,20 +113,19 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
 
     LOGV("%s: E, channel = %d\n", __func__, ch_type);
 
-    if (!native_camera || MM_CAMERA_CH_MAX<=ch_type) {
+    if (MM_CAMERA_CH_MAX <= ch_type) {
         LOGV("%s: BAD_VALUE", __func__);
         return BAD_VALUE;
     }
     /*yyan: first open the channel*/
     if(ch_type < MM_CAMERA_CH_MAX) {
-        rc = native_camera->ops->ch_acquire(native_camera, ch_type);
+        rc = cam_ops_ch_acquire(cameraId, ch_type);
         LOGV("%s:cam ch_open rc=%d\n",__func__, rc);
-    }
-    else {
+    } else {
         /* here we open all available channels */
         for(i = 0; i < MM_CAMERA_CH_MAX; i++) {
             if( MM_CAMERA_OK !=
-                (rc = native_camera->ops->ch_acquire(native_camera, (mm_camera_channel_type_t)i))) {
+                (rc = cam_ops_ch_acquire(cameraId, (mm_camera_channel_type_t)i))) {
                 LOGE("%s:cam ch_open err=%d\n",__func__, rc);
                 break;
             }
@@ -145,8 +144,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
 
   /* yyan : first get all sizes, by querying mm_camera*/
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-    rc = native_camera->cfg->get_parm(native_camera,\
-                                      MM_CAMERA_PARM_DIMENSION,&dim);
+    rc = cam_config_get_parm(cameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != rc) {
       LOGE("%s: error - can't get camera dimension!", __func__);
       LOGE("%s: X", __func__);
@@ -156,7 +154,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
     /*yyan: second init the channeles requested*/
 
     if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask) {
-        rc = native_camera->ops->ch_acquire(native_camera, MM_CAMERA_CH_PREVIEW);
+        rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_PREVIEW);
         LOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
 
         if(MM_CAMERA_OK != rc) {
@@ -175,8 +173,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
             LOGV("%s: preview channel resolution = %d X %d", __func__,
                      dim.display_width, dim.display_height);
 
-            rc = native_camera->cfg->set_parm(native_camera,
-                                                                                MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
+            rc = cam_config_set_parm(cameraId, MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
             LOGV("%s: preview MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
             if(MM_CAMERA_OK != rc) {
                     LOGE("%s:set preview channel format err=%d\n", __func__, ret);
@@ -189,7 +186,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
 
     if(MM_CAMERA_CH_VIDEO_MASK & ch_type_mask)
     {
-        rc = native_camera->ops->ch_acquire(native_camera, MM_CAMERA_CH_VIDEO);
+        rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_VIDEO);
         LOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
 
         if(MM_CAMERA_OK != rc) {
@@ -208,8 +205,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
             LOGV("%s: video channel resolution = %d X %d", __func__,
                  dim.video_width, dim.video_height);
 
-            rc = native_camera->cfg->set_parm(native_camera,
-                                                                                MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
+            rc = cam_config_set_parm(cameraId,  MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
 
             LOGV("%s: video MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
             if(MM_CAMERA_OK != rc) {
@@ -227,7 +223,7 @@ status_t QCameraStream::initChannel(mm_camera_t *native_camera,
     return ret;
 }
 
-status_t QCameraStream::deinitChannel(mm_camera_t *native_camera,
+status_t QCameraStream::deinitChannel(int cameraId,
                                     mm_camera_channel_type_t ch_type)
 {
 
@@ -235,12 +231,12 @@ status_t QCameraStream::deinitChannel(mm_camera_t *native_camera,
 
     LOGV("%s: E, channel = %d\n", __func__, ch_type);
 
-    if (!native_camera || MM_CAMERA_CH_MAX<=ch_type) {
+    if (MM_CAMERA_CH_MAX <= ch_type) {
         LOGE("%s: X: BAD_VALUE", __func__);
         return BAD_VALUE;
     }
 
-    native_camera->ops->ch_release(native_camera,ch_type);
+    cam_ops_ch_release(cameraId, ch_type);
 
     LOGV("%s: X, channel = %d\n", __func__, ch_type);
     return NO_ERROR;
@@ -332,8 +328,8 @@ void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
 // ---------------------------------------------------------------------------
 
 QCameraStream_noneZSL::
-QCameraStream_noneZSL(mm_camera_t *native_camera, camera_mode_t mode)
-  :mmCamera(native_camera), mActive(false),
+QCameraStream_noneZSL(int cameraId, camera_mode_t mode)
+  :mCameraId(cameraId), mActive(false),
    myMode (mode),  open_flag(0)
 
   {
@@ -364,14 +360,14 @@ status_t QCameraStream_noneZSL::init(mm_camera_reg_buf_t *reg_buf)
 
     if (MM_CAMERA_CH_PREVIEW == ch_type) {
         /* yyan TODO: open and config mm_camera preview channels*/
-        ret = QCameraStream::initChannel (mmCamera, MM_CAMERA_CH_PREVIEW_MASK);
+        ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_PREVIEW_MASK);
         if (NO_ERROR!=ret) {
           LOGE("%s E: can't init native cammera preview ch\n",__func__);
           return ret;
         }
 
 
-      ret = mmCamera->cfg->prepare_buf(mmCamera, reg_buf);
+      ret = cam_config_prepare_buf(mCameraId, reg_buf);
       if(ret != MM_CAMERA_OK) {
         LOGV("%s:reg preview buf err=%d\n", __func__, ret);
         ret = BAD_VALUE;
@@ -381,14 +377,14 @@ status_t QCameraStream_noneZSL::init(mm_camera_reg_buf_t *reg_buf)
     }
     else if (MM_CAMERA_CH_VIDEO == ch_type)//For Video
     {
-      ret = QCameraStream::initChannel (mmCamera, MM_CAMERA_CH_VIDEO_MASK);
+      ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_VIDEO_MASK);
         if (NO_ERROR!=ret) {
           LOGE("%s E: can't init native cammera preview ch\n",__func__);
           return ret;
         }
 
 
-      ret = mmCamera->cfg->prepare_buf(mmCamera, reg_buf);
+      ret = cam_config_prepare_buf(mCameraId, reg_buf);
       if(ret != MM_CAMERA_OK) {
         LOGV("%s:reg preview buf err=%d\n", __func__, ret);
         ret = BAD_VALUE;
@@ -436,30 +432,27 @@ status_t QCameraStream_noneZSL::start() {
   void QCameraStream_noneZSL::stop() {
     LOGV("%s: E", __func__);
 
-    /* yyan TODO: unregister the notify fn from the mmmm_camera_t object*/
-
-    /* yyan TODO: call stop() in parent class to stop the monitor thread*/
-     if (mmCamera) {
-      if(ch_type == MM_CAMERA_CH_PREVIEW) {
-        (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_PREVIEW,
-                                                  NULL,
-                                                  NULL);
-      }else if (ch_type == MM_CAMERA_CH_VIDEO) {
-        (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_VIDEO,
-                                                  NULL,
-                                                  NULL);
-      }else{
-        //TODO : Need snap shot Code?
-      }
+    /* unregister the notify fn from the mmmm_camera_t object
+     call stop() in parent class to stop the monitor thread */
+    if(ch_type == MM_CAMERA_CH_PREVIEW) {
+      (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
+                                                NULL,
+                                                NULL);
+    }else if (ch_type == MM_CAMERA_CH_VIDEO) {
+      (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                                NULL,
+                                                NULL);
+    }else{
+      /* TODO : Need snap shot Code? */
     }
 
     mActive =  false;
     LOGV("%s: X", __func__);
 
   }
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+   QCameraStream_noneZSL
+   --------------------------------------------------------------------------*/
   void QCameraStream_noneZSL::release() {
 
     LOGV("%s: E", __func__);
@@ -491,13 +484,12 @@ status_t QCameraStream_noneZSL::start() {
     (mm_camera_ch_data_buf_t *)data;
 
     /* yyan: buf is used, release it! */
-    if (mmCamera)
-      (void) mmCamera->evt->buf_done(mmCamera, bufs_used);
+    (void) cam_evt_buf_done(mCameraId, bufs_used);
+}
 
-  }
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
+/* ---------------------------------------------------------------------------
+ * QCameraStream_noneZSL
+ * ---------------------------------------------------------------------------*/
 
   void* QCameraStream_noneZSL::getUsedData() {
 
@@ -546,8 +538,8 @@ void QCameraStream_noneZSL::deleteInstance(QCameraStream *p)
 // ---------------------------------------------------------------------------
 
 QCameraStream_ZSL::
-QCameraStream_ZSL(mm_camera_t *native_camera, camera_mode_t mode)
-    :mmCamera(native_camera)
+QCameraStream_ZSL(int cameraId, camera_mode_t mode)
+    :mCameraId(cameraId)
 {
 
 }

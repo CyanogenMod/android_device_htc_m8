@@ -26,8 +26,8 @@ extern "C" {
 namespace android {
 
 /* HAL should return NULL if it fails to open camera hardware. */
-extern "C" sp<CameraHardwareInterface> 
-       QCameraHAL_openCameraHardware(mm_camera_t *native_camera, int mode);
+extern "C" sp<CameraHardwareInterface>
+       QCameraHAL_openCameraHardware(int  cameraId, int mode);
 
 
 }; // namespace android

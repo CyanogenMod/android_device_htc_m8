@@ -118,8 +118,8 @@ public:
     virtual void*       getUsedData();
 
     //static status_t     openChannel(mm_camera_t *, mm_camera_channel_type_t ch_type);
-    virtual status_t    initChannel(mm_camera_t *native_camera, uint32_t ch_type_mask);
-    virtual status_t    deinitChannel(mm_camera_t *native_camera, mm_camera_channel_type_t ch_type);
+    virtual status_t    initChannel(int cameraId, uint32_t ch_type_mask);
+    virtual status_t    deinitChannel(int cameraId, mm_camera_channel_type_t ch_type);
     virtual void releaseRecordingFrame(const sp<IMemory>& mem)
     {
       ;
@@ -157,7 +157,7 @@ public:
   void        stop()  ;
   void        release() ;
 
-  static QCameraStream*  createInstance(mm_camera_t *, camera_mode_t);
+  static QCameraStream*  createInstance(int cameraId, camera_mode_t);
   static void            deleteInstance(QCameraStream *p);
 
   QCameraStream_record() {};
@@ -173,9 +173,9 @@ public:
 
 
 private:
-  QCameraStream_record(mm_camera_t *, camera_mode_t);
+  QCameraStream_record(int, camera_mode_t);
 
-  mm_camera_t         *mmCamera;
+  int                  mCameraId;
   cam_ctrl_dimension_t dim;
   camera_mode_t        myMode;
   int                  open_flag;
@@ -205,7 +205,7 @@ public:
 
     void        useData(void*);
 
-    static QCameraStream*  createInstance(mm_camera_t *, camera_mode_t);
+    static QCameraStream*  createInstance(int, camera_mode_t);
   static void            deleteInstance(QCameraStream *p);
 
     QCameraStream_preview() {};
@@ -216,9 +216,9 @@ public:
     friend class QCameraHardwareInterface;
 
 private:
-                        QCameraStream_preview(mm_camera_t *, camera_mode_t);
+    QCameraStream_preview(int cameraId, camera_mode_t);
 
-    mm_camera_t *mmCamera;
+    int mCameraId;
     camera_mode_t myMode;
     int8_t              my_id;
     mm_camera_op_mode_type_t op_mode;
@@ -238,7 +238,7 @@ public:
     void        stop();
     void        release();
     void        prepareHardware();
-    static QCameraStream* createInstance(mm_camera_t *, camera_mode_t);
+    static QCameraStream* createInstance(int cameraId, camera_mode_t);
     static void deleteInstance(QCameraStream *p);
 
     status_t takePictureZSL(void);
@@ -256,10 +256,10 @@ public:
     bool isZSLMode();
 
     /* public members */
-    mm_camera_t *mmCamera;
+    int mCameraId;
 
 private:
-    QCameraStream_Snapshot(mm_camera_t *, camera_mode_t);
+    QCameraStream_Snapshot(int, camera_mode_t);
     virtual ~QCameraStream_Snapshot();
 
     /* snapshot related private members */
@@ -294,7 +294,7 @@ private:
     void setModeLiveSnapshot(bool);
     bool isLiveSnapshot(void);
     void stopPolling(void);
-    
+
 
     /* Member variables */
     int mSnapshotFormat;

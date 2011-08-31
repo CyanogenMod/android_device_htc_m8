@@ -28,10 +28,9 @@
 /* include QCamera Hardware Interface Header*/
 #include "QCameraHAL.h"
 
-int HAL_numOfCameras;
+int HAL_numOfCameras = 0;
 camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
 mm_camera_t * HAL_camerahandle[MSM_MAX_CAMERA_SENSORS];
-int HAL_currentCameraId;
 int HAL_currentCameraMode;
 
 namespace android {
@@ -124,17 +123,11 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
 /* HAL should return NULL if it fails to open camera hardware. */
 extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int mode)
 {
-    mm_camera_t *mm_camer_obj = 0;
     LOGV("%s: E", __func__);
-    if (!HAL_numOfCameras || HAL_numOfCameras < cameraId)
-        return NULL;
-    else
-        mm_camer_obj = HAL_camerahandle[cameraId];
-
-    if (!mm_camer_obj)
-        return NULL;
-    else
-        return QCameraHAL_openCameraHardware(mm_camer_obj, mode);
+    if (!HAL_numOfCameras || HAL_numOfCameras < cameraId ||cameraId < 0) {
+      return NULL;
+    }
+    return QCameraHAL_openCameraHardware(cameraId, mode);
 
 }
 

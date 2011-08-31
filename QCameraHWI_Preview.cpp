@@ -150,10 +150,10 @@ status_t QCameraStream_preview::initDisplayBuffers()
     cam_ctrl_dimension_t dim;
 
     LOGE("%s:BEGIN",__func__);
-  /* yyan : get preview size, by qury mm_camera*/
+  /* get preview size, by qury mm_camera*/
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     memset(&(this->mDisplayStreamBuf),0, sizeof(this->mDisplayStreamBuf));
-    ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't get camera dimension!", __func__);
       LOGE("%s: X", __func__);
@@ -175,7 +175,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
 /*mnsr*/
 #if 0
 
-  /* yyan todo: consider format later*/
+  /* consider format later*/
   if (CAMERA_MODE_3D == this->myMode)
     frame_len = (uint32_t)(PAD_TO_2K(width * height) * 3/2);
   else
@@ -184,7 +184,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
 
   this->mDisplayStreamBuf.frame_len = frame_len;
 
-  /*yyan: allocate memory for the buffers*/
+  /*allocate memory for the buffers*/
 
   for(int i = 0; i < this->mDisplayStreamBuf.num; i++){
 
@@ -222,7 +222,7 @@ end:
   }
 
     LOGV("%s: out of memory clean up", __func__);
-  // yyan TODO: release the allocated memory
+  /* release the allocated memory */
 
   LOGV("%s: X - BAD_VALUE ", __func__);
   return BAD_VALUE;
@@ -256,7 +256,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
      when preview stops and postview start during snapshot.*/
   mLastQueuedFrame = &(mDisplayStreamBuf.frame[frame->def.idx]);
 
-  if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,frame))
+  if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, frame))
   {
       LOGE("###############BUF DONE FAILED");
       return BAD_VALUE;
@@ -286,7 +286,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
     mOverlay->queueBuffer((void *)0/*offset_addr*/);
   }
   mOverlayLock.unlock();
-  if(MM_CAMERA_OK!=mmCamera->evt->buf_done(mmCamera,frame))
+  if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId,frame))
   {
       LOGE("###############BUF DONE FAILED");
   }
@@ -300,9 +300,9 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 // ---------------------------------------------------------------------------
 
 QCameraStream_preview::
-QCameraStream_preview(mm_camera_t *native_camera, camera_mode_t mode)
+QCameraStream_preview(int cameraId, camera_mode_t mode)
   : QCameraStream(),
-    mmCamera(native_camera),
+    mCameraId(cameraId),
     myMode (mode),  open_flag(0),
     mLastQueuedFrame(NULL)
   {
@@ -335,15 +335,13 @@ status_t QCameraStream_preview::init() {
     return BAD_VALUE;
   }
 
-
-  /* yyan TODO: open and config mm_camera preview channels*/
-  ret = QCameraStream::initChannel (mmCamera, MM_CAMERA_CH_PREVIEW_MASK);
+  ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_PREVIEW_MASK);
   if (NO_ERROR!=ret) {
     LOGE("%s E: can't init native cammera preview ch\n",__func__);
     return ret;
   }
 
-  ret = mmCamera->cfg->prepare_buf(mmCamera, reg_buf);
+  ret = cam_config_prepare_buf(mCameraId, reg_buf);
   if(ret != MM_CAMERA_OK) {
     LOGV("%s:reg preview buf err=%d\n", __func__, ret);
     ret = BAD_VALUE;
@@ -362,18 +360,11 @@ status_t QCameraStream_preview::start() {
     status_t ret = NO_ERROR;
 
     LOGV("%s: E", __func__);
-
-    if(mmCamera==NULL) {
-      LOGE("%s: X :Native camera not set",__func__);
-      return BAD_VALUE;
-    }
-
-    /* yyan TODO: call start() in parent class to start the monitor thread*/
+    /* call start() in parent class to start the monitor thread*/
     QCameraStream::start ();
 
-    /* yyan TODO: register a notify into the mmmm_camera_t object*/
-
-    (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_PREVIEW,
+    /* register a notify into the mmmm_camera_t object*/
+    (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
                                                 preview_notify_cb,
                                                 this);
 
@@ -388,7 +379,7 @@ status_t QCameraStream_preview::start() {
     if (myMode != CAMERA_ZSL_MODE) {
         LOGE("Setting OP MODE to MM_CAMERA_OP_MODE_VIDEO");
         mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
-        ret = mmCamera->cfg->set_parm (mmCamera, MM_CAMERA_PARM_OP_MODE,
+        ret = cam_config_set_parm (mCameraId, MM_CAMERA_PARM_OP_MODE,
                                         &op_mode);
         LOGE("OP Mode Set");
 
@@ -398,10 +389,9 @@ status_t QCameraStream_preview::start() {
         }
     }
 
-
-    /* yyan: call mm_camera action start(...)  */
+    /* call mm_camera action start(...)  */
     LOGE("Starting Preview/Video Stream. ");
-    ret = mmCamera->ops->action(mmCamera, TRUE, MM_CAMERA_OPS_PREVIEW, 0);
+    ret = cam_ops_action(mCameraId, TRUE, MM_CAMERA_OPS_PREVIEW, 0);
 
     if (MM_CAMERA_OK != ret) {
       LOGE ("%s: preview streaming start err=%d\n", __func__, ret);
@@ -427,10 +417,10 @@ status_t QCameraStream_preview::start() {
     if(!mActive) {
       return;
     }
-    /* yyan TODO: unregister the notify fn from the mmmm_camera_t object*/
+    /* unregister the notify fn from the mmmm_camera_t object*/
 
-    /* yyan TODO: call stop() in parent class to stop the monitor thread*/
-    ret = mmCamera->ops->action(mmCamera, FALSE, MM_CAMERA_OPS_PREVIEW, 0);
+    /* call stop() in parent class to stop the monitor thread*/
+    ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_PREVIEW, 0);
     if(MM_CAMERA_OK != ret) {
       LOGE ("%s: camera preview stop err=%d\n", __func__, ret);
     }
@@ -458,13 +448,13 @@ status_t QCameraStream_preview::start() {
       this->stop();
     }
 
-    ret = mmCamera->cfg->unprepare_buf(mmCamera, MM_CAMERA_CH_PREVIEW);
+    ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_PREVIEW);
     if(ret != MM_CAMERA_OK) {
       LOGE("%s:Unreg preview buf err=%d\n", __func__, ret);
       //ret = BAD_VALUE;
     }
 
-    ret= QCameraStream::deinitChannel(mmCamera,MM_CAMERA_CH_PREVIEW);
+    ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_PREVIEW);
     if(ret != MM_CAMERA_OK) {
       LOGE("%s:Deinit preview channel failed=%d\n", __func__, ret);
       //ret = BAD_VALUE;
@@ -477,7 +467,7 @@ status_t QCameraStream_preview::start() {
     }
 
     mInit = false;
-    /* yyan TODO: release all buffers ?? */
+    /* release all buffers ?? */
     LOGE("%s: END", __func__);
 
   }
@@ -494,16 +484,15 @@ status_t QCameraStream_preview::start() {
 // ---------------------------------------------------------------------------
 // QCameraStream_preview
 // ---------------------------------------------------------------------------
-/* yyan: do something to the used data*/
+/* do something to the used data*/
   void QCameraStream_preview::usedData(void* data) {
 
     /* we now we only deal with the mm_camera_ch_data_buf_t type*/
     mm_camera_ch_data_buf_t *bufs_used =
     (mm_camera_ch_data_buf_t *)data;
 
-    /* yyan: buf is used, release it! */
-    if (mmCamera)
-      (void) mmCamera->evt->buf_done(mmCamera, bufs_used);
+    /* buf is used, release it! */
+    (void) cam_evt_buf_done(mCameraId, bufs_used);
 
   }
 // ---------------------------------------------------------------------------
@@ -512,7 +501,7 @@ status_t QCameraStream_preview::start() {
 
   void* QCameraStream_preview::getUsedData() {
 
-    /* yyan: return one piece of used data */
+    /* return one piece of used data */
     return QCameraStream::getUsedData();
   }
 
@@ -521,7 +510,7 @@ status_t QCameraStream_preview::start() {
 // ---------------------------------------------------------------------------
 
   void QCameraStream_preview::newData(void* data) {
-    /* yyan : new data, add into parent's busy queue, to by used by useData() */
+    /* new data, add into parent's busy queue, to by used by useData() */
     QCameraStream::newData(data);
   }
 
@@ -530,11 +519,11 @@ status_t QCameraStream_preview::start() {
 // ---------------------------------------------------------------------------
 
 QCameraStream*
-QCameraStream_preview::createInstance(mm_camera_t *native_camera,
+QCameraStream_preview::createInstance(int cameraId,
                                       camera_mode_t mode)
 {
 
-  QCameraStream* pme = new QCameraStream_preview(native_camera, mode);
+  QCameraStream* pme = new QCameraStream_preview(cameraId, mode);
 
   return pme;
 }

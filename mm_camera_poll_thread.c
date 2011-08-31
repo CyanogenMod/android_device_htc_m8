@@ -138,7 +138,7 @@ static void mm_camera_poll_proc_pipe(mm_camera_poll_thread_t *poll_cb)
     mm_camera_sig_evt_t cmd_evt;
     read_len = read(poll_cb->data.pfds[0], &cmd_evt, sizeof(cmd_evt));
     CDBG("%s: read_fd = %d, read_len = %d, expect_len = %d",
-         __func__, poll_cb->data.pfds[0], (int)read_len, (int)sizeof(cmd_evt));
+         __func__, poll_cb->data.pfds[0], read_len, (int)sizeof(cmd_evt));
     switch(cmd_evt.cmd) {
     case MM_CAMERA_PIPE_CMD_FLASH_QUEUED_FRAME:
       mm_camera_dispatch_buffered_frames(poll_cb->data.my_obj,

@@ -206,17 +206,6 @@ typedef struct {
 #define MM_CAMERA_POLL_THRAED_MAX (MM_CAMERA_CH_MAX+1)
 
 typedef struct {
-  struct msm_mem_map_info cookie;
-  uint32_t vaddr;
-} mm_camera_mem_map_entry_t;
-
-#define MM_CAMERA_MEM_MAP_MAX 8
-typedef struct {
-  int num;
-  mm_camera_mem_map_entry_t entry[MM_CAMERA_MEM_MAP_MAX];
-} mm_camera_mem_map_t;
-
-typedef struct {
     int8_t my_id;
     camera_mode_t current_mode;
     mm_camera_op_mode_type_t op_mode;
@@ -232,7 +221,6 @@ typedef struct {
     mm_camera_ch_stream_count_t ch_stream_count[MM_CAMERA_CH_MAX];
     uint32_t evt_type_mask;
     mm_camera_poll_thread_t poll_threads[MM_CAMERA_POLL_THRAED_MAX];
-    mm_camera_mem_map_t hist_mem_map;
 } mm_camera_obj_t;
 
 #define MM_CAMERA_DEV_NAME_LEN 32

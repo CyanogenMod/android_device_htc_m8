@@ -881,9 +881,9 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
 
     /* Enable zoom support for video application if VPE enabled */
-   /* if(mZoomSupported && mVpeEnabled) {
+    if(mZoomSupported) {
         mParameters.set("video-zoom-support", "true");
-    } else*/ {
+    } else {
         mParameters.set("video-zoom-support", "false");
     }
 

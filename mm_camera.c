@@ -71,17 +71,17 @@ static int32_t mm_camera_ctrl_set_auto_focus (mm_camera_obj_t *my_obj, int value
     queryctrl.id = V4L2_CID_FOCUS_AUTO;
 
     if(value != 0 && value != 1) {
-        CDBG("%s:boolean required, invalid value = %d\n",__func__, value);
+        CDBG_ERROR("%s:boolean required, invalid value = %d\n",__func__, value);
         return -MM_CAMERA_E_INVALID_INPUT;
     }
     if (-1 == ioctl (my_obj->ctrl_fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-        CDBG ("V4L2_CID_FOCUS_AUTO is not supported\n");
+        CDBG_HIGH ("V4L2_CID_FOCUS_AUTO is not supported\n");
     } else if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED) {
-        CDBG ("%s:V4L2_CID_FOCUS_AUTO is not supported\n", __func__);
+        CDBG_HIGH ("%s:V4L2_CID_FOCUS_AUTO is not supported\n", __func__);
     } else {
         if(0 != (rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
                 V4L2_CID_FOCUS_AUTO, value))){
-            CDBG("%s: error, id=0x%x, value=%d, rc = %d\n",
+            CDBG_ERROR("%s: error, id=0x%x, value=%d, rc = %d\n",
                      __func__, V4L2_CID_FOCUS_AUTO, value, rc);
             rc = -1;
         }
@@ -114,7 +114,7 @@ static int32_t mm_camera_ctrl_set_whitebalance (mm_camera_obj_t *my_obj, int mod
     }
     if(0 != (rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
             id, value))){
-        CDBG("%s: error, exp_metering_action_param=%d, rc = %d\n", __func__, value, rc);
+        CDBG_ERROR("%s: error, exp_metering_action_param=%d, rc = %d\n", __func__, value, rc);
         goto end;
     }
 end:
@@ -130,7 +130,7 @@ static int32_t mm_camera_ctrl_set_toggle_afr (mm_camera_obj_t *my_obj) {
     }
     /* V4L2_CID_EXPOSURE_AUTO needs to be AUTO or SHUTTER_PRIORITY */
     if (value != V4L2_EXPOSURE_AUTO && value != V4L2_EXPOSURE_SHUTTER_PRIORITY) {
-    CDBG("%s: V4L2_CID_EXPOSURE_AUTO needs to be AUTO/SHUTTER_PRIORITY\n",
+    CDBG_ERROR("%s: V4L2_CID_EXPOSURE_AUTO needs to be AUTO/SHUTTER_PRIORITY\n",
         __func__);
     return -1;
   }
@@ -180,7 +180,7 @@ static int32_t mm_camera_util_set_op_mode(mm_camera_obj_t * my_obj,
     if (my_obj->op_mode == *op_mode)
         goto end;
     if(mm_camera_poll_busy(my_obj) == TRUE) {
-        CDBG("%s: cannot change op_mode while stream on\n", __func__);
+        CDBG_ERROR("%s: cannot change op_mode while stream on\n", __func__);
         rc = -MM_CAMERA_E_INVALID_OPERATION;
         goto end;
     }
@@ -201,7 +201,7 @@ static int32_t mm_camera_util_set_op_mode(mm_camera_obj_t * my_obj,
     }
     if(0 != (rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
             MSM_V4L2_PID_CAM_MODE, v4l2_op_mode))){
-        CDBG("%s: input op_mode=%d, s_ctrl rc=%d\n", __func__, *op_mode, rc);
+        CDBG_ERROR("%s: input op_mode=%d, s_ctrl rc=%d\n", __func__, *op_mode, rc);
         goto end;
     }
     /* if success update mode field */
@@ -344,7 +344,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                   CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
 
     default:
-        CDBG("%s: default: parm %d not supported\n", __func__, parm->parm_type);
+        CDBG_HIGH("%s: default: parm %d not supported\n", __func__, parm->parm_type);
         break;
     }
     return rc;
@@ -386,7 +386,7 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_DIMENSION, sizeof(cam_ctrl_dimension_t), parm->p_value);
         if(rc != MM_CAMERA_OK) {
-            CDBG("%s: mm_camera_send_native_ctrl_cmd err=%d\n", __func__, rc);
+            CDBG_ERROR("%s: mm_camera_send_native_ctrl_cmd err=%d\n", __func__, rc);
             break;
         }
         memcpy(&my_obj->dim, (cam_ctrl_dimension_t *)parm->p_value,
@@ -757,12 +757,12 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     uint8_t i;
 
     if(my_obj->op_mode != MM_CAMERA_OP_MODE_NOTUSED) {
-        CDBG("%s: not allowed in existing op mode %d\n",
+        CDBG_ERROR("%s: not allowed in existing op mode %d\n",
                  __func__, my_obj->op_mode);
         return -MM_CAMERA_E_INVALID_OPERATION;
     }
     if(op_mode >= MM_CAMERA_OP_MODE_MAX) {
-        CDBG("%s: invalid input %d\n",
+        CDBG_ERROR("%s: invalid input %d\n",
                  __func__, op_mode);
         return -MM_CAMERA_E_INVALID_INPUT;
     }
@@ -772,16 +772,16 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     do{
         n_try--;
         my_obj->ctrl_fd = open(dev_name,O_RDWR | O_NONBLOCK);
-        LOGE("Errno:%d",errno);
+        CDBG_ERROR("Errno:%d",errno);
         if((my_obj->ctrl_fd != -1) || (errno != EIO) || (n_try <= 0 ))
             break;
-        CDBG("%s:failed with I/O error retrying after %d milli-seconds",
+        CDBG_ERROR("%s:failed with I/O error retrying after %d milli-seconds",
              __func__,sleep_msec);
         usleep(sleep_msec*1000);
     }while(n_try>0);
 
     if (my_obj->ctrl_fd <= 0) {
-        CDBG("%s: cannot open control fd of '%s' Errno = %d\n",
+        CDBG_ERROR("%s: cannot open control fd of '%s' Errno = %d\n",
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);
         return -MM_CAMERA_E_GENERAL;
     }
@@ -790,7 +790,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
                         MSM_V4L2_PID_MMAP_INST, 0);
     if (rc < 0) {
-        CDBG("error: ioctl VIDIOC_S_CTRL MSM_V4L2_PID_MMAP_INST failed: %s\n",
+        CDBG_ERROR("error: ioctl VIDIOC_S_CTRL MSM_V4L2_PID_MMAP_INST failed: %s\n",
         strerror(errno));
         return -MM_CAMERA_E_GENERAL;
     }
@@ -809,7 +809,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
                                         sizeof(cam_prop_t),
                                         (void *)& my_obj->properties);
     if (rc != MM_CAMERA_OK) {
-        CDBG("%s: cannot get camera capabilities\n", __func__);
+        CDBG_ERROR("%s: cannot get camera capabilities\n", __func__);
         return -MM_CAMERA_E_GENERAL;
     }
 
@@ -847,7 +847,7 @@ int32_t mm_camera_close(mm_camera_obj_t *my_obj)
         rc = close(my_obj->ctrl_fd);
         if(rc < 0) {
             /* this is a dead end. */
-            CDBG("%s: !!!!FATAL ERROR!!!! ctrl_fd = %d, rc = %d",
+            CDBG_ERROR("%s: !!!!FATAL ERROR!!!! ctrl_fd = %d, rc = %d",
                  __func__, my_obj->ctrl_fd, rc);
         }
         my_obj->ctrl_fd = 0;

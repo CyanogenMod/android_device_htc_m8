@@ -788,7 +788,7 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
       }
 
       if((mframe == NULL) || (sframe == NULL)) {
-          CDBG("%s: Failed to get correct main and thumbnail frames!", __func__);
+          CDBG_ERROR("%s: Failed to get correct main and thumbnail frames!", __func__);
           goto end;
       }
 
@@ -910,7 +910,7 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
              my_obj->ch[ch_type].raw.mode == MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE) {
             if( MM_CAMERA_OK != (rc = mm_camera_util_s_ctrl(my_obj->ctrl_fd,
                 MSM_V4L2_PID_CAM_MODE, MSM_V4L2_CAM_OP_RAW))) {
-                CDBG("%s:set MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE err=%d\n", __func__, rc);
+                CDBG_ERROR("%s:set MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE err=%d\n", __func__, rc);
                 break;
             }
         }

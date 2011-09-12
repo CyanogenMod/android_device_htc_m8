@@ -82,7 +82,7 @@ static int32_t mm_camera_poll_sig(mm_camera_poll_thread_t *poll_cb,
     /* send cmd to worker */
     len = write(poll_cb->data.pfds[1], &cmd_evt, sizeof(cmd_evt));
     if(len < 1) {
-      CDBG("%s: len = %d, errno = %d", __func__, len, errno);
+      CDBG_ERROR("%s: len = %d, errno = %d", __func__, len, errno);
       //pthread_mutex_unlock(&poll_cb->mutex);
       //return -1;
     }
@@ -333,7 +333,7 @@ int mm_camera_poll_stop(mm_camera_obj_t * my_obj, mm_camera_poll_thread_t *poll_
     CDBG("%s, my_obj=0x%x\n", __func__, (uint32_t)my_obj);
     mm_camera_poll_sig(poll_cb, MM_CAMERA_PIPE_CMD_EXIT);
     if (pthread_join(poll_cb->data.pid, NULL) != 0) {
-        CDBG("%s: pthread dead already\n", __func__);
+        CDBG_ERROR("%s: pthread dead already\n", __func__);
     }
     return MM_CAMERA_OK;
 }
@@ -379,14 +379,14 @@ int mm_camera_poll_thread_launch(mm_camera_obj_t * my_obj, int ch_type)
     int rc = MM_CAMERA_OK;
     mm_camera_poll_thread_t *poll_cb = &my_obj->poll_threads[ch_type];
     if(mm_camera_poll_ch_busy(my_obj, ch_type) > 0) {
-        CDBG("%s: err, poll thread of channel %d already running. cam_id=%d\n",
+        CDBG_ERROR("%s: err, poll thread of channel %d already running. cam_id=%d\n",
              __func__, ch_type, my_obj->my_id);
         return -MM_CAMERA_E_INVALID_OPERATION;
     }
     poll_cb->data.ch_type = ch_type;
     rc = pipe(poll_cb->data.pfds);
     if(rc < 0) {
-        CDBG("%s: camera_id = %d, pipe open rc=%d\n", __func__, my_obj->my_id, rc);
+        CDBG_ERROR("%s: camera_id = %d, pipe open rc=%d\n", __func__, my_obj->my_id, rc);
         rc = - MM_CAMERA_E_GENERAL;
     }
     CDBG("%s: ch = %d, poll_type = %d, read fd = %d, write fd = %d",
@@ -419,7 +419,7 @@ int mm_camera_poll_thread_release(mm_camera_obj_t * my_obj, int ch_type)
     mm_camera_poll_thread_t *poll_cb = &my_obj->poll_threads[ch_type];
 
     /*if(mm_camera_poll_ch_busy(my_obj, ch_type) == 0) {
-        CDBG("%s: err, poll thread of channel % is not running. cam_id=%d\n",
+        CDBG_ERROR("%s: err, poll thread of channel % is not running. cam_id=%d\n",
              __func__, ch_type, my_obj->my_id);
         return -MM_CAMERA_E_INVALID_OPERATION;
     }*/

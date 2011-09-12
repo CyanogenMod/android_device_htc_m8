@@ -331,7 +331,7 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
     pthread_mutex_init(&g_cam_ctrl.cam_obj[camera_id]->mutex, NULL);
     rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
     if(rc < 0) {
-        CDBG("%s: open failed\n", __func__);
+        CDBG_ERROR("%s: open failed\n", __func__);
         pthread_mutex_destroy(&g_cam_ctrl.cam_obj[camera_id]->mutex);
         g_cam_ctrl.cam_obj[camera_id]->ref_count--;
         free(g_cam_ctrl.cam_obj[camera_id]);

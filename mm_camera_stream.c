@@ -194,7 +194,7 @@ int32_t mm_camera_util_s_ctrl( int32_t fd,  uint32_t id, int32_t value)
     control.value = value;
     rc = ioctl (fd, VIDIOC_S_CTRL, &control);
     if(rc) {
-        CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %d\n",
+        CDBG_ERROR("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %d\n",
                  __func__, fd, id, (uint32_t)value, rc);
         rc = MM_CAMERA_E_GENERAL;
     }
@@ -211,7 +211,7 @@ int32_t mm_camera_util_g_ctrl( int32_t fd, uint32_t id, int32_t *value)
     control.value = (int32_t)value;
     rc = ioctl (fd, VIDIOC_G_CTRL, &control);
     if(rc) {
-        CDBG("%s: fd=%d, G_CTRL, id=0x%x, rc = %d\n", __func__, fd, id, rc);
+        CDBG_ERROR("%s: fd=%d, G_CTRL, id=0x%x, rc = %d\n", __func__, fd, id, rc);
         rc = MM_CAMERA_E_GENERAL;
     }
     *value = control.value;
@@ -285,7 +285,7 @@ static int mm_camera_util_set_op_mode(int fd, int opmode)
 
         rc = ioctl(fd, VIDIOC_S_CTRL, &s_ctrl);
     if (rc < 0)
-        CDBG("%s: VIDIOC_S_CTRL failed, rc=%d\n",
+        CDBG_ERROR("%s: VIDIOC_S_CTRL failed, rc=%d\n",
                          __func__, rc);
     return rc;
 }
@@ -309,7 +309,7 @@ int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj,
                  idx, buffer.length);
     rc = ioctl(stream->fd, VIDIOC_QBUF, &buffer);
     if (rc < 0) {
-        CDBG("%s: VIDIOC_QBUF error = %d\n", __func__, rc);
+        CDBG_ERROR("%s: VIDIOC_QBUF error = %d\n", __func__, rc);
         return rc;
     }
     return rc;
@@ -327,7 +327,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
 
     if(vbuf->num > MM_CAMERA_MAX_NUM_FRAMES) {
         rc = -MM_CAMERA_E_GENERAL;
-        CDBG("%s: buf num %d > max limit %d\n",
+        CDBG_ERROR("%s: buf num %d > max limit %d\n",
                  __func__, vbuf->num, MM_CAMERA_MAX_NUM_FRAMES);
         goto end;
     }
@@ -353,7 +353,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
                               stream->fmt.fmt.pix.height,
                               image_type, &num_planes, planes);
     if(stream->frame.frame_len == 0) {
-        CDBG("%s:incorrect frame size = %d\n", __func__, stream->frame.frame_len);
+        CDBG_ERROR("%s:incorrect frame size = %d\n", __func__, stream->frame.frame_len);
         rc = -1;
         goto end;
     }
@@ -365,7 +365,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
              __func__,stream->fd, bufreq.count, bufreq.type, bufreq.memory);
     rc = ioctl(stream->fd, VIDIOC_REQBUFS, &bufreq);
     if (rc < 0) {
-      CDBG("%s: fd=%d, ioctl VIDIOC_REQBUFS failed: rc=%d\n",
+      CDBG_ERROR("%s: fd=%d, ioctl VIDIOC_REQBUFS failed: rc=%d\n",
         __func__, stream->fd, rc);
       goto end;
     }
@@ -389,7 +389,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
 
         rc = mm_camera_stream_qbuf(my_obj, stream, stream->frame.frame[i].idx);
         if (rc < 0) {
-            CDBG("%s: VIDIOC_QBUF rc = %d\n", __func__, rc);
+            CDBG_ERROR("%s: VIDIOC_QBUF rc = %d\n", __func__, rc);
             goto end;
         }
         stream->frame.ref_count[i] = 0;
@@ -412,7 +412,7 @@ static int mm_camera_stream_util_unreg_buf(mm_camera_obj_t * my_obj,
     bufreq.memory = V4L2_MEMORY_USERPTR;
     rc = ioctl(stream->fd, VIDIOC_REQBUFS, &bufreq);
     if (rc < 0) {
-        CDBG("%s: fd=%d, VIDIOC_REQBUFS failed, rc=%d\n",
+        CDBG_ERROR("%s: fd=%d, VIDIOC_REQBUFS failed, rc=%d\n",
               __func__, stream->fd, rc);
         return rc;
     }
@@ -438,7 +438,7 @@ static int32_t mm_camera_stream_fsm_notused(mm_camera_obj_t * my_obj,
                  __func__, dev_name, *((mm_camera_stream_type_t *)val));
         stream->fd = open(dev_name, O_RDWR | O_NONBLOCK);
         if(stream->fd <= 0){
-            CDBG("%s: open dev returned %d\n", __func__, stream->fd);
+            CDBG_ERROR("%s: open dev returned %d\n", __func__, stream->fd);
             return -1;
         }
         stream->stream_type = *((mm_camera_stream_type_t *)val);
@@ -467,7 +467,7 @@ static int32_t mm_camera_stream_util_proc_fmt(mm_camera_obj_t *my_obj,
 
     if(fmt->dim.width == 0 || fmt->dim.height == 0) {
         rc = -MM_CAMERA_E_INVALID_INPUT;
-        CDBG("%s:invalid input[w=%d,h=%d,fmt=%d]\n",
+        CDBG_ERROR("%s:invalid input[w=%d,h=%d,fmt=%d]\n",
                  __func__, fmt->dim.width, fmt->dim.height, fmt->fmt);
         goto end;
     }
@@ -488,7 +488,7 @@ static int32_t mm_camera_stream_util_proc_fmt(mm_camera_obj_t *my_obj,
                                       &(stream->fmt.fmt.pix_mp.num_planes));
     rc = ioctl(stream->fd, VIDIOC_S_FMT, &stream->fmt);
     if (rc < 0) {
-        CDBG("%s: ioctl VIDIOC_S_FMT failed: rc=%d\n", __func__, rc);
+        CDBG_ERROR("%s: ioctl VIDIOC_S_FMT failed: rc=%d\n", __func__, rc);
         rc = -MM_CAMERA_E_GENERAL;
     }
 end:
@@ -556,7 +556,7 @@ static int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
         pthread_mutex_lock(&stream->frame.mutex);
         rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
         if(rc < 0)
-            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
+            CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
                  __func__, frame->idx, rc);
         pthread_mutex_unlock(&stream->frame.mutex);
     }else{
@@ -596,7 +596,7 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
                     rc = mm_camera_stream_qbuf(my_obj, stream,
                              stream->frame.frame[i].idx);
                     if (rc < 0) {
-                        CDBG("%s: ioctl VIDIOC_QBUF error = %d\n", __func__, rc);
+                        CDBG_ERROR("%s: ioctl VIDIOC_QBUF error = %d\n", __func__, rc);
                         return rc;
                     }
                     stream->frame.ref_count[i] = 0;
@@ -608,7 +608,7 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
                      __func__, stream->fd, stream->stream_type);
             rc = ioctl(stream->fd, VIDIOC_STREAMON, &buf_type);
             if (rc < 0) {
-                    CDBG("%s: ioctl VIDIOC_STREAMON failed: rc=%d\n",
+                    CDBG_ERROR("%s: ioctl VIDIOC_STREAMON failed: rc=%d\n",
                         __func__, rc);
             }
             else
@@ -642,7 +642,7 @@ static int32_t mm_camera_stream_fsm_active(mm_camera_obj_t * my_obj,
                 __func__, stream->fd, stream->stream_type);
             rc = ioctl(stream->fd, VIDIOC_STREAMOFF, &buf_type);
             if (rc < 0) {
-                    CDBG("%s: STREAMOFF failed: %s\n",
+                    CDBG_ERROR("%s: STREAMOFF failed: %s\n",
                         __func__, strerror(errno));
             }
             else {

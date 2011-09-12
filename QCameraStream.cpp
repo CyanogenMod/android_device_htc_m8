@@ -250,6 +250,7 @@ status_t QCameraStream::deinitChannel(mm_camera_t *native_camera,
 QCameraStream::QCameraStream (){
     mInit = false;
     mActive = false;
+    memset(&mCrop, 0, sizeof(mm_camera_ch_crop_t));
 }
 
 QCameraStream::~QCameraStream () {;}

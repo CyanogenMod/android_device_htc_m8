@@ -502,8 +502,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
          scaling_params->in2_w, scaling_params->in2_h,
          scaling_params->out2_w, scaling_params->out2_h);
 
-  if(scaling_params->in2_w && scaling_params->in2_h &&
-     scaling_params->out2_w && scaling_params->out2_h) {
+  if(scaling_params->in2_w && scaling_params->in2_h) {
 
     if(jpegRotation)
       jpege_config.preference = JPEG_ENCODER_PREF_SOFTWARE_ONLY;
@@ -528,8 +527,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
     CDBG("There is no scaling information for JPEG main image scaling.");
   }
 
-  if(scaling_params->in1_w  && scaling_params->in1_h &&
-     scaling_params->out1_w && scaling_params->out1_h) {
+  if(scaling_params->in1_w  && scaling_params->in1_h) {
     /* Scaler information  for thumbnail */
     jpege_config.thumbnail_cfg.scale_cfg.enable = TRUE;
 

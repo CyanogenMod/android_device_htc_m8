@@ -58,9 +58,12 @@ typedef struct {
 #endif
 
 #define Q12 4096
+#define QCAMERA_PARM_ENABLE   1
+#define QCAMERA_PARM_DISABLE  0
+
 
 #include "QCameraStream.h"
-//#include "QCameraHWI_Mem.h"
+#include "QCameraHWI_Mem.h"
 struct str_map {
     const char *const desc;
     int val;
@@ -266,6 +269,7 @@ private:
     status_t setHighFrameRate(const CameraParameters& params);
     status_t setRedeyeReduction(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
+    status_t setHistogram(int histogram_en);
 
     void zoomEvent(cam_ctrl_status_t *status);
     void autofocusevent(cam_ctrl_status_t *status);
@@ -319,6 +323,7 @@ private:
      Mutex mCallbackLock;
      Mutex mOverlayLock;
      Mutex mAutofocusLock;
+
 
      /*mm_camera_reg_buf_t mRecordBuf;
      sp<PmemPool> mRecordHeap;
@@ -404,6 +409,12 @@ private:
      HAL_camera_state_type_t mCameraState;
      pthread_mutex_t mAsyncCmdMutex;
      pthread_cond_t mAsyncCmdWait;
+
+     /*for histogram*/
+     int mStatsOn;
+     int mCurrentHisto;
+     bool mSendData;
+     sp<AshmemPool> mStatHeap;
 
      void setMyMode(int mode);
 

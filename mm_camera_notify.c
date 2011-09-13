@@ -379,11 +379,17 @@ static int mm_camera_histo_fill_vaddr(mm_camera_obj_t *my_obj, mm_camera_event_t
         if(my_obj->hist_mem_map.entry[i].cookie.cookie ==
                 evt->e.stats.e.stats_histo.cookie) {
             rc = MM_CAMERA_OK;
-            evt->e.stats.e.stats_histo.cookie = my_obj->hist_mem_map.entry[i].vaddr;
+            evt->e.stats.e.stats_histo.histo_info =
+              my_obj->hist_mem_map.entry[i].vaddr + 512;
+            evt->e.stats.e.stats_histo.histo_len =
+              my_obj->hist_mem_map.entry[i].cookie.length - 512;
             CDBG("%s: histo stats addr: cookie=0x%x, vaddr = 0x%x, len = %d",
                 __func__, my_obj->hist_mem_map.entry[i].cookie.cookie,
-                evt->e.stats.e.stats_histo.cookie,
+                my_obj->hist_mem_map.entry[i].vaddr,
                 my_obj->hist_mem_map.entry[i].cookie.length);
+            CDBG("%s: histo stats addr: vaddr = 0x%x, len = %d",
+                __func__, evt->e.stats.e.stats_histo.histo_info,
+                evt->e.stats.e.stats_histo.histo_len);
             break;
         }
     }

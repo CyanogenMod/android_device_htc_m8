@@ -691,10 +691,8 @@ void QCameraHardwareInterface::initDefaultParameters()
                 touchafaec,sizeof(touchafaec)/sizeof(str_map));
         }
         //Currently Enabling Histogram for 8x60
-        if(mCurrentTarget == TARGET_MSM8660) {
-            mHistogramValues = create_values_str(
-                histogram,sizeof(histogram)/sizeof(str_map));
-        }
+        mHistogramValues = create_values_str(
+            histogram,sizeof(histogram)/sizeof(str_map));
         //Currently Enabling Skin Tone Enhancement for 8x60 and 7630
         if((mCurrentTarget == TARGET_MSM8660)||(mCurrentTarget == TARGET_MSM7630)) {
             mSkinToneEnhancementValues = create_values_str(
@@ -2531,6 +2529,40 @@ void QCameraHardwareInterface::freePictureTable(void)
             free(mPictureSizes);
         }
     }
+}
+
+status_t QCameraHardwareInterface::setHistogram(int histogram_en)
+{
+    LOGE("setHistogram: E");
+
+    if(mStatsOn == histogram_en) {
+        return NO_ERROR;
+     }
+
+    mSendData = histogram_en;
+    mStatsOn = histogram_en;
+    mCurrentHisto = -1;
+    if (histogram_en  && mStatHeap == NULL) {
+    /*Currently the Ashmem is multiplying the buffer size with total number
+    of buffers and page aligning. This causes a crash in JNI as each buffer
+    individually expected to be page aligned  */
+    int page_size_minus_1 = getpagesize() - 1;
+    int statSize = sizeof (camera_preview_histogram_info );
+    int32_t mAlignedStatSize = ((statSize + page_size_minus_1) & (~page_size_minus_1));
+
+    mStatHeap =
+      new AshmemPool(mAlignedStatSize, 3, statSize, "stat");
+      if (!mStatHeap->initialized()) {
+          LOGE("Stat Heap X failed ");
+          mStatHeap.clear();
+          mStatHeap = NULL;
+          return UNKNOWN_ERROR;
+      }
+    }
+    native_set_parms(MM_CAMERA_PARM_HISTOGRAM, sizeof(int), &histogram_en);
+    /*when turn histogram off, do not release the heap memory, release it
+    when close camera */
+    return NO_ERROR;
 }
 
 }; /*namespace android */

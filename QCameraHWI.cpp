@@ -80,6 +80,7 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mCurrentZoom(0),
                     mFps(0),
                     mPictureSizes(NULL),
+                    mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
                     mDumpFrmCnt(0), mDumpSkipCnt(0)
 {
     LOGI("QCameraHardwareInterface: E");
@@ -150,6 +151,10 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     int result;
 
     freePictureTable();
+    if(mStatHeap != NULL) {
+      mStatHeap.clear( );
+      mStatHeap = NULL;
+    }
 
     if(mStreamDisplay){
         QCameraStream_preview::deleteInstance (mStreamDisplay);
@@ -166,7 +171,6 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     mm_camera_t* current_camera = mmCamera;
     current_camera->ops->close(current_camera);
     LOGI("~QCameraHardwareInterface: X");
-
 }
 
 void QCameraHardwareInterface::release()
@@ -304,18 +308,20 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
       Mutex::Autolock l(&mLock);
 
       switch (command) {
-#if 0 /*TO Do: will enable it later*/
         case CAMERA_CMD_HISTOGRAM_ON:
-           LOGV("histogram set to on");
-           rc = setHistogramOn();
+           LOGE("histogram set to on");
+           rc = setHistogram(1);
            break;
         case CAMERA_CMD_HISTOGRAM_OFF:
-           LOGV("histogram set to off");
-           rc = setHistogramOff();
+           LOGE("histogram set to off");
+           rc = setHistogram(0);
            break;
-        case CAMERA_CMD_HISTOGRAM_SEND_DATA:
+      case CAMERA_CMD_HISTOGRAM_SEND_DATA:
+        LOGE("histogram send data");
+          mSendData = true;
           rc = NO_ERROR;
           break;
+#if 0 /*TO Do: will enable it later*/
         case CAMERA_CMD_FACE_DETECTION_ON:
           if(supportsFaceDetection() == false){
               LOGI("face detection support is not available");
@@ -540,7 +546,6 @@ void QCameraHardwareInterface::debugShowPreviewFPS() const
 
 void QCameraHardwareInterface::processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processPreviewChannelEvent: E");
-    Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
             mCameraState = CAMERA_STATE_PREVIEW;
@@ -559,7 +564,6 @@ void QCameraHardwareInterface::processPreviewChannelEvent(mm_camera_ch_event_typ
 
 void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processRecordChannelEvent: E");
-    Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
             mCameraState = CAMERA_STATE_RECORD;
@@ -578,7 +582,6 @@ void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type
 
 void QCameraHardwareInterface::processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processSnapshotChannelEvent: E");
-    Mutex::Autolock lock(mLock);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMMING_ON:
             mCameraState = CAMERA_STATE_SNAP_CMD_ACKED;
@@ -598,6 +601,7 @@ void QCameraHardwareInterface::processSnapshotChannelEvent(mm_camera_ch_event_ty
 void QCameraHardwareInterface::processChannelEvent(mm_camera_ch_event_t *event)
 {
     LOGI("processChannelEvent: E");
+    Mutex::Autolock lock(mLock);
     switch(event->ch) {
         case MM_CAMERA_CH_PREVIEW:
             processPreviewChannelEvent(event->evt);
@@ -618,6 +622,7 @@ void QCameraHardwareInterface::processChannelEvent(mm_camera_ch_event_t *event)
 void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 {
     LOGI("processCtrlEvent: %d, E",event->evt);
+    Mutex::Autolock lock(mLock);
     switch(event->evt)
     {
         case MM_CAMERA_CTRL_EVT_ZOOM_DONE:
@@ -634,14 +639,51 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
     LOGI("processCtrlEvent: X");
     return;
 }
+
 void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
-  return;
+    LOGV("processStatsEvent E");
+    Mutex::Autolock lock(mLock);
+    if (!isPreviewRunning( )) {
+        LOGE("preview is not running");
+        return;
+    }
+
+    switch (event->event_id) {
+    case MM_CAMERA_STATS_EVT_HISTO:
+      {
+        LOGE("HAL process Histo: mMsgEnabled=0x%x, mStatsOn=%d, mSendData=%d, mDataCb=%p ",
+             (mMsgEnabled & CAMERA_MSG_STATS_DATA), mStatsOn, mSendData, mDataCb);
+        int msgEnabled = mMsgEnabled;
+        camera_preview_histogram_info* hist_info = (camera_preview_histogram_info*)
+           event->e.stats_histo.histo_info;
+        if(mStatsOn == QCAMERA_PARM_ENABLE && mSendData &&
+           mDataCb && (msgEnabled & CAMERA_MSG_STATS_DATA) ) {
+          uint32_t *dest;
+            mSendData = false;
+            mCurrentHisto = (mCurrentHisto + 1) % 3;
+        // The first element of the array will contain the maximum hist value provided by driver.
+            dest = (uint32_t *) ((unsigned int)mStatHeap->mHeap->base() +
+              (mStatHeap->mBufferSize * mCurrentHisto));
+            *dest = hist_info->max_value;
+            dest++;
+            memcpy(dest , (uint32_t *)hist_info->buffer,(sizeof(int32_t) * 256));
+            mDataCb(CAMERA_MSG_STATS_DATA, mStatHeap->mBuffers[mCurrentHisto], mCallbackCookie);
+        }
+      }
+      break;
+
+    default:
+      break;
+    }
+  LOGV("receiveCameraStats X");
 }
+
 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
     LOGI("processEvent: E");
+
     switch(event->event_type)
     {
         case MM_CAMERA_EVT_TYPE_CH:
@@ -1000,10 +1042,6 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
 {
     LOGE("autoFocusEvent: E");
     int ret = NO_ERROR;
-
-    Mutex::Autolock lock(mLock);
-
-
 /**************************************************************
   BEGIN MUTEX CODE
   *************************************************************/
@@ -1301,7 +1339,6 @@ void QCameraHardwareInterface::processprepareSnapshotEvent(cam_ctrl_status_t *st
 void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
 {
     LOGE("zoomEvent: state:%d E",mCameraState);
-    Mutex::Autolock lock(mLock);
     switch(mCameraState ) {
       case CAMERA_STATE_SNAP_CMD_ACKED:
 

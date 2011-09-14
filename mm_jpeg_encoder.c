@@ -150,11 +150,9 @@ void mm_jpege_event_handler(void *p_user_data, jpeg_event_t event, void *p_arg)
 #endif
 //    mmcamera_util_profile("encoder done");
   }
-  pthread_mutex_lock(&jpegcb_mutex);
+
   if(mmcamera_jpeg_callback)
     mmcamera_jpeg_callback(event, user_data);
-  pthread_mutex_unlock(&jpegcb_mutex);
-
 }
 
 /*===========================================================================

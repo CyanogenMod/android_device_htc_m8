@@ -56,7 +56,7 @@ typedef enum {
 static const int PICTURE_FORMAT_JPEG = 1;
 static const int PICTURE_FORMAT_RAW = 2;
 static const int POSTVIEW_SMALL_HEIGHT = 144;
-static const int ZSL_INTERNAL_QUEUE_SIZE = MAX_ZSL_IMAGES;
+
 // ---------------------------------------------------------------------------
 /* static functions*/
 // ---------------------------------------------------------------------------
@@ -145,7 +145,20 @@ static void snapshot_jpeg_fragment_cb(uint8_t *ptr,
 static void snapshot_jpeg_cb(jpeg_event_t event, void *user_data)
 {
     QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)user_data;
-    LOGD("%s: E",__func__);
+    LOGD("%s: E ",__func__);
+
+    if (event != JPEG_EVENT_DONE) {
+        if (event == JPEG_EVENT_THUMBNAIL_DROPPED) {
+            LOGE("%s: Error in thumbnail encoding (event: %d)!!!",
+                 __func__, event);
+            LOGD("%s: X",__func__);
+            return;
+        }
+        else {
+            LOGE("%s: Error (event: %d) while jpeg encoding!!!", 
+                 __func__, event);
+        }
+    }
 
     if (pme != NULL) {
          pme->receiveCompleteJpegPicture(event);
@@ -219,8 +232,8 @@ receiveCompleteJpegPicture(jpeg_event_t event)
       // to the next, so we cannot reuse the MemoryBase object.
       sp<MemoryBase> buffer = new MemoryBase(mJpegHeap->mHeap, 0, mJpegOffset);
       mHalCamCtrl->mDataCb(msg_type,
-                                 buffer,
-                                 mHalCamCtrl->mCallbackCookie);
+                           buffer,
+                           mHalCamCtrl->mCallbackCookie);
         buffer = NULL;
 
     } else {
@@ -271,26 +284,10 @@ receiveCompleteJpegPicture(jpeg_event_t event)
             LOGD("%s: Complete JPEG Encoding Done!", __func__);
             setSnapshotState(SNAPSHOT_STATE_JPEG_COMPLETE_ENCODE_DONE);
             mBurstModeFlag = false;
-        }
-        else {
-            /* ZSL Mode: Total number of callbacks for raw images to encode is
-               limited by maximum number of zsl queue maintained by mm-lib.
-               Also, it's possible that required number of buffers may not have
-               been enqueued in ZSL queue. In such case, once we are done with
-               first call to get buffered frame, we'll need to call again */
-            if (isZSLMode()) {
-                mm_camera_ops_parm_get_buffered_frame_t param;
-                memset(&param, 0, sizeof(param));
-                param.ch_type = MM_CAMERA_CH_SNAPSHOT;
-
-                /* Take snapshot */
-                LOGD("%s: Get %d number of buffered frames!!!", __func__, remaining_cb);
-                if (NO_ERROR !=cam_ops_action(mCameraId,
-                                                      TRUE,
-                                                      MM_CAMERA_OPS_GET_BUFFERED_FRAME,
-                                                      &param)) {
-                    LOGE("%s: Failure getting zsl frame(s)", __func__);
-                }
+            /* in case of zsl, we need to reset some of the zsl attributes */
+            if (isZSLMode()){
+                LOGD("%s: Resetting the ZSL attributes", __func__);
+                setZSLChannelAttribute();
             }
         }
     }
@@ -475,30 +472,47 @@ end:
 }
 
 status_t QCameraStream_Snapshot::
-setZSLChannelAttribute(int water_mark, int multi_frame, int ms)
+setZSLChannelAttribute(void)
 {
     status_t ret = NO_ERROR;
     mm_camera_channel_attr_t ch_attr;
     mm_camera_channel_attr_buffering_frame_t attr_val;
+    int mode = ZSL_LOOK_BACK_MODE_TIME;
+    int value = 0;
+    bool empty_queue_flag = FALSE;
 
     LOGD("%s: E", __func__);
 
-    memset(&ch_attr, 0, sizeof(mm_camera_channel_attr_t));
-    memset(&attr_val, 0, sizeof(mm_camera_channel_attr_buffering_frame_t));
+    mHalCamCtrl->getZSLLookBack(&mode, &value);
+    mHalCamCtrl->getZSLEmptyQueueFlag(&empty_queue_flag);
+    LOGD("%s: ZSL dispatch_mode: %d value: %d empty_queue: %d",
+         __func__, mode, value, empty_queue_flag);
+    memset(&attr_val, 0, sizeof(attr_val));
+    attr_val.water_mark = ZSL_INTERNAL_QUEUE_SIZE;
+    attr_val.dispatch_type = mode;
+    attr_val.look_back = value;
+    attr_val.give_top_of_queue = 0;
+    /* Sometime, for example HDR, we need to empty the ZSL queue first and then
+       get new frames for processing */
+    attr_val.empty_queue = empty_queue_flag;
 
-    /* Set channel attribute */
-    /* tells how much to go back in time to look for requested frame.
-       Keeping it 0 will give the last one.*/
-    attr_val.ms = ms;
-    /* how many frames we want - 0 means only 1.*/
-    attr_val.multi_frame = multi_frame;
-    /* circular buffer size*/
-    attr_val.water_mark = water_mark;
+    LOGD("%s: ZSL attribute value to set: water_mark: %d empty_queue: %d"
+         "dispatch_type: %d look_back_value: %d", __func__, attr_val.water_mark,
+         attr_val.empty_queue, attr_val.dispatch_type, attr_val.look_back);
+
+    memset(&ch_attr, 0, sizeof(mm_camera_channel_attr_t));
+
+    if ((attr_val.dispatch_type == ZSL_LOOK_BACK_MODE_COUNT) &&
+        (attr_val.look_back > attr_val.water_mark)) {
+        LOGE("%s: Cannot have look_back frame count greather than water mark!",
+             __func__);
+        ret = BAD_VALUE;
+        goto end;
+    }
 
     LOGD("%s: Set ZSL Snapshot Channel attribute", __func__);
     ch_attr.type = MM_CAMERA_CH_ATTR_BUFFERING_FRAME;
     ch_attr.buffering_frame = attr_val;
-
     if( NO_ERROR !=
         cam_ops_ch_set_attr(mCameraId, MM_CAMERA_CH_SNAPSHOT, &ch_attr)) {
         LOGD("%s: Failure setting ZSL channel attribute.", __func__);
@@ -510,11 +524,11 @@ end:
     LOGD("%s: X", __func__);
     return ret;
 }
+
 status_t QCameraStream_Snapshot::
 initSnapshotChannel(cam_ctrl_dimension_t *dim)
 {
     status_t ret = NO_ERROR;
-    int multi_frame = 0;
     mm_camera_ch_image_fmt_parm_t fmt;
 
     LOGD("%s: E", __func__);
@@ -531,11 +545,8 @@ initSnapshotChannel(cam_ctrl_dimension_t *dim)
     setSnapshotState(SNAPSHOT_STATE_CH_ACQUIRED);
 
     /* For ZSL mode we'll need to set channel attribute */
-    multi_frame = (mNumOfSnapshot == 1) ? 0 : 1;
     if (isZSLMode()) {
-        ret = setZSLChannelAttribute(ZSL_INTERNAL_QUEUE_SIZE,
-                                     multi_frame,
-                                     0);
+        ret = setZSLChannelAttribute();
         if (ret != NO_ERROR) {
             goto end;
         }
@@ -939,7 +950,7 @@ void QCameraStream_Snapshot::deinit(void)
     LOGD("%s: X", __func__);
 }
 
-/*Temp: Bikas: to be removed once event handling is enabled in mm-camera.
+/*Temp: to be removed once event handling is enabled in mm-camera.
   We need two events - one to call notifyShutter and other event for
   stream-off to disable OPS_SNAPSHOT*/
 void QCameraStream_Snapshot::runSnapshotThread(void *data)
@@ -950,12 +961,12 @@ void QCameraStream_Snapshot::runSnapshotThread(void *data)
 
     notifyShutter(NULL, TRUE);
 
-    /* TBD: Temp: Needs to be removed once event handling is enabled.
-       We cannot call mm-camera interface to stop snapshot from callback
-       function as it causes deadlock. Hence handling it here temporarily
-       in this thread. Later mm-camera intf will give us event in separate
-       thread context */
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
+       /* TBD: Temp: Needs to be removed once event handling is enabled.
+          We cannot call mm-camera interface to stop snapshot from callback
+          function as it causes deadlock. Hence handling it here temporarily
+          in this thread. Later mm-camera intf will give us event in separate
+          thread context */
         mm_app_snapshot_wait();
         /* Send command to stop snapshot polling thread*/
         stop();
@@ -963,7 +974,7 @@ void QCameraStream_Snapshot::runSnapshotThread(void *data)
     LOGD("%s: X", __func__);
 }
 
-/*Temp: Bikas: to be removed once event handling is enabled in mm-camera*/
+/*Temp: to be removed once event handling is enabled in mm-camera*/
 static void *snapshot_thread(void *obj)
 {
     QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)obj;
@@ -976,7 +987,7 @@ static void *snapshot_thread(void *obj)
     return NULL;
 }
 
-/*Temp: Bikas: to be removed later*/
+/*Temp: to be removed later*/
 static pthread_t mSnapshotThread;
 
 status_t QCameraStream_Snapshot::initJPEGSnapshot(int num_of_snapshots)
@@ -1186,7 +1197,7 @@ takePictureJPEG(void)
            goto end;
     }
 
-    /* TBD: Bikas: Temp: to be removed once event callback
+    /* TBD: Temp: to be removed once event callback
        is implemented in mm-camera lib  */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
@@ -1222,7 +1233,7 @@ takePictureRaw(void)
            goto end;
     }
 
-    /* TBD: Bikas: Temp: to be removed once event callback
+    /* TBD: Temp: to be removed once event callback
        is implemented in mm-camera lib  */
     /* Wait for snapshot frame callback to return*/
     pthread_attr_t attr;
@@ -1316,14 +1327,14 @@ takePictureZSL(void)
            goto end;
     }
 
-    /* TBD: Bikas: Temp: to be removed once event callback
+    /* TBD: Temp: to be removed once event callback
        is implemented in mm-camera lib  */
-    pthread_attr_t attr;
+/*    pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     pthread_create(&mSnapshotThread,&attr,
                    snapshot_thread, (void *)this);
-
+*/
 end:
 	LOGD("%s: X", __func__);
     return ret;
@@ -1367,7 +1378,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     cam_point_t main_crop_offset;
     cam_point_t thumb_crop_offset;
 
-    LOGV("%s: E", __func__);
+    LOGD("%s: E", __func__);
 
     /* If it's the only frame, we directly pass to encoder.
        If not, we'll queue it and check during next jpeg callback.
@@ -1406,9 +1417,8 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
             goto end;
         }
 
-        /*TBD: Bikas: Move JPEG handling to the mm-camera library */
+        /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
-        LOGD(" Passing my obj: %x", (unsigned int) this);
         set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this);
         mm_jpeg_encoder_init();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
@@ -1475,7 +1485,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     }
 
 end:
-    LOGV("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 }
 
@@ -1503,7 +1513,6 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
 
     if (mHalCamCtrl->mNotifyCb &&
         (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER)) {
-        /* TBD:Bikas: To be checked later.itz giving page fault */
         mDisplayHeap = mPostviewHeap;
         if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
             size.width = crop->in1_w;
@@ -1638,7 +1647,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
     snprintf(buf, sizeof(buf), "/data/thumb_frame-%d.yuv",loop++);
     mm_app_dump_snapshot_frame(buf,
                                (const void *)recvd_frame->snapshot.thumbnail.frame->buffer,
-                               mSnapshotStreamBuf.frame_len);
+                               mPostviewStreamBuf.frame_len);
 */
 
     mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);

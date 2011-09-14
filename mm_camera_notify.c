@@ -202,9 +202,13 @@ static void mm_camera_read_zsl_main_frame(mm_camera_obj_t * my_obj)
     idx =  mm_camera_read_msm_frame(my_obj,stream);
     if (idx < 0)
         return;
+
+    CDBG("%s: Enqueuing frame id: %d", __func__, idx);
     mm_camera_stream_frame_enq(q, &stream->frame.frame[idx]);
     cnt = mm_camera_stream_frame_get_q_cnt(q);
     watermark = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.water_mark;
+
+    CDBG("%s: Watermark: %d Queue in a frame: %d", __func__, watermark, cnt);
     if(watermark < cnt) {
         /* water overflow, queue head back to kernel */
         frame = mm_camera_stream_frame_deq(q);

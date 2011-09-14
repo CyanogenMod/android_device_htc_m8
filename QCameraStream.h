@@ -275,8 +275,9 @@ private:
                         common_crop_t *crop_info,
                         int frame_len,
                         bool enqueued);
-    status_t encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame, bool enqueued);
-    status_t setZSLChannelAttribute(int water_mark, int multi_frame, int ms);
+    status_t encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
+                                  bool enqueued);
+    status_t setZSLChannelAttribute(void);
     void handleError();
     void setSnapshotState(int state);
     void setModeLiveSnapshot(bool);

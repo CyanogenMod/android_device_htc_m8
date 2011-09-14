@@ -45,7 +45,6 @@ extern "C" {
 #define VIDEO_BUFFER_COUNT 8
 #define PREVIEW_BUFFER_COUNT 4
 #define MAX_ZOOM_RATIOS 62
-#define MAX_ZSL_IMAGES 8
 
 #ifdef Q12
 #undef Q12
@@ -159,6 +158,10 @@ public:
     void                dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
 
     static sp<CameraHardwareInterface> createInstance(int, int);
+    status_t setZSLLookBack(int mode, int value);
+    void getZSLLookBack(int *mode, int *value);
+    void setZSLEmptyQueueFlag(bool flag);
+    void getZSLEmptyQueueFlag(bool *flag);
 
 private:
                         QCameraHardwareInterface(int  cameraId, int);
@@ -335,7 +338,9 @@ private:
     int            mCurrentHisto;
     bool           mSendData;
     sp<AshmemPool> mStatHeap;
-
+    bool mZslLookBackMode;
+    int mZslLookBackValue;
+    bool mZslEmptyQueueFlag;
     String8 mEffectValues;
     String8 mIsoValues;
     String8 mSceneModeValues;

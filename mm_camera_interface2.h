@@ -35,12 +35,21 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MM_CAMERA_MAX_NUM_FRAMES        16
 
-
 typedef struct {
     int num;
     uint32_t frame_len;
     struct msm_frame frame[MM_CAMERA_MAX_NUM_FRAMES];
 } mm_cameara_stream_buf_t;
+
+
+
+typedef enum {
+    ZSL_LOOK_BACK_MODE_COUNT,
+    ZSL_LOOK_BACK_MODE_TIME,
+    ZSL_LOOK_BACK_MODE_UNDEFINED
+}mm_camera_zsl_lb_mode;
+
+#define ZSL_INTERNAL_QUEUE_SIZE 8
 
 typedef struct {
     int32_t width;
@@ -315,10 +324,15 @@ typedef enum {
 typedef struct {
     /* how deep the circular frame queue */
     int water_mark;
-    /* back up look up time in milisecond */
-    int ms;
-    /* dispatch one farme, or dispatch all queued frames to app */
-    int multi_frame;
+    /* shall we empty the queue before start dispatching? */
+    int empty_queue;
+    /* frame dispatch decision - 0: frame count(default) 1: time */
+    int dispatch_type;
+    /* look back value - either number of miliseconds to look back or
+       number of frames to count */
+    int look_back;
+    /* just give from top of the queue (also used internally)*/
+    int give_top_of_queue;
 } mm_camera_channel_attr_buffering_frame_t;
 
 typedef struct {

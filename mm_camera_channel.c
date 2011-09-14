@@ -38,6 +38,32 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
 
+/* static functions prototype declarations */
+static int mm_camera_channel_deq_x_frames(mm_camera_obj_t *my_obj,
+                                          mm_camera_frame_queue_t *mq,
+                                          mm_camera_frame_queue_t *sq,
+                                          mm_camera_stream_t *mstream,
+                                          mm_camera_stream_t *sstream,
+                                          int count);
+static int mm_camera_channel_get_starting_frame(mm_camera_obj_t *my_obj,
+                                                mm_camera_ch_t *ch,
+                                                mm_camera_stream_t *mstream,
+                                                mm_camera_stream_t *sstream,
+                                                mm_camera_frame_queue_t *mq,
+                                                mm_camera_frame_queue_t *sq,
+                                                mm_camera_frame_t **mframe,
+                                                mm_camera_frame_t **sframe);
+static int mm_camera_ch_search_frame_based_on_time(mm_camera_obj_t *my_obj,
+                                                   mm_camera_ch_t *ch,
+                                                   mm_camera_stream_t *mstream,
+                                                   mm_camera_stream_t *sstream,
+                                                   mm_camera_frame_queue_t *mq,
+                                                   mm_camera_frame_queue_t *sq,
+                                                   mm_camera_frame_t **mframe,
+                                                   mm_camera_frame_t **sframe);
+
+
+
 void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
                                        mm_camera_channel_type_t ch_type,
                                        mm_camera_stream_t **stream1,
@@ -404,69 +430,6 @@ static int mm_camera_ch_util_dispatch_buffered_frame(mm_camera_obj_t *my_obj,
     return mm_camera_poll_dispatch_buffered_frames(my_obj, ch_type);
 }
 
-static int mm_camera_dispatch_buffered_frames_multi(mm_camera_obj_t *my_obj,
-                                                mm_camera_ch_t *ch,
-                                                mm_camera_channel_type_t ch_type,
-                                                mm_camera_stream_t *mstream,
-                                                mm_camera_stream_t *sstream,
-                                                mm_camera_frame_queue_t *mq,
-                                                mm_camera_frame_queue_t *sq)
-{
-    int mcnt, i, rc = MM_CAMERA_OK;
-    mm_camera_ch_data_buf_t data;
-    int num_of_req_frame = 0;
-    int cb_sent = 0;
-    mm_camera_frame_t *mframe, *sframe, *qmframe = NULL, *qsframe = NULL;
-
-    pthread_mutex_lock(&ch->mutex);
-    mcnt = mm_camera_stream_frame_get_q_cnt(mq);
-    num_of_req_frame = ch->snapshot.num_shots;
-
-    /* Limit number of callbacks to actual frames in the queue */
-    if (num_of_req_frame > mcnt) {
-        num_of_req_frame = mcnt;
-    }
-    for(i = 0; i < mcnt; i++) {
-        mframe = mm_camera_stream_frame_deq(mq);
-        sframe = mm_camera_stream_frame_deq(sq);
-        if(mframe && sframe) {
-            /* dispatch this pair of frames */
-            memset(&data, 0, sizeof(data));
-            data.type = ch_type;
-            data.snapshot.main.frame = &mframe->frame;
-            data.snapshot.main.idx = mframe->idx;
-            data.snapshot.thumbnail.frame = &sframe->frame;
-            data.snapshot.thumbnail.idx = sframe->idx;
-            mstream->frame.ref_count[data.snapshot.main.idx]++;
-            sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
-            ch->buf_cb.cb(&data, ch->buf_cb.user_data);
-            cb_sent++;
-        } else {
-            qmframe = mframe;
-            qsframe = sframe;
-            rc = -1;
-            break;
-        }
-    }
-    if(qmframe) {
-        mm_camera_stream_frame_enq(mq, &mstream->frame.frame[qmframe->idx]);
-        qmframe = NULL;
-    }
-    if(qsframe) {
-        mm_camera_stream_frame_enq(sq, &sstream->frame.frame[qsframe->idx]);
-        qsframe = NULL;
-    }
-
-    /* Save number of remaining snapshots */
-    ch->snapshot.num_shots -= cb_sent;
-
-    CDBG("%s: Number of remaining snapshots: %d", __func__,
-        ch->snapshot.num_shots);
-
-    pthread_mutex_unlock(&ch->mutex);
-    return rc;
-}
-
 int mm_camera_channel_get_time_diff(struct timespec *cur_ts, int usec_target, struct timespec *frame_ts)
 {
     int dtusec = (cur_ts->tv_nsec - frame_ts->tv_nsec)/1000;
@@ -474,30 +437,83 @@ int mm_camera_channel_get_time_diff(struct timespec *cur_ts, int usec_target, st
     return dtusec;
 }
 
-static int mm_camera_dispatch_buffered_frames_single(mm_camera_obj_t *my_obj,
-                                                 mm_camera_ch_t *ch,
-                                                 mm_camera_channel_type_t ch_type,
-                                                 mm_camera_stream_t *mstream,
-                                                 mm_camera_stream_t *sstream,
-                                                 mm_camera_frame_queue_t *mq,
-                                                 mm_camera_frame_queue_t *sq)
+static int mm_camera_channel_deq_x_frames(mm_camera_obj_t *my_obj,
+                                          mm_camera_frame_queue_t *mq,
+                                          mm_camera_frame_queue_t *sq,
+                                          mm_camera_stream_t *mstream,
+                                          mm_camera_stream_t *sstream,
+                                          int count)
+{
+    int rc = MM_CAMERA_OK;
+    int i = 0;
+    mm_camera_frame_t *mframe, *sframe;
+    CDBG("%s: Dequeue %d frames from the queue", __func__, count);
+    for(i=0; i < count; i++) {
+        mframe = mm_camera_stream_frame_deq(mq);
+        if(mframe) {
+            mm_camera_stream_qbuf(my_obj, mstream, mframe->idx);
+        }
+        sframe = mm_camera_stream_frame_deq(sq);
+        if(sframe) {
+            mm_camera_stream_qbuf(my_obj, sstream, sframe->idx);
+        }
+    }
+
+    return rc;
+}
+
+static int mm_camera_ch_search_frame_based_on_time(mm_camera_obj_t *my_obj,
+                                                   mm_camera_ch_t *ch,
+                                                   mm_camera_stream_t *mstream,
+                                                   mm_camera_stream_t *sstream,
+                                                   mm_camera_frame_queue_t *mq,
+                                                   mm_camera_frame_queue_t *sq,
+                                                   mm_camera_frame_t **mframe,
+                                                   mm_camera_frame_t **sframe)
 {
     int mcnt, i, rc = MM_CAMERA_OK;
-    mm_camera_ch_data_buf_t data;
+    int enq_count = 0;
     int dt1, dt2;
     mm_camera_frame_t *mframe1, *sframe1, *qmframe = NULL;
     mm_camera_frame_t *mframe2, *sframe2, *qsframe = NULL;
-    struct timeval tv;
-    struct timespec cur_ts;
+    mm_camera_frame_t *mframe_a[ZSL_INTERNAL_QUEUE_SIZE];
+    mm_camera_frame_t *sframe_a[ZSL_INTERNAL_QUEUE_SIZE];
+    struct timespec base_ts;
 
-    gettimeofday(&tv, NULL);
-    cur_ts.tv_sec  = tv.tv_sec;
-    cur_ts.tv_nsec = tv.tv_usec * 1000;
 
-    pthread_mutex_lock(&ch->mutex);
+    memset(mframe_a, 0, sizeof(mframe_a));
+    memset(sframe_a, 0, sizeof(sframe_a));
+
+    *mframe = *sframe = NULL;
+
     mcnt = mm_camera_stream_frame_get_q_cnt(mq);
-    mframe1 = mm_camera_stream_frame_deq(mq);
-    sframe1 = mm_camera_stream_frame_deq(sq);
+
+    /* We'll need to dequeue all the frames first so that we'll be able to
+       view their time stamp
+       Note: We have to do this because we need a base timestamp. We cannot
+       use gettimeofday() to get base timestamp because it doesn't give similar
+       value as the one used to create frame timestamp -
+       kernel uses ktime_get_ts() to create frame timestamp.*/
+
+    for(i=0; i<mcnt; i++) {
+        mframe_a[i] = mm_camera_stream_frame_deq(mq);
+        sframe_a[i] = mm_camera_stream_frame_deq(sq);
+        /* CDBG("%s: Frame deq'd: main: %d  thumb: %d", __func__,
+             mframe_a[i]->idx, sframe_a[i]->idx); */
+    }
+
+    /* We'll be using timestamp of the latest frame as
+       base timestamp. */
+    base_ts = mframe_a[mcnt-1]->frame.ts;
+
+    /* Once we get the right frame, we'll need to enqueue remaining
+       frames again for the calling function. enq_count will be used
+       to keep track of how many valid frames we need to enqueue again */
+    enq_count = 1;
+
+    mframe1 = mframe_a[0];
+    sframe1 = sframe_a[0];
+
     if(!mframe1 || !sframe1) {
         CDBG("%s: no frames raedy.\n", __func__);
         qmframe = mframe1;
@@ -505,81 +521,89 @@ static int mm_camera_dispatch_buffered_frames_single(mm_camera_obj_t *my_obj,
         rc = -1;
         goto end;
     }
-    if (ch->buffering_frame.ms != 0) {
-        dt1 = mm_camera_channel_get_time_diff(&cur_ts,
-                                              ch->buffering_frame.ms * 1000,
-                                              &mframe1->frame.ts);
-	    if (dt1 > 0) {
-            for(i = 0; i < mcnt-1; i++) {
-                /* be sure to queue old frames back to kernel */
-                if(qmframe) {
-                    mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
-                    qmframe = NULL;
-                }
-                if(qsframe) {
-                    mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
-                    qsframe = NULL;
-                }
-                mframe2 = mm_camera_stream_frame_deq(mq);
-                sframe2 = mm_camera_stream_frame_deq(sq);
-                if(!mframe2 || !sframe2) {
-                    qmframe = mframe2;
-                    qsframe = sframe2;
-                    goto done;
-                } else {
-                    /* dispatch this pair of frames */
-                    dt2 = mm_camera_channel_get_time_diff(&cur_ts, ch->buffering_frame.ms, &mframe2->frame.ts);
 
-                    if(dt2 == 0) {
-                        /* right on target */
+    dt1 = mm_camera_channel_get_time_diff(&base_ts,
+                                          ch->buffering_frame.look_back * 1000,
+                                          &mframe1->frame.ts);
+
+    /*CDBG("%s:Base time: %lu usec look-back time: %d us",
+         __func__, (unsigned long)(base_ts.tv_sec * 1000000 + (base_ts.tv_nsec/1000)),
+         ch->buffering_frame.look_back * 1000);
+    CDBG("%s: Frame (id:%d)timestamp: %lu usec", __func__, mframe1->idx,
+         (unsigned long)((mframe1->frame.ts.tv_sec * 1000000) +
+                         (mframe1->frame.ts.tv_nsec/1000)));
+    CDBG("%s: dt1= %d", __func__, dt1);*/
+
+    if (dt1 > 0) {
+        for(i = 1; i < mcnt; i++) {
+            enq_count = i + 1;
+
+            /* be sure to queue old frames back to kernel */
+            if(qmframe) {
+                mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
+                qmframe = NULL;
+            }
+            if(qsframe) {
+                mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
+                qsframe = NULL;
+            }
+
+            mframe2 = mframe_a[i];
+            sframe2 = sframe_a[i];
+            if(!mframe2 || !sframe2) {
+                qmframe = mframe2;
+                qsframe = sframe2;
+                goto done;
+            } else {
+                /*CDBG("%s: Frame (id: %d) timestamp: %lu usec", __func__,
+                     mframe2->idx,
+                     (unsigned long)((mframe2->frame.ts.tv_sec * 1000000) +
+                                     (mframe2->frame.ts.tv_nsec/1000)));*/
+                dt2 = mm_camera_channel_get_time_diff(&base_ts,
+                                                      ch->buffering_frame.look_back * 1000,
+                                                      &mframe2->frame.ts);
+                /*CDBG("%s: dt2= %d", __func__, dt2);*/
+                if(dt2 == 0) {
+                    /* right on target */
+                    qmframe = mframe1;
+                    qsframe = sframe1;
+                    mframe1 = mframe2;
+                    sframe1 = sframe2;
+                    goto done;
+                }
+                else if(dt2 > 0) {
+                    /* not find the best match */
+                    qmframe = mframe1;
+                    qsframe = sframe1;
+                    mframe1 = mframe2;
+                    sframe1 = sframe2;
+                    dt1 = dt2;
+                    continue;
+                }
+                else if(dt2 < 0) {
+                   dt2 = -dt2;
+                   if(dt1 < dt2) {
+                        /* dt1 is better match */
+                        qmframe = mframe2;
+                        qsframe = sframe2;
+                        goto done;
+                    } else {
                         qmframe = mframe1;
                         qsframe = sframe1;
                         mframe1 = mframe2;
                         sframe1 = sframe2;
                         goto done;
                     }
-                    else if(dt2 > 0) {
-                        /* not find the best match */
-                        qmframe = mframe1;
-                        qsframe = sframe1;
-                        mframe1 = mframe2;
-                        sframe1 = sframe2;
-                        dt1 = dt2;
-                        continue;
-                    }
-                    else if(dt2 < 0) {
-			            dt2 = -dt2;
-			            if(dt1 < dt2) {
-			                /* dt1 is better match */
-			                qmframe = mframe2;
-			                qsframe = sframe2;
-			                goto done;
-                        } else {
-                            qmframe = mframe1;
-                            qsframe = sframe1;
-                            mframe1 = mframe2;
-                            sframe1 = sframe2;
-                            goto done;
-                        }
-                    }
                 }
             }
-            rc = -1;
-            CDBG("%s: unexpected error. Should not hit here. bug!!\n", __func__);
-            goto end;
         }
     }
+
+
 done:
-    memset(&data, 0, sizeof(data));
-    data.type = ch_type;
-    data.snapshot.main.frame = &mframe1->frame;
-    data.snapshot.main.idx = mframe1->idx;
-    data.snapshot.thumbnail.frame = &sframe1->frame;
-    data.snapshot.thumbnail.idx = sframe1->idx;
-    mstream->frame.ref_count[data.snapshot.main.idx]++;
-    sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
-    ch->buf_cb.cb(&data, ch->buf_cb.user_data);
-    ch->snapshot.num_shots -= 1;
+    *mframe = mframe1;
+    *sframe = sframe1;
+
 end:
     if(qmframe && qsframe) {
         /* queue to kernel */
@@ -602,14 +626,106 @@ end:
             qsframe = NULL;
         }
     }
-    pthread_mutex_unlock(&ch->mutex);
+
+    /* Enqueuing rest of the valid frames again in the queue*/
+    for(i = enq_count; i < mcnt; i++) {
+        /*CDBG("%s: Enqueuing frame %d", __func__, mframe_a[i]->idx);*/
+        mm_camera_stream_frame_enq(mq, &mstream->frame.frame[mframe_a[i]->idx]);
+        mm_camera_stream_frame_enq(sq, &sstream->frame.frame[sframe_a[i]->idx]);
+    }
+
+    return rc;
+}
+
+static int mm_camera_channel_get_starting_frame(mm_camera_obj_t *my_obj,
+                                                mm_camera_ch_t *ch,
+                                                mm_camera_stream_t *mstream,
+                                                mm_camera_stream_t *sstream,
+                                                mm_camera_frame_queue_t *mq,
+                                                mm_camera_frame_queue_t *sq,
+                                                mm_camera_frame_t **mframe,
+                                                mm_camera_frame_t **sframe)
+{
+    int mcnt = 0;
+    int rc = MM_CAMERA_OK;
+
+    *mframe = *sframe = NULL;
+    mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+
+    CDBG("%s: Total frames in the queue: %d", __func__, mcnt);
+
+    if(!mcnt) {
+        CDBG("%s: Currently ZSL queue empty! Returning!", __func__);
+        goto end;
+    }
+    /* If user just wants us to give top of the queue without any drama,
+       just dequeu and give it back */
+    if(ch->buffering_frame.give_top_of_queue) {
+        CDBG("%s: Giving back top of the queue", __func__);
+        goto dequeue_frame;
+    }
+    /* If look_back value is 0, we'll just return the most recent frame in
+       the queue */
+    if(ch->buffering_frame.look_back == 0) {
+        CDBG("%s: Look-back value is 0. Dequeue all the frames except last", __func__);
+        mm_camera_channel_deq_x_frames(my_obj,
+                                       mq, sq,
+                                       mstream, sstream,
+                                       mcnt-1);
+        /* We have now right frame at top of the queue. We'll dequeue it
+           now*/
+        goto dequeue_frame;
+    }
+    else {
+        /* If we are supposed to find the frame based on user specified
+           frame count */
+        if(ch->buffering_frame.dispatch_type == ZSL_LOOK_BACK_MODE_COUNT){
+            CDBG("%s: Look-back based on frame count.", __func__);
+            /* if number of frames currently available in the queue is less
+               than the lookback value, we'll just return the top of the queue
+               (or shall we return error?) */
+            if(mcnt < ch->buffering_frame.look_back) {
+                goto dequeue_frame;
+            }
+            else {
+                /* dequeue and release the buffers to kernel from top of the
+                   queue till we reach the one we want*/
+                mm_camera_channel_deq_x_frames(my_obj,
+                                               mq, sq,
+                                               mstream, sstream,
+                                               (mcnt - ch->buffering_frame.look_back));
+                goto dequeue_frame;
+            }
+        }
+        /* search frame based on timestamps*/
+        else {
+            CDBG("%s: Look-back based on timestamp.", __func__);
+            mm_camera_ch_search_frame_based_on_time(my_obj, ch,
+                                                   mstream, sstream,
+                                                   mq, sq,
+                                                   mframe, sframe);
+            goto end;
+        }
+    }
+
+dequeue_frame:
+    *mframe = mm_camera_stream_frame_deq(mq);
+    *sframe = mm_camera_stream_frame_deq(sq);
+
+    CDBG("%s: Finally: frame id of: main - %d  thumbnail - %d", __func__, (*mframe)->idx, (*sframe)->idx);
+end:
     return rc;
 }
 
 void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
-                mm_camera_channel_type_t ch_type)
+                                        mm_camera_channel_type_t ch_type)
 {
-    int rc = 0;
+    int mcnt, i, rc = MM_CAMERA_OK;
+    int num_of_req_frame = 0;
+    int cb_sent = 0;
+    mm_camera_ch_data_buf_t data;
+    mm_camera_frame_t *mframe = NULL, *sframe = NULL;
+    mm_camera_frame_t *qmframe = NULL, *qsframe = NULL;
     mm_camera_ch_t *ch = &my_obj->ch[ch_type];
     mm_camera_frame_queue_t *mq = NULL;
     mm_camera_frame_queue_t *sq = NULL;
@@ -622,15 +738,102 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
         sq = &stream2->frame.readyq;
     }
 
-    if(ch->buffering_frame.multi_frame) {
-        /* dispatch all frames to app */
-        rc = mm_camera_dispatch_buffered_frames_multi(my_obj, ch, ch_type,
-                                           stream1, stream2, mq, sq);
-    } else {
-        rc = mm_camera_dispatch_buffered_frames_single(my_obj, ch, ch_type,
-                                              stream1, stream2, mq, sq);
+    pthread_mutex_lock(&ch->mutex);
+
+    /* Some requirements are such we'll first need to empty the buffered
+       queue - like for HDR. If we need to empty the buffered queue first,
+       let's empty it here.*/
+    if(ch->buffering_frame.empty_queue) {
+        CDBG("%s: Emptying the queue first before dispatching!", __func__);
+        mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+        mm_camera_channel_deq_x_frames(my_obj, mq, sq, stream1, stream2, mcnt);
+        ch->buffering_frame.empty_queue = 0;
+        goto end;
     }
-    if(rc == MM_CAMERA_OK) {
+
+    rc = mm_camera_channel_get_starting_frame(my_obj, ch,
+                                              stream1, stream2,
+                                              mq, sq, &mframe, &sframe);
+    if(rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: Error getting right frame!", __func__);
+        goto end;
+    }
+
+    if((mframe == NULL) || (sframe == NULL)) {
+        CDBG("%s: Failed to get correct main and thumbnail frames!", __func__);
+        goto end;
+    }
+
+    CDBG("%s: Received frame id of: main - %d  thumbnail - %d",
+         __func__, mframe->idx, sframe->idx);
+
+    /* So total number of frames available - total in the queue plus already dequeud one*/
+    mcnt = mm_camera_stream_frame_get_q_cnt(mq) + 1;
+    num_of_req_frame = ch->snapshot.num_shots;
+
+    CDBG("%s: Number of shots requested: %d Frames available: %d",
+         __func__, num_of_req_frame, mcnt);
+
+    /* Limit number of callbacks to actual frames in the queue */
+    if (num_of_req_frame > mcnt) {
+        num_of_req_frame = mcnt;
+    }
+    for(i = 0; i < num_of_req_frame; i++) {
+        if(mframe && sframe) {
+            CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
+            /* dispatch this pair of frames */
+            memset(&data, 0, sizeof(data));
+            data.type = ch_type;
+            data.snapshot.main.frame = &mframe->frame;
+            data.snapshot.main.idx = mframe->idx;
+            data.snapshot.thumbnail.frame = &sframe->frame;
+            data.snapshot.thumbnail.idx = sframe->idx;
+            stream1->frame.ref_count[data.snapshot.main.idx]++;
+            stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
+            ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+            cb_sent++;
+        } else {
+            qmframe = mframe;
+            qsframe = sframe;
+            rc = -1;
+            break;
+        }
+
+        mframe = mm_camera_stream_frame_deq(mq);
+        sframe = mm_camera_stream_frame_deq(sq);
+    }
+    if(qmframe) {
+        mm_camera_stream_frame_enq(mq, &stream1->frame.frame[qmframe->idx]);
+        qmframe = NULL;
+    }
+    if(qsframe) {
+        mm_camera_stream_frame_enq(sq, &stream2->frame.frame[qsframe->idx]);
+        qsframe = NULL;
+    }
+
+    /* Save number of remaining snapshots */
+    ch->snapshot.num_shots -= cb_sent;
+
+    CDBG("%s: Number of remaining snapshots: %d", __func__,
+        ch->snapshot.num_shots);
+end:
+    pthread_mutex_unlock(&ch->mutex);
+
+    /* If there are still some more images left to be captured, we'll call this
+       function again. That time we don't need to find the right frame based
+       on time or frame count. We just need to start from top of the frame */
+    if(ch->snapshot.num_shots) {
+        ch->buffering_frame.give_top_of_queue = 1;
+        mm_camera_event_t data;
+        data.event_type = MM_CAMERA_EVT_TYPE_CH;
+        data.e.ch.evt = MM_CAMERA_CH_EVT_DATA_REQUEST_MORE;
+        data.e.ch.ch = ch_type;
+        mm_camera_poll_send_ch_event(my_obj, &data);
+    }
+
+    /* If we are done sending callbacks for all the requested number of snapshots
+       send data delivery done event*/
+    if((rc == MM_CAMERA_OK) && (!ch->snapshot.num_shots)) {
         mm_camera_event_t data;
         data.event_type = MM_CAMERA_EVT_TYPE_CH;
         data.e.ch.evt = MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE;

@@ -2583,4 +2583,83 @@ status_t QCameraHardwareInterface::setHistogram(int histogram_en)
     return NO_ERROR;
 }
 
+/* mode: lookback mode -
+   0: look back based on timestamp
+   1: based on frame count.
+   value: number of miliseconds or frame count*/
+status_t QCameraHardwareInterface::setZSLLookBack(int mode, int value)
+{
+    if (value < 0) {
+        LOGE("%s: Undefined look back value!!!", __func__);
+        return BAD_VALUE;
+    }
+
+    if (mode >= ZSL_LOOK_BACK_MODE_UNDEFINED) {
+        LOGE("%s: Undefined look back mode!!!", __func__);
+        return BAD_VALUE;
+    }
+    mZslLookBackMode = mode;
+    mZslLookBackValue = value;
+
+    return NO_ERROR;
+}
+
+void QCameraHardwareInterface::getZSLLookBack(int *mode, int *value)
+{
+    char prop[PROPERTY_VALUE_MAX];
+    LOGV("%s: BEGIN", __func__);
+
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.zsl.prop.enable", prop, "0");
+    /* If we set this property, we'll read zsl look back values from set
+       properties. Otherwise it should be the value passed by User. */
+    if (atoi(prop)) {
+        LOGI("%s: Reading look-back mode from properties", __func__);
+        memset(prop, 0, sizeof(prop));
+        property_get("persist.camera.zsl.lb_mode", prop, "0");
+        mZslLookBackMode = atoi(prop);
+
+        memset(prop, 0, sizeof(prop));
+        property_get("persist.camera.zsl.lb_value", prop, "0");
+        mZslLookBackValue = atoi(prop);
+    }
+
+    if (mZslLookBackMode >= ZSL_LOOK_BACK_MODE_UNDEFINED)
+    {
+        LOGE("%s: Undefined look-back value. Resetting to default!", __func__);
+        mZslLookBackMode = ZSL_LOOK_BACK_MODE_COUNT;
+    }
+
+    *mode = mZslLookBackMode;
+    *value = mZslLookBackValue;
+
+    LOGI("%s: ZSL Lookback mode: %d value: %d", __func__, *mode, *value);
+}
+
+void QCameraHardwareInterface::setZSLEmptyQueueFlag(bool value)
+{
+    LOGI("%s: Setting ZSL Empty_Queue Flag to %d", __func__, value);
+    mZslEmptyQueueFlag = value;
+}
+
+void QCameraHardwareInterface::getZSLEmptyQueueFlag(bool *flag)
+{
+    char value[PROPERTY_VALUE_MAX];
+    LOGV("%s: BEGIN", __func__);
+
+    memset(value, 0, sizeof(value));
+    property_get("persist.camera.zsl.prop.enable", value, "0");
+    /* If we set this property, we'll read zsl look back values from set
+       properties. Otherwise it should be the value passed by User */
+    if (atoi(value)) {
+        LOGI("%s: Reading empty_queue flag from properties", __func__);
+        memset(value, 0, sizeof(value));
+        property_get("persist.camera.zsl.empty_queue", value, "0");
+        mZslEmptyQueueFlag = (bool)atoi(value);
+    }
+
+    *flag = mZslEmptyQueueFlag;
+
+    LOGI("%s: ZSL Empty Queue Flag is set to %d", __func__, mZslEmptyQueueFlag);
+}
 }; /*namespace android */

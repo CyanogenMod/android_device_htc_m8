@@ -73,8 +73,12 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mParamStringInitialized(false),
                     mZoomSupported(false),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
+                    mZslLookBackMode(ZSL_LOOK_BACK_MODE_TIME),
+                    mZslLookBackValue(0),
+                    mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED)
+
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -480,7 +484,7 @@ bool QCameraHardwareInterface::isSnapshotRunning() {
 }
 
 bool QCameraHardwareInterface::isZSLMode() {
-    return false;
+    return (myMode & CAMERA_ZSL_MODE);
 }
 
 void QCameraHardwareInterface::debugShowPreviewFPS() const
@@ -550,6 +554,15 @@ processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
             mCameraState = CAMERA_STATE_READY;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
+            break;
+        case MM_CAMERA_CH_EVT_DATA_REQUEST_MORE:
+            if (isZSLMode()) {
+                /* ZSL Mode: In ZSL Burst Mode, users may request for number of
+                snapshots larger than internal size of ZSL queue. So we'll need
+                process the remaining frames as they become available.
+                In such case, we'll get this event */
+                mStreamSnap->takePictureZSL();
+            }
             break;
         default:
             break;

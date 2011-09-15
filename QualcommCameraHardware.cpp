@@ -42,7 +42,7 @@
 
 #include "linux/msm_mdp.h"
 #include <linux/fb.h>
-
+#define FLOOR16(X) ((X) & 0xFFF0)
 #define LIKELY(exp)   __builtin_expect(!!(exp), 1)
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
 #define CAMERA_HAL_UNUSED(expr) do { (void)(expr); } while (0)
@@ -3623,6 +3623,31 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
             mThumbnailHeight = thumbnail_sizes[i].height;
             break;
         }
+    }
+    /* calculate thumbnail aspect ratio */
+    if(mCurrentTarget == TARGET_MSM7627 &&
+       mCurrentTarget == TARGET_MSM7627A) {
+        int thumbnail_aspect_ratio =
+        (uint32_t)((mThumbnailWidth * Q12) / mThumbnailHeight);
+
+       if (thumbnail_aspect_ratio < pictureAspectRatio) {
+
+          /* if thumbnail is narrower than main image, in other words wide mode
+           * snapshot then we want to adjust the height of the thumbnail to match
+           * the main image aspect ratio. */
+           mThumbnailHeight =
+           (mThumbnailWidth * Q12) / pictureAspectRatio;
+       } else if (thumbnail_aspect_ratio != pictureAspectRatio) {
+
+          /* if thumbnail is wider than main image we want to adjust width of the
+           * thumbnail to match main image aspect ratio */
+           mThumbnailWidth  =
+           (mThumbnailHeight * pictureAspectRatio) / Q12;
+       }
+       /* make the dimensions multiple of 16 - JPEG requirement */
+       mThumbnailWidth = FLOOR16(mThumbnailWidth);
+       mThumbnailHeight = FLOOR16(mThumbnailHeight);
+       LOGV("the thumbnail sizes are %dx%d",mThumbnailWidth,mThumbnailHeight);
     }
 
     /* calculate postView size */

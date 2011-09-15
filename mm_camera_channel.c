@@ -414,10 +414,18 @@ static int mm_camera_dispatch_buffered_frames_multi(mm_camera_obj_t *my_obj,
 {
     int mcnt, i, rc = MM_CAMERA_OK;
     mm_camera_ch_data_buf_t data;
+    int num_of_req_frame = 0;
+    int cb_sent = 0;
     mm_camera_frame_t *mframe, *sframe, *qmframe = NULL, *qsframe = NULL;
 
     pthread_mutex_lock(&ch->mutex);
     mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+    num_of_req_frame = ch->snapshot.num_shots;
+
+    /* Limit number of callbacks to actual frames in the queue */
+    if (num_of_req_frame > mcnt) {
+        num_of_req_frame = mcnt;
+    }
     for(i = 0; i < mcnt; i++) {
         mframe = mm_camera_stream_frame_deq(mq);
         sframe = mm_camera_stream_frame_deq(sq);
@@ -432,6 +440,7 @@ static int mm_camera_dispatch_buffered_frames_multi(mm_camera_obj_t *my_obj,
             mstream->frame.ref_count[data.snapshot.main.idx]++;
             sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
             ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+            cb_sent++;
         } else {
             qmframe = mframe;
             qsframe = sframe;
@@ -447,6 +456,13 @@ static int mm_camera_dispatch_buffered_frames_multi(mm_camera_obj_t *my_obj,
         mm_camera_stream_frame_enq(sq, &sstream->frame.frame[qsframe->idx]);
         qsframe = NULL;
     }
+
+    /* Save number of remaining snapshots */
+    ch->snapshot.num_shots -= cb_sent;
+
+    CDBG("%s: Number of remaining snapshots: %d", __func__,
+        ch->snapshot.num_shots);
+
     pthread_mutex_unlock(&ch->mutex);
     return rc;
 }
@@ -489,65 +505,69 @@ static int mm_camera_dispatch_buffered_frames_single(mm_camera_obj_t *my_obj,
         rc = -1;
         goto end;
     }
-    dt1 = mm_camera_channel_get_time_diff(&cur_ts, ch->buffering_frame.ms, &mframe1->frame.ts);
-    if (dt1 > 0) {
-        for(i = 0; i < mcnt-1; i++) {
-            /* be sure to queue old frames back to kernel */
-            if(qmframe) {
-                mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
-                qmframe = NULL;
-            }
-            if(qsframe) {
-                mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
-                qsframe = NULL;
-            }
-            mframe2 = mm_camera_stream_frame_deq(mq);
-            sframe2 = mm_camera_stream_frame_deq(sq);
-            if(!mframe2 || !sframe2) {
-                qmframe = mframe2;
-                qsframe = sframe2;
-                goto done;
-            } else {
-                /* dispatch this pair of frames */
-                dt2 = mm_camera_channel_get_time_diff(&cur_ts,
-                           ch->buffering_frame.ms, &mframe2->frame.ts);
-                if(dt2 == 0) {
-                    /* right on target */
-                    qmframe = mframe1;
-                    qsframe = sframe1;
-                    mframe1 = mframe2;
-                    sframe1 = sframe2;
+    if (ch->buffering_frame.ms != 0) {
+        dt1 = mm_camera_channel_get_time_diff(&cur_ts,
+                                              ch->buffering_frame.ms * 1000,
+                                              &mframe1->frame.ts);
+	    if (dt1 > 0) {
+            for(i = 0; i < mcnt-1; i++) {
+                /* be sure to queue old frames back to kernel */
+                if(qmframe) {
+                    mm_camera_stream_qbuf(my_obj, mstream, qmframe->idx);
+                    qmframe = NULL;
+                }
+                if(qsframe) {
+                    mm_camera_stream_qbuf(my_obj, sstream, qsframe->idx);
+                    qsframe = NULL;
+                }
+                mframe2 = mm_camera_stream_frame_deq(mq);
+                sframe2 = mm_camera_stream_frame_deq(sq);
+                if(!mframe2 || !sframe2) {
+                    qmframe = mframe2;
+                    qsframe = sframe2;
                     goto done;
-                }
-                else if(dt2 > 0) {
-                    /* not find the best match */
-                    qmframe = mframe1;
-                    qsframe = sframe1;
-                    mframe1 = mframe2;
-                    sframe1 = sframe2;
-                    dt1 = dt2;
-                    continue;
-                }
-                else if(dt2 < 0) {
-                    dt2 = -dt2;
-                    if(dt1 < dt2) {
-                        /* dt1 is better match */
-                        qmframe = mframe2;
-                        qsframe = sframe2;
-                        goto done;
-                    } else {
+                } else {
+                    /* dispatch this pair of frames */
+                    dt2 = mm_camera_channel_get_time_diff(&cur_ts, ch->buffering_frame.ms, &mframe2->frame.ts);
+
+                    if(dt2 == 0) {
+                        /* right on target */
                         qmframe = mframe1;
                         qsframe = sframe1;
                         mframe1 = mframe2;
                         sframe1 = sframe2;
                         goto done;
                     }
+                    else if(dt2 > 0) {
+                        /* not find the best match */
+                        qmframe = mframe1;
+                        qsframe = sframe1;
+                        mframe1 = mframe2;
+                        sframe1 = sframe2;
+                        dt1 = dt2;
+                        continue;
+                    }
+                    else if(dt2 < 0) {
+			            dt2 = -dt2;
+			            if(dt1 < dt2) {
+			                /* dt1 is better match */
+			                qmframe = mframe2;
+			                qsframe = sframe2;
+			                goto done;
+                        } else {
+                            qmframe = mframe1;
+                            qsframe = sframe1;
+                            mframe1 = mframe2;
+                            sframe1 = sframe2;
+                            goto done;
+                        }
+                    }
                 }
             }
+            rc = -1;
+            CDBG("%s: unexpected error. Should not hit here. bug!!\n", __func__);
+            goto end;
         }
-        rc = -1;
-        CDBG("%s: unexpected error. Should not hit here. bug!!\n", __func__);
-        goto end;
     }
 done:
     memset(&data, 0, sizeof(data));
@@ -559,6 +579,7 @@ done:
     mstream->frame.ref_count[data.snapshot.main.idx]++;
     sstream->frame.ref_count[data.snapshot.thumbnail.idx]++;
     ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+    ch->snapshot.num_shots -= 1;
 end:
     if(qmframe && qsframe) {
         /* queue to kernel */

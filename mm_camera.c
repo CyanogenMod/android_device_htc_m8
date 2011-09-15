@@ -107,7 +107,8 @@ static int32_t mm_camera_ctrl_set_whitebalance (mm_camera_obj_t *my_obj, int mod
         id = V4L2_CID_WHITE_BALANCE_TEMPERATURE;
         if(mode == WHITE_BALANCE_DAYLIGHT) value = 6500;
         else if(mode == WHITE_BALANCE_INCANDESCENT) value = 2800;
-        else if(mode ==WHITE_BALANCE_FLUORESCENT ) value = 4200;
+        else if(mode == WHITE_BALANCE_FLUORESCENT ) value = 4200;
+        else if(mode == WHITE_BALANCE_CLOUDY) value = 7500;
         else
             value = 4200;
     }
@@ -277,12 +278,6 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_AF_ROI:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_AF_ROI, sizeof(roi_info_t), (void *)parm->p_value);
-    case MM_CAMERA_PARM_BL_DETECTION:
-        return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_BL_DETECTION,
-                                                                                *((int *)(parm->p_value)));
-    case MM_CAMERA_PARM_SNOW_DETECTION:
-        return mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_SNOW_DETECTION,
-                                                                                *((int *)(parm->p_value)));
     case MM_CAMERA_PARM_BESTSHOT_MODE:
         CDBG("%s : MM_CAMERA_PARM_BESTSHOT_MODE value : %d",__func__,*((int *)(parm->p_value)));
         return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -336,6 +331,13 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_HISTOGRAM:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_HISTOGRAM, sizeof(int8_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_JPEG_ROTATION:
+        mm_jpeg_encoder_setRotation(*((int *)parm->p_value));
+        return MM_CAMERA_OK;
+
+    case MM_CAMERA_PARM_ASD_ENABLE:
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_ASD_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
     default:
         CDBG("%s:parm %d not supported\n", __func__, parm->parm_type);
         break;
@@ -390,6 +392,9 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
                  my_obj->dim.raw_picture_width,my_obj->dim.raw_picture_height);
         break;
     case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
+        CDBG("%s: Setting snapshot burst number: %d\n", __func__, *((int *)parm->p_value));
+        my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots = *((int *)parm->p_value);
+        rc = MM_CAMERA_OK;
         break;
     case MM_CAMERA_PARM_CH_IMAGE_FMT:
         {
@@ -474,6 +479,9 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     }
     case MM_CAMERA_PARM_OP_MODE:
         *((mm_camera_op_mode_type_t *)parm->p_value) = my_obj->op_mode;
+        break;
+    case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
+        *((int *)parm->p_value) = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots;
         break;
     default:
         /* needs to add more implementation */
@@ -648,7 +656,7 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
         break;
     }
     if(send_on_off_evt)
-      mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMMING_ON);
+      mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_ON);
     return rc;
 }
 
@@ -670,6 +678,7 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
         switch(opcode) {
         case MM_CAMERA_OPS_PREVIEW:
         case MM_CAMERA_OPS_SNAPSHOT:
+        case MM_CAMERA_OPS_ZSL:
         case MM_CAMERA_OPS_RAW:
             rc = mm_camera_ch_fn(my_obj, ch_type,
                             MM_CAMERA_STATE_EVT_STREAM_OFF, NULL);
@@ -695,7 +704,7 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
         break;
     }
     CDBG("%s:ch=%d\n",__func__, ch_type);
-    mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMMING_OFF);
+    mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_OFF);
     return rc;
 }
 

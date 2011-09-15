@@ -41,11 +41,18 @@ extern void mm_jpege_output_produced_handler(void*, void *, jpeg_buffer_t);
 extern int mm_jpege_output_produced_handler2(void*, void *, jpeg_buffer_t, uint8_t);
 
 int8_t mm_jpeg_encoder_init(void);
-extern int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t *,
-  const uint8_t *, int, const uint8_t *, int snapshot_fd, common_crop_t *crop,
-  exif_tags_info_t *exif_data, int exif_numEntries,
-  const int32_t a_cbcroffset, cam_point_t* main_crop_offset,
-  cam_point_t* thumb_crop_offset);
+extern int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
+                                     const uint8_t * thumbnail_buf,
+                                     int thumbnail_fd, uint32_t thumbnail_offset,
+                                     const uint8_t * snapshot_buf,
+                                     int snapshot_fd,
+                                     uint32_t snapshot_offset,
+                                     common_crop_t *crop,
+                                     exif_tags_info_t *exif_data,
+                                     int exif_numEntries,
+                                     const int32_t a_cbcroffset,
+                                     cam_point_t* main_crop_offset,
+                                     cam_point_t* thumb_crop_offset);
 
 extern int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality);
 extern int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality);

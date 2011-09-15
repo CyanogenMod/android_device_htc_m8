@@ -65,7 +65,6 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mVideoHeight (DEFAULT_STREAM_HEIGHT),
                     mVideoBitrate(320000), mVideoFps (30),
                     mCameraState(CAMERA_STATE_UNINITED),
-                    mZslEnable(0),
                     mDebugFps(0),
                     mInitialized(false),
                     mHasAutoFocusSupport(0),
@@ -81,7 +80,8 @@ QCameraHardwareInterface(mm_camera_t *native_camera, int mode)
                     mFps(0),
                     mPictureSizes(NULL),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
-                    mDumpFrmCnt(0), mDumpSkipCnt(0)
+                    mDumpFrmCnt(0), mDumpSkipCnt(0),
+                    mSmoothZoomRunning(false)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -419,23 +419,24 @@ status_t QCameraHardwareInterface::getBufferInfo(sp<IMemory>& Frame, size_t *ali
 void QCameraHardwareInterface::setMyMode(int mode)
 {
     LOGI("setMyMode: E");
-    switch(mode) {
-    case CAMERA_SUPPORT_MODE_2D:
-        myMode = CAMERA_MODE_2D;
-        break;
 
-    case CAMERA_SUPPORT_MODE_3D:
+    if (mode & CAMERA_SUPPORT_MODE_3D) {
         myMode = CAMERA_MODE_3D;
-        break;
-    case CAMERA_SUPPORT_MODE_NONZSL:
-        myMode = CAMERA_NONZSL_MODE;
-        break;
-    case CAMERA_SUPPORT_MODE_ZSL:
-        myMode = CAMERA_ZSL_MODE;
-        break;
-    default:
+    }
+    else {
+        /* default mode is 2D */
         myMode = CAMERA_MODE_2D;
     }
+
+    if (mode & CAMERA_SUPPORT_MODE_ZSL) {
+        myMode = (camera_mode_t)(myMode |CAMERA_ZSL_MODE);
+    }
+    else {
+        myMode = (camera_mode_t) (myMode | CAMERA_NONZSL_MODE);
+    }
+
+    LOGI("setMyMode: Setting mode to %d (passed mode: %d)", myMode, mode);
+
     LOGI("setMyMode: X");
 }
 
@@ -499,8 +500,14 @@ status_t QCameraHardwareInterface::setOverlay(const sp<Overlay> &Overlay)
 bool QCameraHardwareInterface::isPreviewRunning() {
     LOGI("isPreviewRunning: E");
     bool ret = false;
-    if((mCameraState == CAMERA_STATE_PREVIEW) || (mCameraState == CAMERA_STATE_PREVIEW_START_CMD_SENT)
-       || (mCameraState == CAMERA_STATE_RECORD) || (mCameraState == CAMERA_STATE_RECORD_START_CMD_SENT)) {
+    LOGI("isPreviewRunning: camera state:%d", mCameraState);
+
+    if((mCameraState == CAMERA_STATE_PREVIEW) ||
+       (mCameraState == CAMERA_STATE_PREVIEW_START_CMD_SENT) ||
+       (mCameraState == CAMERA_STATE_RECORD) ||
+       (mCameraState == CAMERA_STATE_RECORD_START_CMD_SENT) ||
+       (mCameraState == CAMERA_STATE_ZSL) ||
+       (mCameraState == CAMERA_STATE_ZSL_START_CMD_SENT)){
        return true;
     }
     LOGI("isPreviewRunning: X");
@@ -510,7 +517,8 @@ bool QCameraHardwareInterface::isPreviewRunning() {
 bool QCameraHardwareInterface::isRecordingRunning() {
     LOGI("isRecordingRunning: E");
     bool ret = false;
-    if((mCameraState == CAMERA_STATE_RECORD) || (mCameraState == CAMERA_STATE_RECORD_START_CMD_SENT)) {
+    if((mCameraState == CAMERA_STATE_RECORD) ||
+       (mCameraState == CAMERA_STATE_RECORD_START_CMD_SENT)) {
        return true;
     }
     LOGI("isRecordingRunning: X");
@@ -520,11 +528,17 @@ bool QCameraHardwareInterface::isRecordingRunning() {
 bool QCameraHardwareInterface::isSnapshotRunning() {
     LOGI("isSnapshotRunning: E");
     bool ret = false;
-    if((mCameraState == CAMERA_STATE_SNAP_CMD_ACKED) || (mCameraState == CAMERA_STATE_SNAP_START_CMD_SENT)) {
+    if((mCameraState == CAMERA_STATE_SNAP_CMD_ACKED) ||
+       (mCameraState == CAMERA_STATE_SNAP_START_CMD_SENT)) {
         return true;
     }
     return ret;
     LOGI("isSnapshotRunning: X");
+}
+
+bool QCameraHardwareInterface::isZSLMode() {
+    //return (myMode & CAMERA_ZSL_MODE);
+    return false;
 }
 
 void QCameraHardwareInterface::debugShowPreviewFPS() const
@@ -544,13 +558,15 @@ void QCameraHardwareInterface::debugShowPreviewFPS() const
     }
 }
 
-void QCameraHardwareInterface::processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
+void QCameraHardwareInterface::
+processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processPreviewChannelEvent: E");
     switch(channelEvent) {
-        case MM_CAMERA_CH_EVT_STREAMMING_ON:
-            mCameraState = CAMERA_STATE_PREVIEW;
+        case MM_CAMERA_CH_EVT_STREAMING_ON:
+            mCameraState = 
+                isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_PREVIEW;
             break;
-        case MM_CAMERA_CH_EVT_STREAMMING_OFF:
+        case MM_CAMERA_CH_EVT_STREAMING_OFF:
             mCameraState = CAMERA_STATE_READY;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
@@ -565,10 +581,10 @@ void QCameraHardwareInterface::processPreviewChannelEvent(mm_camera_ch_event_typ
 void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processRecordChannelEvent: E");
     switch(channelEvent) {
-        case MM_CAMERA_CH_EVT_STREAMMING_ON:
+        case MM_CAMERA_CH_EVT_STREAMING_ON:
             mCameraState = CAMERA_STATE_RECORD;
             break;
-        case MM_CAMERA_CH_EVT_STREAMMING_OFF:
+        case MM_CAMERA_CH_EVT_STREAMING_OFF:
             mCameraState = CAMERA_STATE_PREVIEW;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
@@ -580,13 +596,15 @@ void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type
     return;
 }
 
-void QCameraHardwareInterface::processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
+void QCameraHardwareInterface::
+processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processSnapshotChannelEvent: E");
     switch(channelEvent) {
-        case MM_CAMERA_CH_EVT_STREAMMING_ON:
-            mCameraState = CAMERA_STATE_SNAP_CMD_ACKED;
+        case MM_CAMERA_CH_EVT_STREAMING_ON:
+            mCameraState = 
+                isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
             break;
-        case MM_CAMERA_CH_EVT_STREAMMING_OFF:
+        case MM_CAMERA_CH_EVT_STREAMING_OFF:
             mCameraState = CAMERA_STATE_READY;
             break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
@@ -764,6 +782,11 @@ status_t QCameraHardwareInterface::startPreview()
         return NO_ERROR;
     }
 
+    /* If it's ZSL, start preview in ZSL mode*/
+    if (isZSLMode()) {
+        return startPreviewZSL();
+    }
+
     if (!mmCamera) {
         LOGE("%s: error - native camera is NULL!", __func__);
         LOGE("%s: X", __func__);
@@ -849,16 +872,182 @@ status_t QCameraHardwareInterface::startPreview()
     return ret;
 }
 
+status_t QCameraHardwareInterface::startPreviewZSL()
+{
+    LOGI("startPreviewZSL: E");
+    status_t ret = NO_ERROR;
+
+    cam_ctrl_dimension_t dim;
+    bool initPreview = false;
+
+    if (isPreviewRunning()){
+        LOGE("%s:Preview already started  mCameraState = %d!", __func__, mCameraState);
+        LOGE("%s: X", __func__);
+        return NO_ERROR;
+    }
+
+    if (!mmCamera) {
+        LOGE("%s: error - native camera is NULL!", __func__);
+        LOGE("%s: X", __func__);
+        return BAD_VALUE;
+    }
+    else{
+      /* Get existing preview information by querying mm_camera*/
+      memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+      ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    }
+
+    if (MM_CAMERA_OK != ret) {
+      LOGE("%s: error - can't get preview dimension!", __func__);
+      LOGE("%s: X", __func__);
+      return BAD_VALUE;
+    }
+
+    /* config the parmeters and see if we need to re-init the stream*/
+    initPreview = preview_parm_config (&dim, mParameters);
+    ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+    if (MM_CAMERA_OK != ret) {
+      LOGE("%s: error - can't config preview parms!", __func__);
+      LOGE("%s: X", __func__);
+      return BAD_VALUE;
+    }
+
+    /*If stream object exists but it needs to re-init, delete it now.
+       otherwise just call mPreviewStream->start() later ,
+      */
+    if (mStreamDisplay && initPreview){
+      LOGD("%s:Deleting old stream instance",__func__);
+      QCameraStream_preview::deleteInstance (mStreamDisplay);
+      mStreamDisplay = NULL;
+    }
+
+    /* If stream object doesn't exists, create and init it now.
+       and call mPreviewStream->start() later ,
+      */
+    if (!mStreamDisplay){
+      mStreamDisplay = QCameraStream_preview::createInstance(mmCamera,
+                                                             CAMERA_ZSL_MODE);
+      LOGD("%s:Creating new stream instance",__func__);
+    }
+
+    if (!mStreamDisplay) {
+      LOGE("%s: error - can't creat preview stream!", __func__);
+      return BAD_VALUE;
+    }
+
+    mStreamDisplay->setHALCameraControl(this);
+
+    /* Init all the buffers and send to steam object*/
+    ret = mStreamDisplay->init();
+    if (MM_CAMERA_OK != ret){
+      LOGE("%s: error - can't init preview stream!", __func__);
+      LOGE("%s: X", __func__);
+      /* yyan TODO: shall we delete it? */
+      return BAD_VALUE;
+    }
+
+    if (mStreamSnap){
+        LOGD("%s:Deleting old Snapshot stream instance",__func__);
+        QCameraStream_Snapshot::deleteInstance (mStreamSnap);
+        mStreamSnap = NULL;
+    }
+
+    /*
+     * Creating Instance of snapshot stream.
+     */
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mmCamera,
+                                                         CAMERA_ZSL_MODE);
+
+    if (!mStreamSnap) {
+        LOGE("%s: error - can't creat snapshot stream!", __func__);
+        return BAD_VALUE;
+    }
+
+    /* Store HAL object in snapshot stream Object */
+    mStreamSnap->setHALCameraControl(this);
+
+    /* Call prepareSnapshot before stopping preview */
+    mStreamSnap->prepareHardware();
+
+    /* Call snapshot init*/
+    ret =  mStreamSnap->init();
+    if (MM_CAMERA_OK != ret){
+        LOGE("%s: error - can't init Snapshot stream!", __func__);
+        return BAD_VALUE;
+    }
+
+    /* Start preview streaming */
+    ret = mStreamDisplay->start();
+    /* yyan TODO: call QCameraStream_noneZSL::start() */
+    if (MM_CAMERA_OK != ret){
+      LOGE("%s: error - can't start nonZSL stream!", __func__);
+      LOGE("%s: X", __func__);
+      return BAD_VALUE;
+    }
+
+    /* Start ZSL stream */
+    ret =  mStreamSnap->start();
+    if (MM_CAMERA_OK != ret){
+        LOGE("%s: error - can't start Snapshot stream!", __func__);
+        return BAD_VALUE;
+    }
+
+    if(MM_CAMERA_OK == ret)
+        mCameraState = CAMERA_STATE_ZSL_START_CMD_SENT;
+    else
+        mCameraState = CAMERA_STATE_ERROR;
+
+    LOGI("startPreviewZSL: setting state: %d", mCameraState);
+    LOGI("startPreviewZSL: X");
+    return ret;
+}
+
+
 void QCameraHardwareInterface::stopPreview()
 {
     LOGI("stopPreview: E");
     Mutex::Autolock lock(mLock);
     if (isPreviewRunning()) {
-        stopPreviewInternal();
+        if (isZSLMode()) {
+            stopPreviewZSL();
+        }
+        else {
+            stopPreviewInternal();
+        }
     } else {
         LOGE("%s: Preview already stopped",__func__);
     }
     LOGI("stopPreview: X");
+}
+
+void QCameraHardwareInterface::stopPreviewZSL()
+{
+    LOGI("stopPreviewZSL: E");
+
+    if(!mStreamDisplay || !mStreamSnap) {
+        LOGE("mStreamDisplay/mStreamSnap is null");
+        return;
+    }
+
+    /* Stop Preview streaming */
+    mStreamDisplay->stop();
+
+    /* Stop ZSL snapshot channel streaming*/
+    mStreamSnap->stop();
+
+    /* Realease all the resources*/
+    mStreamDisplay->release();
+    mStreamSnap->release();
+
+    /* Delete mStreamDisplay & mStreamSnap instance*/
+    QCameraStream_Snapshot::deleteInstance (mStreamSnap);
+    mStreamSnap = NULL;
+    QCameraStream_preview::deleteInstance (mStreamDisplay);
+    mStreamDisplay = NULL;
+
+    mCameraState = CAMERA_STATE_PREVIEW_STOP_CMD_SENT;
+
+    LOGI("stopPreviewZSL: X");
 }
 
 void QCameraHardwareInterface::stopPreviewInternal()
@@ -1154,6 +1343,23 @@ status_t  QCameraHardwareInterface::takePicture()
         return NO_ERROR;
     }
 */
+
+    if (isZSLMode()) {
+        if (mStreamSnap != NULL) {
+            ret = mStreamSnap->takePictureZSL();
+            if (ret != MM_CAMERA_OK) {
+                LOGE("%s: Error taking ZSL snapshot!", __func__);
+                ret = BAD_VALUE;
+            }
+        }
+        else {
+            LOGE("%s: ZSL stream not active! Failure!!", __func__);
+            ret = BAD_VALUE;
+        }
+
+        return ret;
+    }
+
     if (mStreamSnap){
         LOGE("%s:Deleting old Snapshot stream instance",__func__);
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
@@ -1335,76 +1541,113 @@ void QCameraHardwareInterface::processprepareSnapshotEvent(cam_ctrl_status_t *st
     LOGI("processprepareSnapshotEvent: X");
 }
 
+void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
+{
+    mm_camera_ch_crop_t v4l2_crop;
+
+    LOGD("%s: E", __func__);
+
+    memset(&v4l2_crop,0,sizeof(v4l2_crop));
+    v4l2_crop.ch_type=MM_CAMERA_CH_SNAPSHOT;
+
+    LOGI("%s: Fetching crop info", __func__);
+    mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+
+    LOGI("%s: Crop info received for main: %d, %d, %d, %d ", __func__,
+         v4l2_crop.snapshot.main_crop.left,
+         v4l2_crop.snapshot.main_crop.top,
+         v4l2_crop.snapshot.main_crop.width,
+         v4l2_crop.snapshot.main_crop.height);
+    LOGI("%s: Crop info received for main: %d, %d, %d, %d ",__func__,
+         v4l2_crop.snapshot.thumbnail_crop.left,
+         v4l2_crop.snapshot.thumbnail_crop.top,
+         v4l2_crop.snapshot.thumbnail_crop.width,
+         v4l2_crop.snapshot.thumbnail_crop.height);
+
+    if(mStreamSnap) {
+        LOGD("%s: Setting crop info for snapshot", __func__);
+        memcpy(&(mStreamSnap->mCrop), &v4l2_crop, sizeof(v4l2_crop));
+    }
+
+    LOGD("%s: X", __func__);
+}
+
+void QCameraHardwareInterface::handleZoomEventForPreview(void)
+{
+    mm_camera_ch_crop_t v4l2_crop;
+
+    LOGI("%s: E", __func__);
+
+    /*regular zooming or smooth zoom stopped*/
+    if (!mSmoothZoomRunning) {
+        memset(&v4l2_crop, 0, sizeof(v4l2_crop));
+        v4l2_crop.ch_type = MM_CAMERA_CH_PREVIEW;
+
+        LOGI("%s: Fetching crop info", __func__);
+        mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
+
+        LOGE("%s: Crop info received: %d, %d, %d, %d ", __func__,
+             v4l2_crop.crop.left,
+             v4l2_crop.crop.top,
+             v4l2_crop.crop.width,
+             v4l2_crop.crop.height);
+
+        mOverlayLock.lock();
+        if(mOverlay != NULL){
+            LOGI("%s: Setting crop", __func__);
+            if ((v4l2_crop.crop.width != 0) && (v4l2_crop.crop.height != 0)) {
+                mOverlay->setCrop(v4l2_crop.crop.left, v4l2_crop.crop.top,
+                                  v4l2_crop.crop.width, v4l2_crop.crop.height);
+                LOGI("%s: Done setting crop", __func__);
+            } else {
+                LOGI("%s: Resetting crop", __func__);
+                mOverlay->setCrop(0, 0, previewWidth, previewHeight);
+            }
+        }
+        mOverlayLock.unlock();
+        LOGI("%s: Currrent zoom :%d",__func__, mCurrentZoom);
+    }
+#if 0
+    else {
+        if (mCurrentZoom == mTargetSmoothZoom) {
+            mSmoothZoomRunning = false;
+            mNotifyCb(CAMERA_MSG_ZOOM,
+                      mCurrentZoom, 1, mCallbackCookie);
+        } else {
+            mCurrentZoom += mSmoothZoomStep;
+            if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
+                (mSmoothZoomStep > 0 && mCurrentZoom > mTargetSmoothZoom )) {
+                mCurrentZoom = mTargetSmoothZoom;
+        }
+            mParameters.set("zoom", mCurrentZoom);
+            setZoom(mParameters);
+        }
+    }
+#endif
+
+    LOGI("%s: X", __func__);
+}
 
 void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
 {
     LOGE("zoomEvent: state:%d E",mCameraState);
-    switch(mCameraState ) {
-      case CAMERA_STATE_SNAP_CMD_ACKED:
-
-        memset(&v4l2_crop,0,sizeof(v4l2_crop));
-        v4l2_crop.ch_type=MM_CAMERA_CH_SNAPSHOT;
-        LOGI("Fetching crop info");
-        mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
-        LOGI("Back from get parm");
-        LOGI("Crop info received for main: %d, %d, %d, %d ",v4l2_crop.snapshot.main_crop.left,v4l2_crop.snapshot.main_crop.top,v4l2_crop.snapshot.main_crop.width,v4l2_crop.snapshot.main_crop.height);
-        LOGI("Crop info received for main: %d, %d, %d, %d ",v4l2_crop.snapshot.thumbnail_crop.left,v4l2_crop.snapshot.thumbnail_crop.top,v4l2_crop.snapshot.thumbnail_crop.width,v4l2_crop.snapshot.thumbnail_crop.height);
-        if(mStreamSnap) {
-          mStreamSnap->mCrop=v4l2_crop;
-        }
-
-        break;
+    switch (mCameraState) {
+        case CAMERA_STATE_SNAP_CMD_ACKED:
+            handleZoomEventForSnapshot();
+            break;
+        case CAMERA_STATE_ZSL:
+            /* In ZSL mode, we start preview and snapshot stream at
+               the same time */
+            handleZoomEventForSnapshot();
+            handleZoomEventForPreview();
+            break;
 
         case CAMERA_STATE_PREVIEW:
         case CAMERA_STATE_RECORD_START_CMD_SENT:
         case CAMERA_STATE_RECORD:
         default:
-
-        #if 0
-            if(mSmoothZoomRunning) {
-                if (mCurrentZoom == mTargetSmoothZoom) {
-                    mSmoothZoomRunning = false;
-                    mNotifyCb(CAMERA_MSG_ZOOM,
-                            mCurrentZoom, 1, mCallbackCookie);
-                } else {
-                    mCurrentZoom += mSmoothZoomStep;
-                    if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
-                            (mSmoothZoomStep > 0 && mCurrentZoom > mTargetSmoothZoom )) {
-                        mCurrentZoom = mTargetSmoothZoom;
-                    }
-                    mParameters.set("zoom", mCurrentZoom);
-                    setZoom(mParameters);
-                }
-            } else
-            #endif
-            { /*regular zooming or smooth zoom stopped*/
-
-                memset(&v4l2_crop,0,sizeof(v4l2_crop));
-                v4l2_crop.ch_type=MM_CAMERA_CH_PREVIEW;
-                LOGE("Fetching crop info");
-                mmCamera->cfg->get_parm(mmCamera,MM_CAMERA_PARM_CROP,&v4l2_crop);
-                LOGE("Back from get parm");
-                LOGE("Crop info received: %d, %d, %d, %d ",v4l2_crop.crop.left,v4l2_crop.crop.top,v4l2_crop.crop.width,v4l2_crop.crop.height);
-                mOverlayLock.lock();
-                if(mOverlay != NULL){
-                  LOGE("Setting crop");
-                  if(v4l2_crop.crop.width!=0 && v4l2_crop.crop.height!=0) {
-                    mOverlay->setCrop(v4l2_crop.crop.left, v4l2_crop.crop.top,
-                          v4l2_crop.crop.width, v4l2_crop.crop.height);
-                                    LOGE("Done setting crop");
-                  }else{
-                      LOGE("Resetting crop");
-                      mOverlay->setCrop(0, 0,
-                          previewWidth, previewHeight);
-                  }
-                }
-                mOverlayLock.unlock();
-                LOGI("Calling notify to service");
-                LOGI("Currrent zoom :%d",mCurrentZoom);
-
-            }
+            handleZoomEventForPreview();
             break;
-
     }
     LOGI("zoomEvent: X");
 }

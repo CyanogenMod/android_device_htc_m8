@@ -278,13 +278,18 @@ int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
   return TRUE;
 }
 
-int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
-  uint8_t * thumbnail_buf,
-  int thumbnail_fd, const uint8_t * snapshot_buf, int snapshot_fd,
-  common_crop_t *scaling_params, exif_tags_info_t *exif_data, int exif_numEntries,
-  const int32_t a_cbcroffset,
-  cam_point_t* main_crop_offset,
-  cam_point_t* thumb_crop_offset)
+int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
+                              const uint8_t * thumbnail_buf,
+                              int thumbnail_fd, uint32_t thumbnail_offset,
+                              const uint8_t * snapshot_buf,
+                              int snapshot_fd,
+                              uint32_t snapshot_offset,
+                              common_crop_t *scaling_params,
+                              exif_tags_info_t *exif_data,
+                              int exif_numEntries,
+                              const int32_t a_cbcroffset,
+                              cam_point_t* main_crop_offset,
+                              cam_point_t* thumb_crop_offset)
 {
   int buf_size = 0;
   int ret = 0;
@@ -365,6 +370,8 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
     jpeg_buffer_reset(tn_img_info.p_fragments[0].color.yuv.luma_buf);
     jpeg_buffer_reset(tn_img_info.p_fragments[0].color.yuv.chroma_buf);
 
+    CDBG("%s: Thumbnail: fd: %d offset: %d  Main: fd: %d offset: %d", __func__,
+         thumbnail_fd, thumbnail_offset, snapshot_fd, snapshot_offset);
     rc = jpeg_buffer_use_external_buffer(
               tn_img_info.p_fragments[0].color.yuv.luma_buf,
               (uint8_t *)thumbnail_buf, buf_size,
@@ -404,6 +411,9 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
       }
     }
   }
+
+  /* Set phy offset */
+  jpeg_buffer_set_phy_offset(tn_img_info.p_fragments[0].color.yuv.luma_buf, thumbnail_offset);
 
   CDBG("jpeg_encoder_encode size %dx%d\n",dimension->orig_picture_dx,dimension->orig_picture_dy);
   main_img_info.width = dimension->orig_picture_dx * w_scale_factor;
@@ -453,6 +463,8 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension, const
       jpeg_buffer_set_start_offset(main_img_info.p_fragments[0].color.yuv.chroma_buf, ((padded_size - actual_size) >> 1));
     }
   }
+
+  jpeg_buffer_set_phy_offset(main_img_info.p_fragments[0].color.yuv.luma_buf, snapshot_offset);
 
   /*  Set Source */
   jpege_source.p_main = &main_img_info;

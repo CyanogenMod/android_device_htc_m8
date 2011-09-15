@@ -105,8 +105,9 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
 
         cameraInfo->orientation = mm_camer_obj->camera_info.sensor_mount_angle;
 
-        /* yyan: we always spprot ZSL in our stack*/
-        cameraInfo->mode = CAMERA_SUPPORT_MODE_ZSL;
+        /* We always supprot ZSL in our stack*/
+        //cameraInfo->mode = CAMERA_SUPPORT_MODE_ZSL;
+        cameraInfo->mode = 0;
         if (mm_camer_obj->camera_info.modes_supported & CAMERA_MODE_2D) {
             cameraInfo->mode |= CAMERA_SUPPORT_MODE_2D;
         }

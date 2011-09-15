@@ -113,6 +113,7 @@ static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
         my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.ref_count[data.snapshot.thumbnail.idx]++;
         my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb(&data,
                                 my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.user_data);
+        my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots -= 1;
         delivered = 1;
     }
     pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);

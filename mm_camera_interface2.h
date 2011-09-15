@@ -31,6 +31,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __MM_CAMERA_INTERFACE2_H__
 
 #include <camera.h>
+#include "mm_jpeg_encoder.h"
 
 #define MM_CAMERA_MAX_NUM_FRAMES        16
 
@@ -136,6 +137,7 @@ typedef enum {
     MM_CAMERA_PARM_CROP,
     MM_CAMERA_PARM_MAX_PICTURE_SIZE,
     MM_CAMERA_PARM_MAX_PREVIEW_SIZE,
+    MM_CAMERA_PARM_ASD_ENABLE,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
@@ -155,6 +157,7 @@ typedef enum {
     WHITE_BALANCE_INCANDESCENT = 3,
     WHITE_BALANCE_FLUORESCENT  = 4,
     WHITE_BALANCE_DAYLIGHT     = 5,
+    WHITE_BALANCE_CLOUDY       = 6,
     WHITE_BALANCE_OFF          = 9,
 } White_Balance_modes;
 

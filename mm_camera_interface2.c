@@ -102,6 +102,7 @@ static uint8_t mm_camera_cfg_is_parm_supported (mm_camera_t * camera,
     case MM_CAMERA_PARM_CROP:
     case MM_CAMERA_PARM_MAX_PICTURE_SIZE:
     case MM_CAMERA_PARM_MAX_PREVIEW_SIZE:
+    case MM_CAMERA_PARM_ASD_ENABLE:
     case MM_CAMERA_PARM_MAX:
         return 1;
     default:
@@ -146,12 +147,6 @@ static int32_t mm_camera_cfg_set_parm (mm_camera_t * camera,
     uint32_t tmp;
     mm_camera_obj_t * my_obj = NULL;
     mm_camera_parm_t parm = {.parm_type = parm_type, .p_value = p_value};
-
-    if (!mm_camera_cfg_is_parm_supported(camera,
-                                        parm_type)) {
-        CDBG("%s:parm %d not supported\n", __func__, parm_type);
-        return -MM_CAMERA_E_NOT_SUPPORTED;
-    }
 
     pthread_mutex_lock(&g_mutex);
     my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];

@@ -250,6 +250,7 @@ status_t QCameraStream::deinitChannel(mm_camera_t *native_camera,
 QCameraStream::QCameraStream (){
     mInit = false;
     mActive = false;
+    /* memset*/
     memset(&mCrop, 0, sizeof(mm_camera_ch_crop_t));
 }
 
@@ -413,7 +414,6 @@ status_t QCameraStream_noneZSL::start() {
 
     /* yyan TODO: register a notify into the mmmm_camera_t object*/
     if (mmCamera) {
-<<<<<<< HEAD
       if(ch_type == MM_CAMERA_CH_PREVIEW) {
         (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_PREVIEW,
                                                   preview_notify_cb,
@@ -425,15 +425,6 @@ status_t QCameraStream_noneZSL::start() {
       }else{
         //TODO : Need snap shot Code?
       }
-=======
-      /*(void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_PREVIEW,
-                                                preview_notify_cb,
-                                                this);
-      (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_VIDEO,
-                                                record_notify_cb,
-                                                this);
-                                                */
->>>>>>> 99e505d... Mansoor changes
     }
     mActive =  true;
     LOGV("%s: X", __func__);

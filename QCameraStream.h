@@ -285,8 +285,9 @@ private:
     status_t configSnapshotDimension(cam_ctrl_dimension_t* dim);
     status_t encodeData(mm_camera_ch_data_buf_t* recvd_frame,
                         common_crop_t *crop_info,
-                        int frame_len);
-    status_t encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame);
+                        int frame_len,
+                        bool enqueued);
+    status_t encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame, bool enqueued);
     status_t setZSLChannelAttribute(int water_mark, int multi_frame, int ms);
     void handleError();
     void setSnapshotState(int state);
@@ -308,6 +309,7 @@ private:
     int mNumOfSnapshot;
     camera_mode_t myMode;
     bool mModeLiveSnapshot;
+    bool mBurstModeFlag;
     sp<AshmemPool> mJpegHeap;
     /*TBD:Bikas: This is defined in HWI too.*/
     sp<PmemPool>  mDisplayHeap;

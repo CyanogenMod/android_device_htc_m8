@@ -409,7 +409,7 @@ void QCameraHardwareInterface::filterPictureSizes(){
             maxSnapshotHeight = mPictureSizes[i].height;
         }
     }
-    if(myMode == CAMERA_ZSL_MODE){
+    if(myMode & CAMERA_ZSL_MODE){
         // due to lack of PMEM we restrict to lower resolution
         mPictureSizesPtr = zsl_picture_sizes;
         mSupportedPictureSizesCount = 7;
@@ -527,7 +527,11 @@ bool QCameraHardwareInterface::isValidDimension(int width, int height) {
 void QCameraHardwareInterface::hasAutoFocusSupport(){
 
     LOGV("%s",__func__);
-    mHasAutoFocusSupport = false;
+
+    if(isZSLMode()){
+        mHasAutoFocusSupport = false;
+        return;
+    }
 
     if(mmCamera->ops->is_op_supported (mmCamera,
                                      MM_CAMERA_OPS_FOCUS )) {
@@ -537,8 +541,6 @@ void QCameraHardwareInterface::hasAutoFocusSupport(){
         LOGE("AutoFocus is not supported");
         mHasAutoFocusSupport = false;
     }
-    if(mZslEnable)
-        mHasAutoFocusSupport = false;
 
     LOGV("%s:rc= %d",__func__, mHasAutoFocusSupport);
 
@@ -724,7 +726,6 @@ void QCameraHardwareInterface::initDefaultParameters()
                 mZoomSupported=true;
                 mZoomRatioValues =  create_str(zoomRatios, mMaxZoom);
             }
-
         }
 
         LOGE("Zoom supported:%d",mZoomSupported);
@@ -1072,13 +1073,8 @@ void QCameraHardwareInterface::initDefaultParameters()
             CameraParameters::KEY_EXPOSURE_COMPENSATION_STEP,
             EXPOSURE_COMPENSATION_STEP);
 
-  /*  if(mZslEnable == true) {
-        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, MAX_SNAPSHOT_BUFFERS-2);
-        mParameters.set("num-snaps-per-shutter", MAX_SNAPSHOT_BUFFERS-2);
-    } else*/ {
-        LOGI("%s: setting num-snaps-per-shutter to %d", __FUNCTION__, 1);
-        mParameters.set("num-snaps-per-shutter", "1");
-    }
+    mParameters.set("num-snaps-per-shutter", 1);
+
    // if(mIs3DModeOn)
    //     mParameters.set("3d-frame-format", "left-right");
 
@@ -1120,10 +1116,10 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
     if ((rc = setEffect(params)))                       final_rc = rc;
     //    if ((rc = setGpsLocation(params)))            final_rc = rc;
-    //    if ((rc = setRotation(params)))               final_rc = rc;
-    if ((rc = setZoom(params)))                         final_rc = rc;
-    //    if ((rc = setOrientation(params)))            final_rc = rc;
-        if ((rc = setLensshadeValue(params)))         final_rc = rc;
+    if ((rc = setRotation(params)))               final_rc = rc;
+    if ((rc = setZoom(params)))                   final_rc = rc;
+    if ((rc = setOrientation(params)))            final_rc = rc;
+    if ((rc = setLensshadeValue(params)))         final_rc = rc;
     //    if ((rc = setMCEValue(params)))               final_rc = rc;
     if ((rc = setPictureFormat(params)))                final_rc = rc;
     if ((rc = setSharpness(params)))                    final_rc = rc;
@@ -1141,6 +1137,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     //    if ((rc = setRedeyeReduction(params)))        final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     //    if ((rc = setPreviewFpsRange(params)))        final_rc = rc;
+    if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -1259,17 +1256,12 @@ status_t QCameraHardwareInterface::setContrast(const CameraParameters& params)
 status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params)
 {
     LOGE("%s",__func__);
-    bool retParm1, retParm2;
+    bool retParm;
     int rc = MM_CAMERA_OK;
 
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_BL_DETECTION);
+    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ASD_ENABLE);
     if(!rc) {
-        LOGE("%s:MM_CAMERA_PARM_BL_DETECTION not supported", __func__);
-        return NO_ERROR;
-    }
-    rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_SNOW_DETECTION);
-    if(!rc) {
-        LOGE("%s:MM_CAMERA_PARM_SNOW_DETECTION not supported", __func__);
+        LOGE("%s:MM_CAMERA_PARM_ASD_ENABLE not supported", __func__);
         return NO_ERROR;
     }
 
@@ -1281,22 +1273,10 @@ status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_SCENE_DETECT, str);
 
-            retParm1 = native_set_parms(MM_CAMERA_PARM_BL_DETECTION, sizeof(value),
+            retParm = native_set_parms(MM_CAMERA_PARM_ASD_ENABLE, sizeof(value),
                                        (void *)&value);
 
-            retParm2 = native_set_parms(MM_CAMERA_PARM_SNOW_DETECTION, sizeof(value),
-                                       (void *)&value);
-
-            //All Auto Scene detection modes should be all ON or all OFF.
-            if(retParm1 == false || retParm2 == false) {
-                value = !value;
-                retParm1 = native_set_parms(MM_CAMERA_PARM_BL_DETECTION, sizeof(value),
-                                           (void *)&value);
-
-                retParm2 = native_set_parms(MM_CAMERA_PARM_SNOW_DETECTION, sizeof(value),
-                                           (void *)&value);
-            }
-            return (retParm1 && retParm2) ? NO_ERROR : UNKNOWN_ERROR;
+            return retParm ? NO_ERROR : UNKNOWN_ERROR;
         }
     }
    return BAD_VALUE;
@@ -1306,7 +1286,7 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
 {
     status_t rc = NO_ERROR;
 
-    LOGE("%s",__func__);
+    LOGE("%s: E",__func__);
 
 
     if( !( mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_ZOOM))) {
@@ -1964,6 +1944,20 @@ status_t QCameraHardwareInterface::setPictureSize(const CameraParameters& params
     return BAD_VALUE;
 }
 
+status_t QCameraHardwareInterface::setJpegRotation(void) {
+    status_t rc = NO_ERROR;
+    int result;
+    int rotation = mParameters.getInt("rotation");
+
+    rc = native_set_parms(MM_CAMERA_PARM_JPEG_ROTATION, sizeof(int),
+        (void *)&rotation, (int *)&result);
+    if(result != MM_CAMERA_OK)
+        LOGI("JPEG Rotation: %d is not set as the selected value is not supported",
+             rotation);
+
+    return rc ? NO_ERROR : BAD_VALUE;
+}
+
 status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params) {
     status_t rc = NO_ERROR;
     int quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
@@ -1982,6 +1976,25 @@ status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params
         rc = BAD_VALUE;
     }
     LOGE("setJpegQuality X");
+    return rc;
+}
+
+status_t QCameraHardwareInterface::
+setNumOfSnapshot(const CameraParameters& params) {
+    status_t rc = NO_ERROR;
+
+    int num_of_snapshot = params.getInt("num-snaps-per-shutter");
+
+    if (num_of_snapshot <= 0) {
+        num_of_snapshot = 1;
+    }
+    mParameters.set("num-snaps-per-shutter", num_of_snapshot);
+
+    bool result = native_set_parms(MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
+                                   sizeof(int),
+                                   (void *)&num_of_snapshot);
+    if(!result)
+        LOGI("%s:Failure setting number of snapshots!!!", __func__);
     return rc;
 }
 
@@ -2382,6 +2395,38 @@ int QCameraHardwareInterface::getJpegQuality() const
     return mParameters.getInt(CameraParameters::KEY_JPEG_QUALITY);
 }
 
+int QCameraHardwareInterface::getNumOfSnapshots(void) const
+{
+   return mParameters.getInt("num-snaps-per-shutter");
+}
+
+int QCameraHardwareInterface::getRemainingSnapshots(void)
+{
+    int remaining_snapshot = 0;
+
+    if(MM_CAMERA_OK!=mmCamera->cfg->get_parm(mmCamera,
+                                             MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
+                                             &remaining_snapshot)){
+        LOGE("%s:Failed to get max zoom",__func__);
+    }
+
+    /* if remaining snapshot is 0 reset the  parameter to original
+       value */
+    if (!remaining_snapshot) {
+        int num_of_snapshot = mParameters.getInt("num-snaps-per-shutter");
+
+        LOGI("%s: Resetting snapshot counter to %d", __func__, num_of_snapshot);
+        bool result = native_set_parms(MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
+                                       sizeof(int),
+                                       (void *)&num_of_snapshot);
+        if(!result)
+            LOGI("%s:Failure setting number of snapshots!!!", __func__);
+    }
+
+    LOGI("%s: Remaining snapshots: %d", __func__, remaining_snapshot);
+    return remaining_snapshot;
+}
+
 int QCameraHardwareInterface::
 getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                              int *picture_width,
@@ -2524,10 +2569,8 @@ void QCameraHardwareInterface::freePictureTable(void)
     /* If we couldn't allocate memory to store picture table
        we use the picture table pointer to point to default
        picture table array. In that case we cannot free it.*/
-    if (mPictureSizes != default_picture_sizes) {
-        if(mPictureSizes) {
-            free(mPictureSizes);
-        }
+    if ((mPictureSizes != default_picture_sizes) && mPictureSizes) {
+        free(mPictureSizes);
     }
 }
 

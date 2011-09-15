@@ -51,7 +51,7 @@ typedef struct {
 #define VIDEO_BUFFER_COUNT 8
 #define PREVIEW_BUFFER_COUNT 4
 #define MAX_ZOOM_RATIOS 62
-
+#define MAX_ZSL_IMAGES 8
 
 #ifdef Q12
 #undef Q12
@@ -94,15 +94,17 @@ typedef enum {
   CAMERA_STATE_PREVIEW_START_CMD_SENT,
   CAMERA_STATE_PREVIEW_STOP_CMD_SENT,
   CAMERA_STATE_PREVIEW,
-  CAMERA_STATE_RECORD_START_CMD_SENT,
+  CAMERA_STATE_RECORD_START_CMD_SENT,  /*5*/
   CAMERA_STATE_RECORD_STOP_CMD_SENT,
   CAMERA_STATE_RECORD,
   CAMERA_STATE_SNAP_START_CMD_SENT,
   CAMERA_STATE_SNAP_STOP_CMD_SENT,
-  CAMERA_STATE_SNAP_CMD_ACKED,  /*snapshot comd acked, snapshot not done yet*/
+  CAMERA_STATE_SNAP_CMD_ACKED,  /*10 - snapshot comd acked, snapshot not done yet*/
+  CAMERA_STATE_ZSL_START_CMD_SENT,
+  CAMERA_STATE_ZSL,
   CAMERA_STATE_AF_START_CMD_SENT,
   CAMERA_STATE_AF_STOP_CMD_SENT,
-  CAMERA_STATE_ERROR,
+  CAMERA_STATE_ERROR, /*15*/
 
   /*Add any new state above*/
   CAMERA_STATE_MAX
@@ -170,6 +172,8 @@ public:
     void        useData(void*);
     void        processEvent(mm_camera_event_t *);
     int getJpegQuality() const;
+    int getNumOfSnapshots(void) const;
+    int getRemainingSnapshots(void);
     void getPictureSize(int *picture_width, int *picture_height) const;
     void getPreviewSize(int *preview_width, int *preview_height) const;
     int getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
@@ -180,7 +184,7 @@ public:
     bool mUseOverlay;
     cam_format_t getPreviewFormat() const;
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
-    mm_camera_ch_crop_t v4l2_crop;
+
 private:
                         QCameraHardwareInterface(mm_camera_t *, int);
     virtual             ~QCameraHardwareInterface();
@@ -224,6 +228,8 @@ private:
     void stopPreviewInternal();
     void stopRecordingInternal();
     status_t cancelPictureInternal();
+    status_t startPreviewZSL();
+    void stopPreviewZSL();
 
     status_t setPictureSizeTable(void);
     void freePictureTable(void);
@@ -236,6 +242,8 @@ private:
     status_t setRecordSize(const CameraParameters& params);
     status_t setPictureSize(const CameraParameters& params);
     status_t setJpegQuality(const CameraParameters& params);
+    status_t setNumOfSnapshot(const CameraParameters& params);
+    status_t setJpegRotation(void);
     status_t setAntibanding(const CameraParameters& params);
     status_t setEffect(const CameraParameters& params);
     status_t setExposureCompensation(const CameraParameters &params);
@@ -273,6 +281,8 @@ private:
 
     void zoomEvent(cam_ctrl_status_t *status);
     void autofocusevent(cam_ctrl_status_t *status);
+    void handleZoomEventForPreview(void);
+    void handleZoomEventForSnapshot(void);
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);
@@ -342,7 +352,6 @@ private:
 
      bool mHasAutoFocusSupport;
      int mDebugFps;
-     int mZslEnable;
      bool mDisEnabled;
      int maxSnapshotWidth;
      int maxSnapshotHeight;
@@ -417,6 +426,7 @@ private:
      sp<AshmemPool> mStatHeap;
 
      void setMyMode(int mode);
+     bool isZSLMode();
 
      friend class QCameraStream;
      friend class QCameraStream_record;

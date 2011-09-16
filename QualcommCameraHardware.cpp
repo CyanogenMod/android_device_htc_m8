@@ -89,6 +89,9 @@ extern "C" {
 #define APP_ORIENTATION 90
 #define HDR_HAL_FRAME 2
 
+#define FLASH_AUTO 24
+#define FLASH_SNAP 32
+
 #if DLOPEN_LIBMMCAMERA
 #include <dlfcn.h>
 
@@ -4534,22 +4537,24 @@ status_t QualcommCameraHardware::takePicture()
     }
     //Adding ExifTag for Flash
     const char *flash_str = mParameters.get(CameraParameters::KEY_FLASH_MODE);
-    if(!strcmp(flash_str,"on"))
+    if (flash_str) {
+      if(!strcmp(flash_str,"on"))
         flashMode = 1;
 
-    if(!strcmp(flash_str,"off"))
+      if(!strcmp(flash_str,"off"))
         flashMode = 0;
-    //for AUTO mode bits 3 & 4 will be 1.
-    if(!strcmp(flash_str,"auto")){
-         flashMode  = 24;//for flash not fired,bit 0 will be 0
-         int is_flash_fired = 0;
+      //for AUTO mode bits 3 & 4 will be 1.
+      if(!strcmp(flash_str,"auto")){
+        flashMode  = FLASH_AUTO;//for flash not fired,bit 0 will be 0
+        int is_flash_fired = 0;
          if(mCfgControl.mm_camera_get_parm(CAMERA_PARM_QUERY_FALSH4SNAP,
-                      (void *)&is_flash_fired) != MM_CAMERA_SUCCESS)
-           flashMode = 32 ; //for No Flash support,bit 5 will be 0
+                        (void *)&is_flash_fired) != MM_CAMERA_SUCCESS)
+           flashMode = FLASH_SNAP ; //for No Flash support,bit 5 will be 0
          else if(is_flash_fired)
            flashMode = (is_flash_fired>>1) | flashMode ;//for flash fired,bit 0 will be 1
+      }
+      addExifTag(EXIFTAGID_FLASH,EXIF_SHORT,1,1,(void *)&flashMode);
     }
-    addExifTag(EXIFTAGID_FLASH,EXIF_SHORT,1,1,(void *)&flashMode);
     if(mParameters.getPictureFormat() != 0 &&
             !strcmp(mParameters.getPictureFormat(),
                     CameraParameters::PIXEL_FORMAT_RAW)){

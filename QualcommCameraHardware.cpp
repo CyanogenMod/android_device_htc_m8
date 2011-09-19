@@ -1701,7 +1701,7 @@ void QualcommCameraHardware::initDefaultParameters()
         && (mCurrentTarget != TARGET_MSM7627A)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
                     "yuv420sp");
-    } else if(mCurrentTarget == TARGET_MSM7627A) {
+    } else if(mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627) {
         preview_format_values = create_values_str(
             preview_formats1, sizeof(preview_formats1) / sizeof(str_map));
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
@@ -2591,8 +2591,8 @@ void QualcommCameraHardware::runFrameThread(void *data)
              mPmemWait.signal();
              mPmemWaitLock.unlock();
 
-            if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
-                mCurrentTarget == TARGET_MSM7627A  &&
+            if(( mPreviewFormat == CAMERA_YUV_420_YV12 )&&
+                ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627) &&
                 previewWidth%32 != 0 )
                 mYV12Heap.clear();
 
@@ -2770,8 +2770,8 @@ void QualcommCameraHardware::runPreviewThread(void *data)
         yuv_image_type in_buf, out_buf;
         int conversion_result = 0;
 
-        if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
-            mCurrentTarget == TARGET_MSM7627A  ){
+        if(( mPreviewFormat == CAMERA_YUV_420_YV12 ) &&
+           ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627 )){
             // if the width is not multiple of 32,
             //we cannot do inplace conversion as sizes of 420sp and YV12 frames differ
             if(previewWidth%32){
@@ -3277,8 +3277,8 @@ bool QualcommCameraHardware::initPreview()
       // bit aligned , we need seperate buffer to hold YV12 data
     yv12framesize = (previewWidth*previewHeight)
           + 2* ( CEILING16(previewWidth/2) * (previewHeight/2)) ;
-    if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
-        mCurrentTarget == TARGET_MSM7627A  &&
+    if(( mPreviewFormat == CAMERA_YUV_420_YV12 ) &&
+        ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627 ) &&
         previewWidth%32 != 0 ){
         LOGE("initpreview : creating YV12 heap as previewwidth %d not 32 aligned", previewWidth);
         mYV12Heap = new PmemPool(pmem_region,
@@ -3968,8 +3968,8 @@ sp<IMemoryHeap> QualcommCameraHardware::getPreviewHeap() const
 {
     LOGV("getPreviewHeap");
     if(mIs3DModeOn != true) {
-        if( mPreviewFormat == CAMERA_YUV_420_YV12 &&
-            mCurrentTarget == TARGET_MSM7627A  &&
+        if(( mPreviewFormat == CAMERA_YUV_420_YV12 ) &&
+            ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627 ) &&
             previewWidth%32 != 0 )
             return mYV12Heap->mHeap;
 

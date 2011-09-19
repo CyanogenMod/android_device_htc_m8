@@ -297,6 +297,7 @@ status_t QCameraHardwareInterface::dump(int fd, const Vector<String16>& args) co
 }
 
 
+
 status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
                                          int32_t arg2)
 {
@@ -321,30 +322,28 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
           mSendData = true;
           rc = NO_ERROR;
           break;
-#if 0 /*TO Do: will enable it later*/
-        case CAMERA_CMD_FACE_DETECTION_ON:
-          if(supportsFaceDetection() == false){
-              LOGI("face detection support is not available");
-              rc = NO_ERROR;
-          } else {
-            setFaceDetection("on");
-            rc = runFaceDetection();
-          }
-          break;
-
-        case CAMERA_CMD_FACE_DETECTION_OFF:
-          if(supportsFaceDetection() == false){
-              LOGI("face detection support is not available");
-              rc = NO_ERROR;
-          } else {
-            setFaceDetection("off");
-            rc = runFaceDetection();
-          }
-          break;
-        case CAMERA_CMD_SEND_META_DATA:
-          rc = NO_ERROR;
-          break;
-
+      case CAMERA_CMD_FACE_DETECTION_ON:
+                                   if(supportsFaceDetection() == false){
+                                        LOGE("Face detection support is not available");
+                                        return NO_ERROR;
+                                   }
+                                   setFaceDetection("on");
+                                   return runFaceDetection();
+      case CAMERA_CMD_FACE_DETECTION_OFF:
+                                   if(supportsFaceDetection() == false){
+                                        LOGE("Face detection support is not available");
+                                        return NO_ERROR;
+                                   }
+                                   setFaceDetection("off");
+                                   return runFaceDetection();
+      case CAMERA_CMD_SEND_META_DATA:
+                                   mMetaDataWaitLock.lock();
+                                   if(mFaceDetectOn == true) {
+                                       mSendMetaData = true;
+                                   }
+                                   mMetaDataWaitLock.unlock();
+                                   return NO_ERROR;
+#if 0 /* To Do: will enable it later */
         case CAMERA_CMD_START_SMOOTH_ZOOM :
           LOGV("HAL sendcmd start smooth zoom %d %d", arg1 , arg2);
           /*TO DO: get MaxZoom from parameter*/
@@ -563,7 +562,7 @@ processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processPreviewChannelEvent: E");
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
-            mCameraState = 
+            mCameraState =
                 isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_PREVIEW;
             break;
         case MM_CAMERA_CH_EVT_STREAMING_OFF:
@@ -601,7 +600,7 @@ processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     LOGI("processSnapshotChannelEvent: E");
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
-            mCameraState = 
+            mCameraState =
                 isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
             break;
         case MM_CAMERA_CH_EVT_STREAMING_OFF:
@@ -697,10 +696,24 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
   LOGV("receiveCameraStats X");
 }
 
+void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) {
+    LOGI("processInfoEvent: %d, E",event->event_id);
+    Mutex::Autolock lock(mLock);
+    switch(event->event_id)
+    {
+        case MM_CAMERA_INFO_EVT_ROI:
+            roiEvent(event->e.roi);
+            break;
+        default:
+            break;
+    }
+    LOGI("processInfoEvent: X");
+    return;
+}
 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
-    LOGI("processEvent: E");
+    LOGI("processEvent: type :%d E",event->event_type);
 
     switch(event->event_type)
     {
@@ -712,6 +725,9 @@ void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
             break;
         case MM_CAMERA_EVT_TYPE_STATS:
             processStatsEvent(&event->e.stats);
+            break;
+        case MM_CAMERA_EVT_TYPE_INFO:
+            processInfoEvent(&event->e.info);
             break;
         default:
             break;
@@ -1541,9 +1557,59 @@ void QCameraHardwareInterface::processprepareSnapshotEvent(cam_ctrl_status_t *st
     LOGI("processprepareSnapshotEvent: X");
 }
 
+void QCameraHardwareInterface::roiEvent(fd_roi_t roi)
+{
+    LOGE("roiEvent: E");
+    mCallbackLock.lock();
+    data_callback mcb = mDataCb;
+    void *mdata = mCallbackCookie;
+    int msgEnabled = mMsgEnabled;
+    mCallbackLock.unlock();
+
+    mMetaDataWaitLock.lock();
+    if (mFaceDetectOn == true && mSendMetaData == true) {
+        mSendMetaData = false;
+        int faces_detected = roi.rect_num;
+        int max_faces_detected = MAX_ROI * 4;
+        int array[max_faces_detected + 1];
+
+        array[0] = faces_detected * 4;
+        for (int i = 1, j = 0;j < MAX_ROI; j++, i = i + 4) {
+            if (j < faces_detected) {
+                array[i]   = roi.faces[j].x;
+                array[i+1] = roi.faces[j].y;
+                array[i+2] = roi.faces[j].dx;
+                array[i+3] = roi.faces[j].dy;
+            } else {
+                array[i]   = -1;
+                array[i+1] = -1;
+                array[i+2] = -1;
+                array[i+3] = -1;
+            }
+        }
+        if(mMetaDataHeap != NULL){
+            LOGV("mMetaDataHEap is non-NULL");
+            memcpy((uint32_t *)mMetaDataHeap->mHeap->base(), (uint32_t *)array, (sizeof(int)*(MAX_ROI*4+1)));
+            mMetaDataWaitLock.unlock();
+
+            if  (mcb != NULL && (msgEnabled & CAMERA_MSG_META_DATA)) {
+                mcb(CAMERA_MSG_META_DATA, mMetaDataHeap->mBuffers[0], mdata);
+            }
+        } else {
+            mMetaDataWaitLock.unlock();
+            LOGE("runPreviewThread mMetaDataHeap is NULL");
+        }
+    } else {
+        mMetaDataWaitLock.unlock();
+    }
+    LOGE("roiEvent: X");
+}
+
+
 void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
 {
     mm_camera_ch_crop_t v4l2_crop;
+
 
     LOGD("%s: E", __func__);
 
@@ -1797,7 +1863,8 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
           if (file_fd < 0) {
             LOGE("%s: cannot open file:type=%d\n", __func__, frm_type);
           } else {
-            write(file_fd, (const void *)newFrame->buffer, w * h);
+            LOGE("%s: %d %d", __func__, newFrame->y_off, newFrame->cbcr_off);
+            write(file_fd, (const void *)(newFrame->buffer+newFrame->y_off), w * h);
             write(file_fd, (const void *)
               (newFrame->buffer + newFrame->cbcr_off), w * h / 2);
             close(file_fd);

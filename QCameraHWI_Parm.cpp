@@ -559,15 +559,8 @@ bool QCameraHardwareInterface::supportsSceneDetection() {
 }
 
 bool QCameraHardwareInterface::supportsFaceDetection() {
-   unsigned int prop = 0;
-   for(prop=0; prop<sizeof(boardProperties)/sizeof(board_property); prop++) {
-       if((mCurrentTarget == boardProperties[prop].target)
-          && boardProperties[prop].hasFaceDetect == true) {
-           return true;
-           break;
-       }
-   }
-   return false;
+    bool rc = mmCamera->cfg->is_parm_supported(mmCamera,MM_CAMERA_PARM_FD);
+    return rc;
 }
 
 bool QCameraHardwareInterface::supportsSelectableZoneAf() {
@@ -754,7 +747,7 @@ void QCameraHardwareInterface::initDefaultParameters()
             mMaxZoom = 0;
         }*/
 
-        if(mHasAutoFocusSupport && supportsFaceDetection()) {
+       if(mHasAutoFocusSupport && supportsFaceDetection()) {
             mFaceDetectionValues = create_values_str(
                 facedetection, sizeof(facedetection) / sizeof(str_map));
         }
@@ -1045,7 +1038,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
     float verticalViewAngle = 0.0f;
-    LOGE("<DEBUG> Setting focal length");
     mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_FOCAL_LENGTH,
             (void *)&focalLength);
     mParameters.setFloat(CameraParameters::KEY_FOCAL_LENGTH,
@@ -1143,8 +1135,9 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
 
     if((value != NOT_FOUND) && (value == CAMERA_BESTSHOT_OFF)) {
-        if ((rc = setPreviewFrameRate(params)))         final_rc = rc;
         if ((rc = setPreviewFrameRateMode(params)))     final_rc = rc;
+        /* Fps mode has to be set before fps*/
+        if ((rc = setPreviewFrameRate(params)))         final_rc = rc;
         if ((rc = setAutoExposure(params)))             final_rc = rc;
         if ((rc = setExposureCompensation(params))) final_rc = rc;
         if ((rc = setWhiteBalance(params)))             final_rc = rc;
@@ -1168,6 +1161,49 @@ CameraParameters QCameraHardwareInterface::getParameters() const
 {
     Mutex::Autolock lock(mLock);
     return mParameters;
+}
+
+status_t QCameraHardwareInterface::runFaceDetection()
+{
+    bool ret = true;
+
+    const char *str = mParameters.get(CameraParameters::KEY_FACE_DETECTION);
+    if (str != NULL) {
+        int value = attr_lookup(facedetection,
+                sizeof(facedetection) / sizeof(str_map), str);
+
+        mMetaDataWaitLock.lock();
+        if (value == true) {
+            if(mMetaDataHeap != NULL)
+                mMetaDataHeap.clear();
+
+            mMetaDataHeap =
+                new AshmemPool((sizeof(int)*(MAX_ROI*4+1)),
+                        1,
+                        (sizeof(int)*(MAX_ROI*4+1)),
+                        "metadata");
+            if (!mMetaDataHeap->initialized()) {
+                LOGE("Meta Data Heap allocation failed ");
+                mMetaDataHeap.clear();
+                LOGE("runFaceDetection X: error initializing mMetaDataHeap");
+                mMetaDataWaitLock.unlock();
+                return UNKNOWN_ERROR;
+            }
+            mSendMetaData = true;
+        } else {
+            if(mMetaDataHeap != NULL)
+                mMetaDataHeap.clear();
+        }
+        mMetaDataWaitLock.unlock();
+		cam_ctrl_dimension_t dim;
+		ret = mmCamera->cfg->get_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+	    preview_parm_config (&dim, mParameters);
+        ret = mmCamera->cfg->set_parm(mmCamera, MM_CAMERA_PARM_DIMENSION,&dim);
+        ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
+        return ret ? NO_ERROR : UNKNOWN_ERROR;
+    }
+    LOGE("Invalid Face Detection value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
 }
 
 status_t QCameraHardwareInterface::setSharpness(const CameraParameters& params)
@@ -2158,7 +2194,7 @@ status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& par
 status_t QCameraHardwareInterface::setFaceDetection(const char *str)
 {
     if(supportsFaceDetection() == false){
-        LOGI("Face detection is not enabled");
+        LOGE("Face detection is not enabled");
         return NO_ERROR;
     }
     if (str != NULL) {

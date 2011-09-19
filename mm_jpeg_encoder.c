@@ -455,7 +455,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
     pthread_mutex_unlock(&jpege_mutex);
     return FALSE;
   }
-  cbcroffset = PAD_TO_WORD(main_img_info.width * main_img_info.height);
+  cbcroffset = PAD_TO_WORD(main_img_info.width * CEILING16(main_img_info.height));
   actual_size = 0;
   padded_size = 0;
   if (a_cbcroffset >= 0) {

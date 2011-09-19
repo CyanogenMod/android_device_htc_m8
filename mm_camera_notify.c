@@ -302,7 +302,6 @@ void mm_camera_dispatch_app_event(mm_camera_obj_t *my_obj, mm_camera_event_t *ev
 {
     int i;
     mm_camera_evt_obj_t evtcb;
-
     pthread_mutex_lock(&my_obj->mutex);
     memcpy(&evtcb,
          &my_obj->evt[event->event_type],

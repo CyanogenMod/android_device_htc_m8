@@ -216,7 +216,7 @@ private:
 
     void processCtrlEvent(mm_camera_ctrl_event_t *);
     void processStatsEvent(mm_camera_stats_event_t *);
-
+    void processInfoEvent(mm_camera_info_event_t *event);
     void processprepareSnapshotEvent(cam_ctrl_status_t *);
     status_t autoFocusEvent(cam_ctrl_status_t *);
     void filterPictureSizes();
@@ -231,6 +231,8 @@ private:
     status_t startPreviewZSL();
     void stopPreviewZSL();
 
+    status_t runFaceDetection();
+    void roiEvent(fd_roi_t roi);
     status_t setPictureSizeTable(void);
     void freePictureTable(void);
     status_t setPreviewSizeTable(void);
@@ -414,6 +416,7 @@ private:
      int mFaceDetectOn;
      bool mSendMetaData;
      Mutex mMetaDataWaitLock;
+     sp<AshmemPool> mMetaDataHeap;
 
      HAL_camera_state_type_t mCameraState;
      pthread_mutex_t mAsyncCmdMutex;

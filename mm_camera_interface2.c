@@ -420,6 +420,7 @@ static uint8_t mm_camera_notify_is_event_supported(mm_camera_t * camera,
   case MM_CAMERA_EVT_TYPE_CH:
   case MM_CAMERA_EVT_TYPE_CTRL:
   case MM_CAMERA_EVT_TYPE_STATS:
+  case MM_CAMERA_EVT_TYPE_INFO:
     return 1;
   default:
     return 0;

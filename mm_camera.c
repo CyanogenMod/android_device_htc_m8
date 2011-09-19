@@ -338,8 +338,13 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_ASD_ENABLE:
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_ASD_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
+
+    case MM_CAMERA_PARM_PREVIEW_FORMAT:
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
+
     default:
-        CDBG("%s:parm %d not supported\n", __func__, parm->parm_type);
+        CDBG("%s: default: parm %d not supported\n", __func__, parm->parm_type);
         break;
     }
     return rc;
@@ -360,7 +365,9 @@ static int32_t mm_camera_send_native_ctrl_cmd(mm_camera_obj_t * my_obj,
     CDBG("%s: type=%d, rc = %d, status = %d\n",
                 __func__, type, rc, ctrl_cmd.status);
 
-    if(rc != MM_CAMERA_OK || (ctrl_cmd.status != CAM_CTRL_ACCEPTED && ctrl_cmd.status != CAM_CTRL_SUCCESS))
+    if(rc != MM_CAMERA_OK || ((ctrl_cmd.status != CAM_CTRL_ACCEPTED) &&
+      (ctrl_cmd.status != CAM_CTRL_SUCCESS) &&
+      (ctrl_cmd.status != CAM_CTRL_INVALID_PARM)))
         rc = -1;
     return rc;
 }
@@ -369,6 +376,7 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
 {
     int32_t rc = -1;
     uint16_t len;
+    CDBG("%s type =%d", __func__, parm->parm_type);
     switch(parm->parm_type) {
     case MM_CAMERA_PARM_OP_MODE:
         rc = mm_camera_util_set_op_mode(my_obj,
@@ -579,6 +587,19 @@ int mm_camera_reg_event(mm_camera_obj_t * my_obj, mm_camera_event_notify_t evt_c
     return rc;
 }
 
+
+static int32_t mm_camera_send_af_failed_event(mm_camera_obj_t *my_obj)
+{
+    int rc = 0;
+    mm_camera_event_t event;
+    event.event_type = MM_CAMERA_EVT_TYPE_CTRL;
+    event.e.ctrl.evt= MM_CAMERA_CTRL_EVT_AUTO_FOCUS_DONE;
+    event.e.ctrl.status=CAM_CTRL_FAILED;
+    CDBG_HIGH("%s: Issuing call",__func__);
+    rc = mm_camera_poll_send_ch_event(my_obj, &event);
+    return rc;
+}
+
 static int32_t mm_camera_send_ch_on_off_event(mm_camera_obj_t *my_obj,
                                        mm_camera_channel_type_t ch_type,
                                        mm_camera_ch_event_type_t evt)
@@ -601,11 +622,14 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
     int send_on_off_evt = 1;
     mm_camera_channel_type_t ch_type;
     switch(opcode) {
-    case MM_CAMERA_OPS_FOCUS:
+    case MM_CAMERA_OPS_FOCUS: {
         if(!parm) return rc;
-        return mm_camera_send_native_ctrl_cmd(my_obj,
-                           CAMERA_SET_PARM_AUTO_FOCUS,
-                           sizeof(isp3a_af_mode_t), parm);
+        if(0 > mm_camera_send_native_ctrl_cmd(my_obj,
+          CAMERA_SET_PARM_AUTO_FOCUS,
+          sizeof(isp3a_af_mode_t), parm))
+          mm_camera_send_af_failed_event(my_obj);
+        return MM_CAMERA_OK;
+    }
     case MM_CAMERA_OPS_GET_BUFFERED_FRAME: {
         mm_camera_ops_parm_get_buffered_frame_t *tmp =
             (mm_camera_ops_parm_get_buffered_frame_t *)parm;

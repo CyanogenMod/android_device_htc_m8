@@ -292,6 +292,7 @@ private:
 
 
     mutable Mutex       mLock;
+    mutable Mutex       eventLock;
     Mutex mParametersLock;
     Mutex mCamframeTimeoutLock;
     bool camframe_timeout_flag;

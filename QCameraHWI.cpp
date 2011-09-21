@@ -660,7 +660,7 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
     LOGV("processStatsEvent E");
-    Mutex::Autolock lock(mLock);
+    Mutex::Autolock lock(eventLock);
     if (!isPreviewRunning( )) {
         LOGE("preview is not running");
         return;
@@ -698,7 +698,7 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
 
 void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) {
     LOGI("processInfoEvent: %d, E",event->event_id);
-    Mutex::Autolock lock(mLock);
+    Mutex::Autolock lock(eventLock);
     switch(event->event_id)
     {
         case MM_CAMERA_INFO_EVT_ROI:

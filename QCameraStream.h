@@ -321,6 +321,9 @@ private:
     mm_cameara_stream_buf_t mSnapshotStreamBuf;
     mm_cameara_stream_buf_t mPostviewStreamBuf;
     StreamQueue mSnapshotQueue;
+    int mActualPictureWidth;
+    int mActualPictureHeight;
+    bool mJpegDownscaling;
 }; // QCameraStream_Snapshot
 
 

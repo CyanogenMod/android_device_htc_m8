@@ -28,6 +28,7 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
+
 /* following code implement the still image capture & encoding logic of this class*/
 namespace android {
 
@@ -351,7 +352,11 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             mPostviewHeight = POSTVIEW_SMALL_HEIGHT;
             mPostviewWidth =
             (mPostviewHeight * mPictureWidth) / mPictureHeight;
-        }
+            mJpegDownscaling = TRUE;
+            mActualPictureWidth = mPictureWidth;
+            mActualPictureHeight = mPictureHeight;
+        } else
+            mJpegDownscaling = FALSE;
         dim->ui_thumbnail_height = mThumbnailHeight = mPostviewHeight;
         dim->ui_thumbnail_width = mThumbnailWidth = mPostviewWidth;
     }
@@ -1452,8 +1457,17 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         /*Main image*/
         crop.in2_w=mCrop.snapshot.main_crop.width;// dimension.picture_width
         crop.in2_h=mCrop.snapshot.main_crop.height;// dimension.picture_height;
-        crop.out2_w=mPictureWidth;
-        crop.out2_h=mPictureHeight;
+        if (!mJpegDownscaling) {
+            crop.out2_w = mPictureWidth;
+            crop.out2_h = mPictureHeight;
+        } else {
+            crop.out2_w = mActualPictureWidth;
+            crop.out2_h = mActualPictureHeight;
+            if (!crop.in2_w || !crop.in2_h) {
+                crop.in2_w = mPictureWidth;
+                crop.in2_h = mPictureHeight;
+            }
+        }
         main_crop_offset.x=mCrop.snapshot.main_crop.left;
         main_crop_offset.y=mCrop.snapshot.main_crop.top;
         /*Thumbnail image*/

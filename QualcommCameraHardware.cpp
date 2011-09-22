@@ -338,7 +338,7 @@ static inline unsigned clp2(unsigned x)
 }
 
 static int exif_table_numEntries = 0;
-#define MAX_EXIF_TABLE_ENTRIES 11
+#define MAX_EXIF_TABLE_ENTRIES 14
 exif_tags_info_t exif_data[MAX_EXIF_TABLE_ENTRIES];
 static zoom_crop_info zoomCropInfo;
 static void *mLastQueuedFrame = NULL;
@@ -4537,23 +4537,27 @@ status_t QualcommCameraHardware::takePicture()
     }
     //Adding ExifTag for Flash
     const char *flash_str = mParameters.get(CameraParameters::KEY_FLASH_MODE);
-    if (flash_str) {
-      if(!strcmp(flash_str,"on"))
-        flashMode = 1;
-
-      if(!strcmp(flash_str,"off"))
-        flashMode = 0;
-      //for AUTO mode bits 3 & 4 will be 1.
-      if(!strcmp(flash_str,"auto")){
-        flashMode  = FLASH_AUTO;//for flash not fired,bit 0 will be 0
+    if(flash_str){
         int is_flash_fired = 0;
-         if(mCfgControl.mm_camera_get_parm(CAMERA_PARM_QUERY_FALSH4SNAP,
-                        (void *)&is_flash_fired) != MM_CAMERA_SUCCESS)
-           flashMode = FLASH_SNAP ; //for No Flash support,bit 5 will be 0
-         else if(is_flash_fired)
-           flashMode = (is_flash_fired>>1) | flashMode ;//for flash fired,bit 0 will be 1
-      }
-      addExifTag(EXIFTAGID_FLASH,EXIF_SHORT,1,1,(void *)&flashMode);
+        if(mCfgControl.mm_camera_get_parm(CAMERA_PARM_QUERY_FALSH4SNAP,
+                      (void *)&is_flash_fired) != MM_CAMERA_SUCCESS){
+            flashMode = FLASH_SNAP ; //for No Flash support,bit 5 will be 1
+        } else {
+            if(!strcmp(flash_str,"on"))
+                flashMode = 1;
+
+            if(!strcmp(flash_str,"off"))
+                flashMode = 0;
+
+            if(!strcmp(flash_str,"auto")){
+                //for AUTO bits 3 and 4 will be 1
+                //for flash fired bit 0 will be 1, else 0
+                flashMode  = FLASH_AUTO;
+                if(is_flash_fired)
+                   flashMode = (is_flash_fired>>1) | flashMode ;
+            }
+        }
+        addExifTag(EXIFTAGID_FLASH,EXIF_SHORT,1,1,(void *)&flashMode);
     }
     if(mParameters.getPictureFormat() != 0 &&
             !strcmp(mParameters.getPictureFormat(),

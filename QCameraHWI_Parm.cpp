@@ -1981,17 +1981,8 @@ status_t QCameraHardwareInterface::setPictureSize(const CameraParameters& params
 }
 
 status_t QCameraHardwareInterface::setJpegRotation(void) {
-    status_t rc = NO_ERROR;
-    int result;
     int rotation = mParameters.getInt("rotation");
-
-    rc = native_set_parms(MM_CAMERA_PARM_JPEG_ROTATION, sizeof(int),
-        (void *)&rotation, (int *)&result);
-    if(result != MM_CAMERA_OK)
-        LOGI("JPEG Rotation: %d is not set as the selected value is not supported",
-             rotation);
-
-    return rc ? NO_ERROR : BAD_VALUE;
+    return mm_jpeg_encoder_setRotation(rotation);
 }
 
 status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params) {

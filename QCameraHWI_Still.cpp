@@ -1816,7 +1816,10 @@ QCameraStream_Snapshot(mm_camera_t *native_camera, camera_mode_t mode)
     mJpegHeap(NULL), mRawHeap(NULL), mDisplayHeap(NULL),
     mPostviewHeap(NULL), mRawSnapShotHeap(NULL),
     mNumOfSnapshot(0), mCurrentFrameEncoded(NULL),
-    mBurstModeFlag(false)
+    mBurstModeFlag(false),
+    mJpegDownscaling(false),
+    mActualPictureWidth(0),
+    mActualPictureHeight(0)
   {
     LOGV("%s: E", __func__);
 

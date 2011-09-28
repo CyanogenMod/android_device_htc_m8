@@ -3625,7 +3625,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         }
     }
     /* calculate thumbnail aspect ratio */
-    if(mCurrentTarget == TARGET_MSM7627 &&
+    if(mCurrentTarget == TARGET_MSM7627 ||
        mCurrentTarget == TARGET_MSM7627A) {
         int thumbnail_aspect_ratio =
         (uint32_t)((mThumbnailWidth * Q12) / mThumbnailHeight);

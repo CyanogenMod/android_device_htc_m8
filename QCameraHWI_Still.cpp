@@ -302,7 +302,6 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     bool matching = true;
     cam_format_t img_format;
     status_t ret = NO_ERROR;
-    uint32_t aspect_ratio;
     LOGD("%s: E", __func__);
 
     LOGD("%s:Passed picture size: %d X %d", __func__,
@@ -315,23 +314,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     LOGD("%s: Picture size received: %d x %d", __func__,
          mPictureWidth, mPictureHeight);
 
-    /* If it's ZSL mode, postview/thumbnail should be same size as
-       that of preview. It's a limitation */
-    if (isZSLMode()) {
-        mHalCamCtrl->getPreviewSize(&mPostviewWidth, &mPostviewHeight);
-    }
-    else {
-        /* Get recommended postview/thumbnail sizes based on aspect ratio */
-        aspect_ratio = (uint32_t)((mPictureWidth * Q12) / mPictureHeight);
-        ret = mHalCamCtrl->getThumbSizesFromAspectRatio(aspect_ratio,
-                                                        &mPostviewWidth,
-                                                        &mPostviewHeight);
-        /* If for some reason we can't find recommended thumbnail size,
-           we'll set postview size as that of preview size*/
-        if (ret != NO_ERROR) {
-            mHalCamCtrl->getPreviewSize(&mPostviewWidth, &mPostviewHeight);
-        }
-    }
+    mHalCamCtrl->getPreviewSize(&mPostviewWidth, &mPostviewHeight);
     LOGD("%s: Postview size received: %d x %d", __func__,
          mPostviewWidth, mPostviewHeight);
 
@@ -343,22 +326,21 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     /* picture size currently set do not match with the one wanted
        by user.*/
     if (!matching) {
-        dim->picture_width  = mPictureWidth;
-        dim->picture_height = mPictureHeight;
         if (mPictureHeight < mPostviewHeight) {
-            mPostviewHeight = POSTVIEW_SMALL_HEIGHT;
-            mPostviewWidth =
-            (mPostviewHeight * mPictureWidth) / mPictureHeight;
-            mJpegDownscaling = TRUE;
+            //Changes to Handle VFE limitation.
             mActualPictureWidth = mPictureWidth;
             mActualPictureHeight = mPictureHeight;
-        } else
+            mPictureWidth = mPostviewWidth;
+            mPictureHeight = mPostviewHeight;
+            mJpegDownscaling = TRUE;
+        }else{
             mJpegDownscaling = FALSE;
+        }
+        dim->picture_width  = mPictureWidth;
+        dim->picture_height = mPictureHeight;
         dim->ui_thumbnail_height = mThumbnailHeight = mPostviewHeight;
         dim->ui_thumbnail_width = mThumbnailWidth = mPostviewWidth;
     }
-
-    /* Check the image format*/
     img_format = mHalCamCtrl->getPreviewFormat();
     if (img_format) {
         matching &= (img_format == dim->main_img_format);
@@ -367,7 +349,6 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             dim->thumb_format = img_format;
         }
     }
-
     if (!matching) {
          LOGD("%s: Image Sizes before set parm call: main: %dx%d thumbnail: %dx%d",
               __func__,
@@ -381,7 +362,6 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             goto end;
         }
     }
-
     /* set_parm will return corrected dimension based on aspect ratio and
        ceiling size */
     mPictureWidth = dim->picture_width;
@@ -393,8 +373,6 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     LOGD("%s: Image Sizes: main: %dx%d thumbnail: %dx%d", __func__,
          dim->picture_width, dim->picture_height,
          dim->ui_thumbnail_width, dim->ui_thumbnail_height);
-
-
 end:
     LOGD("%s: X", __func__);
     return ret;

@@ -955,8 +955,8 @@ void QCameraStream_Snapshot::runSnapshotThread(void *data)
        function as it causes deadlock. Hence handling it here temporarily
        in this thread. Later mm-camera intf will give us event in separate
        thread context */
-    mm_app_snapshot_wait();
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
+        mm_app_snapshot_wait();
         /* Send command to stop snapshot polling thread*/
         stop();
     }

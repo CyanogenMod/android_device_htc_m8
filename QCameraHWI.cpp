@@ -77,7 +77,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mZslLookBackValue(0),
                     mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
-                    mCameraState(CAMERA_STATE_UNINITED)
+                    mCameraState(CAMERA_STATE_UNINITED),
+                    mPostPreviewHeap(NULL)
 
 {
     LOGI("QCameraHardwareInterface: E");
@@ -767,11 +768,9 @@ status_t QCameraHardwareInterface::startPreview()
       return BAD_VALUE;
     }
 
-    if (mPrevForPostviewBuf.frame[0].buffer) {
-        mm_camera_do_munmap(mPrevForPostviewBuf.frame[0].fd,
-                            (void *)mPrevForPostviewBuf.frame[0].buffer,
-                            mPrevForPostviewBuf.frame_len);
-        memset(&mPrevForPostviewBuf, 0, sizeof(mPrevForPostviewBuf));
+    if(mPostPreviewHeap != NULL) {
+        mPostPreviewHeap.clear();
+        mPostPreviewHeap = NULL;
     }
 
 
@@ -1674,8 +1673,8 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
         ret = FAILED_TRANSACTION;
         goto end;
     }
-    memset( &mPrevForPostviewBuf, 0, sizeof(mm_cameara_stream_buf_t));
 
+    mPostPreviewHeap = NULL;
     /* get preview size */
     getPreviewSize(&width, &height);
     LOGE("%s: Preview Size: %dX%d", __func__, width, height);
@@ -1687,23 +1686,25 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                                             OUTPUT_TYPE_P,
                                             &y_off,
                                             &cbcr_off);
-    mPrevForPostviewBuf.frame_len = frame_len;
 
     LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
 
-    /* allocate the memory */
-    buffer_addr =
-        (unsigned long) mm_camera_do_mmap(frame_len,
-                                          &(mPrevForPostviewBuf.frame[0].fd));
+    mPostPreviewHeap =
+        new PmemPool("/dev/pmem_adsp",
+                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     MSM_PMEM_THUMBNAIL,
+                     frame_len,
+                     1,
+                     frame_len,
+                     cbcr_off,
+                     y_off,
+                     "thumbnail");
 
-    if (!buffer_addr) {
-        LOGE("%s: Error allocating memory to store Preview for Postview.",
-             __func__);
+    if (!mPostPreviewHeap->initialized()) {
+        LOGE("%s: Error initializing mPostPreviewHeap buffer", __func__);
         ret = NO_MEMORY;
         goto end;
     }
-
-    mPrevForPostviewBuf.frame[0].buffer = buffer_addr;
 
     LOGE("%s: Get last queued preview frame", __func__);
     preview_frame = (struct msm_frame *)mStreamDisplay->getLastQueuedFrame();
@@ -1712,25 +1713,21 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
         ret = FAILED_TRANSACTION;
         goto end;
     }
-
-    /* Copy the frame */
     LOGE("%s: Copy the frame buffer. buffer: %x  preview_buffer: %x",
-         __func__, (uint32_t)mPrevForPostviewBuf.frame[0].buffer,
+         __func__, (uint32_t)mPostPreviewHeap->mBuffers[0]->pointer(),
          (uint32_t)preview_frame->buffer);
 
-    memcpy((void *)mPrevForPostviewBuf.frame[0].buffer,
-           (const void *)preview_frame->buffer,
-           frame_len);
+    /* Copy the frame */
+    memcpy((void *)mPostPreviewHeap->mHeap->base(),
+               (const void *)preview_frame->buffer, frame_len );
 
-    /* Display the frame */
     LOGE("%s: Queue the buffer for display.", __func__);
     mOverlayLock.lock();
     if (mOverlay != NULL) {
-        mOverlay->setFd(mPrevForPostviewBuf.frame[0].fd);
+        mOverlay->setFd(mPostPreviewHeap->mHeap->getHeapID());
         mOverlay->queueBuffer((void *)0);
     }
     mOverlayLock.unlock();
-
 end:
     LOGI("%s: X", __func__);
     return ret;

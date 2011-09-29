@@ -382,7 +382,7 @@ private:
     HAL_camera_state_type_t mCameraState;
 
      /* Temporary - can be removed after Honeycomb*/
-     mm_cameara_stream_buf_t mPrevForPostviewBuf;
+	sp<PmemPool>  mPostPreviewHeap;
 };
 
 }; // namespace android

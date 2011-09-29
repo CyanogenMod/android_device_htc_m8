@@ -214,7 +214,11 @@ private:
     cam_ctrl_dimension_t dim;
     struct msm_frame *mLastQueuedFrame;
     mm_camera_reg_buf_t mDisplayBuf;
-    mm_cameara_stream_buf_t mDisplayStreamBuf;
+    //mm_cameara_stream_buf_t mDisplayStreamBuf;
+
+	sp<PmemPool> mPreviewHeap;
+	struct msm_frame *previewframes;
+	uint32_t preview_offset[VIDEO_BUFFER_COUNT];
 
 };
 

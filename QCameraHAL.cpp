@@ -114,8 +114,6 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             cameraInfo->mode |= CAMERA_SUPPORT_MODE_3D;
         }
     }
-
-
    LOGV("%s: X", __func__);
    return;
 }
@@ -128,7 +126,6 @@ extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int 
       return NULL;
     }
     return QCameraHAL_openCameraHardware(cameraId, mode);
-
 }
 
 

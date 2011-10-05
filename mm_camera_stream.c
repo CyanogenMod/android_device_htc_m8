@@ -419,7 +419,7 @@ static int32_t mm_camera_stream_fsm_notused(mm_camera_obj_t * my_obj,
 
     switch(evt) {
     case MM_CAMERA_STATE_EVT_ACQUIRE:
-        sprintf(dev_name, "/dev/%s", mm_camera_util_get_dev_name(my_obj));
+        snprintf(dev_name, sizeof(dev_name), "/dev/%s", mm_camera_util_get_dev_name(my_obj));
         CDBG("%s: open dev '%s', stream type = %d\n",
                  __func__, dev_name, *((mm_camera_stream_type_t *)val));
         stream->fd = open(dev_name, O_RDWR | O_NONBLOCK);

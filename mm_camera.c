@@ -765,7 +765,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
                  __func__, op_mode);
         return -MM_CAMERA_E_INVALID_INPUT;
     }
-    sprintf(dev_name, "/dev/%s", mm_camera_util_get_dev_name(my_obj));
+    snprintf(dev_name, sizeof(dev_name), "/dev/%s", mm_camera_util_get_dev_name(my_obj));
     //rc = mm_camera_dev_open(&my_obj->ctrl_fd, dev_name);
 
     do{

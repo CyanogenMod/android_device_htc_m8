@@ -30,7 +30,6 @@
 
 namespace android {
 
-#if 1
 StreamQueue::StreamQueue(){
     mInitialized = false;
 }
@@ -93,7 +92,6 @@ void StreamQueue::flush(){
     Mutex::Autolock l(&mQueueLock);
     mContainer.clear();
 }
-#endif
 
 
 // ---------------------------------------------------------------------------
@@ -108,41 +106,11 @@ status_t QCameraStream::initChannel(int cameraId,
     int rc = MM_CAMERA_OK;
     int i;
     status_t ret = NO_ERROR;
-
-#if 0
-
-    LOGV("%s: E, channel = %d\n", __func__, ch_type);
-
-    if (MM_CAMERA_CH_MAX <= ch_type) {
-        LOGV("%s: BAD_VALUE", __func__);
-        return BAD_VALUE;
-    }
-    /*yyan: first open the channel*/
-    if(ch_type < MM_CAMERA_CH_MAX) {
-        rc = cam_ops_ch_acquire(cameraId, ch_type);
-        LOGV("%s:cam ch_open rc=%d\n",__func__, rc);
-    } else {
-        /* here we open all available channels */
-        for(i = 0; i < MM_CAMERA_CH_MAX; i++) {
-            if( MM_CAMERA_OK !=
-                (rc = cam_ops_ch_acquire(cameraId, (mm_camera_channel_type_t)i))) {
-                LOGE("%s:cam ch_open err=%d\n",__func__, rc);
-                break;
-            }
-        }
-    }
-    if(MM_CAMERA_OK != rc) {
-      LOGE("%s:open channel error err=%d\n", __func__, rc);
-      LOGE("%s: X", __func__);
-      return BAD_VALUE;
-    }
-#endif
     int width = 0;  /* width of channel      */
     int height = 0; /* height of channel */
     cam_ctrl_dimension_t dim;
     mm_camera_ch_image_fmt_parm_t fmt;
 
-  /* yyan : first get all sizes, by querying mm_camera*/
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     rc = cam_config_get_parm(cameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != rc) {
@@ -150,8 +118,6 @@ status_t QCameraStream::initChannel(int cameraId,
       LOGE("%s: X", __func__);
       return BAD_VALUE;
     }
-
-    /*yyan: second init the channeles requested*/
 
     if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask) {
         rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_PREVIEW);
@@ -254,321 +220,26 @@ QCameraStream::~QCameraStream () {;}
 
 
 status_t QCameraStream::init() {
-
-    /* yyan TODO: init the free queue and busy queue*/
-
     return NO_ERROR;
 }
 
 status_t QCameraStream::start() {
-
-    /* yyan TODO: with th data user object, launch the worker thread
-       who monitors the busy queue and call data user's useData()*/
-
-
     return NO_ERROR;
 }
 
 void QCameraStream::stop() {
-
-    /* yyan TODO: stop the queue worker thread who monitors the busy queue*/
-
-}
-
-void QCameraStream::release() {
-
-    /* yyan TODO: kill the streaming thread who monitors the busy queue*/
-
-    /* yyan TODO: release the queues ?? */
-
-}
-
-void QCameraStream::newData(void* data) {
-
-    /* yyan : new data, add into busy queue*/
-    if (data) {
-        this->mBusyQueue.enqueue(data);
-    }
-}
-
-void* QCameraStream::getUsedData() {
-
-    /* yyan TODO:  after the frame data is used,
-    this function should be called to return data into free queue */
-    if (this->mFreeQueue.isEmpty())
-        return NULL;
-    else
-        return this->mFreeQueue.dequeue();
-}
-
-void QCameraStream::usedData(void* data) {
-
-    /* yyan:  after the frame data is used,
-    this function should be called to return data into free queue */
-  this->mFreeQueue.enqueue(data);
-}
-
-
-void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
-
-    /* yyan TODO:  provide a frame data user,
-    for the  queue monitor thread to call the busy queue is not empty*/
-    mHalCamCtrl = ctrl;
-}
-
-
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-#if 0
-
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-QCameraStream_noneZSL::
-QCameraStream_noneZSL(int cameraId, camera_mode_t mode)
-  :mCameraId(cameraId), mActive(false),
-   myMode (mode),  open_flag(0)
-
-  {
-    mHalCamCtrl = NULL;
-    LOGV("%s: E", __func__);
-
-    LOGV("%s: X", __func__);
-  }
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-QCameraStream_noneZSL::~QCameraStream_noneZSL() {
-    LOGV("%s: E", __func__);
-    LOGV("%s: X", __func__);
-
-}
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-status_t QCameraStream_noneZSL::init(mm_camera_reg_buf_t *reg_buf)
-{
-    status_t ret = NO_ERROR;
-    LOGV("%s: E", __func__);
-
-    ch_type = reg_buf->ch_type;
-
-    if (MM_CAMERA_CH_PREVIEW == ch_type) {
-        /* yyan TODO: open and config mm_camera preview channels*/
-        ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_PREVIEW_MASK);
-        if (NO_ERROR!=ret) {
-          LOGE("%s E: can't init native cammera preview ch\n",__func__);
-          return ret;
-        }
-
-
-      ret = cam_config_prepare_buf(mCameraId, reg_buf);
-      if(ret != MM_CAMERA_OK) {
-        LOGV("%s:reg preview buf err=%d\n", __func__, ret);
-        ret = BAD_VALUE;
-      }
-      else
-        ret = NO_ERROR;
-    }
-    else if (MM_CAMERA_CH_VIDEO == ch_type)//For Video
-    {
-      ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_VIDEO_MASK);
-        if (NO_ERROR!=ret) {
-          LOGE("%s E: can't init native cammera preview ch\n",__func__);
-          return ret;
-        }
-
-
-      ret = cam_config_prepare_buf(mCameraId, reg_buf);
-      if(ret != MM_CAMERA_OK) {
-        LOGV("%s:reg preview buf err=%d\n", __func__, ret);
-        ret = BAD_VALUE;
-      }
-      else
-        ret = NO_ERROR;
-
-    }else{
-        //TODO : Need snap shot Code?
-    }
-
-  return ret;
-}
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-status_t QCameraStream_noneZSL::start() {
-    LOGV("%s: E", __func__);
-
-    /* yyan TODO: call start() in parent class to start the monitor thread*/
-    QCameraStream::start ();
-
-    /* yyan TODO: register a notify into the mmmm_camera_t object*/
-    if (mmCamera) {
-      if(ch_type == MM_CAMERA_CH_PREVIEW) {
-        (void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_PREVIEW,
-                                                  preview_notify_cb,
-                                                  this);
-      }else if (ch_type == MM_CAMERA_CH_VIDEO) {
-        //(void) mmCamera->evt->register_buf_notify(mmCamera, MM_CAMERA_CH_VIDEO,
-        //                                          record_notify_cb,
-        //                                          this);
-      }else{
-        //TODO : Need snap shot Code?
-      }
-    }
-    mActive =  true;
-    LOGV("%s: X", __func__);
-    return NO_ERROR;
-  }
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-  void QCameraStream_noneZSL::stop() {
-    LOGV("%s: E", __func__);
-
-    /* unregister the notify fn from the mmmm_camera_t object
-     call stop() in parent class to stop the monitor thread */
-    if(ch_type == MM_CAMERA_CH_PREVIEW) {
-      (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
-                                                NULL,
-                                                NULL);
-    }else if (ch_type == MM_CAMERA_CH_VIDEO) {
-      (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
-                                                NULL,
-                                                NULL);
-    }else{
-      /* TODO : Need snap shot Code? */
-    }
-
-    mActive =  false;
-    LOGV("%s: X", __func__);
-
-  }
-/* ---------------------------------------------------------------------------
-   QCameraStream_noneZSL
-   --------------------------------------------------------------------------*/
-  void QCameraStream_noneZSL::release() {
-
-    LOGV("%s: E", __func__);
-    /* yyan TODO: disconnect from display piplines, e.g.
-       free IOVerlay*/
-
-    /* yyan TODO: release all buffers ?? */
-    LOGV("%s: X", __func__);
-
-  }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
- void QCameraStream_noneZSL::useData(void* data) {
-
     return;
 }
 
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-/* yyan: do something to the used data*/
-  void QCameraStream_noneZSL::usedData(void* data) {
-
-    /* we now we only deal with the mm_camera_ch_data_buf_t type*/
-    mm_camera_ch_data_buf_t *bufs_used =
-    (mm_camera_ch_data_buf_t *)data;
-
-    /* yyan: buf is used, release it! */
-    (void) cam_evt_buf_done(mCameraId, bufs_used);
+void QCameraStream::release() {
+    return;
 }
 
-/* ---------------------------------------------------------------------------
- * QCameraStream_noneZSL
- * ---------------------------------------------------------------------------*/
+void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
 
-  void* QCameraStream_noneZSL::getUsedData() {
-
-    /* yyan: return one piece of used data */
-    return QCameraStream::getUsedData();
-  }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-  void QCameraStream_noneZSL::newData(void* data) {
-    /* yyan : new data, add into parent's busy queue, to by used by useData() */
-    QCameraStream::newData(data);
-  }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-QCameraStream*
-QCameraStream_noneZSL::createInstance(mm_camera_t *native_camera,
-                                      camera_mode_t mode)
-{
-
-  QCameraStream* pme = new QCameraStream_noneZSL(native_camera, mode);
-
-  return pme;
+    /* provide a frame data user,
+    for the  queue monitor thread to call the busy queue is not empty*/
+    mHalCamCtrl = ctrl;
 }
-// ---------------------------------------------------------------------------
-// QCameraStream_noneZSL
-// ---------------------------------------------------------------------------
-
-void QCameraStream_noneZSL::deleteInstance(QCameraStream *p)
-{
-  if (p){
-    p->release();
-    delete p;
-  }
-}
-
-
-
-// ---------------------------------------------------------------------------
-// QCameraStream_ZSL
-// ---------------------------------------------------------------------------
-
-QCameraStream_ZSL::
-QCameraStream_ZSL(int cameraId, camera_mode_t mode)
-    :mCameraId(cameraId)
-{
-
-}
-
-QCameraStream_ZSL::~QCameraStream_ZSL() {
-
-}
-
-status_t QCameraStream_ZSL::init(mm_camera_reg_buf_t*) {
-
-    /* yyan TODO: create streaming buffers*/
-
-    /* yyan TODO: open mm_camera video channels*/
-
-
-    /* yyan TODO: register buffers*/
-
-    return NO_ERROR;
-}
-
-
-void QCameraStream_ZSL::release() {
-
-    /* yyan TODO: disconnect from eoncoder piplines*/
-
-    /* yyan TODO: release all buffers ?? */
-
-}
-/*maftab none/zsl methods*/
-#endif
 
 }; // namespace android

@@ -99,7 +99,9 @@ extern "C" {
 #define DONT_CARE_COORDINATE -1
 
 //Supported preview fps ranges should be added to this array in the form (minFps,maxFps)
-static  android::FPSRange FpsRangesSupported[] = {{MINIMUM_FPS*1000,MAXIMUM_FPS*1000}};
+static  android::FPSRange FpsRangesSupported[] = {
+            android::FPSRange(MINIMUM_FPS*1000,MAXIMUM_FPS*1000)
+        };
 #define FPS_RANGES_SUPPORTED_COUNT (sizeof(FpsRangesSupported)/sizeof(FpsRangesSupported[0]))
 
 
@@ -183,21 +185,9 @@ extern mm_camera_t * HAL_camerahandle[MSM_MAX_CAMERA_SENSORS];
 namespace android {
 
 static uint32_t  HFR_SIZE_COUNT=2;
-static targetType mCurrentTarget = TARGET_MAX;
 static const int PICTURE_FORMAT_JPEG = 1;
 static const int PICTURE_FORMAT_RAW = 2;
 
-board_property boardProperties[] = {
-        {TARGET_MSM7625, 0x00000fff, false, false, false},
-        {TARGET_MSM7625A, 0x00000fff, false, false, false},
-        {TARGET_MSM7627, 0x000006ff, false, false, false},
-        {TARGET_MSM7627A, 0x000006ff, false, false, false},
-        {TARGET_MSM7630, 0x00000fff, true, true, false},
-        {TARGET_MSM8660, 0x00001fff, true, true, false},
-        //TODO: figure out the correct values for these
-        {TARGET_MSM8960, 0x00001fff, true, true, false},
-        {TARGET_QSD8250, 0x00000fff, false, false, false}
-};
 /********************************************************************/
 static const str_map effects[] = {
     { CameraParameters::EFFECT_NONE,       CAMERA_EFFECT_OFF },
@@ -208,7 +198,10 @@ static const str_map effects[] = {
     { CameraParameters::EFFECT_POSTERIZE,  CAMERA_EFFECT_POSTERIZE },
     { CameraParameters::EFFECT_WHITEBOARD, CAMERA_EFFECT_WHITEBOARD },
     { CameraParameters::EFFECT_BLACKBOARD, CAMERA_EFFECT_BLACKBOARD },
-    { CameraParameters::EFFECT_AQUA,       CAMERA_EFFECT_AQUA }
+    { CameraParameters::EFFECT_AQUA,       CAMERA_EFFECT_AQUA },
+    { CameraParameters::EFFECT_EMBOSS,     CAMERA_EFFECT_EMBOSS },
+    { CameraParameters::EFFECT_SKETCH,     CAMERA_EFFECT_SKETCH },
+    { CameraParameters::EFFECT_NEON,       CAMERA_EFFECT_NEON }
 };
 
 static const str_map iso[] = {
@@ -424,11 +417,11 @@ static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     char buffer[32];
 
     if (len > 0) {
-        sprintf(buffer, "%dx%d", sizes[0].width, sizes[0].height);
+        snprintf(buffer, sizeof(buffer), "%dx%d", sizes[0].width, sizes[0].height);
         str.append(buffer);
     }
     for (int i = 1; i < len; i++) {
-        sprintf(buffer, ",%dx%d", sizes[i].width, sizes[i].height);
+        snprintf(buffer, sizeof(buffer), ",%dx%d", sizes[i].width, sizes[i].height);
         str.append(buffer);
     }
     return str;
@@ -452,11 +445,11 @@ static String8 create_fps_str(const android:: FPSRange* fps, int len) {
     char buffer[32];
 
     if (len > 0) {
-        sprintf(buffer, "(%d,%d)", fps[0].minFPS, fps[0].maxFPS);
+        snprintf(buffer, sizeof(buffer), "(%d,%d)", fps[0].minFPS, fps[0].maxFPS);
         str.append(buffer);
     }
     for (int i = 1; i < len; i++) {
-        sprintf(buffer, ",(%d,%d)", fps[i].minFPS, fps[i].maxFPS);
+        snprintf(buffer, sizeof(buffer), ",(%d,%d)", fps[i].minFPS, fps[i].maxFPS);
         str.append(buffer);
     }
     return str;
@@ -546,15 +539,8 @@ void QCameraHardwareInterface::hasAutoFocusSupport(){
 }
 
 bool QCameraHardwareInterface::supportsSceneDetection() {
-   unsigned int prop = 0;
-   for(prop=0; prop<sizeof(boardProperties)/sizeof(board_property); prop++) {
-       if((mCurrentTarget == boardProperties[prop].target)
-          && boardProperties[prop].hasSceneDetect == true) {
-           return true;
-           break;
-       }
-   }
-   return false;
+   bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_ASD_ENABLE);
+   return rc;
 }
 
 bool QCameraHardwareInterface::supportsFaceDetection() {
@@ -563,16 +549,10 @@ bool QCameraHardwareInterface::supportsFaceDetection() {
 }
 
 bool QCameraHardwareInterface::supportsSelectableZoneAf() {
-   unsigned int prop = 0;
-   for(prop=0; prop<sizeof(boardProperties)/sizeof(board_property); prop++) {
-       if((mCurrentTarget == boardProperties[prop].target)
-          && boardProperties[prop].hasSelectableZoneAf == true) {
-           return true;
-           break;
-       }
-   }
-   return false;
+   bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_FOCUS_RECT); //@Guru
+   return rc;
 }
+
 static String8 create_str(int16_t *arr, int length){
     String8 str;
     char buffer[32];
@@ -683,11 +663,9 @@ void QCameraHardwareInterface::initDefaultParameters()
         //Currently Enabling Histogram for 8x60
         mHistogramValues = create_values_str(
             histogram,sizeof(histogram)/sizeof(str_map));
-        //Currently Enabling Skin Tone Enhancement for 8x60 and 7630
-        if((mCurrentTarget == TARGET_MSM8660)||(mCurrentTarget == TARGET_MSM7630)) {
-            mSkinToneEnhancementValues = create_values_str(
-                skinToneEnhancement,sizeof(skinToneEnhancement)/sizeof(str_map));
-        }
+
+        mSkinToneEnhancementValues = create_values_str(
+            skinToneEnhancement,sizeof(skinToneEnhancement)/sizeof(str_map));
 
         mPictureFormatValues = create_values_str(
             picture_formats, sizeof(picture_formats)/sizeof(str_map));
@@ -722,27 +700,6 @@ void QCameraHardwareInterface::initDefaultParameters()
 
         denoise_value = create_values_str(
             denoise, sizeof(denoise) / sizeof(str_map));
-  /*mansoor
-     if( mCfgControl.mm_camera_query_parms(MM_CAMERA_PARM_ZOOM_RATIO, (void **)&zoomRatios, (uint32_t *) &mMaxZoom) == MM_CAMERA_SUCCESS)
-       {
-            mZoomSupported = true;
-            if( mMaxZoom >0) {
-                LOGE("Maximum zoom value is %d", mMaxZoom);
-                if(zoomRatios != NULL) {
-                    mZoomRatioValues =  create_str(zoomRatios, mMaxZoom);
-                } else {
-                    LOGE("Failed to get zoomratios ..");
-                }
-           } else {
-               mZoomSupported = false;
-           }
-       } else {
-            //mZoomRatioValues=0;
-            mZoomSupported = false;
-            LOGE("Failed to get maximum zoom value...setting max "
-                    "zoom to zero");
-            mMaxZoom = 0;
-        }*/
 
        if(mHasAutoFocusSupport && supportsFaceDetection()) {
             mFaceDetectionValues = create_values_str(
@@ -782,7 +739,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
                         mPreviewFrameRateValues.string());
-     } /* Apurva else {
+     } /* else {
         mParameters.set(
             CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
             DEFAULT_FPS);
@@ -800,17 +757,11 @@ void QCameraHardwareInterface::initDefaultParameters()
     //Set Preview Format
     //mParameters.setPreviewFormat("yuv420sp"); // informative
     mParameters.setPreviewFormat(CameraParameters::PIXEL_FORMAT_YUV420SP);
-    if( (mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_QSD8250)
-        && (mCurrentTarget != TARGET_MSM8660)) {
-        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
-                    "yuv420sp");
-    }
-     else {
-        mPreviewFormatValues = create_values_str(
-            preview_formats, sizeof(preview_formats) / sizeof(str_map));
-        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
-                mPreviewFormatValues.string());
-    }
+
+    mPreviewFormatValues = create_values_str(
+        preview_formats, sizeof(preview_formats) / sizeof(str_map));
+    mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FORMATS,
+            mPreviewFormatValues.string());
 
     //Set Overlay Format
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
@@ -1071,13 +1022,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
     mUseOverlay = useOverlay();
 
-    /* Initialize the camframe_timeout_flag*/
-    Mutex::Autolock l(&mCamframeTimeoutLock);
-    camframe_timeout_flag = FALSE;
-    //mPostviewHeap = NULL;
-    //mDisplayHeap = NULL;
-    //mLastPreviewFrameHeap = NULL;
-
     mInitialized = true;
     strTexturesOn = false;
 
@@ -1094,7 +1038,6 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
 
     LOGI("%s: E", __func__);
     Mutex::Autolock l(&mLock);
-    Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
@@ -1108,7 +1051,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setZoom(params)))                   final_rc = rc;
     if ((rc = setOrientation(params)))            final_rc = rc;
     if ((rc = setLensshadeValue(params)))         final_rc = rc;
-    //    if ((rc = setMCEValue(params)))               final_rc = rc;
+    if ((rc = setMCEValue(params)))               final_rc = rc;
     if ((rc = setPictureFormat(params)))                final_rc = rc;
     if ((rc = setSharpness(params)))                    final_rc = rc;
     if ((rc = setSaturation(params)))                   final_rc = rc;
@@ -1685,6 +1628,14 @@ status_t QCameraHardwareInterface::setPreviewFrameRateMode(const CameraParameter
 
     const char *previousMode = mParameters.getPreviewFrameRateMode();
     const char *str = params.getPreviewFrameRateMode();
+    if (NULL == previousMode) {
+        LOGE("Preview Frame Rate Mode is NULL\n");
+        return NO_ERROR;
+    }
+    if (NULL == str) {
+        LOGE("Preview Frame Rate Mode is NULL\n");
+        return NO_ERROR;
+    }
     if( mInitialized && !strcmp(previousMode, str)) {
         LOGE("frame rate mode same as previous mode %s", previousMode);
         return NO_ERROR;
@@ -1914,18 +1865,19 @@ status_t QCameraHardwareInterface::setPreviewSize(const CameraParameters& params
 status_t QCameraHardwareInterface::setPreviewFpsRange(const CameraParameters& params)
 {
     int minFps,maxFps;
-#if 0
+
     params.getPreviewFpsRange(&minFps,&maxFps);
     LOGE("FPS Range Values: %dx%d", minFps, maxFps);
 
     for(size_t i=0;i<FPS_RANGES_SUPPORTED_COUNT;i++)
     {
         if(minFps==FpsRangesSupported[i].minFPS && maxFps == FpsRangesSupported[i].maxFPS){
+            LOGV("i=%d : minFps = %d, maxFps = %d ",i,FpsRangesSupported[i].minFPS,FpsRangesSupported[i].maxFPS );
             mParameters.setPreviewFpsRange(minFps,maxFps);
             return NO_ERROR;
         }
     }
-#endif
+
     return BAD_VALUE;
 }
 
@@ -2047,8 +1999,7 @@ status_t QCameraHardwareInterface::setStrTextures(const CameraParameters& params
             mUseOverlay = false;
         } else if (!strncmp(str, "off", 3) || !strncmp(str, "OFF", 3)) {
             strTexturesOn = false;
-            if((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660))
-                mUseOverlay = true;
+            mUseOverlay = true;
         }
     }
     return NO_ERROR;
@@ -2089,17 +2040,18 @@ status_t QCameraHardwareInterface::setOverlayFormats(const CameraParameters& par
 
 status_t QCameraHardwareInterface::setMCEValue(const CameraParameters& params)
 {
-#if 0
-    if(!mCfgControl.mm_camera_is_supported(MM_CAMERA_PARM_MCE)) {
-        LOGI("Parameter MCE is not supported for this sensor");
-        return NO_ERROR;
-    }
-
-    const char *str = params.get(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT);
+    LOGE("%s",__func__);
+    status_t rc = NO_ERROR;
+    rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_MCE);
+   if(!rc) {
+       LOGE("MM_CAMERA_PARM_MCE mode is not supported for this sensor");
+       return NO_ERROR;
+   }
+   const char *str = params.get(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT);
     if (str != NULL) {
         int value = attr_lookup(mce, sizeof(mce) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-            int8_t temp = (int8_t)value;
+            int temp = (int8_t)value;
             LOGI("%s: setting MCE value of %s", __FUNCTION__, str);
             mParameters.set(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT, str);
 
@@ -2108,8 +2060,8 @@ status_t QCameraHardwareInterface::setMCEValue(const CameraParameters& params)
         }
     }
     LOGE("Invalid MCE value: %s", (str == NULL) ? "NULL" : str);
-#endif
-    return BAD_VALUE;
+
+    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& params)
@@ -2455,7 +2407,7 @@ getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                              int *picture_width,
                              int *picture_height)
 {
-    for(int i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ){
+    for(unsigned int i = 0; i < THUMBNAIL_SIZE_COUNT; i++ ){
         if(thumbnail_sizes[i].aspect_ratio == aspect_ratio)
         {
             *picture_width = thumbnail_sizes[i].width;
@@ -2541,7 +2493,7 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
         ( struct camera_size_type *)malloc(picture_table_size *
                                            sizeof(struct camera_size_type));
     if (mPictureSizes == NULL) {
-        LOGE("%s: Failre allocating memory to store picture size table");
+        LOGE("%s: Failre allocating memory to store picture size table",__func__);
         goto end;
     }
 
@@ -2553,6 +2505,8 @@ status_t QCameraHardwareInterface::setPictureSizeTable(void)
         LOGE("%s: Failure getting Max Picture Size supported by camera",
              __func__);
         ret = NO_MEMORY;
+        free(mPictureSizes);
+        mPictureSizes = NULL;
         goto end;
     }
 

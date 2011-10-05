@@ -160,11 +160,7 @@ status_t QCameraStream_record::start()
   status_t ret = NO_ERROR;
   LOGV("%s: BEGIN", __func__);
 
-  /* yyan TODO: call start() in parent class to start the monitor thread*/
-  //QCameraStream::start ();
-
-  /* yyan TODO: register a notify into the mmmm_camera_t object*/
-  if(!mInit) {
+	if(!mInit) {
     LOGE("%s ERROR: Record buffer not registered",__func__);
     return BAD_VALUE;
   }
@@ -176,7 +172,7 @@ status_t QCameraStream_record::start()
                                             record_notify_cb,
                                             this);
 
-  /*
+	/*
   * Start Video Streaming
   */
   ret = cam_ops_action(mCameraId, TRUE, MM_CAMERA_OPS_VIDEO, 0);
@@ -207,11 +203,11 @@ void QCameraStream_record::stop()
 
   mRecordFreeQueueLock.lock();
   while(!mRecordFreeQueue.isEmpty()) {
-    LOGE("%s : Pre-releasing of Encoder buffers!\n", __FUNCTION__);
+    LOGV("%s : Pre-releasing of Encoder buffers!\n", __FUNCTION__);
     mm_camera_ch_data_buf_t releasedBuf = mRecordFreeQueue.itemAt(0);
     mRecordFreeQueue.removeAt(0);
     mRecordFreeQueueLock.unlock();
-    LOGE("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__,
+    LOGV("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__,
                                               releasedBuf.video.video.idx);
     if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId,&releasedBuf))
         LOGE("%s : Buf Done Failed",__func__);
@@ -303,7 +299,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
       static int frameCnt = 0;
       if (frameCnt <= 13 ) {
         char buf[128];
-        sprintf(buf, "/data/%d_video.yuv", frameCnt);
+        snprintf(buf, sizeof(buf), "/data/%d_video.yuv", frameCnt);
         int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
         LOGE("dumping video frame %d", frameCnt);
         if (file_fd < 0) {
@@ -440,7 +436,7 @@ status_t QCameraStream_record::getBufferInfo(sp<IMemory>& Frame, size_t *aligned
     Frame = mRecordHeap->mBuffers[0];
     if( alignedSize != NULL) {
       *alignedSize = mRecordHeap->mAlignedBufferSize;
-      LOGE(" HAL : alignedSize = %d ", *alignedSize);
+      LOGV(" HAL : alignedSize = %d ", *alignedSize);
       ret = NO_ERROR;
     } else {
       LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");

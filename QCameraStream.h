@@ -113,10 +113,6 @@ public:
 
     virtual void        setHALCameraControl(QCameraHardwareInterface* ctrl);
 
-    virtual void        usedData(void*);
-    virtual void        newData(void*);
-    virtual void*       getUsedData();
-
     //static status_t     openChannel(mm_camera_t *, mm_camera_channel_type_t ch_type);
     virtual status_t    initChannel(int cameraId, uint32_t ch_type_mask);
     virtual status_t    deinitChannel(int cameraId, mm_camera_channel_type_t ch_type);
@@ -176,9 +172,8 @@ private:
   QCameraStream_record(int, camera_mode_t);
 
   int                  mCameraId;
-  cam_ctrl_dimension_t dim;
   camera_mode_t        myMode;
-  int                  open_flag;
+  cam_ctrl_dimension_t dim;
   bool mDebugFps;
 
   mm_camera_reg_buf_t mRecordBuf;
@@ -199,12 +194,6 @@ public:
     void        stop()  ;
     void        release() ;
 
-    void        usedData(void*);
-    void        newData(void*);
-    void*       getUsedData();
-
-    void        useData(void*);
-
     static QCameraStream*  createInstance(int, camera_mode_t);
   static void            deleteInstance(QCameraStream *p);
 
@@ -223,7 +212,6 @@ private:
     int8_t              my_id;
     mm_camera_op_mode_type_t op_mode;
     cam_ctrl_dimension_t dim;
-    int                  open_flag;
     struct msm_frame *mLastQueuedFrame;
     mm_camera_reg_buf_t mDisplayBuf;
     mm_cameara_stream_buf_t mDisplayStreamBuf;
@@ -251,7 +239,7 @@ public:
     void deinit(void);
     sp<IMemoryHeap> getRawHeap() const;
     int getSnapshotState();
-    /*Temp: Bikas: to be removed once event handling is enabled in mm-camera*/
+    /*Temp: to be removed once event handling is enabled in mm-camera*/
     void runSnapshotThread(void *data);
     bool isZSLMode();
 
@@ -297,6 +285,8 @@ private:
 
 
     /* Member variables */
+
+    camera_mode_t myMode;
     int mSnapshotFormat;
     int mPictureWidth;
     int mPictureHeight;
@@ -304,12 +294,14 @@ private:
     int mPostviewHeight;
     int mThumbnailWidth;
     int mThumbnailHeight;
+	int mJpegOffset;
     int mSnapshotState;
-    int mJpegOffset;
     int mNumOfSnapshot;
-    camera_mode_t myMode;
     bool mModeLiveSnapshot;
     bool mBurstModeFlag;
+	int mActualPictureWidth;
+    int mActualPictureHeight;
+    bool mJpegDownscaling;
     sp<AshmemPool> mJpegHeap;
     /*TBD:Bikas: This is defined in HWI too.*/
     sp<PmemPool>  mDisplayHeap;
@@ -321,9 +313,6 @@ private:
     mm_cameara_stream_buf_t mSnapshotStreamBuf;
     mm_cameara_stream_buf_t mPostviewStreamBuf;
     StreamQueue mSnapshotQueue;
-    int mActualPictureWidth;
-    int mActualPictureHeight;
-    bool mJpegDownscaling;
 }; // QCameraStream_Snapshot
 
 

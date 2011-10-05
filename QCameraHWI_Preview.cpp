@@ -28,7 +28,8 @@
 #include "QCameraHWI.h"
 
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
-/* QCameraHardwareInterface class implementation goes here*/
+
+/* QCameraHWI_Preview class implementation goes here*/
 /* following code implement the preview mode's image capture & display logic of this class*/
 
 namespace android {
@@ -36,7 +37,6 @@ namespace android {
 // ---------------------------------------------------------------------------
 // Preview Callback
 // ---------------------------------------------------------------------------
-
 
 static void preview_notify_cb(mm_camera_ch_data_buf_t *frame,
                                 void *user_data)
@@ -52,51 +52,10 @@ static void preview_notify_cb(mm_camera_ch_data_buf_t *frame,
   }
 
   pme->processPreviewFrame(frame);
-
-
-#if 0
-  mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
-
-  mCallbackLock.lock();
-  int msgEnabled = mMsgEnabled;
-  data_callback pcb = mDataCallback;
-  void *pdata = mCallbackCookie;
-  data_callback_timestamp rcb = mDataCallbackTimestamp;
-  void *rdata = mCallbackCookie;
-  data_callback mcb = mDataCallback;
-  void *mdata = mCallbackCookie;
-  mCallbackLock.unlock();
-
-
-#endif
-
-
-#if 0
-    /* data with no owner?*/
-    if (!pme || !bufs_new) {
-      /* do nothing*/
-      return;
-    } else
-      bufs_used = (mm_camera_ch_data_buf_t *) pme->getUsedData();
-
-
-                /* if there is used data bufs to free*/
-            if (bufs_used) {
-                /* add the new bufs into the stream and free used bufs */
-                pme->newData(bufs_new);
-                pme->usedData (bufs_used);
-            } else {
-                /* return the new data back as used already!*/
-                pme->usedData (bufs_new);
-            }
-#endif
   LOGV("%s: X", __func__);
 }
 
-
-
 #if 0
-/*maftab*/
 int QCameraHardwareInterface::prepare_preview_buffers(cam_format_t fmt_type, camera_mode_t mode,
                                 int num_preview_buf, int display_width,int display_height)
 {
@@ -136,9 +95,9 @@ end:
   return rc;
 }
 #endif
+
 status_t QCameraStream_preview::initDisplayBuffers()
 {
-
     status_t ret = NO_ERROR;
     int width = 0;  /* width of channel  */
     int height = 0; /* height of channel */
@@ -172,7 +131,6 @@ status_t QCameraStream_preview::initDisplayBuffers()
                                           width, height, OUTPUT_TYPE_P,
                                           &y_off, &cbcr_off);
 
-/*mnsr*/
 #if 0
 
   /* consider format later*/
@@ -258,7 +216,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 
   if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, frame))
   {
-      LOGE("###############BUF DONE FAILED");
+      LOGE("BUF DONE FAILED");
       return BAD_VALUE;
   }
 
@@ -303,7 +261,7 @@ QCameraStream_preview::
 QCameraStream_preview(int cameraId, camera_mode_t mode)
   : QCameraStream(),
     mCameraId(cameraId),
-    myMode (mode),  open_flag(0),
+    myMode (mode),
     mLastQueuedFrame(NULL)
   {
     mHalCamCtrl = NULL;
@@ -471,52 +429,6 @@ status_t QCameraStream_preview::start() {
     LOGE("%s: END", __func__);
 
   }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_preview
-// ---------------------------------------------------------------------------
-
- void QCameraStream_preview::useData(void* data) {
-
-    return;
-}
-
-// ---------------------------------------------------------------------------
-// QCameraStream_preview
-// ---------------------------------------------------------------------------
-/* do something to the used data*/
-  void QCameraStream_preview::usedData(void* data) {
-
-    /* we now we only deal with the mm_camera_ch_data_buf_t type*/
-    mm_camera_ch_data_buf_t *bufs_used =
-    (mm_camera_ch_data_buf_t *)data;
-
-    /* buf is used, release it! */
-    (void) cam_evt_buf_done(mCameraId, bufs_used);
-
-  }
-// ---------------------------------------------------------------------------
-// QCameraStream_preview
-// ---------------------------------------------------------------------------
-
-  void* QCameraStream_preview::getUsedData() {
-
-    /* return one piece of used data */
-    return QCameraStream::getUsedData();
-  }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_preview
-// ---------------------------------------------------------------------------
-
-  void QCameraStream_preview::newData(void* data) {
-    /* new data, add into parent's busy queue, to by used by useData() */
-    QCameraStream::newData(data);
-  }
-
-// ---------------------------------------------------------------------------
-// QCameraStream_preview
-// ---------------------------------------------------------------------------
 
 QCameraStream*
 QCameraStream_preview::createInstance(int cameraId,

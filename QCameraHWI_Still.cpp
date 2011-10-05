@@ -178,7 +178,7 @@ receiveJpegFragment(uint8_t *ptr, uint32_t size)
     LOGD("%s: E", __func__);
 
     if (mJpegHeap != NULL) {
-        memcpy(mJpegHeap->mHeap->base()+ mJpegOffset, ptr, size);
+        memcpy((uint8_t *)mJpegHeap->mHeap->base()+ mJpegOffset, ptr, size);
         mJpegOffset += size;
     }
     else {
@@ -199,7 +199,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
 /*  static int loop = 0;
     char buf[25];
     memset(buf, 0, sizeof(buf));
-    sprintf(buf,"/data/snapshot_%d.jpg",loop++);
+    snprintf(buf,sizeof(buf), "/data/snapshot_%d.jpg",loop++);
     mm_app_dump_snapshot_frame(buf,(const void *)mJpegHeap->mHeap->base(),
                                mJpegOffset);
 */
@@ -211,7 +211,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
 
     LOGD("%s: Calling upperlayer callback to store JPEG image", __func__);
     msg_type = isLiveSnapshot() ?
-        MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : CAMERA_MSG_COMPRESSED_IMAGE;
+        (int)MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : (int)CAMERA_MSG_COMPRESSED_IMAGE;
     if (mHalCamCtrl->mDataCb &&
         (mHalCamCtrl->mMsgEnabled & msg_type)) {
       // The reason we do not allocate into mJpegHeap->mBuffers[offset] is
@@ -282,7 +282,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
                 mm_camera_ops_parm_get_buffered_frame_t param;
                 memset(&param, 0, sizeof(param));
                 param.ch_type = MM_CAMERA_CH_SNAPSHOT;
-    
+
                 /* Take snapshot */
                 LOGD("%s: Get %d number of buffered frames!!!", __func__, remaining_cb);
                 if (NO_ERROR !=cam_ops_action(mCameraId,
@@ -651,7 +651,6 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
-
     for(int i = 0; i < mSnapshotStreamBuf.num; i++) {
         frame = &(mSnapshotStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -774,7 +773,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
-
     for(int i = 0; i < mSnapshotStreamBuf.num; i++) {
         frame = &(mSnapshotStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -820,7 +818,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
-
     for(int i = 0; i < mPostviewStreamBuf.num; i++) {
         frame = &(mPostviewStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -1629,13 +1626,13 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
 /*    char buf[25];
     static int loop = 0;
     memset(buf, 0, sizeof(buf));
-    sprintf(buf,"/data/main_frame-%d.yuv",loop);
+    snprintf(buf, sizeof(buf), "/data/main_frame-%d.yuv",loop);
     mm_app_dump_snapshot_frame(buf,
                                (const void *)recvd_frame->snapshot.main.frame->buffer,
                                mSnapshotStreamBuf.frame_len);
- 
+
     memset(buf, 0, sizeof(buf));
-    sprintf(buf,"/data/thumb_frame-%d.yuv",loop++);
+    snprintf(buf, sizeof(buf), "/data/thumb_frame-%d.yuv",loop++);
     mm_app_dump_snapshot_frame(buf,
                                (const void *)recvd_frame->snapshot.thumbnail.frame->buffer,
                                mSnapshotStreamBuf.frame_len);
@@ -1778,19 +1775,22 @@ QCameraStream_Snapshot::
 QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
   : mCameraId(cameraId),
     myMode (mode),
-    mJpegOffset(0),mModeLiveSnapshot(false),
     mSnapshotFormat(PICTURE_FORMAT_JPEG),
     mPictureWidth(0), mPictureHeight(0),
-    mThumbnailWidth(0), mThumbnailHeight(0),
     mPostviewWidth(0), mPostviewHeight(0),
+    mThumbnailWidth(0), mThumbnailHeight(0),
+    mJpegOffset(0),
     mSnapshotState(SNAPSHOT_STATE_UNINIT),
-    mJpegHeap(NULL), mRawHeap(NULL), mDisplayHeap(NULL),
-    mPostviewHeap(NULL), mRawSnapShotHeap(NULL),
-    mNumOfSnapshot(0), mCurrentFrameEncoded(NULL),
+    mNumOfSnapshot(0),
+    mModeLiveSnapshot(false),
     mBurstModeFlag(false),
-    mJpegDownscaling(false),
     mActualPictureWidth(0),
-    mActualPictureHeight(0)
+    mActualPictureHeight(0),
+    mJpegDownscaling(false),
+    mJpegHeap(NULL),
+    mDisplayHeap(NULL),mRawHeap(NULL),
+    mPostviewHeap(NULL), mRawSnapShotHeap(NULL),
+    mCurrentFrameEncoded(NULL)
   {
     LOGV("%s: E", __func__);
 

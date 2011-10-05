@@ -35,9 +35,16 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MM_CAMERA_MAX_NUM_FRAMES        16
 
+
 typedef struct {
-    uint32_t width;
-    uint32_t height;
+    int num;
+    uint32_t frame_len;
+    struct msm_frame frame[MM_CAMERA_MAX_NUM_FRAMES];
+} mm_cameara_stream_buf_t;
+
+typedef struct {
+    int32_t width;
+    int32_t height;
 }mm_camera_dimension_t;
 
 typedef enum {

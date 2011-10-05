@@ -859,11 +859,11 @@ static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     char buffer[32];
 
     if (len > 0) {
-        sprintf(buffer, "%dx%d", sizes[0].width, sizes[0].height);
+        snprintf(buffer, sizeof(buffer), "%dx%d", sizes[0].width, sizes[0].height);
         str.append(buffer);
     }
     for (int i = 1; i < len; i++) {
-        sprintf(buffer, ",%dx%d", sizes[i].width, sizes[i].height);
+        snprintf(buffer, sizeof(buffer), ",%dx%d", sizes[i].width, sizes[i].height);
         str.append(buffer);
     }
     return str;
@@ -874,11 +874,11 @@ static String8 create_fps_str(const android:: FPSRange* fps, int len) {
     char buffer[32];
 
     if (len > 0) {
-        sprintf(buffer, "(%d,%d)", fps[0].minFPS, fps[0].maxFPS);
+        snprintf(buffer, sizeof(buffer), "(%d,%d)", fps[0].minFPS, fps[0].maxFPS);
         str.append(buffer);
     }
     for (int i = 1; i < len; i++) {
-        sprintf(buffer, ",(%d,%d)", fps[i].minFPS, fps[i].maxFPS);
+        snprintf(buffer, sizeof(buffer), ",(%d,%d)", fps[i].minFPS, fps[i].maxFPS);
         str.append(buffer);
     }
     return str;
@@ -2226,8 +2226,8 @@ void QualcommCameraHardware::setGpsParameters() {
 
     if(str!=NULL ){
        memcpy(gpsProcessingMethod, ExifAsciiPrefix, EXIF_ASCII_PREFIX_SIZE);
-       strncpy(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE, str,
-           GPS_PROCESSING_METHOD_SIZE-1);
+       strlcpy(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE, str,
+           GPS_PROCESSING_METHOD_SIZE);
        gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE-1] = '\0';
        addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
            EXIF_ASCII_PREFIX_SIZE + strlen(gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE) + 1,
@@ -2403,8 +2403,7 @@ bool QualcommCameraHardware::initImageEncodeParameters(int size)
     //set TimeStamp
     const char *str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
     if(str != NULL) {
-      strncpy(dateTime, str, 19);
-      dateTime[19] = '\0';
+      strlcpy(dateTime, str, 20);
       addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                   20, 1, (void *)dateTime);
     }
@@ -2671,7 +2670,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
         int written;
                 if (frameCnt >= 0 && frameCnt <= 10 ) {
                     char buf[128];
-                    sprintf(buf, "/data/%d_preview.yuv", frameCnt);
+                    snprintf(buffer, sizeof(buf), "/data/%d_preview.yuv", frameCnt);
                     int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
                     LOGV("dumping preview frame %d", frameCnt);
                     if (file_fd < 0) {
@@ -2982,7 +2981,7 @@ void QualcommCameraHardware::runVideoThread(void *data)
             static int frameCnt = 0;
             if (frameCnt >= 11 && frameCnt <= 13 ) {
                 char buf[128];
-                sprintf(buf, "/data/%d_v.yuv", frameCnt);
+                snprintf(buffer, sizeof(buf),  "/data/%d_v.yuv", frameCnt);
                 int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
                 LOGV("dumping video frame %d", frameCnt);
                 if (file_fd < 0) {
@@ -4680,8 +4679,7 @@ void QualcommCameraHardware::set_liveshot_exifinfo()
     //set TimeStamp
     const char *str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
     if(str != NULL) {
-        strncpy(dateTime, str, 19);
-        dateTime[19] = '\0';
+        strlcpy(dateTime, str, 20);
         addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
                    20, 1, (void *)dateTime);
     }
@@ -6813,7 +6811,7 @@ status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params
     }
     const char *str = params.get("capture-burst-exposures");
     if ((str != NULL) && (!mHdrMode)) {
-        char  exp_val[10];
+        char  exp_val[16];
         exp_bracketing_t temp;
         mExpBracketMode = true;
         temp.mode = EXP_BRACKETING_MODE;
@@ -6821,7 +6819,7 @@ status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params
         /* App sets values separated by comma.
            Thus total number of snapshot to capture is strlen(str)/2
            eg: "-1,1,2" */
-        strcpy(exp_val,str);
+        strlcpy(exp_val, str, sizeof(exp_val));
         temp.total_frames = (strlen(exp_val) >  MAX_SNAPSHOT_BUFFERS -2) ?
             MAX_SNAPSHOT_BUFFERS -2 : strlen(exp_val);
         temp.total_hal_frames = temp.total_frames;
@@ -7277,7 +7275,7 @@ status_t QualcommCameraHardware::setSnapshotCount(const CameraParameters& params
         value = MAX_SNAPSHOT_BUFFERS -2;
     else if(value < 1)
         value = 1;
-    sprintf(snapshotCount,"%d",value);
+    snprintf(snapshotCount, sizeof(snapshotCount),"%d",value);
     numCapture = value;
     mParameters.set("num-snaps-per-shutter", snapshotCount);
     LOGI("%s setting num-snaps-per-shutter to %s", __FUNCTION__, snapshotCount);
@@ -7293,14 +7291,14 @@ status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
         (void *)&focusDistances) == MM_CAMERA_SUCCESS) {
         String8 str;
         char buffer[32];
-        sprintf(buffer, "%f", focusDistances.focus_distance[0]);
+        snprintf(buffer, sizeof(buffer), "%f", focusDistances.focus_distance[0]);
         str.append(buffer);
-        sprintf(buffer, ",%f", focusDistances.focus_distance[1]);
+        snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[1]);
         str.append(buffer);
         if(strcmp(focusmode, CameraParameters::FOCUS_MODE_INFINITY) == 0)
-            sprintf(buffer, ",%s", "Infinity");
+            snprintf(buffer, sizeof(buffer), ",%s", "Infinity");
         else
-            sprintf(buffer, ",%f", focusDistances.focus_distance[2]);
+            snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[2]);
         str.append(buffer);
         LOGI("%s: setting KEY_FOCUS_DISTANCES as %s", __FUNCTION__, str.string());
         mParameters.set(CameraParameters::KEY_FOCUS_DISTANCES, str.string());

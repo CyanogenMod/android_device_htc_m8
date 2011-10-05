@@ -34,16 +34,10 @@ extern "C" {
 
 #include "mm_jpeg_encoder.h"
 
-/*yyan: stream buffer type;
-allocate by the QCameraStream class and pass to mm_cameara*/
-typedef struct {
-    int num;
-    uint32_t frame_len;
-    struct msm_frame frame[MM_CAMERA_MAX_NUM_FRAMES];
-} mm_cameara_stream_buf_t;
-
 } //extern C
 
+#include "QCameraStream.h"
+#include "QCameraHWI_Mem.h"
 
 //Error codes
 #define  NOT_FOUND -1
@@ -61,33 +55,11 @@ typedef struct {
 #define QCAMERA_PARM_ENABLE   1
 #define QCAMERA_PARM_DISABLE  0
 
-
-#include "QCameraStream.h"
-#include "QCameraHWI_Mem.h"
 struct str_map {
     const char *const desc;
     int val;
 };
 
-typedef enum {
-    TARGET_MSM7625,
-    TARGET_MSM7625A,
-    TARGET_MSM7627,
-    TARGET_MSM7627A,
-    TARGET_QSD8250,
-    TARGET_MSM7630,
-    TARGET_MSM8660,
-    TARGET_MSM8960,
-    TARGET_MAX
-}targetType;
-
-struct board_property{
-    targetType target;
-    unsigned int previewSizeMask;
-    bool hasSceneDetect;
-    bool hasSelectableZoneAf;
-    bool hasFaceDetect;
-};
 typedef enum {
   CAMERA_STATE_UNINITED,
   CAMERA_STATE_READY,
@@ -155,47 +127,47 @@ public:
     virtual status_t    cancelAutoFocus();
     virtual status_t    takePicture();
     virtual status_t    cancelPicture();
+    virtual status_t    takeLiveSnapshot();
 
-    virtual status_t    dump(int fd, const Vector<String16>& args) const;
-    virtual status_t    setParameters(const CameraParameters& params);
+    virtual status_t          setParameters(const CameraParameters& params);
     virtual CameraParameters  getParameters() const;
-    virtual status_t    sendCommand(int32_t command, int32_t arg1,
-                                    int32_t arg2);
-    virtual status_t getBufferInfo( sp<IMemory>& Frame, size_t *alignedSize);
-    virtual void     encodeData();
+    virtual status_t          getBufferInfo( sp<IMemory>& Frame,
+    size_t *alignedSize);
+    void         getPictureSize(int *picture_width, int *picture_height) const;
+    void         getPreviewSize(int *preview_width, int *preview_height) const;
+    cam_format_t getPreviewFormat() const;
+
+    virtual bool     useOverlay(void);
+    virtual status_t setOverlay(const sp<Overlay> &overlay);
+
     virtual void release();
 
-    static sp<CameraHardwareInterface> createInstance(int, int);
-    virtual status_t    takeLiveSnapshot();
-    virtual bool useOverlay(void);
-    virtual status_t setOverlay(const sp<Overlay> &overlay);
-    void        useData(void*);
-    void        processEvent(mm_camera_event_t *);
-    int getJpegQuality() const;
-    int getNumOfSnapshots(void) const;
-    int getRemainingSnapshots(void);
-    void getPictureSize(int *picture_width, int *picture_height) const;
-    void getPreviewSize(int *preview_width, int *preview_height) const;
-    int getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
+    virtual status_t    sendCommand(int32_t command, int32_t arg1,
+                                    int32_t arg2);
+    virtual void        encodeData();
+
+    void processEvent(mm_camera_event_t *);
+    int  getJpegQuality() const;
+    int  getNumOfSnapshots(void) const;
+    int  getRemainingSnapshots(void);
+    int  getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                                      int *picture_width,
                                      int *picture_height);
     bool isRawSnapshot();
-    void dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
-    bool mUseOverlay;
-    cam_format_t getPreviewFormat() const;
-    int16_t  zoomRatios[MAX_ZOOM_RATIOS];
+
+    virtual status_t    dump(int fd, const Vector<String16>& args) const;
+    void                dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
+
+    static sp<CameraHardwareInterface> createInstance(int, int);
 
 private:
                         QCameraHardwareInterface(int  cameraId, int);
     virtual             ~QCameraHardwareInterface();
 
-    static const int kBufferCount = 4;
-
+    int16_t  zoomRatios[MAX_ZOOM_RATIOS];
+    bool mUseOverlay;
 
     void initDefaultParameters();
-
-
-
 
     bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
     bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
@@ -213,12 +185,17 @@ private:
     void processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent);
     void processRecordChannelEvent(mm_camera_ch_event_type_t channelEvent);
     void processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent);
-
     void processCtrlEvent(mm_camera_ctrl_event_t *);
     void processStatsEvent(mm_camera_stats_event_t *);
     void processInfoEvent(mm_camera_info_event_t *event);
     void processprepareSnapshotEvent(cam_ctrl_status_t *);
+    void roiEvent(fd_roi_t roi);
+    void zoomEvent(cam_ctrl_status_t *status);
+    void autofocusevent(cam_ctrl_status_t *status);
+    void handleZoomEventForPreview(void);
+    void handleZoomEventForSnapshot(void);
     status_t autoFocusEvent(cam_ctrl_status_t *);
+
     void filterPictureSizes();
     bool supportsSceneDetection();
     bool supportsSelectableZoneAf();
@@ -227,14 +204,12 @@ private:
 
     void stopPreviewInternal();
     void stopRecordingInternal();
+    void stopPreviewZSL();
     status_t cancelPictureInternal();
     status_t startPreviewZSL();
-    void stopPreviewZSL();
 
     status_t runFaceDetection();
-    void roiEvent(fd_roi_t roi);
     status_t setPictureSizeTable(void);
-    void freePictureTable(void);
     status_t setPreviewSizeTable(void);
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);
@@ -281,105 +256,86 @@ private:
     status_t setDenoise(const CameraParameters& params);
     status_t setHistogram(int histogram_en);
 
-    void zoomEvent(cam_ctrl_status_t *status);
-    void autofocusevent(cam_ctrl_status_t *status);
-    void handleZoomEventForPreview(void);
-    void handleZoomEventForSnapshot(void);
-
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);
+
     String8 create_values_str(const str_map *values, int len);
 
+    void setMyMode(int mode);
+    bool isZSLMode();
 
-    int              mCameraId;
-    mutable Mutex       mLock;
-    mutable Mutex       eventLock;
-    Mutex mParametersLock;
-    Mutex mCamframeTimeoutLock;
-    bool camframe_timeout_flag;
+    void freePictureTable(void);
+
+    int           mCameraId;
+    camera_mode_t myMode;
 
     CameraParameters    mParameters;
-
-    sp<MemoryHeapBase>  mPreviewHeap;
-    sp<MemoryBase>      mBuffers[kBufferCount];
-
-    bool                mPreviewRunning;
-    bool                mRecordRunning;
-    int                 mPreviewFrameSize;
-    bool                mAutoFocusRunning;
-
-    notify_callback    mNotifyCb;
-    data_callback      mDataCb;
-    data_callback_timestamp mDataCbTimestamp;
-    void               *mCallbackCookie;
-
+    sp<Overlay>         mOverlay;
     int32_t             mMsgEnabled;
 
-    // only used from PreviewThread
-    int                 mCurrentPreviewFrame;
+    notify_callback         mNotifyCb;
+    data_callback           mDataCb;
+    data_callback_timestamp mDataCbTimestamp;
+    void                    *mCallbackCookie;
 
-    // yyan mode passed in
-    int                 mMode;
+    sp<MemoryHeapBase>  mPreviewHeap;  //@Guru : Need to remove
+    sp<AshmemPool>      mMetaDataHeap;
+
+    mutable Mutex       mLock;
+    //mutable Mutex       eventLock;
+    Mutex         mCallbackLock;
+    Mutex         mOverlayLock;
+    Mutex         mAutofocusLock;
+    Mutex         mMetaDataWaitLock;
+    pthread_mutex_t     mAsyncCmdMutex;
+    pthread_cond_t      mAsyncCmdWait;
+
     QCameraStream       *mStreamDisplay;
     QCameraStream       *mStreamRecord;
     QCameraStream       *mStreamSnap;
 
-     int mVideoWidth;
-     int mVideoHeight;
-     int mVideoBitrate;
-     int mVideoFps;
-     camera_mode_t        myMode;
-
-
-     sp<Overlay>  mOverlay;
-
-     Mutex mCallbackLock;
-     Mutex mOverlayLock;
-     Mutex mAutofocusLock;
-
-
-     /*mm_camera_reg_buf_t mRecordBuf;
-     sp<PmemPool> mRecordHeap;
-     struct msm_frame *recordframes;
-     uint32_t record_offset[VIDEO_BUFFER_COUNT];
-     Mutex mRecordFreeQueueLock;
-     Vector<mm_camera_ch_data_buf_t> mRecordFreeQueue;
-     int g_record_frame_len; //Need to remove*/
-
-     cam_ctrl_dimension_t mDimension;
-
-     int previewWidth, previewHeight;
-     int videoWidth, videoHeight;
-     int mFps;
-     bool mMultiTouch;
-
-     bool mHasAutoFocusSupport;
-     int mDebugFps;
-     bool mDisEnabled;
-     int maxSnapshotWidth;
-     int maxSnapshotHeight;
-     bool mInitialized;
-     int mBrightness;
-     int mSkinToneEnhancement;
-     int mDenoiseValue;
-     int mHJR;
-     bool strTexturesOn;
-     bool mIs3DModeOn;
-     int mRotation;
-
-     int mTargetSmoothZoom;
-     int mSmoothZoomStep;
-     int mCurrentZoom;
-     bool mSmoothZoomRunning;
-     bool mPreparingSnapshot;
-
-    camera_size_type* mPictureSizes;
-    camera_size_type* mPreviewSizes;
-    const camera_size_type * mPictureSizesPtr;
-    int mSupportedPictureSizesCount;
+    cam_ctrl_dimension_t mDimension;
+    int  previewWidth, previewHeight;
+    int  videoWidth, videoHeight;
+    int  maxSnapshotWidth, maxSnapshotHeight;
+    int  mPreviewFormat;
+    int  mFps;
+    int  mDebugFps;
+    int  mBrightness;
+    int  mSkinToneEnhancement;
+    int  mDenoiseValue;
+    int  mHJR;
+    int  mRotation;
+    int  mTargetSmoothZoom;
+    int  mSmoothZoomStep;
+    int  mMaxZoom;
+    int  mCurrentZoom;
+    int  mSupportedPictureSizesCount;
+    int  mFaceDetectOn;
+    int  mDumpFrmCnt;
+    int  mDumpSkipCnt;
     unsigned int mPictureSizeCount;
     unsigned int mPreviewSizeCount;
+
+    bool mAutoFocusRunning;
+    bool mMultiTouch;
+    bool mHasAutoFocusSupport;
+    bool mInitialized;
+    bool mDisEnabled;
+    bool strTexturesOn;
+    bool mIs3DModeOn;
+    bool mSmoothZoomRunning;
+    bool mPreparingSnapshot;
     bool mParamStringInitialized;
+    bool mZoomSupported;
+    bool mSendMetaData;
+
+/*for histogram*/
+    int            mStatsOn;
+    int            mCurrentHisto;
+    bool           mSendData;
+    sp<AshmemPool> mStatHeap;
+
     String8 mEffectValues;
     String8 mIsoValues;
     String8 mSceneModeValues;
@@ -409,39 +365,19 @@ private:
     String8 mRedeyeReductionValues;
     String8 denoise_value;
     String8 mFpsRangesSupportedValues;
-    int mPreviewFormat;
-    int32_t mMaxZoom;
-    bool mZoomSupported;
 
-     //For Face Detection
-     int mFaceDetectOn;
-     bool mSendMetaData;
-     Mutex mMetaDataWaitLock;
-     sp<AshmemPool> mMetaDataHeap;
+    friend class QCameraStream;
+    friend class QCameraStream_record;
+    friend class QCameraStream_preview;
+    friend class QCameraStream_Snapshot;
 
-     HAL_camera_state_type_t mCameraState;
-     pthread_mutex_t mAsyncCmdMutex;
-     pthread_cond_t mAsyncCmdWait;
-
-     /*for histogram*/
-     int mStatsOn;
-     int mCurrentHisto;
-     bool mSendData;
-     sp<AshmemPool> mStatHeap;
-
-     void setMyMode(int mode);
-     bool isZSLMode();
-
-     friend class QCameraStream;
-     friend class QCameraStream_record;
-     friend class QCameraStream_preview;
-     friend class QCameraStream_Snapshot;
-     //cam_ctrl_dimension_t mDimension;
+    camera_size_type* mPictureSizes;
+    camera_size_type* mPreviewSizes;
+    const camera_size_type * mPictureSizesPtr;
+    HAL_camera_state_type_t mCameraState;
 
      /* Temporary - can be removed after Honeycomb*/
      mm_cameara_stream_buf_t mPrevForPostviewBuf;
-     int mDumpFrmCnt;
-     int mDumpSkipCnt;
 };
 
 }; // namespace android

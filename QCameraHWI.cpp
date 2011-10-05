@@ -47,41 +47,34 @@ static void HAL_event_cb(mm_camera_event_t *evt, void *user_data)
 /* constructor */
 QCameraHardwareInterface::
 QCameraHardwareInterface(int cameraId, int mode)
-                  : mParameters(),
-                    mPreviewHeap(0),
-                    mCameraId(cameraId),
-                    mPreviewRunning (false),
-                    mRecordRunning (false),
-                    mAutoFocusRunning(false),
-                    mPreviewFrameSize(0),
+                  : mCameraId(cameraId),
+                    mParameters(),
+                    mMsgEnabled(0),
                     mNotifyCb(0),
                     mDataCb(0),
                     mDataCbTimestamp(0),
                     mCallbackCookie(0),
-                    mMsgEnabled(0),
-                    mCurrentPreviewFrame(0), mMode(mode),
+                    mPreviewHeap(0),
                     mStreamDisplay (NULL), mStreamRecord(NULL), mStreamSnap(NULL),
-                    mVideoWidth (DEFAULT_STREAM_WIDTH),
-                    mVideoHeight (DEFAULT_STREAM_HEIGHT),
-                    mVideoBitrate(320000), mVideoFps (30),
-                    mCameraState(CAMERA_STATE_UNINITED),
+                    mPreviewFormat(0),
+                    mFps(0),
                     mDebugFps(0),
-                    mInitialized(false),
-                    mHasAutoFocusSupport(0),
-                    mIs3DModeOn(0),
+                    mMaxZoom(0),
+                    mCurrentZoom(0),
+                    mSupportedPictureSizesCount(15),
+                    mDumpFrmCnt(0), mDumpSkipCnt(0),
                     mPictureSizeCount(15),
                     mPreviewSizeCount(13),
-                    mSupportedPictureSizesCount(15),
+                    mAutoFocusRunning(false),
+                    mHasAutoFocusSupport(false),
+                    mInitialized(false),
+                    mIs3DModeOn(0),
+                    mSmoothZoomRunning(false),
                     mParamStringInitialized(false),
-                    mPreviewFormat(0),
-                    mMaxZoom(0),
                     mZoomSupported(false),
-                    mCurrentZoom(0),
-                    mFps(0),
-                    mPictureSizes(NULL),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
-                    mDumpFrmCnt(0), mDumpSkipCnt(0),
-                    mSmoothZoomRunning(false)
+                    mPictureSizes(NULL),
+                    mCameraState(CAMERA_STATE_UNINITED)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -112,7 +105,7 @@ QCameraHardwareInterface(int cameraId, int mode)
         }
       }
     }
-    LOGE("Cam open returned %d",result);
+    LOGV("Cam open returned %d",result);
     if(MM_CAMERA_OK != result) {
           LOGE("startCamera: cam_ops_open failed: id = %d", mCameraId);
     } else {
@@ -122,21 +115,20 @@ QCameraHardwareInterface(int cameraId, int mode)
       setPictureSizeTable();
       LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
       LOGD("%s: Picture table: ", __func__);
-      for(int i=0; i < mPictureSizeCount;i++) {
+      for(unsigned int i=0; i < mPictureSizeCount;i++) {
           LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
       }
 
       setPreviewSizeTable();
       LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
       LOGD("%s: Preview table: ", __func__);
-      for(int i=0; i < mPreviewSizeCount;i++) {
+      for(unsigned int i=0; i < mPreviewSizeCount;i++) {
           LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
       }
 
       /* set my mode - update myMode member variable due to difference in
          enum definition between upper and lower layer*/
       setMyMode(mode);
-
       initDefaultParameters();
     }
     LOGI("QCameraHardwareInterface: X");
@@ -191,13 +183,6 @@ void QCameraHardwareInterface::release()
         //TBD: If Error occurs then tear down
         LOGI("release: Tear down.");
     }
-    //TBD - Snapshot Teardown
-
-    /*if(fb_fd >= 0) {
-        close(fb_fd);
-        fb_fd = -1;
-    }*/
-
     LOGI("release: X");
 }
 
@@ -219,26 +204,6 @@ sp<IMemoryHeap> QCameraHardwareInterface::getRawHeap() const
 {
     LOGI("getRawHeap: E");
     return (mStreamSnap)? mStreamSnap->getRawHeap() : NULL;
-}
-
-void QCameraHardwareInterface::useData(void* data) {
-
-#if 0
-    mm_camera_ch_data_buf_t *bufs = (mm_camera_ch_data_buf_t *)data;
-    if (!bufs) {
-      return;
-    }
-
-    /* yyan: depend on the channel we can choose to use data differently*/
-    if (MM_CAMERA_CH_PREVIEW == bufs->type) {
-      processPreviewFrame(data);
-    }
-    else if(MM_CAMERA_CH_VIDEO == bufs->type)
-    {
-      //processRecordFrame(data);
-    }
-#endif
-    return;
 }
 
 void QCameraHardwareInterface::setCallbacks(notify_callback notify_cb,
@@ -279,7 +244,6 @@ bool QCameraHardwareInterface::msgTypeEnabled(int32_t msgType)
     LOGI("msgTypeEnabled: X");
 }
 
-
 status_t QCameraHardwareInterface::dump(int fd, const Vector<String16>& args) const
 {
     LOGI("dump: E");
@@ -287,120 +251,112 @@ status_t QCameraHardwareInterface::dump(int fd, const Vector<String16>& args) co
     char buffer[SIZE];
     String8 result;
     AutoMutex lock(&mLock);
-    /*yan TODO: dump out diag information*/
     write(fd, result.string(), result.size());
     LOGI("dump: E");
     return NO_ERROR;
 }
 
-
-
 status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
                                          int32_t arg2)
 {
-  LOGI("sendCommand: E");
-  status_t rc = NO_ERROR;
-  Mutex::Autolock l(&mLock);
+    LOGI("sendCommand: E");
+    status_t rc = NO_ERROR;
+    Mutex::Autolock l(&mLock);
 
-      switch (command) {
+    switch (command) {
         case CAMERA_CMD_HISTOGRAM_ON:
-           LOGE("histogram set to on");
-           rc = setHistogram(1);
-           break;
+            LOGE("histogram set to on");
+            rc = setHistogram(1);
+            break;
         case CAMERA_CMD_HISTOGRAM_OFF:
-           LOGE("histogram set to off");
-           rc = setHistogram(0);
-           break;
-      case CAMERA_CMD_HISTOGRAM_SEND_DATA:
-        LOGE("histogram send data");
-          mSendData = true;
-          rc = NO_ERROR;
-          break;
-      case CAMERA_CMD_FACE_DETECTION_ON:
-                                   if(supportsFaceDetection() == false){
-                                        LOGE("Face detection support is not available");
-                                        return NO_ERROR;
-                                   }
-                                   setFaceDetection("on");
-                                   return runFaceDetection();
-      case CAMERA_CMD_FACE_DETECTION_OFF:
-                                   if(supportsFaceDetection() == false){
-                                        LOGE("Face detection support is not available");
-                                        return NO_ERROR;
-                                   }
-                                   setFaceDetection("off");
-                                   return runFaceDetection();
-      case CAMERA_CMD_SEND_META_DATA:
-                                   mMetaDataWaitLock.lock();
-                                   if(mFaceDetectOn == true) {
-                                       mSendMetaData = true;
-                                   }
-                                   mMetaDataWaitLock.unlock();
-                                   return NO_ERROR;
+            LOGE("histogram set to off");
+            rc = setHistogram(0);
+            break;
+        case CAMERA_CMD_HISTOGRAM_SEND_DATA:
+            LOGE("histogram send data");
+            mSendData = true;
+            rc = NO_ERROR;
+            break;
+        case CAMERA_CMD_FACE_DETECTION_ON:
+           if(supportsFaceDetection() == false){
+                LOGE("Face detection support is not available");
+                return NO_ERROR;
+           }
+           setFaceDetection("on");
+           return runFaceDetection();
+        case CAMERA_CMD_FACE_DETECTION_OFF:
+           if(supportsFaceDetection() == false){
+                LOGE("Face detection support is not available");
+                return NO_ERROR;
+           }
+           setFaceDetection("off");
+           return runFaceDetection();
+        case CAMERA_CMD_SEND_META_DATA:
+           mMetaDataWaitLock.lock();
+           if(mFaceDetectOn == true) {
+               mSendMetaData = true;
+           }
+           mMetaDataWaitLock.unlock();
+           return NO_ERROR;
 #if 0 /* To Do: will enable it later */
         case CAMERA_CMD_START_SMOOTH_ZOOM :
-          LOGV("HAL sendcmd start smooth zoom %d %d", arg1 , arg2);
-          /*TO DO: get MaxZoom from parameter*/
-          int MaxZoom = 100;
+            LOGV("HAL sendcmd start smooth zoom %d %d", arg1 , arg2);
+            /*TO DO: get MaxZoom from parameter*/
+            int MaxZoom = 100;
 
-          switch(mCameraState ) {
-          case CAMERA_STATE_PREVIEW:
-          case CAMERA_STATE_RECORD_CMD_SENT:
-          case CAMERA_STATE_RECORD:
-
-            mTargetSmoothZoom = arg1;
-            mCurrentZoom = mParameters.getInt("zoom");
-
-            mSmoothZoomStep = (mCurrentZoom > mTargetSmoothZoom)? -1: 1;
-
-            if(mCurrentZoom == mTargetSmoothZoom) {
-                LOGV("Smoothzoom target zoom value is same as "
-                     "current zoom value, return...");
-                mNotifyCallback(CAMERA_MSG_ZOOM,
-                    mCurrentZoom, 1, mCallbackCookie);
-            } else if(mCurrentZoom < 0 || mCurrentZoom > MaxZoom ||
-              mTargetSmoothZoom < 0 || mTargetSmoothZoom > MaxZoom)  {
-                LOGE(" ERROR : beyond supported zoom values, break..");
-                mNotifyCallback(CAMERA_MSG_ZOOM,
-                    mCurrentZoom, 0, mCallbackCookie);
-            } else {
-              mSmoothZoomRunning = true;
-
-              mCurrentZoom += mSmoothZoomStep;
-              if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
-                (mSmoothZoomStep > 0 && mCurrentZoom > mTargetSmoothZoom )) {
-                mCurrentZoom = mTargetSmoothZoom;
-              }
-              mParameters.set("zoom", mCurrentZoom);
-              setZoom(mParameters);
-    }
+            switch(mCameraState ) {
+                case CAMERA_STATE_PREVIEW:
+                case CAMERA_STATE_RECORD_CMD_SENT:
+                case CAMERA_STATE_RECORD:
+                    mTargetSmoothZoom = arg1;
+                    mCurrentZoom = mParameters.getInt("zoom");
+                    mSmoothZoomStep = (mCurrentZoom > mTargetSmoothZoom)? -1: 1;
+                   if(mCurrentZoom == mTargetSmoothZoom) {
+                        LOGV("Smoothzoom target zoom value is same as "
+                        "current zoom value, return...");
+                        mNotifyCallback(CAMERA_MSG_ZOOM,
+                        mCurrentZoom, 1, mCallbackCookie);
+                    } else if(mCurrentZoom < 0 || mCurrentZoom > MaxZoom ||
+                        mTargetSmoothZoom < 0 || mTargetSmoothZoom > MaxZoom)  {
+                        LOGE(" ERROR : beyond supported zoom values, break..");
+                        mNotifyCallback(CAMERA_MSG_ZOOM,
+                        mCurrentZoom, 0, mCallbackCookie);
+                    } else {
+                        mSmoothZoomRunning = true;
+                        mCurrentZoom += mSmoothZoomStep;
+                        if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
+                        (mSmoothZoomStep > 0 && mCurrentZoom > mTargetSmoothZoom )) {
+                            mCurrentZoom = mTargetSmoothZoom;
+                        }
+                        mParameters.set("zoom", mCurrentZoom);
+                        setZoom(mParameters);
+                    }
+                    break;
+                default:
+                    LOGV(" No preview, no smoothzoom ");
+                    break;
+            }
+            rc = NO_ERROR;
             break;
-          default:
-            LOGV(" No preview, no smoothzoom ");
-            break;
-      }
-      rc = NO_ERROR;
-      break;
 
-      case CAMERA_CMD_STOP_SMOOTH_ZOOM:
-        if(mSmoothZoomRunning) {
-          mSmoothZoomRunning = false;
-          /*To Do: send cmd to stop zooming*/
-        }
-         LOGV("HAL sendcmd stop smooth zoom");
-         rc = NO_ERROR;
-         break;
+        case CAMERA_CMD_STOP_SMOOTH_ZOOM:
+            if(mSmoothZoomRunning) {
+                mSmoothZoomRunning = false;
+                /*To Do: send cmd to stop zooming*/
+            }
+            LOGV("HAL sendcmd stop smooth zoom");
+            rc = NO_ERROR;
+            break;
 #endif
-      default:
-        break;
-  }
+        default:
+            break;
+    }
     LOGI("sendCommand: X");
     return rc;
 }
 
 status_t QCameraHardwareInterface::getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize) {
     LOGI("getBufferInfo: E");
-    /*  yyan TODO: populate Frame and alignedSize. */
     status_t ret = MM_CAMERA_OK;
     if (mStreamRecord)
         mStreamRecord->getBufferInfo(Frame,alignedSize);
@@ -411,24 +367,19 @@ status_t QCameraHardwareInterface::getBufferInfo(sp<IMemory>& Frame, size_t *ali
 void QCameraHardwareInterface::setMyMode(int mode)
 {
     LOGI("setMyMode: E");
-
     if (mode & CAMERA_SUPPORT_MODE_3D) {
         myMode = CAMERA_MODE_3D;
-    }
-    else {
+    }else {
         /* default mode is 2D */
         myMode = CAMERA_MODE_2D;
     }
 
     if (mode & CAMERA_SUPPORT_MODE_ZSL) {
         myMode = (camera_mode_t)(myMode |CAMERA_ZSL_MODE);
-    }
-    else {
+    }else {
         myMode = (camera_mode_t) (myMode | CAMERA_NONZSL_MODE);
     }
-
-    LOGI("setMyMode: Setting mode to %d (passed mode: %d)", myMode, mode);
-
+    LOGI("setMyMode: Set mode to %d (passed mode: %d)", myMode, mode);
     LOGI("setMyMode: X");
 }
 
@@ -474,12 +425,12 @@ status_t QCameraHardwareInterface::setOverlay(const sp<Overlay> &Overlay)
 {
     LOGI("setOverlay: E");
     if( Overlay != NULL) {
-        LOGE(" Valid overlay object ");
+        LOGV(" Valid overlay object ");
         mOverlayLock.lock();
         mOverlay = Overlay;
         mOverlayLock.unlock();
     } else {
-        LOGV(" Overlay object NULL. returning ");
+        LOGV(" Overlay Object cleared ");
         mOverlayLock.lock();
         mOverlay = NULL;
         mOverlayLock.unlock();
@@ -529,7 +480,6 @@ bool QCameraHardwareInterface::isSnapshotRunning() {
 }
 
 bool QCameraHardwareInterface::isZSLMode() {
-    //return (myMode & CAMERA_ZSL_MODE);
     return false;
 }
 
@@ -652,27 +602,27 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 
 void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
-    LOGV("processStatsEvent E");
-    Mutex::Autolock lock(eventLock);
+    LOGI("processStatsEvent E");
+    //Mutex::Autolock lock(eventLock); //Guru
     if (!isPreviewRunning( )) {
         LOGE("preview is not running");
         return;
     }
 
     switch (event->event_id) {
-    case MM_CAMERA_STATS_EVT_HISTO:
-      {
+        case MM_CAMERA_STATS_EVT_HISTO:
+        {
         LOGE("HAL process Histo: mMsgEnabled=0x%x, mStatsOn=%d, mSendData=%d, mDataCb=%p ",
              (mMsgEnabled & CAMERA_MSG_STATS_DATA), mStatsOn, mSendData, mDataCb);
         int msgEnabled = mMsgEnabled;
         camera_preview_histogram_info* hist_info = (camera_preview_histogram_info*)
-           event->e.stats_histo.histo_info;
+                                                    event->e.stats_histo.histo_info;
         if(mStatsOn == QCAMERA_PARM_ENABLE && mSendData &&
            mDataCb && (msgEnabled & CAMERA_MSG_STATS_DATA) ) {
-          uint32_t *dest;
+            uint32_t *dest;
             mSendData = false;
             mCurrentHisto = (mCurrentHisto + 1) % 3;
-        // The first element of the array will contain the maximum hist value provided by driver.
+            // The first element of the array will contain the maximum hist value provided by driver.
             dest = (uint32_t *) ((unsigned int)mStatHeap->mHeap->base() +
               (mStatHeap->mBufferSize * mCurrentHisto));
             *dest = hist_info->max_value;
@@ -680,18 +630,17 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
             memcpy(dest , (uint32_t *)hist_info->buffer,(sizeof(int32_t) * 256));
             mDataCb(CAMERA_MSG_STATS_DATA, mStatHeap->mBuffers[mCurrentHisto], mCallbackCookie);
         }
-      }
-      break;
-
-    default:
-      break;
+        }
+        break;
+     default:
+        break;
     }
   LOGV("receiveCameraStats X");
 }
 
 void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) {
     LOGI("processInfoEvent: %d, E",event->event_id);
-    Mutex::Autolock lock(eventLock);
+    //Mutex::Autolock lock(eventLock); 
     switch(event->event_id)
     {
         case MM_CAMERA_INFO_EVT_ROI:
@@ -707,7 +656,6 @@ void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
     LOGI("processEvent: type :%d E",event->event_type);
-
     switch(event->event_type)
     {
         case MM_CAMERA_EVT_TYPE_CH:
@@ -806,7 +754,7 @@ status_t QCameraHardwareInterface::startPreview()
       return BAD_VALUE;
     }
 
-    if (mPrevForPostviewBuf.frame[0].buffer != NULL) {
+    if (mPrevForPostviewBuf.frame[0].buffer) {
         mm_camera_do_munmap(mPrevForPostviewBuf.frame[0].fd,
                             (void *)mPrevForPostviewBuf.frame[0].buffer,
                             mPrevForPostviewBuf.frame_len);
@@ -823,7 +771,7 @@ status_t QCameraHardwareInterface::startPreview()
       return BAD_VALUE;
     }
 
-    /*yyan: if stream object exists but it needs to re-init, delete it now.
+    /*if stream object exists but it needs to re-init, delete it now.
        otherwise just call mPreviewStream->start() later ,
       */
     if (mStreamDisplay && initPreview){
@@ -832,7 +780,7 @@ status_t QCameraHardwareInterface::startPreview()
       mStreamDisplay = NULL;
     }
 
-    /*yyan:, if stream object doesn't exists, create and init it now.
+    /*if stream object doesn't exists, create and init it now.
        and call mPreviewStream->start() later ,
       */
     if (!mStreamDisplay){
@@ -848,18 +796,17 @@ status_t QCameraHardwareInterface::startPreview()
 
     mStreamDisplay->setHALCameraControl(this);
 
-    /*yyan TODO : now init all the buffers and send to steam object*/
-
+    /*now init all the buffers and send to steam object*/
     ret = mStreamDisplay->init();
     if (MM_CAMERA_OK != ret){
       LOGE("%s: error - can't init preview stream!", __func__);
       LOGE("%s: X", __func__);
-      /* yyan TODO: shall we delete it? */
+      /*shall we delete it? */
       return BAD_VALUE;
     }
 
     ret = mStreamDisplay->start();
-    /* yyan TODO: call QCameraStream_noneZSL::start() */
+    /*call QCameraStream_noneZSL::start() */
     if (MM_CAMERA_OK != ret){
       LOGE("%s: error - can't start nonZSL stream!", __func__);
       LOGE("%s: X", __func__);
@@ -888,8 +835,8 @@ status_t QCameraHardwareInterface::startPreviewZSL()
         return NO_ERROR;
     }
 
-      /* Get existing preview information by querying mm_camera*/
-      memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    /* Get existing preview information by querying mm_camera*/
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 
     if (MM_CAMERA_OK != ret) {
@@ -909,7 +856,7 @@ status_t QCameraHardwareInterface::startPreviewZSL()
 
     /*If stream object exists but it needs to re-init, delete it now.
        otherwise just call mPreviewStream->start() later ,
-      */
+    */
     if (mStreamDisplay && initPreview){
       LOGD("%s:Deleting old stream instance",__func__);
       QCameraStream_preview::deleteInstance (mStreamDisplay);
@@ -918,7 +865,7 @@ status_t QCameraHardwareInterface::startPreviewZSL()
 
     /* If stream object doesn't exists, create and init it now.
        and call mPreviewStream->start() later ,
-      */
+    */
     if (!mStreamDisplay){
       mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
                                                              CAMERA_ZSL_MODE);
@@ -937,7 +884,6 @@ status_t QCameraHardwareInterface::startPreviewZSL()
     if (MM_CAMERA_OK != ret){
       LOGE("%s: error - can't init preview stream!", __func__);
       LOGE("%s: X", __func__);
-      /* yyan TODO: shall we delete it? */
       return BAD_VALUE;
     }
 
@@ -973,7 +919,6 @@ status_t QCameraHardwareInterface::startPreviewZSL()
 
     /* Start preview streaming */
     ret = mStreamDisplay->start();
-    /* yyan TODO: call QCameraStream_noneZSL::start() */
     if (MM_CAMERA_OK != ret){
       LOGE("%s: error - can't start nonZSL stream!", __func__);
       LOGE("%s: X", __func__);
@@ -1055,10 +1000,8 @@ void QCameraHardwareInterface::stopPreviewInternal()
         return;
     }
 
-    /* yyan : call QCameraStream_noneZSL::stop() second*/
     mStreamDisplay->stop();
 
-    /* yyan: call QCameraStream_noneZSL::relase() last*/
     mStreamDisplay->release();
 
     /* Delete mStreamDisplay instance*/
@@ -1710,7 +1653,7 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
     uint32_t cbcr_off=0;
     status_t ret = NO_ERROR;
     struct msm_frame *preview_frame;
-     unsigned long buffer_addr = 0;
+    unsigned long buffer_addr = 0;
 
     LOGI("%s: E", __func__);
 
@@ -1787,7 +1730,7 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
   int frm_num;
   uint32_t  skip_mode;
   char value[PROPERTY_VALUE_MAX];
-  char buf[128];
+  char buf[32];
   property_get("persist.camera.dumpimg", value, "0");
   enabled = atoi(value);
 
@@ -1812,25 +1755,25 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
           case  HAL_DUMP_FRM_PREVIEW:
             w = dim.display_width;
             h = dim.display_height;
-            sprintf(buf, "/data/%dp_%dx%d.yuv", mDumpFrmCnt, w, h);
+            snprintf(buf, sizeof(buf), "/data/%dp_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_VIDEO:
             w = dim.video_width;
             h = dim.video_height;
-            sprintf(buf, "/data/%dv_%dx%d.yuv", mDumpFrmCnt, w, h);
+            snprintf(buf, sizeof(buf),"/data/%dv_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_MAIN:
             w = dim.picture_width;
             h = dim.picture_height;
-            sprintf(buf, "/data/%dm_%dx%d.yuv", mDumpFrmCnt, w, h);
+            snprintf(buf, sizeof(buf), "/data/%dm_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_THUMBNAIL:
             w = dim.ui_thumbnail_width;
             h = dim.ui_thumbnail_height;
-            sprintf(buf, "/data/%dt_%dx%d.yuv", mDumpFrmCnt, w, h);
+            snprintf(buf, sizeof(buf),"/data/%dt_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           default:

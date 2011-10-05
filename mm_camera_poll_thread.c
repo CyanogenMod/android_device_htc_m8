@@ -56,7 +56,7 @@ typedef enum {
 
 typedef struct {
     uint8_t cmd;
-    mm_camera_event_t event
+    mm_camera_event_t event;
 } mm_camera_sig_evt_t;
 
 static int32_t mm_camera_poll_sig(mm_camera_poll_thread_t *poll_cb,

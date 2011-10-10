@@ -24,7 +24,7 @@ MM_CAM_FILES:= \
 	mm_camera_notify.c mm_camera_helper.c \
 	mm_jpeg_encoder.c
 
-#LOCAL_CFLAGS+= -DHW_ENCODE
+LOCAL_CFLAGS+= -DHW_ENCODE
 
 ifeq ($(call is-board-platform,msm8960),true)
 LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\

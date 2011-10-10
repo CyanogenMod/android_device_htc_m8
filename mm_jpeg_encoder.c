@@ -516,11 +516,11 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
   /*  Get default configuration */
   jpege_get_default_config(&jpege_config);
   jpege_config.thumbnail_present = usethumbnail;
-#ifdef HW_ENCODE
-  jpege_config.preference = JPEG_ENCODER_PREF_HW_ACCELERATED_PREFERRED;
-#else
-  jpege_config.preference = JPEG_ENCODER_PREF_SOFTWARE_ONLY;
-#endif
+  if(hw_encode)
+    jpege_config.preference = JPEG_ENCODER_PREF_HW_ACCELERATED_PREFERRED;
+  else
+    jpege_config.preference = JPEG_ENCODER_PREF_SOFTWARE_ONLY;
+
   CDBG("%s: preference %d ", __func__, jpege_config.preference);
   jpege_config.main_cfg.quality = jpegMainimageQuality;
   jpege_config.thumbnail_cfg.quality = jpegThumbnailQuality;
@@ -695,9 +695,13 @@ int8_t mm_jpeg_encoder_setRotation(int rotation)
   /* Set rotation configuration */
   switch(rotation)
   {
-      case 0:
       case 90:
       case 180:
+          /* TODO Remove this hack.
+           * For now for 90/180 degrees rotation
+           * use SW Encoder */
+          hw_encode = false;
+      case 0:
       case 270:
           jpegRotation = rotation;
           break;

@@ -749,6 +749,9 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     /* Number of buffers to be set*/
     mSnapshotStreamBuf.num = num_of_buf;
     mPostviewStreamBuf.num = num_of_buf;
+    /* Set the JPEG Rotation here since get_buffer_offset needs
+     * the value of rotation.*/
+    mHalCamCtrl->setJpegRotation();
 
     /*TBD: to be modified for 3D*/
     mm_jpeg_encoder_get_buffer_offset( dim->picture_width, dim->picture_height,
@@ -1409,7 +1412,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this);
         mm_jpeg_encoder_init();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
-        mHalCamCtrl->setJpegRotation();
+
         LOGD("%s: Dimension to encode: main: %dx%d thumbnail: %dx%d", __func__,
              dimension.orig_picture_dx, dimension.orig_picture_dy,
              dimension.thumbnail_width, dimension.thumbnail_height);

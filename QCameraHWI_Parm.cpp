@@ -2421,9 +2421,9 @@ getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
 
 bool QCameraHardwareInterface::isRawSnapshot()
 {
-    if(mParameters.getPictureFormat() != 0 &&
-            !strcmp(mParameters.getPictureFormat(),
-                    CameraParameters::PIXEL_FORMAT_RAW)){
+  const char *format = mParameters.getPictureFormat();
+    if( format!= NULL &&
+       !strcmp(format, CameraParameters::PIXEL_FORMAT_RAW)){
         return true;
     }
     else{

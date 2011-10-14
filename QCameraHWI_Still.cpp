@@ -161,21 +161,20 @@ static void snapshot_jpeg_cb(jpeg_event_t event, void *user_data)
     }
 
     if (pme != NULL) {
-         pme->receiveCompleteJpegPicture(event);
+       pme->receiveCompleteJpegPicture(event);
+       /* deinit only if we are done taking requested number of snapshots */
+       if (pme->getSnapshotState() == SNAPSHOT_STATE_JPEG_COMPLETE_ENCODE_DONE) {
+       /* If it's ZSL Mode, we don't deinit now. We'll stop the polling thread and
+          deinit the channel/buffers only when we change the mode from zsl to
+          non-zsl. */
+           if (!(pme->isZSLMode())) {
+               pme->stop();
+           }
+        }
     }
     else
         LOGW("%s: Receive jpeg cb Obj Null", __func__);
 
-    //cleanup
-    /* deinit only if we are done taking requested number of snapshots */
-    if (pme->getSnapshotState() == SNAPSHOT_STATE_JPEG_COMPLETE_ENCODE_DONE) {
-    /* If it's ZSL Mode, we don't deinit now. We'll stop the polling thread and
-       deinit the channel/buffers only when we change the mode from zsl to
-       non-zsl. */
-        if (!(pme->isZSLMode())) {
-            pme->stop();
-        }
-     }
 
     LOGD("%s: X",__func__);
 
@@ -273,7 +272,12 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         LOGD("%s: JPEG Queue not empty. Dequeue and encode.", __func__);
         mm_camera_ch_data_buf_t* buf =
             (mm_camera_ch_data_buf_t *)mSnapshotQueue.dequeue();
-        encodeDisplayAndSave(buf, 1);
+        /*no need to check buf since the Q is not empty, however clockwork tool
+          is complaining it.
+          */
+        if (buf) {
+          encodeDisplayAndSave(buf, 1);
+        }
     }
     else
     {

@@ -306,15 +306,18 @@ void mm_camera_dispatch_app_event(mm_camera_obj_t *my_obj, mm_camera_event_t *ev
 {
     int i;
     mm_camera_evt_obj_t evtcb;
-    pthread_mutex_lock(&my_obj->mutex);
-    memcpy(&evtcb,
-         &my_obj->evt[event->event_type],
-         sizeof(mm_camera_evt_obj_t));
-    pthread_mutex_unlock(&my_obj->mutex);
-    for(i = 0; i < MM_CAMERA_EVT_ENTRY_MAX; i++) {
+
+    if(event->event_type <  MM_CAMERA_EVT_TYPE_MAX) {
+      pthread_mutex_lock(&my_obj->mutex);
+      memcpy(&evtcb,
+       &my_obj->evt[event->event_type],
+       sizeof(mm_camera_evt_obj_t));
+      pthread_mutex_unlock(&my_obj->mutex);
+      for(i = 0; i < MM_CAMERA_EVT_ENTRY_MAX; i++) {
         if(evtcb.evt[i].evt_cb) {
-            evtcb.evt[i].evt_cb(event, evtcb.evt[i].user_data);
+          evtcb.evt[i].evt_cb(event, evtcb.evt[i].user_data);
         }
+      }
     }
 }
 

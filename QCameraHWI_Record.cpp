@@ -333,25 +333,25 @@ status_t QCameraStream_record::initEncodeBuffers()
   int width = 0;  /* width of channel  */
   int height = 0; /* height of channel */
 
-  if(mRecordHeap == NULL)
-  {
-    pmem_region = "/dev/pmem_adsp";
-    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
-    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
-    if (MM_CAMERA_OK != ret) {
-      LOGE("%s: ERROR - can't get camera dimension!", __func__);
-      return BAD_VALUE;
-    }
-    else {
-      width =  dim.video_width;
-      height = dim.video_height;
-    }
+  pmem_region = "/dev/pmem_adsp";
+  memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+  ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+  if (MM_CAMERA_OK != ret) {
+    LOGE("%s: ERROR - can't get camera dimension!", __func__);
+    return BAD_VALUE;
+  }
+  else {
+    width =  dim.video_width;
+    height = dim.video_height;
+  }
 
-    //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
-    frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
-                                   width,height, OUTPUT_TYPE_V,
-                                   &y_off, &cbcr_off);
-    record_frame_len = frame_len;
+  //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
+  frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
+                                 width,height, OUTPUT_TYPE_V,
+                                 &y_off, &cbcr_off);
+  record_frame_len = frame_len;
+
+  if(mRecordHeap == NULL) {
     mRecordHeap = new PmemPool(pmem_region,
                         MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                         MSM_PMEM_VIDEO,
@@ -376,28 +376,32 @@ status_t QCameraStream_record::initEncodeBuffers()
   }
   LOGE("PMEM Buffer Allocation Successfull");
   recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
-  memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
-  for (int cnt = 0; cnt < VIDEO_BUFFER_COUNT; cnt++) {
-    recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
-    recordframes[cnt].buffer =
-        (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-    recordframes[cnt].y_off = y_off;
-    recordframes[cnt].cbcr_off = cbcr_off;
-    recordframes[cnt].path = OUTPUT_TYPE_V;
-    //record_buffers_tracking_flag[cnt] = false;
-    record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
-    LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d, offset = %d \n",
-      (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
-      recordframes[cnt].cbcr_off, record_offset[cnt]);
+  if(recordframes != NULL) {
+    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
+    for (int cnt = 0; cnt < VIDEO_BUFFER_COUNT; cnt++) {
+      recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
+      recordframes[cnt].buffer =
+          (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
+      recordframes[cnt].y_off = y_off;
+      recordframes[cnt].cbcr_off = cbcr_off;
+      recordframes[cnt].path = OUTPUT_TYPE_V;
+      //record_buffers_tracking_flag[cnt] = false;
+      record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
+      LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d, offset = %d \n",
+        (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
+        recordframes[cnt].cbcr_off, record_offset[cnt]);
+    }
+    memset(&mRecordBuf, 0, sizeof(mRecordBuf));
+    mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
+    mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
+    mRecordBuf.video.video.frame_offset = &record_offset[0];
+    mRecordBuf.video.video.frame = &recordframes[0];
+    LOGE("Record buf type =%d, offset[1] =%d, buffer[1] =%lx", mRecordBuf.ch_type, record_offset[1], recordframes[1].buffer);
+    LOGE("%s : END",__func__);
+  } else {
+    ret = NO_MEMORY;
   }
-  memset(&mRecordBuf, 0, sizeof(mRecordBuf));
-  mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
-  mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
-  mRecordBuf.video.video.frame_offset = &record_offset[0];
-  mRecordBuf.video.video.frame = &recordframes[0];
-  LOGE("Record buf type =%d, offset[1] =%d, buffer[1] =%lx", mRecordBuf.ch_type, record_offset[1], recordframes[1].buffer);
-  LOGE("%s : END",__func__);
-  return NO_ERROR;
+  return ret;
 }
 
 void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)

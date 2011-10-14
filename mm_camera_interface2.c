@@ -354,22 +354,21 @@ static void mm_camera_ops_close (mm_camera_t * camera)
 
     pthread_mutex_lock(&g_mutex);
     my_obj = g_cam_ctrl.cam_obj[camera_id];
-    if(!my_obj)
-        goto err;
-    my_obj->ref_count--;
-    if(my_obj->ref_count > 0) {
-        goto end;
+    if(my_obj) {
+      my_obj->ref_count--;
+      if(my_obj->ref_count > 0) {
+        CDBG("%s: ref_count=%d\n", __func__, my_obj->ref_count);
+      } else {
+        mm_camera_poll_thread_release(my_obj, MM_CAMERA_CH_MAX);
+        (void)mm_camera_close(g_cam_ctrl.cam_obj[camera_id]);
+        pthread_mutex_destroy(&my_obj->mutex);
+        free(my_obj);
+        g_cam_ctrl.cam_obj[camera_id] = NULL;
+      }
     }
-    mm_camera_poll_thread_release(my_obj, MM_CAMERA_CH_MAX);
-    (void)mm_camera_close(g_cam_ctrl.cam_obj[camera_id]);
-    pthread_mutex_destroy(&my_obj->mutex);
-    free(my_obj);
-    g_cam_ctrl.cam_obj[camera_id] = NULL;
-end:
-    CDBG("%s: ref_count=%d\n", __func__, my_obj->ref_count);
-err:
     pthread_mutex_unlock(&g_mutex);
 }
+
 static int32_t mm_camera_ops_ch_acquire(mm_camera_t * camera,
                                         mm_camera_channel_type_t ch_type)
 {

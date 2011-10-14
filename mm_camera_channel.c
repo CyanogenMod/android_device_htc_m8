@@ -716,11 +716,11 @@ dequeue_frame:
 end:
     return rc;
 }
-
+/*for ZSL mode to send the image pair to client*/
 void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
                                         mm_camera_channel_type_t ch_type)
 {
-    int mcnt, i, rc = MM_CAMERA_OK;
+    int mcnt, i, rc = MM_CAMERA_E_GENERAL;
     int num_of_req_frame = 0;
     int cb_sent = 0;
     mm_camera_ch_data_buf_t data;
@@ -733,86 +733,90 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
     mm_camera_stream_t *stream2 = NULL;
 
     mm_camera_ch_util_get_stream_objs(my_obj, ch_type, &stream1, &stream2);
-    mq = &stream1->frame.readyq;
+    if(stream1) {
+      mq = &stream1->frame.readyq;
+    }
     if(stream2) {
-        sq = &stream2->frame.readyq;
+      sq = &stream2->frame.readyq;
     }
 
     pthread_mutex_lock(&ch->mutex);
 
-    /* Some requirements are such we'll first need to empty the buffered
-       queue - like for HDR. If we need to empty the buffered queue first,
-       let's empty it here.*/
-    if(ch->buffering_frame.empty_queue) {
-        CDBG("%s: Emptying the queue first before dispatching!", __func__);
-        mcnt = mm_camera_stream_frame_get_q_cnt(mq);
-        mm_camera_channel_deq_x_frames(my_obj, mq, sq, stream1, stream2, mcnt);
-        ch->buffering_frame.empty_queue = 0;
-        goto end;
+    if (mq && sq && stream1 && stream2) {
+      /* Some requirements are such we'll first need to empty the buffered
+         queue - like for HDR. If we need to empty the buffered queue first,
+         let's empty it here.*/
+      if(ch->buffering_frame.empty_queue) {
+          CDBG("%s: Emptying the queue first before dispatching!", __func__);
+          mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+          mm_camera_channel_deq_x_frames(my_obj, mq, sq, stream1, stream2, mcnt);
+          ch->buffering_frame.empty_queue = 0;
+          goto end;
+      }
+
+      rc = mm_camera_channel_get_starting_frame(my_obj, ch,
+                                                stream1, stream2,
+                                                mq, sq, &mframe, &sframe);
+      if(rc != MM_CAMERA_OK) {
+          CDBG_ERROR("%s: Error getting right frame!", __func__);
+          goto end;
+      }
+
+      if((mframe == NULL) || (sframe == NULL)) {
+          CDBG("%s: Failed to get correct main and thumbnail frames!", __func__);
+          goto end;
+      }
+
+      CDBG("%s: Received frame id of: main - %d  thumbnail - %d",
+           __func__, mframe->idx, sframe->idx);
+
+      /* So total number of frames available - total in the queue plus already dequeud one*/
+      mcnt = mm_camera_stream_frame_get_q_cnt(mq) + 1;
+      num_of_req_frame = ch->snapshot.num_shots;
+
+      CDBG("%s: Number of shots requested: %d Frames available: %d",
+           __func__, num_of_req_frame, mcnt);
+
+      /* Limit number of callbacks to actual frames in the queue */
+      if (num_of_req_frame > mcnt) {
+          num_of_req_frame = mcnt;
+      }
+      for(i = 0; i < num_of_req_frame; i++) {
+          if(mframe && sframe) {
+              CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
+              /* dispatch this pair of frames */
+              memset(&data, 0, sizeof(data));
+              data.type = ch_type;
+              data.snapshot.main.frame = &mframe->frame;
+              data.snapshot.main.idx = mframe->idx;
+              data.snapshot.thumbnail.frame = &sframe->frame;
+              data.snapshot.thumbnail.idx = sframe->idx;
+              stream1->frame.ref_count[data.snapshot.main.idx]++;
+              stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
+              ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+              cb_sent++;
+          } else {
+              qmframe = mframe;
+              qsframe = sframe;
+              rc = -1;
+              break;
+          }
+
+          mframe = mm_camera_stream_frame_deq(mq);
+          sframe = mm_camera_stream_frame_deq(sq);
+      }
+      if(qmframe) {
+          mm_camera_stream_frame_enq(mq, &stream1->frame.frame[qmframe->idx]);
+          qmframe = NULL;
+      }
+      if(qsframe) {
+          mm_camera_stream_frame_enq(sq, &stream2->frame.frame[qsframe->idx]);
+          qsframe = NULL;
+      }
+
+      /* Save number of remaining snapshots */
+      ch->snapshot.num_shots -= cb_sent;
     }
-
-    rc = mm_camera_channel_get_starting_frame(my_obj, ch,
-                                              stream1, stream2,
-                                              mq, sq, &mframe, &sframe);
-    if(rc != MM_CAMERA_OK) {
-        CDBG_ERROR("%s: Error getting right frame!", __func__);
-        goto end;
-    }
-
-    if((mframe == NULL) || (sframe == NULL)) {
-        CDBG("%s: Failed to get correct main and thumbnail frames!", __func__);
-        goto end;
-    }
-
-    CDBG("%s: Received frame id of: main - %d  thumbnail - %d",
-         __func__, mframe->idx, sframe->idx);
-
-    /* So total number of frames available - total in the queue plus already dequeud one*/
-    mcnt = mm_camera_stream_frame_get_q_cnt(mq) + 1;
-    num_of_req_frame = ch->snapshot.num_shots;
-
-    CDBG("%s: Number of shots requested: %d Frames available: %d",
-         __func__, num_of_req_frame, mcnt);
-
-    /* Limit number of callbacks to actual frames in the queue */
-    if (num_of_req_frame > mcnt) {
-        num_of_req_frame = mcnt;
-    }
-    for(i = 0; i < num_of_req_frame; i++) {
-        if(mframe && sframe) {
-            CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
-            /* dispatch this pair of frames */
-            memset(&data, 0, sizeof(data));
-            data.type = ch_type;
-            data.snapshot.main.frame = &mframe->frame;
-            data.snapshot.main.idx = mframe->idx;
-            data.snapshot.thumbnail.frame = &sframe->frame;
-            data.snapshot.thumbnail.idx = sframe->idx;
-            stream1->frame.ref_count[data.snapshot.main.idx]++;
-            stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
-            ch->buf_cb.cb(&data, ch->buf_cb.user_data);
-            cb_sent++;
-        } else {
-            qmframe = mframe;
-            qsframe = sframe;
-            rc = -1;
-            break;
-        }
-
-        mframe = mm_camera_stream_frame_deq(mq);
-        sframe = mm_camera_stream_frame_deq(sq);
-    }
-    if(qmframe) {
-        mm_camera_stream_frame_enq(mq, &stream1->frame.frame[qmframe->idx]);
-        qmframe = NULL;
-    }
-    if(qsframe) {
-        mm_camera_stream_frame_enq(sq, &stream2->frame.frame[qsframe->idx]);
-        qsframe = NULL;
-    }
-
-    /* Save number of remaining snapshots */
-    ch->snapshot.num_shots -= cb_sent;
 
     CDBG("%s: Number of remaining snapshots: %d", __func__,
         ch->snapshot.num_shots);

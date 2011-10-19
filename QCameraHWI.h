@@ -153,6 +153,7 @@ public:
     int  getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                                      int *picture_width,
                                      int *picture_height);
+    void getJpegThumbnailSize(int *width, int *height) const;
     bool isRawSnapshot();
 
     virtual status_t    dump(int fd, const Vector<String16>& args) const;

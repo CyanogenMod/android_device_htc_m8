@@ -1044,7 +1044,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setRecordSize(params)))                   final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
-    //  if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
+    if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
     if ((rc = setEffect(params)))                       final_rc = rc;
     //    if ((rc = setGpsLocation(params)))            final_rc = rc;
@@ -2369,6 +2369,12 @@ cam_format_t QCameraHardwareInterface::getPreviewFormat() const
 int QCameraHardwareInterface::getJpegQuality() const
 {
     return mParameters.getInt(CameraParameters::KEY_JPEG_QUALITY);
+}
+
+void QCameraHardwareInterface::getJpegThumbnailSize(int *width, int *height) const
+{
+    *width  = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    *height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
 }
 
 int QCameraHardwareInterface::getNumOfSnapshots(void) const

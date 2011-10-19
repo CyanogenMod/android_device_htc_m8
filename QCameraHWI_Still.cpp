@@ -1404,8 +1404,11 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     common_crop_t crop;
     cam_point_t main_crop_offset;
     cam_point_t thumb_crop_offset;
+    int width, height;
+    uint8_t *thumbnail_buf;
+    uint32_t thumbnail_fd;
 
-    LOGD("%s: E", __func__);
+    LOGV("%s: E", __func__);
 
     /* If it's the only frame, we directly pass to encoder.
        If not, we'll queue it and check during next jpeg callback.
@@ -1481,15 +1484,30 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         /*Thumbnail image*/
         crop.in1_w=mCrop.snapshot.thumbnail_crop.width; //dimension.thumbnail_width;
         crop.in1_h=mCrop.snapshot.thumbnail_crop.height; // dimension.thumbnail_height;
-        crop.out1_w=mThumbnailWidth;
-        crop.out1_h=mThumbnailHeight;
+
+        mHalCamCtrl->getJpegThumbnailSize(&width, &height);
+
+        LOGD("width = %d, Height = %d",width,height);
+        if(width != 0 && height != 0) {
+                crop.out1_w = mThumbnailWidth;
+                crop.out1_h = mThumbnailHeight;
+                thumbnail_buf = (uint8_t *)postviewframe->buffer;
+                thumbnail_fd = postviewframe->fd;
+        }
+        else {
+                crop.out1_w = 0;
+                crop.out1_h = 0;
+                thumbnail_buf = NULL;
+                thumbnail_fd = 0;
+        }
+
         thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
         thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
 
         /* mm_jpeg_encoder returns FALSE if there's any problem with encoding */
         if (!mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
-                          (uint8_t *)postviewframe->buffer,
-                          postviewframe->fd,
+                          thumbnail_buf,
+                          thumbnail_fd,
                           postviewframe->phy_offset,
                           (uint8_t *)mainframe->buffer,
                           mainframe->fd,

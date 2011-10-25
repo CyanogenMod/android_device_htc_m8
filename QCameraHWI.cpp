@@ -1376,7 +1376,7 @@ status_t  QCameraHardwareInterface::takeLiveSnapshot()
 {
     status_t ret = MM_CAMERA_OK;
     LOGI("takeLiveSnapshot: E");
-
+    mStreamRecord->takeLiveSnapshot();
     LOGI("takeLiveSnapshot: X");
     return ret;
 }

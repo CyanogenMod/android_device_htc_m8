@@ -68,7 +68,8 @@ QCameraStream_record::QCameraStream_record(int cameraId,
   :QCameraStream(),
   mCameraId(cameraId),
   myMode (mode),
-  mDebugFps(false)
+  mDebugFps(false),
+  snapshot_enabled(false)
 {
   mHalCamCtrl = NULL;
   char value[PROPERTY_VALUE_MAX];
@@ -291,6 +292,42 @@ status_t QCameraStream_record::processRecordFrame(void *data)
   nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + \
                       frame->video.video.frame->ts.tv_nsec;
 
+  if(snapshot_enabled) {
+    LOGE("Live Snapshot Enabled");
+    frame->snapshot.main.frame = frame->video.video.frame;
+    frame->snapshot.main.idx = frame->video.video.idx;
+    frame->snapshot.thumbnail.frame = frame->video.video.frame;
+    frame->snapshot.thumbnail.idx = frame->video.video.idx;
+
+    dim.picture_width = mHalCamCtrl->mDimension.video_width;
+    dim.picture_height = mHalCamCtrl->mDimension.video_height;
+    dim.ui_thumbnail_width = mHalCamCtrl->mDimension.display_width;
+    dim.ui_thumbnail_height = mHalCamCtrl->mDimension.display_height;
+
+    mJpegMaxSize = mHalCamCtrl->mDimension.video_width * mHalCamCtrl->mDimension.video_width * 1.5;
+
+    LOGE("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
+     if (mStreamSnap){
+        LOGE("%s:Deleting old Snapshot stream instance",__func__);
+        QCameraStream_Snapshot::deleteInstance (mStreamSnap);
+        mStreamSnap = NULL;
+    }
+
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
+                                                       myMode);
+
+    if (!mStreamSnap) {
+        LOGE("%s: error - can't creat snapshot stream!", __func__);
+        return BAD_VALUE;
+    }
+    mStreamSnap->setHALCameraControl(this->mHalCamCtrl);
+    LOGE("Parent handle in Record : %x",this->mHalCamCtrl);
+    LOGE("Calling takePictureLiveshot %d",record_frame_len);
+    mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
+
+    snapshot_enabled = false;
+  }
+
   LOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
 #if 1
    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
@@ -476,5 +513,17 @@ sp<IMemoryHeap> QCameraStream_record::getHeap() const
 {
   return mRecordHeap != NULL ? mRecordHeap->mHeap : NULL;
 }
+
+status_t  QCameraStream_record::takeLiveSnapshot()
+{
+  //snapshotframes = new msm_frame[1];
+  //memset(snapshotframes,0,sizeof(struct msm_frame));
+  //mJpegMaxSize = dim.video_width * dim.video_height * 1.5;
+  LOGE("%s: BEGIN", __func__);
+  snapshot_enabled = true;
+  LOGE("%s: END", __func__);
+  return true;
+}
+
 }//namespace android
 

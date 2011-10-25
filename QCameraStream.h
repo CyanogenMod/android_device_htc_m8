@@ -133,7 +133,10 @@ public:
     virtual sp<IMemoryHeap> getRawHeap() const {return NULL;}
     virtual void *getLastQueuedFrame(void){return NULL;}
     virtual status_t takePictureZSL(void){return NO_ERROR;}
-
+    virtual status_t takeLiveSnapshot(){return NO_ERROR;}
+    status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
+                                 cam_ctrl_dimension_t *dim,
+                                 int frame_len){return NO_ERROR;}
     QCameraStream();
     virtual             ~QCameraStream();
     QCameraHardwareInterface*  mHalCamCtrl;
@@ -167,7 +170,7 @@ public:
   void releaseRecordingFrame(const sp<IMemory>& mem);
   void debugShowVideoFPS() const;
 
-
+  status_t takeLiveSnapshot();
 private:
   QCameraStream_record(int, camera_mode_t);
 
@@ -184,6 +187,10 @@ private:
   uint32_t record_offset[VIDEO_BUFFER_COUNT];
   Mutex mRecordFreeQueueLock;
   Vector<mm_camera_ch_data_buf_t> mRecordFreeQueue;
+
+  int mJpegMaxSize;
+  bool snapshot_enabled;
+  QCameraStream *mStreamSnap;
 
 };
 

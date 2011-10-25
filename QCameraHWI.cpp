@@ -768,12 +768,6 @@ status_t QCameraHardwareInterface::startPreview()
       return BAD_VALUE;
     }
 
-    if(mPostPreviewHeap != NULL) {
-        mPostPreviewHeap.clear();
-        mPostPreviewHeap = NULL;
-    }
-
-
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
     ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
@@ -828,6 +822,11 @@ status_t QCameraHardwareInterface::startPreview()
         mCameraState = CAMERA_STATE_PREVIEW_START_CMD_SENT;
     else
         mCameraState = CAMERA_STATE_ERROR;
+
+    if(mPostPreviewHeap != NULL) {
+        mPostPreviewHeap.clear();
+        mPostPreviewHeap = NULL;
+    }
 
     LOGI("startPreview: X");
     return ret;

@@ -280,6 +280,8 @@ extern int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
 extern int32_t mm_camera_prepare_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf);
 extern int32_t mm_camera_unprepare_buf(mm_camera_obj_t * my_obj, mm_camera_channel_type_t ch_type);
 extern int mm_camera_poll_thread_launch(mm_camera_obj_t * my_obj, int ch_type);
+int mm_camera_poll_thread_del_ch(mm_camera_obj_t * my_obj, int ch_type);
+int mm_camera_poll_thread_add_ch(mm_camera_obj_t * my_obj, int ch_type);
 extern int32_t mm_camera_poll_dispatch_buffered_frames(mm_camera_obj_t * my_obj, int ch_type);
 extern int mm_camera_poll_thread_release(mm_camera_obj_t * my_obj, int ch_type);
 extern void mm_camera_poll_threads_init(mm_camera_obj_t * my_obj);
@@ -297,6 +299,7 @@ extern void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
                                                             mm_camera_channel_type_t ch_type,
                                                             mm_camera_stream_t **stream1,
                                                             mm_camera_stream_t **stream2);
+extern int mm_camera_ch_util_get_num_stream(mm_camera_obj_t * my_obj,mm_camera_channel_type_t ch_type);
 extern int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj,
                                                             mm_camera_stream_t *stream,
                                                             int idx);

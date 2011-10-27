@@ -75,6 +75,11 @@ public:
     bool mInit;
     bool mActive;
 
+    status_t start_stream(uint8_t ch_type, sp<PmemPool> mHeap);
+    status_t stop_stream(uint8_t ch_type);
+    status_t initBuffers(uint8_t ch_type_mask,sp<PmemPool> mHeap);
+    status_t setFormat(uint8_t ch_type_mask);
+
     virtual status_t    init();
     virtual status_t    start();
     virtual void        stop();
@@ -107,12 +112,28 @@ public:
                                  cam_ctrl_dimension_t *dim,
                                  int frame_len){return NO_ERROR;}
     QCameraStream();
+    QCameraStream(int, camera_mode_t);
+
     virtual             ~QCameraStream();
     QCameraHardwareInterface*  mHalCamCtrl;
     mm_camera_ch_crop_t mCrop;
+
+    int mCameraId;
+    camera_mode_t myMode;
+
+    uint8_t num_planes;
+    uint32_t planes[VIDEO_MAX_PLANES];
+    mutable Mutex mStopCallbackLock;
+
 private:
+
    StreamQueue mBusyQueue;
    StreamQueue mFreeQueue;
+
+   struct msm_frame *frames;
+   mm_camera_reg_buf_t mStreamBuf;
+   mm_camera_mp_buf_t *mp;
+   uint32_t *offset;
 };
 
 /*
@@ -143,8 +164,6 @@ public:
 private:
   QCameraStream_record(int, camera_mode_t);
 
-  int                  mCameraId;
-  camera_mode_t        myMode;
   cam_ctrl_dimension_t dim;
   bool mDebugFps;
 
@@ -155,8 +174,6 @@ private:
 #else
   sp<PmemPool> mRecordHeap;
 #endif
-  struct msm_frame *recordframes;
-  uint32_t record_offset[VIDEO_BUFFER_COUNT];
   Mutex mRecordFreeQueueLock;
   Vector<mm_camera_ch_data_buf_t> mRecordFreeQueue;
 
@@ -174,7 +191,7 @@ public:
     void        release() ;
 
     static QCameraStream*  createInstance(int, camera_mode_t);
-  static void            deleteInstance(QCameraStream *p);
+    static void            deleteInstance(QCameraStream *p);
 
     QCameraStream_preview() {};
     virtual             ~QCameraStream_preview();
@@ -186,21 +203,15 @@ public:
 private:
     QCameraStream_preview(int cameraId, camera_mode_t);
 
-    int mCameraId;
-    camera_mode_t myMode;
     int8_t              my_id;
     mm_camera_op_mode_type_t op_mode;
     cam_ctrl_dimension_t dim;
     struct msm_frame *mLastQueuedFrame;
-    mm_camera_reg_buf_t mDisplayBuf;
-    //mm_cameara_stream_buf_t mDisplayStreamBuf;
 #ifdef USE_ION
-	sp<IonPool> mPreviewHeap;
+    sp<IonPool> mPreviewHeap;
 #else
         sp<PmemPool> mPreviewHeap;
 #endif
-	struct msm_frame *previewframes;
-	uint32_t preview_offset[VIDEO_BUFFER_COUNT];
 
 };
 
@@ -219,18 +230,16 @@ public:
     status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
                                  cam_ctrl_dimension_t *dim,
                                  int frame_len);
-    void receiveRawPicture(mm_camera_ch_data_buf_t* recvd_frame);
+    status_t processSnapshotFrame(mm_camera_ch_data_buf_t* recvd_frame);
     void receiveCompleteJpegPicture(jpeg_event_t event);
     void receiveJpegFragment(uint8_t *ptr, uint32_t size);
-    void deinit(void);
+    void deInitBuffer(void);
     sp<IMemoryHeap> getRawHeap() const;
     int getSnapshotState();
     /*Temp: to be removed once event handling is enabled in mm-camera*/
     void runSnapshotThread(void *data);
     bool isZSLMode();
-
-    /* public members */
-    int mCameraId;
+    status_t initZSLBuffers();
 
 private:
     QCameraStream_Snapshot(int, camera_mode_t);
@@ -250,8 +259,8 @@ private:
     status_t deinitRawSnapshotBuffers(void);
     status_t deinitSnapshotBuffers(void);
     status_t initRawSnapshotChannel(cam_ctrl_dimension_t* dim,
-                                    mm_camera_raw_streaming_type_t type);
-    status_t initSnapshotChannel(cam_ctrl_dimension_t *dim);
+                                    int num_snapshots);
+    status_t initSnapshotFormat(cam_ctrl_dimension_t *dim);
     status_t takePictureRaw(void);
     status_t takePictureJPEG(void);
     status_t startStreamZSL(void);
@@ -273,7 +282,6 @@ private:
 
     /* Member variables */
 
-    camera_mode_t myMode;
     int mSnapshotFormat;
     int mPictureWidth;
     int mPictureHeight;
@@ -281,12 +289,12 @@ private:
     int mPostviewHeight;
     int mThumbnailWidth;
     int mThumbnailHeight;
-	int mJpegOffset;
+    int mJpegOffset;
     int mSnapshotState;
     int mNumOfSnapshot;
     bool mModeLiveSnapshot;
     bool mBurstModeFlag;
-	int mActualPictureWidth;
+    int mActualPictureWidth;
     int mActualPictureHeight;
     bool mJpegDownscaling;
     sp<AshmemPool> mJpegHeap;

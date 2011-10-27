@@ -270,6 +270,10 @@ private:
 
     void freePictureTable(void);
 
+    int32_t createPreview();
+    int32_t createRecord();
+    int32_t createSnapshot();
+
     int           mCameraId;
     camera_mode_t myMode;
 

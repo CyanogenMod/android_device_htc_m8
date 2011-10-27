@@ -103,25 +103,6 @@ end:
     return rc;
 }
 
-/* Callback received when a frame is available after snapshot*/
-static void snapshot_notify_cb(mm_camera_ch_data_buf_t *recvd_frame,
-                               void *user_data)
-{
-    QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)user_data;
-
-    LOGD("%s: E", __func__);
-
-    if (pme != NULL) {
-        pme->receiveRawPicture(recvd_frame);
-    }
-    else{
-        LOGW("%s: Snapshot obj NULL in callback", __func__);
-    }
-
-    LOGD("%s: X", __func__);
-
-}
-
 /* Once we give frame for encoding, we get encoded jpeg image
    fragments by fragment. We'll need to store them in a buffer
    to form complete JPEG image */
@@ -155,7 +136,7 @@ static void snapshot_jpeg_cb(jpeg_event_t event, void *user_data)
             return;
         }
         else {
-            LOGE("%s: Error (event: %d) while jpeg encoding!!!", 
+            LOGE("%s: Error (event: %d) while jpeg encoding!!!",
                  __func__, event);
         }
     }
@@ -384,28 +365,28 @@ end:
 
 status_t QCameraStream_Snapshot::
 initRawSnapshotChannel(cam_ctrl_dimension_t *dim,
-                       mm_camera_raw_streaming_type_t raw_stream_type)
+                       int num_of_snapshots)
 {
     status_t ret = NO_ERROR;
     mm_camera_ch_image_fmt_parm_t fmt;
     mm_camera_channel_attr_t ch_attr;
+    mm_camera_raw_streaming_type_t raw_stream_type =
+        MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
 
     LOGD("%s: E", __func__);
-
-    LOGD("%s: Acquire Raw Snapshot Channel", __func__);
-    ret = cam_ops_ch_acquire(mCameraId, MM_CAMERA_CH_RAW);
-    if (NO_ERROR != ret) {
-        LOGE("%s: Failure Acquiring Raw Snapshot Channel error =%d\n",
-             __func__, ret);
-        ret = FAILED_TRANSACTION;
-        goto end;
-    }
 
     /* Snapshot channel is acquired */
     setSnapshotState(SNAPSHOT_STATE_CH_ACQUIRED);
 
+    /* Initialize stream - set format, acquire channel */
+    /*TBD: Currently we only support single raw capture*/
+    LOGE("num_of_snapshots = %d",num_of_snapshots);
+    if (num_of_snapshots == 1) {
+        raw_stream_type = MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
+    }
+
     /* Set channel attribute */
-    LOGD("%s: Set Raw Snapshot Channel attribute", __func__);
+    LOGD("%s: Set Raw Snapshot Channel attribute %d", __func__,raw_stream_type);
     memset(&ch_attr, 0, sizeof(ch_attr));
     ch_attr.type = MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE;
     ch_attr.raw_streaming_mode = raw_stream_type;
@@ -437,10 +418,6 @@ initRawSnapshotChannel(cam_ctrl_dimension_t *dim,
         goto end;
     }
 
-    LOGD("%s: Register buffer notification. My object: %x",
-         __func__, (unsigned int) this);
-    (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_RAW,
-                                        snapshot_notify_cb, this);
     /* Set the state to buffer notification completed */
     setSnapshotState(SNAPSHOT_STATE_BUF_NOTIF_REGD);
 
@@ -508,23 +485,12 @@ end:
 }
 
 status_t QCameraStream_Snapshot::
-initSnapshotChannel(cam_ctrl_dimension_t *dim)
+initSnapshotFormat(cam_ctrl_dimension_t *dim)
 {
     status_t ret = NO_ERROR;
     mm_camera_ch_image_fmt_parm_t fmt;
 
     LOGD("%s: E", __func__);
-
-    LOGD("%s: Acquire Snapshot Channel", __func__);
-    ret = cam_ops_ch_acquire(mCameraId, MM_CAMERA_CH_SNAPSHOT);
-    if (NO_ERROR != ret) {
-        LOGE("%s: Failure Acquiring Snapshot Channel error =%d\n", __func__, ret);
-        ret = FAILED_TRANSACTION;
-        goto end;
-    }
-
-    /* Snapshot channel is acquired */
-    setSnapshotState(SNAPSHOT_STATE_CH_ACQUIRED);
 
     /* For ZSL mode we'll need to set channel attribute */
     if (isZSLMode()) {
@@ -558,12 +524,6 @@ initSnapshotChannel(cam_ctrl_dimension_t *dim)
         goto end;
     }
 
-    LOGD("%s: Register buffer notification. My object: %x",
-         __func__, (unsigned int) this);
-    (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_SNAPSHOT,
-                                        snapshot_notify_cb, this);
-    /* Set the state to buffer notification completed */
-    setSnapshotState(SNAPSHOT_STATE_BUF_NOTIF_REGD);
 
 end:
     if (ret != NO_ERROR) {
@@ -657,8 +617,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         goto end;
     }
     memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
-    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num *
-                             sizeof(mm_camera_mp_buf_t)];
+    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num];
     if (!reg_buf.def.buf.mp) {
       LOGE("%s Error allocating memory for mplanar struct ", __func__);
       mRawSnapShotHeap.clear();
@@ -727,14 +686,6 @@ status_t QCameraStream_Snapshot::deinitRawSnapshotBuffers(void)
 
     /* deinit buffers only if we have already allocated */
     if (getSnapshotState() >= SNAPSHOT_STATE_BUF_INITIALIZED ){
-
-        LOGD("%s: Unpreparing Snapshot Buffer", __func__);
-        ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_RAW);
-        if(ret != NO_ERROR) {
-            LOGE("%s:Unreg Raw snapshot buf err=%d\n", __func__, ret);
-            ret = FAILED_TRANSACTION;
-            goto end;
-        }
 
         /* Clear raw heap*/
         if (mRawSnapShotHeap != NULL) {
@@ -819,8 +770,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
-    reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf *
-                                   sizeof(mm_camera_mp_buf_t)];
+    reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.main.buf.mp) {
       LOGE("%s Error allocating memory for mplanar struct ", __func__);
       mRawHeap.clear();
@@ -902,8 +852,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
-    reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf *
-                                   sizeof(mm_camera_mp_buf_t)];
+    reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.thumbnail.buf.mp) {
       LOGE("%s Error allocating memory for mplanar struct ", __func__);
       mRawHeap.clear();
@@ -1010,7 +959,7 @@ end:
     return ret;
 }
 
-void QCameraStream_Snapshot::deinit(void)
+void QCameraStream_Snapshot::deInitBuffer(void)
 {
     mm_camera_channel_type_t ch_type;
 
@@ -1024,13 +973,10 @@ void QCameraStream_Snapshot::deinit(void)
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
         /* deinit buffer */
         deinitRawSnapshotBuffers();
-        /* deinit channel */
-        deinitSnapshotChannel(MM_CAMERA_CH_RAW);
     }
     else
     {
         deinitSnapshotBuffers();
-        deinitSnapshotChannel(MM_CAMERA_CH_SNAPSHOT);
     }
 
     /* deinit jpeg buffer if allocated */
@@ -1126,7 +1072,7 @@ status_t QCameraStream_Snapshot::initJPEGSnapshot(int num_of_snapshots)
     }
 
     /* Initialize stream - set format, acquire channel */
-    ret = initSnapshotChannel(&dim);
+    ret = initSnapshotFormat(&dim);
     if (NO_ERROR != ret) {
         LOGE("%s: error - can't init nonZSL stream!", __func__);
         goto end;
@@ -1156,8 +1102,6 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
     bool initSnapshot = false;
     mm_camera_op_mode_type_t op_mode;
     mm_camera_reg_buf_t reg_buf;
-    mm_camera_raw_streaming_type_t raw_stream_type =
-        MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
 
     LOGV("%s: E", __func__);
 
@@ -1185,13 +1129,8 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
          dim.raw_picture_width,
          dim.raw_picture_height);
 
-    /* Initialize stream - set format, acquire channel */
-    /*TBD: Currently we only support single raw capture*/
-    if (num_of_snapshots == 1) {
-        raw_stream_type = MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
-    }
-
-    ret = initRawSnapshotChannel(&dim, raw_stream_type);
+    
+    ret = initRawSnapshotChannel(&dim, num_of_snapshots);
     if (NO_ERROR != ret) {
         LOGE("%s: error - can't init nonZSL stream!", __func__);
         goto end;
@@ -1231,16 +1170,6 @@ status_t QCameraStream_Snapshot::initZSLSnapshot(void)
         goto end;
     }
 
-    /* Set camera op mode to MM_CAMERA_OP_MODE_ZSL */
-    LOGD("Setting OP_MODE_ZSL");
-    op_mode = MM_CAMERA_OP_MODE_ZSL;
-    if( NO_ERROR != cam_config_set_parm(mCameraId,
-                                        MM_CAMERA_PARM_OP_MODE, &op_mode)) {
-        LOGE("SET MODE: MM_CAMERA_OP_MODE_ZSL failed");
-        ret = FAILED_TRANSACTION;
-        goto end;
-    }
-
     /* config the parmeters and see if we need to re-init the stream*/
     LOGD("%s: Configure Snapshot Dimension", __func__);
     ret = configSnapshotDimension(&dim);
@@ -1250,7 +1179,7 @@ status_t QCameraStream_Snapshot::initZSLSnapshot(void)
     }
 
     /* Initialize stream - set format, acquire channel */
-    ret = initSnapshotChannel(&dim);
+    ret = initSnapshotFormat(&dim);
     if (NO_ERROR != ret) {
         LOGE("%s: error - can't init nonZSL stream!", __func__);
         goto end;
@@ -1653,9 +1582,14 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     LOGD("%s: Send frame for encoding", __func__);
     /*TBD: Pass 0 as cropinfo for now as v4l2 doesn't provide
       cropinfo. It'll be changed later.*/
+    if(!mActive) {
+        LOGE("Cancel Picture.. Stop is called");
+        return BAD_VALUE;
+    }
     memset(&dummy_crop,0,sizeof(common_crop_t));
     ret = encodeData(recvd_frame, &dummy_crop, mSnapshotStreamBuf.frame_len,
-                     enqueued);
+                    enqueued);
+
     if (ret != NO_ERROR) {
         LOGE("%s: Failure configuring JPEG encoder", __func__);
 
@@ -1725,12 +1659,15 @@ end:
 }
 
 
-void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_frame)
+status_t QCameraStream_Snapshot::processSnapshotFrame(mm_camera_ch_data_buf_t* recvd_frame)
 {
     int buf_index = 0;
     common_crop_t crop;
-
     LOGD("%s: E ", __func__);
+    Mutex::Autolock lock(mStopCallbackLock);
+    if(!mActive) {
+        return NO_ERROR;
+    }
 
 
 /*    char buf[25];
@@ -1760,6 +1697,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
         buf_index = recvd_frame->def.idx;
         if (mHalCamCtrl->mDataCb &&
             (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)){
+                mStopCallbackLock.unlock();
                 mHalCamCtrl->mDataCb(
                     CAMERA_MSG_COMPRESSED_IMAGE,
                     mRawSnapShotHeap->mBuffers[buf_index],
@@ -1794,9 +1732,10 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
         if (frame == NULL) {
             LOGE("%s: Error allocating memory to save received_frame structure.", __func__);
             cam_evt_buf_done(mCameraId, recvd_frame);
-            return;
+            return BAD_VALUE;
         }
         memcpy(frame, recvd_frame, sizeof(mm_camera_ch_data_buf_t));
+        mStopCallbackLock.unlock();
 
         if ( NO_ERROR != encodeDisplayAndSave(frame, 0)){
             LOGE("%s: Error while encoding/displaying/saving image", __func__);
@@ -1804,9 +1743,11 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
                 free(frame);
             }
         }
+
     }
 
     LOGD("%s: X", __func__);
+    return NO_ERROR;
 }
 
 //-------------------------------------------------------------------
@@ -1827,7 +1768,7 @@ void QCameraStream_Snapshot::handleError()
     case SNAPSHOT_STATE_YUV_RECVD:
     case SNAPSHOT_STATE_IMAGE_CAPTURE_STRTD:
         stopPolling();
-    case SNAPSHOT_STATE_INITIALIZED:
+
     case SNAPSHOT_STATE_BUF_INITIALIZED:
         if (mSnapshotFormat == PICTURE_FORMAT_JPEG) {
             deinitSnapshotBuffers();
@@ -1837,6 +1778,7 @@ void QCameraStream_Snapshot::handleError()
         }
     case SNAPSHOT_STATE_BUF_NOTIF_REGD:
     case SNAPSHOT_STATE_CH_ACQUIRED:
+    case SNAPSHOT_STATE_INITIALIZED:
         if (mSnapshotFormat == PICTURE_FORMAT_JPEG) {
             deinitSnapshotChannel(MM_CAMERA_CH_SNAPSHOT);
         }else
@@ -1883,8 +1825,7 @@ bool QCameraStream_Snapshot::isZSLMode()
 //------------------------------------------------------------------
 QCameraStream_Snapshot::
 QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
-  : mCameraId(cameraId),
-    myMode (mode),
+  : QCameraStream(cameraId,mode),
     mSnapshotFormat(PICTURE_FORMAT_JPEG),
     mPictureWidth(0), mPictureHeight(0),
     mPostviewWidth(0), mPostviewHeight(0),
@@ -1921,7 +1862,14 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
     if (mSnapshotQueue.isInitialized()) {
         mSnapshotQueue.deinit();
     }
-
+    if(mActive) {
+        stop();
+    }
+    if(mInit) {
+        release();
+    }
+    mInit = false;
+    mActive = false;
     LOGV("%s: X", __func__);
 
 }
@@ -1932,10 +1880,11 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
 status_t QCameraStream_Snapshot::init()
 {
     status_t ret = NO_ERROR;
+    mm_camera_op_mode_type_t op_mode;
 
     LOGV("%s: E", __func__);
 
-    /* Check the state. If we have already started snapshot
+     /* Check the state. If we have already started snapshot
        process just return*/
     if (getSnapshotState() != SNAPSHOT_STATE_UNINIT) {
         ret = isZSLMode() ? NO_ERROR : INVALID_OPERATION;
@@ -1944,7 +1893,27 @@ status_t QCameraStream_Snapshot::init()
         goto end;
     }
 
-    /* Keep track of number of snapshots to take - in case of
+    ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_SNAPSHOT_MASK);
+    if (NO_ERROR!=ret) {
+        LOGE("%s E: can't init native cammera preview ch\n",__func__);
+        return ret;
+    }
+    mInit = true;
+
+end:
+    if (ret == NO_ERROR) {
+        setSnapshotState(SNAPSHOT_STATE_INITIALIZED);
+    }
+    LOGV("%s: X", __func__);
+    return ret;
+}
+
+status_t QCameraStream_Snapshot::start(void)
+{
+    status_t ret = NO_ERROR;
+    LOGV("%s: E", __func__);
+
+     /* Keep track of number of snapshots to take - in case of
        multiple snapshot/burst mode */
     mNumOfSnapshot = mHalCamCtrl->getNumOfSnapshots();
     if (mNumOfSnapshot == 0) {
@@ -1955,40 +1924,34 @@ status_t QCameraStream_Snapshot::init()
 
     /* Check if it's a ZSL mode */
     if (isZSLMode()) {
+        prepareHardware();
         ret = initZSLSnapshot();
-        goto end;
-    }
-    /* Check if it's a raw snapshot or JPEG*/
-    if( mHalCamCtrl->isRawSnapshot()) {
-        mSnapshotFormat = PICTURE_FORMAT_RAW;
-        ret = initRawSnapshot(mNumOfSnapshot);
-        goto end;
-    }
-    else{
-        mSnapshotFormat = PICTURE_FORMAT_JPEG;
-        ret = initJPEGSnapshot(mNumOfSnapshot);
-        goto end;
-    }
+        if(ret != NO_ERROR) {
+            LOGE("%s : Error while Initializing ZSL snapshot",__func__);
+            goto end;
+        }
 
-end:
-    if (ret == NO_ERROR) {
-        setSnapshotState(SNAPSHOT_STATE_INITIALIZED);
-    }
-    LOGV("%s: X", __func__);
-    return ret;
-}
-
-status_t QCameraStream_Snapshot::start(void) {
-    status_t ret = NO_ERROR;
-
-    LOGV("%s: E", __func__);
-    if (isZSLMode()) {
         /* In case of ZSL, start will only start snapshot stream and
            continuously queue the frames in a queue. When user clicks
            shutter we'll call get buffer from the queue and pass it on */
         ret = startStreamZSL();
         goto end;
     }
+
+    /* Check if it's a raw snapshot or JPEG*/
+    if( mHalCamCtrl->isRawSnapshot()) {
+        mSnapshotFormat = PICTURE_FORMAT_RAW;
+        ret = initRawSnapshot(mNumOfSnapshot);
+    }else{
+        //JPEG
+        mSnapshotFormat = PICTURE_FORMAT_JPEG;
+        ret = initJPEGSnapshot(mNumOfSnapshot);
+    }
+    if(ret != NO_ERROR) {
+        LOGE("%s : Error while Initializing snapshot",__func__);
+        goto end;
+    }
+
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
         ret = takePictureRaw();
         goto end;
@@ -2001,6 +1964,7 @@ status_t QCameraStream_Snapshot::start(void) {
 end:
     if (ret == NO_ERROR) {
         setSnapshotState(SNAPSHOT_STATE_IMAGE_CAPTURE_STRTD);
+        mActive = true;
     }
     LOGV("%s: X", __func__);
     return ret;
@@ -2012,8 +1976,7 @@ void QCameraStream_Snapshot::stopPolling(void)
 
     if (mSnapshotFormat == PICTURE_FORMAT_JPEG) {
         ops_type = isZSLMode() ? MM_CAMERA_OPS_ZSL : MM_CAMERA_OPS_SNAPSHOT;
-        }
-    else
+    }else
         ops_type = MM_CAMERA_OPS_RAW;
 
     if( NO_ERROR != cam_ops_action(mCameraId, FALSE,
@@ -2024,13 +1987,17 @@ void QCameraStream_Snapshot::stopPolling(void)
 
 void QCameraStream_Snapshot::stop(void)
 {
-    mm_camera_ops_type_t ops_type;
-
+    //mm_camera_ops_type_t ops_type;
     LOGV("%s: E", __func__);
 
+    if(!mActive) {
+      return;
+    }
+    mActive = false;
     /* if it's live snapshot, we don't need to deinit anything
        as recording object will handle everything. We just set
        the state to UNINIT and return */
+    Mutex::Autolock lock(mStopCallbackLock);
     if (isLiveSnapshot()) {
         setSnapshotState(SNAPSHOT_STATE_UNINIT);
     }
@@ -2045,7 +2012,7 @@ void QCameraStream_Snapshot::stop(void)
             }
 
             /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
-            deinit();
+            deInitBuffer();
         }
     }
 
@@ -2055,13 +2022,29 @@ void QCameraStream_Snapshot::stop(void)
 
 void QCameraStream_Snapshot::release()
 {
+    status_t ret = NO_ERROR;
+
     LOGV("%s: E", __func__);
+    if(!mInit)
+    {
+      LOGE("%s : Stream not Initalized",__func__);
+      return;
+    }
 
-    /* release is generally called in case of explicit call from
-       upper-layer during disconnect. So we need to deinit everything
-       whatever state we are in */
-    deinit();
-
+    if(mActive) {
+      this->stop();
+      mActive = FALSE;
+    }
+    ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_RAW);
+    if(ret != MM_CAMERA_OK) {
+      LOGE("%s:Deinit RAW channel failed=%d\n", __func__, ret);
+    }
+    ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_SNAPSHOT);
+    if(ret != MM_CAMERA_OK) {
+      LOGE("%s:Deinit Snapshot channel failed=%d\n", __func__, ret);
+    }
+    
+    mInit = false;
     LOGV("%s: X", __func__);
 
 }
@@ -2098,6 +2081,7 @@ void QCameraStream_Snapshot::deleteInstance(QCameraStream *p)
   if (p){
     p->release();
     delete p;
+    p = NULL;
   }
 }
 

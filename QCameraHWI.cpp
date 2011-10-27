@@ -44,6 +44,92 @@ static void HAL_event_cb(mm_camera_event_t *evt, void *user_data)
   }
 }
 
+int32_t QCameraHardwareInterface::createRecord()
+{
+    int32_t ret = MM_CAMERA_OK;
+    LOGV("%s : BEGIN",__func__);
+
+    /*
+    * Creating Instance of record stream.
+    */
+    LOGE("Mymode Record = %d",myMode);
+    mStreamRecord = QCameraStream_record::createInstance(mCameraId,
+            myMode);
+
+    if (!mStreamRecord) {
+        LOGE("%s: error - can't creat record stream!", __func__);
+        return BAD_VALUE;
+    }
+
+    /* Store HAL object in record stream Object */
+    mStreamRecord->setHALCameraControl(this);
+
+     /*Init Channel */
+     ret =  mStreamRecord->init();
+     if (MM_CAMERA_OK != ret){
+         LOGE("%s: error - can't init Record channel!", __func__);
+         return BAD_VALUE;
+     }
+     LOGV("%s : END",__func__);
+     return ret;
+}
+
+int32_t QCameraHardwareInterface::createSnapshot()
+{
+    int32_t ret = MM_CAMERA_OK;
+    LOGV("%s : BEGIN",__func__);
+
+    /*
+    * Creating Instance of Snapshot stream.
+    */
+    LOGE("Mymode Snap = %d",myMode);
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
+            myMode);
+
+    if (!mStreamSnap) {
+        LOGE("%s: error - can't creat snapshot stream!", __func__);
+        return BAD_VALUE;
+    }
+
+    /* Store HAL object in Snapshot stream Object */
+    mStreamSnap->setHALCameraControl(this);
+
+    /*Init Channel */
+     ret =  mStreamSnap->init();
+     if (MM_CAMERA_OK != ret){
+         LOGE("%s: error - can't init Snapshot channel!", __func__);
+         return BAD_VALUE;
+     }
+     LOGV("%s : END",__func__);
+     return ret;
+}
+
+int32_t QCameraHardwareInterface::createPreview()
+{
+    int32_t ret = MM_CAMERA_OK;
+    LOGV("%s : BEGIN",__func__);
+
+    LOGE("Mymode Preview = %d",myMode);
+    mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
+                                                      myMode);
+
+    if (!mStreamDisplay) {
+      LOGE("%s: error - can't creat preview stream!", __func__);
+      return BAD_VALUE;
+    }
+
+    mStreamDisplay->setHALCameraControl(this);
+
+    /*now init all the buffers and send to steam object*/
+    ret = mStreamDisplay->init();
+    if (MM_CAMERA_OK != ret){
+      LOGE("%s: error - can't init Preview channel!", __func__);
+      return BAD_VALUE;
+    }
+    LOGV("%s : END",__func__);
+    return ret;
+}
+
 /* constructor */
 QCameraHardwareInterface::
 QCameraHardwareInterface(int cameraId, int mode)
@@ -113,29 +199,51 @@ QCameraHardwareInterface(int cameraId, int mode)
     LOGV("Cam open returned %d",result);
     if(MM_CAMERA_OK != result) {
           LOGE("startCamera: cam_ops_open failed: id = %d", mCameraId);
-    } else {
-      mCameraState = CAMERA_STATE_READY;
-
-      /* Setup Picture Size and Preview size tables */
-      setPictureSizeTable();
-      LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
-      LOGD("%s: Picture table: ", __func__);
-      for(unsigned int i=0; i < mPictureSizeCount;i++) {
-          LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
-      }
-
-      setPreviewSizeTable();
-      LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
-      LOGD("%s: Preview table: ", __func__);
-      for(unsigned int i=0; i < mPreviewSizeCount;i++) {
-          LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
-      }
-
-      /* set my mode - update myMode member variable due to difference in
-         enum definition between upper and lower layer*/
-      setMyMode(mode);
-      initDefaultParameters();
+          return;
     }
+
+    /* Setup Picture Size and Preview size tables */
+    setPictureSizeTable();
+    LOGD("%s: Picture table size: %d", __func__, mPictureSizeCount);
+    LOGD("%s: Picture table: ", __func__);
+    for(unsigned int i=0; i < mPictureSizeCount;i++) {
+      LOGD(" %d  %d", mPictureSizes[i].width, mPictureSizes[i].height);
+    }
+
+    setPreviewSizeTable();
+    LOGD("%s: Preview table size: %d", __func__, mPreviewSizeCount);
+    LOGD("%s: Preview table: ", __func__);
+    for(unsigned int i=0; i < mPreviewSizeCount;i++) {
+      LOGD(" %d  %d", mPreviewSizes[i].width, mPreviewSizes[i].height);
+    }
+
+    /* set my mode - update myMode member variable due to difference in
+     enum definition between upper and lower layer*/
+    setMyMode(mode);
+    initDefaultParameters();
+
+    //Create Stream Objects
+    //Preview
+    result = createPreview();
+    if(result != MM_CAMERA_OK) {
+        LOGE("%s X: Failed to create Preview Object",__func__);
+        return;
+    }
+
+    //Record
+    result = createRecord();
+    if(result != MM_CAMERA_OK) {
+        LOGE("%s X: Failed to create Record Object",__func__);
+        return;
+    }
+
+    //Snapshot
+    result = createSnapshot();
+    if(result != MM_CAMERA_OK) {
+        LOGE("%s X: Failed to create Record Object",__func__);
+        return;
+    }
+    mCameraState = CAMERA_STATE_READY;
     LOGI("QCameraHardwareInterface: X");
 }
 
@@ -151,11 +259,9 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
       mStatHeap = NULL;
     }
 
-    if(mStreamDisplay){
-        QCameraStream_preview::deleteInstance (mStreamDisplay);
-        mStreamDisplay = NULL;
-    }
-    if(mStreamRecord) {
+   cam_ops_close(mCameraId);
+
+   if(mStreamRecord) {
         QCameraStream_record::deleteInstance (mStreamRecord);
         mStreamRecord = NULL;
     }
@@ -163,7 +269,10 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
         mStreamSnap = NULL;
     }
-    cam_ops_close(mCameraId);
+    if(mStreamDisplay){
+        QCameraStream_preview::deleteInstance (mStreamDisplay);
+        mStreamDisplay = NULL;
+    }
     LOGI("~QCameraHardwareInterface: X");
 }
 
@@ -617,7 +726,6 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
     LOGI("processStatsEvent E");
-    //Mutex::Autolock lock(eventLock); //Guru
     if (!isPreviewRunning( )) {
         LOGE("preview is not running");
         return;
@@ -654,7 +762,7 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
 
 void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) {
     LOGI("processInfoEvent: %d, E",event->event_id);
-    //Mutex::Autolock lock(eventLock); 
+    //Mutex::Autolock lock(eventLock);
     switch(event->event_id)
     {
         case MM_CAMERA_INFO_EVT_ROI:
@@ -755,7 +863,9 @@ status_t QCameraHardwareInterface::startPreview()
 
     /* If it's ZSL, start preview in ZSL mode*/
     if (isZSLMode()) {
-        return startPreviewZSL();
+        LOGE("Start Preview in ZSL Mode");
+        ret = startPreviewZSL();
+        goto end;
     }
 
     /*  get existing preview information, by qury mm_camera*/
@@ -765,7 +875,7 @@ status_t QCameraHardwareInterface::startPreview()
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't get preview dimension!", __func__);
       LOGE("%s: X", __func__);
-      return BAD_VALUE;
+      goto end;
     }
 
     /* config the parmeters and see if we need to re-init the stream*/
@@ -774,59 +884,26 @@ status_t QCameraHardwareInterface::startPreview()
     if (MM_CAMERA_OK != ret) {
       LOGE("%s: error - can't config preview parms!", __func__);
       LOGE("%s: X", __func__);
-      return BAD_VALUE;
-    }
-
-    /*if stream object exists but it needs to re-init, delete it now.
-       otherwise just call mPreviewStream->start() later ,
-      */
-    if (mStreamDisplay && initPreview){
-      LOGE("%s:Deleting old stream instance",__func__);
-      QCameraStream_preview::deleteInstance (mStreamDisplay);
-      mStreamDisplay = NULL;
-    }
-
-    /*if stream object doesn't exists, create and init it now.
-       and call mPreviewStream->start() later ,
-      */
-    if (!mStreamDisplay){
-      mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
-                                                      CAMERA_MODE_2D);
-      LOGE("%s:Creating new stream instance",__func__);
-    }
-
-    if (!mStreamDisplay) {
-      LOGE("%s: error - can't creat preview stream!", __func__);
-      return BAD_VALUE;
-    }
-
-    mStreamDisplay->setHALCameraControl(this);
-
-    /*now init all the buffers and send to steam object*/
-    ret = mStreamDisplay->init();
-    if (MM_CAMERA_OK != ret){
-      LOGE("%s: error - can't init preview stream!", __func__);
-      LOGE("%s: X", __func__);
-      /*shall we delete it? */
-      return BAD_VALUE;
+      goto end;
     }
 
     ret = mStreamDisplay->start();
-    /*call QCameraStream_noneZSL::start() */
     if (MM_CAMERA_OK != ret){
       LOGE("%s: error - can't start nonZSL stream!", __func__);
       LOGE("%s: X", __func__);
-      return BAD_VALUE;
+      goto end;
     }
-    if(MM_CAMERA_OK == ret)
-        mCameraState = CAMERA_STATE_PREVIEW_START_CMD_SENT;
-    else
-        mCameraState = CAMERA_STATE_ERROR;
 
+end :
     if(mPostPreviewHeap != NULL) {
         mPostPreviewHeap.clear();
         mPostPreviewHeap = NULL;
     }
+
+    if(MM_CAMERA_OK == ret)
+        mCameraState = CAMERA_STATE_PREVIEW_START_CMD_SENT;
+    else
+        mCameraState = CAMERA_STATE_ERROR;
 
     LOGI("startPreview: X");
     return ret;
@@ -863,69 +940,6 @@ status_t QCameraHardwareInterface::startPreviewZSL()
       LOGE("%s: error - can't config preview parms!", __func__);
       LOGE("%s: X", __func__);
       return BAD_VALUE;
-    }
-
-    /*If stream object exists but it needs to re-init, delete it now.
-       otherwise just call mPreviewStream->start() later ,
-    */
-    if (mStreamDisplay && initPreview){
-      LOGD("%s:Deleting old stream instance",__func__);
-      QCameraStream_preview::deleteInstance (mStreamDisplay);
-      mStreamDisplay = NULL;
-    }
-
-    /* If stream object doesn't exists, create and init it now.
-       and call mPreviewStream->start() later ,
-    */
-    if (!mStreamDisplay){
-      mStreamDisplay = QCameraStream_preview::createInstance(mCameraId,
-                                                             CAMERA_ZSL_MODE);
-      LOGD("%s:Creating new stream instance",__func__);
-    }
-
-    if (!mStreamDisplay) {
-      LOGE("%s: error - can't creat preview stream!", __func__);
-      return BAD_VALUE;
-    }
-
-    mStreamDisplay->setHALCameraControl(this);
-
-    /* Init all the buffers and send to steam object*/
-    ret = mStreamDisplay->init();
-    if (MM_CAMERA_OK != ret){
-      LOGE("%s: error - can't init preview stream!", __func__);
-      LOGE("%s: X", __func__);
-      return BAD_VALUE;
-    }
-
-    if (mStreamSnap){
-        LOGD("%s:Deleting old Snapshot stream instance",__func__);
-        QCameraStream_Snapshot::deleteInstance (mStreamSnap);
-        mStreamSnap = NULL;
-    }
-
-    /*
-     * Creating Instance of snapshot stream.
-     */
-    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
-                                                         CAMERA_ZSL_MODE);
-
-    if (!mStreamSnap) {
-        LOGE("%s: error - can't creat snapshot stream!", __func__);
-        return BAD_VALUE;
-    }
-
-    /* Store HAL object in snapshot stream Object */
-    mStreamSnap->setHALCameraControl(this);
-
-    /* Call prepareSnapshot before stopping preview */
-    mStreamSnap->prepareHardware();
-
-    /* Call snapshot init*/
-    ret =  mStreamSnap->init();
-    if (MM_CAMERA_OK != ret){
-        LOGE("%s: error - can't init Snapshot stream!", __func__);
-        return BAD_VALUE;
     }
 
     /* Start preview streaming */
@@ -986,16 +1000,6 @@ void QCameraHardwareInterface::stopPreviewZSL()
     /* Stop ZSL snapshot channel streaming*/
     mStreamSnap->stop();
 
-    /* Realease all the resources*/
-    mStreamDisplay->release();
-    mStreamSnap->release();
-
-    /* Delete mStreamDisplay & mStreamSnap instance*/
-    QCameraStream_Snapshot::deleteInstance (mStreamSnap);
-    mStreamSnap = NULL;
-    QCameraStream_preview::deleteInstance (mStreamDisplay);
-    mStreamDisplay = NULL;
-
     mCameraState = CAMERA_STATE_PREVIEW_STOP_CMD_SENT;
 
     LOGI("stopPreviewZSL: X");
@@ -1012,12 +1016,6 @@ void QCameraHardwareInterface::stopPreviewInternal()
     }
 
     mStreamDisplay->stop();
-
-    mStreamDisplay->release();
-
-    /* Delete mStreamDisplay instance*/
-    QCameraStream_preview::deleteInstance (mStreamDisplay);
-    mStreamDisplay = NULL;
 
     mCameraState = CAMERA_STATE_PREVIEW_STOP_CMD_SENT;
     LOGI("stopPreviewInternal: X");
@@ -1039,54 +1037,10 @@ status_t QCameraHardwareInterface::startRecording()
     LOGI("startRecording: E");
     status_t ret = NO_ERROR;
     Mutex::Autolock lock(mLock);
+
     if (isRecordingRunning()) {
         LOGV("%s: X - record already running", __func__);
         return NO_ERROR;
-    }
-
-    /*if((mCameraState != CAMERA_STATE_PREVIEW) //TODO : Need to enable once evt cb working
-            || (mCameraState != CAMERA_STATE_PREVIEW_START_CMD_SENT))
-    {
-        LOGE("%s:Preview is not Initialized. Cannot start recording",__func__);
-        return NO_ERROR;
-    }*/
-
-    if (mStreamRecord){
-        LOGE("%s:Deleting old Record stream instance",__func__);
-        QCameraStream_record::deleteInstance (mStreamRecord);
-        mStreamRecord = NULL;
-    }
-
-    /*
-     * Creating Instance of record stream.
-     */
-    mStreamRecord = QCameraStream_record::createInstance(mCameraId,
-            CAMERA_MODE_2D);
-
-    if (!mStreamRecord) {
-        LOGE("%s: error - can't creat record stream!", __func__);
-        return BAD_VALUE;
-    }
-
-    /* Store HAL object in record stream Object */
-    mStreamRecord->setHALCameraControl(this);
-
-    /*
-     * now init encode buffers and send to steam object
-     */
-    //ret =  mStreamRecord->initEncodeBuffers();
-    if (NO_ERROR == ret) {
-        /*
-         * call Record init()
-         * Buffer Allocation, Channel acquire, Prepare Buff
-         */
-        ret =  mStreamRecord->init();
-        if (MM_CAMERA_OK != ret){
-            LOGE("%s: error - can't init Record stream!", __func__);
-            return BAD_VALUE;
-        }
-    }else {
-        LOGE("%s: error - can't allocate Encode Buffers!", __func__);
     }
 
     /*
@@ -1136,17 +1090,7 @@ void QCameraHardwareInterface::stopRecordingInternal()
      */
     mStreamRecord->stop();
 
-    /*
-     * call QCameraStream_record::release()
-     * Buffer dellocation, Channel release, UnPrepare Buff
-     */
-    mStreamRecord->release();
-
-    QCameraStream_record::deleteInstance (mStreamRecord);
-    mStreamRecord = NULL;
-
-  //mCameraState = CAMERA_STATE_RECORD_STOP_CMD_SENT;
-  mCameraState = CAMERA_STATE_PREVIEW;  //TODO : Apurva : Hacked for 2nd time Recording
+    mCameraState = CAMERA_STATE_PREVIEW;  //TODO : Apurva : Hacked for 2nd time Recording
 
     LOGI("stopRecordingInternal: X");
     return;
@@ -1207,10 +1151,6 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
       return BAD_VALUE;
     }
 
-
-
-
-
     /*(Do?) we need to make sure that the call back is the
       last possible step in the execution flow since the same
       context might be used if a fail triggers another round
@@ -1238,8 +1178,6 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
     else{
       LOGE("%s:Call back not enabled",__func__);
     }
-
-
 
     LOGE("autoFocusEvent: X");
     return ret;
@@ -1292,43 +1230,19 @@ status_t  QCameraHardwareInterface::takePicture()
         return NO_ERROR;
     }
 */
-
-    if (isZSLMode()) {
-        if (mStreamSnap != NULL) {
-            ret = mStreamSnap->takePictureZSL();
-            if (ret != MM_CAMERA_OK) {
-                LOGE("%s: Error taking ZSL snapshot!", __func__);
-                ret = BAD_VALUE;
-            }
-        }
-        else {
-            LOGE("%s: ZSL stream not active! Failure!!", __func__);
-            ret = BAD_VALUE;
-        }
-
-        return ret;
-    }
-
-    if (mStreamSnap){
-        LOGE("%s:Deleting old Snapshot stream instance",__func__);
-        QCameraStream_Snapshot::deleteInstance (mStreamSnap);
-        mStreamSnap = NULL;
-    }
-
-    /*
-     * Creating Instance of snapshot stream.
-     */
-    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,
-                                                       myMode);
-
-    if (!mStreamSnap) {
-        LOGE("%s: error - can't creat snapshot stream!", __func__);
+    if(mStreamSnap == NULL){
+        LOGE("Snapshot is not initialized");
         return BAD_VALUE;
     }
-
-    /* Store HAL object in snapshot stream Object */
-    mStreamSnap->setHALCameraControl(this);
-
+    if (isZSLMode()) {
+        ret = mStreamSnap->takePictureZSL();
+        if (ret != MM_CAMERA_OK) {
+            LOGE("%s: Error taking ZSL snapshot!", __func__);
+            ret = BAD_VALUE;
+        }
+        LOGI("takePicture ZSL: X %d ",mCameraState);
+        return ret;
+    }
     /* Call prepareSnapshot before stopping preview */
     mStreamSnap->prepareHardware();
 
@@ -1343,13 +1257,6 @@ status_t  QCameraHardwareInterface::takePicture()
     /* stop preview */
     stopPreviewInternal();
 
-    /* Call snapshot init*/
-    ret =  mStreamSnap->init();
-    if (MM_CAMERA_OK != ret){
-        LOGE("%s: error - can't init Snapshot stream!", __func__);
-        return BAD_VALUE;
-    }
-
     /* call Snapshot start() :*/
     ret =  mStreamSnap->start();
     if (MM_CAMERA_OK != ret){
@@ -1357,6 +1264,7 @@ status_t  QCameraHardwareInterface::takePicture()
         return BAD_VALUE;
     }
 
+ end:
     if(MM_CAMERA_OK == ret)
         mCameraState = CAMERA_STATE_SNAP_START_CMD_SENT;
     else

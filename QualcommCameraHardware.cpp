@@ -362,6 +362,8 @@ static int HAL_currentCameraMode;
 static mm_camera_config mCfgControl;
 
 static int HAL_currentSnapshotMode;
+static int previewWidthToNativeZoom;
+static int previewHeightToNativeZoom;
 #define CAMERA_SNAPSHOT_NONZSL 0x04
 #define CAMERA_SNAPSHOT_ZSL 0x08
 
@@ -2754,8 +2756,12 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                 dstOffset = (dstOffset + 1) % NUM_MORE_BUFS;
                 offset = kPreviewBufferCount + dstOffset;
                 ssize_t dstOffset_addr = offset * mPreviewHeap->mAlignedBufferSize;
+                //use previewWidthToNativeZoom and previewHeightToNativeZoom instead of previewWidth
+                //and previewHeight as prior ones gets updated only in start preview as we are
+                //facing problem,if the preview dimensions gets updated before the preview restart
                 if( !native_zoom_image(mPreviewHeap->mHeap->getHeapID(),
-                    offset_addr, dstOffset_addr, crop,previewWidth,previewHeight)) {
+                    offset_addr, dstOffset_addr, crop,previewWidthToNativeZoom,
+                    previewHeightToNativeZoom)) {
                     LOGE(" Error while doing MDP zoom ");
                     offset = offset_addr / mPreviewHeap->mAlignedBufferSize;
                 }
@@ -4116,6 +4122,8 @@ status_t QualcommCameraHardware::startPreviewInternal()
 
     //Reset the Gps Information
     exif_table_numEntries = 0;
+    previewWidthToNativeZoom = previewWidth;
+    previewHeightToNativeZoom = previewHeight;
 
     LOGV("startPreviewInternal X");
     return NO_ERROR;

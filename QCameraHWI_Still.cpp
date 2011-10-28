@@ -629,6 +629,16 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     mSnapshotStreamBuf.frame_len = frame_len;
 
     /* Allocate Memory to store snapshot image */
+#ifdef USE_ION
+    mRawSnapShotHeap =
+        new IonPool(MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     frame_len,
+                     num_of_buf,
+                     frame_len,
+                     cbcr_off,
+                     y_off,
+                     "snapshot camera");
+#else
     mRawSnapShotHeap =
         new PmemPool("/dev/pmem_adsp",
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -639,7 +649,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      planes[0],
                      0,
                      "snapshot camera");
-
+#endif
     if (!mRawSnapShotHeap->initialized()) {
         mRawSnapShotHeap.clear();
         LOGE("%s: Error allocating buffer for raw snapshot", __func__);
@@ -781,6 +791,17 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     mSnapshotStreamBuf.frame_len = frame_len;
 
     /* Allocate Memory to store snapshot image */
+#ifdef USE_ION
+    mRawHeap =
+        new IonPool(
+                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     frame_len,
+                     num_of_buf,
+                     frame_len,
+                     cbcr_off,
+                     y_off,
+                     "snapshot camera");
+#else
     mRawHeap =
         new PmemPool("/dev/pmem_adsp",
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -791,7 +812,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      cbcr_off,
                      y_off,
                      "snapshot camera");
-
+#endif
     if (!mRawHeap->initialized()) {
         mRawHeap.clear();
         LOGE("%s: Error allocating buffer for snapshot", __func__);
@@ -853,6 +874,16 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
 
      //Postview Image
+#ifdef USE_ION
+     mPostviewHeap =
+        new IonPool(MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     frame_len,
+                     num_of_buf,
+                     frame_len,
+                     cbcr_off,
+                     y_off,
+                     "thumbnail");
+#else
      mPostviewHeap =
         new PmemPool("/dev/pmem_adsp",
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -863,7 +894,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      planes[0],
                      0,
                      "thumbnail");
-
+#endif
     if (!mPostviewHeap->initialized()) {
         mRawHeap.clear();
         mPostviewHeap.clear();

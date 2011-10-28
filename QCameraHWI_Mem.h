@@ -27,6 +27,7 @@
 
 extern "C" {
 #include <linux/android_pmem.h>
+#include <linux/ion.h>
 #include <camera.h>
 #include <camera_defs_i.h>
 
@@ -88,6 +89,22 @@ public:
     int mCameraControlFd;
     uint32_t mAlignedSize;
     struct pmem_region mSize;
+};
+
+class IonPool : public MemPool {
+public:
+    IonPool( int flags,
+             int buffer_size, int num_buffers,
+             int frame_size, int cbcr_offset,
+             int yoffset, const char *name);
+    virtual ~IonPool();
+    int mFd;
+    int mCbCrOffset;
+    int myOffset;
+    int mCameraControlFd;
+    uint32_t mAlignedSize;
+private:
+    static const char mIonDevName[];
 };
 
 };

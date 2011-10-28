@@ -1687,7 +1687,16 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                                             planes);
 
     LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
-
+#ifdef USE_ION
+    mPostPreviewHeap =
+        new IonPool( MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     frame_len,
+                     1,
+                     frame_len,
+                     cbcr_off,
+                     y_off,
+                     "thumbnail");
+#else
     mPostPreviewHeap =
         new PmemPool("/dev/pmem_adsp",
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -1698,7 +1707,7 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                      planes[0],
                      0,
                      "thumbnail");
-
+#endif
     if (!mPostPreviewHeap->initialized()) {
         LOGE("%s: Error initializing mPostPreviewHeap buffer", __func__);
         ret = NO_MEMORY;

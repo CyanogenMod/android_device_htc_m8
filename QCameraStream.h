@@ -41,37 +41,6 @@ extern "C" {
 #define MM_CAMERA_CH_VIDEO_MASK      (0x01 << MM_CAMERA_CH_VIDEO)
 #define MM_CAMERA_CH_SNAPSHOT_MASK   (0x01 << MM_CAMERA_CH_SNAPSHOT)
 
-static uint8_t *mm_do_mmap(uint32_t size, int *pmemFd)
-{
-  void *ret; /* returned virtual address */
-  int  pmem_fd = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
-
-  if (pmem_fd < 0) {
-    LOGE("do_mmap: Open device /dev/pmem_adsp failed!\n");
-    return NULL;
-  }
-
-  /* to make it page size aligned */
-  size = (size + 4095) & (~4095);
-
-  ret = mmap(NULL,
-    size,
-    PROT_READ  | PROT_WRITE,
-    MAP_SHARED,
-    pmem_fd,
-    0);
-
-  if (ret == MAP_FAILED) {
-    LOGE("do_mmap: pmem mmap() failed: %s (%d)\n", strerror(errno), errno);
-    return NULL;
-  }
-
-  LOGE("do_mmap: pmem mmap fd %d ptr %p len %u\n", pmem_fd, ret, size);
-
-  *pmemFd = pmem_fd;
-  return(uint8_t *)ret;
-}
-
 } /* extern C*/
 
 
@@ -181,8 +150,11 @@ private:
 
   mm_camera_reg_buf_t mRecordBuf;
   int record_frame_len;
-
+#ifdef USE_ION
+  sp<IonPool> mRecordHeap;
+#else
   sp<PmemPool> mRecordHeap;
+#endif
   struct msm_frame *recordframes;
   uint32_t record_offset[VIDEO_BUFFER_COUNT];
   Mutex mRecordFreeQueueLock;
@@ -222,8 +194,11 @@ private:
     struct msm_frame *mLastQueuedFrame;
     mm_camera_reg_buf_t mDisplayBuf;
     //mm_cameara_stream_buf_t mDisplayStreamBuf;
-
-	sp<PmemPool> mPreviewHeap;
+#ifdef USE_ION
+	sp<IonPool> mPreviewHeap;
+#else
+        sp<PmemPool> mPreviewHeap;
+#endif
 	struct msm_frame *previewframes;
 	uint32_t preview_offset[VIDEO_BUFFER_COUNT];
 
@@ -316,11 +291,17 @@ private:
     bool mJpegDownscaling;
     sp<AshmemPool> mJpegHeap;
     /*TBD:Bikas: This is defined in HWI too.*/
+#ifdef USE_ION
+    sp<IonPool>  mDisplayHeap;
+    sp<IonPool>  mRawHeap;
+    sp<IonPool>  mPostviewHeap;
+    sp<IonPool>  mRawSnapShotHeap;
+#else
     sp<PmemPool>  mDisplayHeap;
     sp<PmemPool>  mRawHeap;
     sp<PmemPool>  mPostviewHeap;
     sp<PmemPool>  mRawSnapShotHeap;
-
+#endif
     mm_camera_ch_data_buf_t *mCurrentFrameEncoded;
     mm_cameara_stream_buf_t mSnapshotStreamBuf;
     mm_cameara_stream_buf_t mPostviewStreamBuf;

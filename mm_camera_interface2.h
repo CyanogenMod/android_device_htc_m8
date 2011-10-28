@@ -29,7 +29,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef __MM_CAMERA_INTERFACE2_H__
 #define __MM_CAMERA_INTERFACE2_H__
-
+#include <linux/ion.h>
 #include <camera.h>
 #include "mm_jpeg_encoder.h"
 

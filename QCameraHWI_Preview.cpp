@@ -127,6 +127,16 @@ status_t QCameraStream_preview::initDisplayBuffers()
                                             &num_planes, planes);
 
     pmem_region = "/dev/pmem_adsp";
+#ifdef USE_ION
+    mPreviewHeap = new IonPool(
+                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                          frame_len,
+                          PREVIEW_BUFFER_COUNT,
+                          frame_len,
+                          cbcr_off,
+                          0,
+                          "preview");
+#else
     mPreviewHeap = new PmemPool(pmem_region,
                           MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                           MSM_PMEM_PREVIEW,
@@ -136,6 +146,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
                           planes[0],
                           0,
                           "preview");
+#endif
     if (!mPreviewHeap->initialized()) {
         mPreviewHeap.clear();
         mPreviewHeap = NULL;

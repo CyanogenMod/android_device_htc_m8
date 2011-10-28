@@ -28,6 +28,7 @@
 
 extern "C" {
 #include <linux/android_pmem.h>
+#include <linux/ion.h>
 #include <camera.h>
 #include <camera_defs_i.h>
 #include <mm_camera_interface2.h>
@@ -382,7 +383,11 @@ private:
     HAL_camera_state_type_t mCameraState;
 
      /* Temporary - can be removed after Honeycomb*/
-	sp<PmemPool>  mPostPreviewHeap;
+#ifdef USE_ION
+    sp<IonPool>  mPostPreviewHeap;
+#else
+    sp<PmemPool> mPostPreviewHeap;
+#endif
 };
 
 }; // namespace android

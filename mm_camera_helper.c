@@ -35,10 +35,11 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
-#include "camera.h"
 #include "mm_camera_dbg.h"
 #include <time.h>
 #include "mm_camera_interface2.h"
+#include <linux/ion.h>
+#include "camera.h"
 
 #define MM_CAMERA_PROFILE 1
 

@@ -24,6 +24,7 @@
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <binder/MemoryHeapPmem.h>
+#include <binder/MemoryHeapIon.h>
 #include <utils/String16.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -363,7 +364,52 @@ PmemPool::~PmemPool()
 #endif
     LOGI("%s: %s X", __FUNCTION__, mName);
 }
+#ifdef USE_ION
+const char IonPool::mIonDevName[] = "/dev/ion";
 
+IonPool::IonPool(int flags,
+                 int buffer_size,
+                 int num_buffers,
+                 int frame_size,
+                 int cbcr_offset,
+                 int yOffset,
+                 const char *name) :
+    MemPool(buffer_size,num_buffers,frame_size,name),
+    mCbCrOffset(cbcr_offset),
+    myOffset(yOffset)
+{
+    LOGI("constructing MemPool %s backed by ion pool %s: "
+         "%d frames @ %d bytes, buffer size %d",
+         mName,
+         mIonDevName, num_buffers, frame_size,
+         buffer_size);
+
+    // Make a new mmap'ed heap that can be shared across processes.
+    // mAlignedBufferSize is already in 4k aligned.
+    mAlignedSize = mAlignedBufferSize * num_buffers;
+    sp<MemoryHeapIon> ionHeap = new MemoryHeapIon(mIonDevName, mAlignedSize,
+                                                  flags, 0x1<<ION_HEAP_ADSP_ID);
+    if (ionHeap->getHeapID() >= 0) {
+        mHeap = ionHeap;
+        ionHeap.clear();
+
+        mFd = mHeap->getHeapID();
+        LOGE("ion pool %s fd = %d", mIonDevName, mFd);
+        LOGE("mBufferSize=%d, mAlignedBufferSize=%d\n",
+                      mBufferSize, mAlignedBufferSize);
+        completeInitialization();
+    }
+    else
+        LOGE("ion pool %s error: could not create master heap!", mIonDevName);
+    LOGI("%s: (%s) X ", __FUNCTION__, mName);
+}
+
+IonPool::~IonPool()
+{
+    LOGI("%s: %s E", __FUNCTION__, mName);
+    LOGI("%s: %s X", __FUNCTION__, mName);
+}
+#endif
 MemPool::~MemPool()
 {
     LOGV("destroying MemPool %s", mName);

@@ -392,8 +392,18 @@ status_t QCameraStream_record::initEncodeBuffers()
                                  width,height, OUTPUT_TYPE_V,
                                  &num_planes, planes);
   record_frame_len = frame_len;
-
-  if(mRecordHeap == NULL) {
+  if(mRecordHeap == NULL)
+  {
+#ifdef USE_ION
+    mRecordHeap = new IonPool(
+                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                        frame_len,
+                        VIDEO_BUFFER_COUNT,
+                        frame_len,
+                        cbcr_off,
+                        0,
+                        "record");
+#else
     mRecordHeap = new PmemPool(pmem_region,
                         MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                         MSM_PMEM_VIDEO,
@@ -403,6 +413,7 @@ status_t QCameraStream_record::initEncodeBuffers()
                         planes[0],
                         0,
                         "record");
+#endif
     if (!mRecordHeap->initialized()) {
       mRecordHeap.clear();
       mRecordHeap = NULL;

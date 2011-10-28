@@ -22,6 +22,7 @@
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <binder/MemoryHeapPmem.h>
+#include <binder/MemoryHeapIon.h>
 #include <utils/String16.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -57,7 +58,7 @@ extern "C" {
 #include <sys/system_properties.h>
 #include <sys/time.h>
 #include <stdlib.h>
-
+#include <linux/ion.h>
 #include <camera.h>
 #include <cam_fifo.h>
 #include <liveshot.h>

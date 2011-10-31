@@ -81,6 +81,8 @@ typedef enum {
 typedef struct mm_camera_frame_t mm_camera_frame_t;
 struct mm_camera_frame_t{
     struct msm_frame frame;
+    struct v4l2_plane planes[VIDEO_MAX_PLANES];
+    uint8_t num_planes;
     int idx;
     mm_camera_frame_t *next;
 };

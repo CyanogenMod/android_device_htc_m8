@@ -264,6 +264,9 @@ void QCameraStream_record::release()
   mRecordHeap = NULL;
 
   delete[] recordframes;
+  if (mRecordBuf.video.video.buf.mp)
+    delete[] mRecordBuf.video.video.buf.mp;
+
   mInit = false;
   LOGV("%s: END", __func__);
 }
@@ -365,7 +368,9 @@ status_t QCameraStream_record::initEncodeBuffers()
   LOGE("%s : BEGIN",__func__);
   status_t ret = NO_ERROR;
   const char *pmem_region;
-  uint32_t y_off,cbcr_off,frame_len;
+  uint32_t frame_len;
+  uint8_t num_planes;
+  uint32_t planes[VIDEO_MAX_PLANES];
   //cam_ctrl_dimension_t dim;
   int width = 0;  /* width of channel  */
   int height = 0; /* height of channel */
@@ -385,7 +390,7 @@ status_t QCameraStream_record::initEncodeBuffers()
   //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
   frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
                                  width,height, OUTPUT_TYPE_V,
-                                 &y_off, &cbcr_off);
+                                 &num_planes, planes);
   record_frame_len = frame_len;
 
   if(mRecordHeap == NULL) {
@@ -395,7 +400,7 @@ status_t QCameraStream_record::initEncodeBuffers()
                         frame_len,
                         VIDEO_BUFFER_COUNT,
                         frame_len,
-                        cbcr_off,
+                        planes[0],
                         0,
                         "record");
     if (!mRecordHeap->initialized()) {
@@ -412,6 +417,21 @@ status_t QCameraStream_record::initEncodeBuffers()
     }*/
   }
   LOGE("PMEM Buffer Allocation Successfull");
+
+  memset(&mRecordBuf, 0, sizeof(mRecordBuf));
+  /* allocate memory for mplanar frame struct. */
+  mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
+                                  sizeof(mm_camera_mp_buf_t)];
+  if (!mRecordBuf.video.video.buf.mp) {
+    LOGE("%s Error allocating memory for mplanar struct ", __func__);
+    mRecordHeap.clear();
+    mRecordHeap = NULL;
+    return BAD_VALUE;
+  }
+  memset(mRecordBuf.video.video.buf.mp, 0,
+         VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+  mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
+  mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
   recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
   if(recordframes != NULL) {
     memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
@@ -419,20 +439,32 @@ status_t QCameraStream_record::initEncodeBuffers()
       recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
       recordframes[cnt].buffer =
           (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-      recordframes[cnt].y_off = y_off;
-      recordframes[cnt].cbcr_off = cbcr_off;
+      recordframes[cnt].y_off = 0;
+      recordframes[cnt].cbcr_off = planes[0];
       recordframes[cnt].path = OUTPUT_TYPE_V;
       //record_buffers_tracking_flag[cnt] = false;
       record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
-      LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d, offset = %d \n",
-        (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
-        recordframes[cnt].cbcr_off, record_offset[cnt]);
+      LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d offset = %d \n",
+        (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, record_offset[cnt]);
+      mRecordBuf.video.video.buf.mp[cnt].frame = recordframes[cnt];
+      mRecordBuf.video.video.buf.mp[cnt].frame_offset = record_offset[cnt];
+      mRecordBuf.video.video.buf.mp[cnt].num_planes = num_planes;
+      /* Plane 0 needs to be set seperately. Set other planes
+       * in a loop. */
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].reserved[0] =
+        mRecordBuf.video.video.buf.mp[cnt].frame_offset;
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].length = planes[0];
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].m.userptr =
+        recordframes[cnt].fd;
+      for (int j = 1; j < num_planes; j++) {
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].length = planes[j];
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].m.userptr =
+          recordframes[cnt].fd;
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].reserved[0] =
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].reserved[0] +
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].length;
+      }
     }
-    memset(&mRecordBuf, 0, sizeof(mRecordBuf));
-    mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
-    mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
-    mRecordBuf.video.video.frame_offset = &record_offset[0];
-    mRecordBuf.video.video.frame = &recordframes[0];
     LOGE("Record buf type =%d, offset[1] =%d, buffer[1] =%lx", mRecordBuf.ch_type, record_offset[1], recordframes[1].buffer);
     LOGE("%s : END",__func__);
   } else {

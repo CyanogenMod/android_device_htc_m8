@@ -103,9 +103,9 @@ status_t QCameraStream_preview::initDisplayBuffers()
     int height = 0; /* height of channel */
     uint32_t frame_len = 0; /* frame planner length */
     int buffer_num = 4; /* number of buffers for display */
-    uint32_t y_off=0;
-    uint32_t cbcr_off=0;
     const char *pmem_region;
+    uint8_t num_planes = 0;
+    uint32_t planes[VIDEO_MAX_PLANES];    
 
     cam_ctrl_dimension_t dim;
 
@@ -124,7 +124,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
     this->myMode=myMode; /*Need to assign this in constructor after translating from mask*/
     frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, this->myMode,
                                             width, height, OUTPUT_TYPE_P,
-                                            &y_off, &cbcr_off);
+                                            &num_planes, planes);
 
     pmem_region = "/dev/pmem_adsp";
     mPreviewHeap = new PmemPool(pmem_region,
@@ -133,7 +133,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
                           frame_len,
                           PREVIEW_BUFFER_COUNT,
                           frame_len,
-                          cbcr_off,
+                          planes[0],
                           0,
                           "preview");
     if (!mPreviewHeap->initialized()) {
@@ -142,30 +142,59 @@ status_t QCameraStream_preview::initDisplayBuffers()
         LOGE("%s: ERROR : could not initialize Preview heap.",__func__);
         return BAD_VALUE;
     }
-
+    memset(&mDisplayBuf, 0, sizeof(mDisplayBuf));
+    /* allocate memory for mplanar frame struct. */
+    mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[PREVIEW_BUFFER_COUNT *
+                                    sizeof(mm_camera_mp_buf_t)];
+    if (!mDisplayBuf.preview.buf.mp) {
+      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+      mPreviewHeap.clear();
+      mPreviewHeap = NULL;
+      return NO_MEMORY;
+    }
+    memset(mDisplayBuf.preview.buf.mp, 0,
+       PREVIEW_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
     LOGE("PMEM Preview Buffer Allocation Successfull");
     previewframes = new msm_frame[PREVIEW_BUFFER_COUNT];
-    memset(previewframes,0,sizeof(struct msm_frame) * PREVIEW_BUFFER_COUNT);
-    for (int cnt = 0; cnt < PREVIEW_BUFFER_COUNT; cnt++) {
-      previewframes[cnt].fd = mPreviewHeap->mHeap->getHeapID();
-      previewframes[cnt].buffer =
+    if (previewframes != NULL) {
+      memset(previewframes,0,sizeof(struct msm_frame) * PREVIEW_BUFFER_COUNT);
+      for (int cnt = 0; cnt < PREVIEW_BUFFER_COUNT; cnt++) {
+        previewframes[cnt].fd = mPreviewHeap->mHeap->getHeapID();
+        previewframes[cnt].buffer =
           (uint32_t)mPreviewHeap->mHeap->base() + mPreviewHeap->mAlignedBufferSize * cnt;
-      previewframes[cnt].y_off = y_off;
-      previewframes[cnt].cbcr_off = cbcr_off;
-      previewframes[cnt].path = OUTPUT_TYPE_P;
-      preview_offset[cnt] =  mPreviewHeap->mAlignedBufferSize * cnt;
-      LOGE ("initDisplay :  Preview heap buffer=%lu fd=%d y_off=%d cbcr_off=%d, offset = %d \n",
-        (unsigned long)previewframes[cnt].buffer, previewframes[cnt].fd, previewframes[cnt].y_off,
-        previewframes[cnt].cbcr_off, preview_offset[cnt]);
-    }
-   /* register the streaming buffers for the channel*/
-    memset(&mDisplayBuf,  0,  sizeof(mDisplayBuf));
-    mDisplayBuf.ch_type = MM_CAMERA_CH_PREVIEW;
-    mDisplayBuf.preview.num = PREVIEW_BUFFER_COUNT;
-    mDisplayBuf.preview.frame_offset = &preview_offset[0];
-    mDisplayBuf.preview.frame = &previewframes[0];
-    LOGE("Preview buf type =%d, offset[1] =%d, buffer[1] =%lx", mDisplayBuf.ch_type, preview_offset[1], previewframes[1].buffer);
-    return NO_ERROR;
+        previewframes[cnt].y_off = 0;
+        previewframes[cnt].cbcr_off = planes[0];
+        previewframes[cnt].path = OUTPUT_TYPE_P;
+        preview_offset[cnt] =  mPreviewHeap->mAlignedBufferSize * cnt;
+        LOGE ("initDisplay :  Preview heap buffer=%lu fd=%d offset = %d \n",
+          (unsigned long)previewframes[cnt].buffer, previewframes[cnt].fd, preview_offset[cnt]);
+        mDisplayBuf.preview.buf.mp[cnt].frame = previewframes[cnt];
+        mDisplayBuf.preview.buf.mp[cnt].frame_offset = preview_offset[cnt];
+        mDisplayBuf.preview.buf.mp[cnt].num_planes = num_planes;
+        /* Plane 0 needs to be set seperately. Set other planes
+         * in a loop. */
+        mDisplayBuf.preview.buf.mp[cnt].planes[0].length = planes[0];
+        mDisplayBuf.preview.buf.mp[cnt].planes[0].m.userptr = previewframes[cnt].fd;
+        mDisplayBuf.preview.buf.mp[cnt].planes[0].reserved[0] =
+          mDisplayBuf.preview.buf.mp[cnt].frame_offset;
+        for (int j = 1; j < num_planes; j++) {
+          mDisplayBuf.preview.buf.mp[cnt].planes[j].length = planes[j];
+          mDisplayBuf.preview.buf.mp[cnt].planes[j].m.userptr =
+            previewframes[cnt].fd;
+          mDisplayBuf.preview.buf.mp[cnt].planes[j].reserved[0] =
+            mDisplayBuf.preview.buf.mp[cnt].planes[j-1].reserved[0] +
+            mDisplayBuf.preview.buf.mp[cnt].planes[j-1].length;
+        }
+      }
+     /* register the streaming buffers for the channel*/
+      mDisplayBuf.ch_type = MM_CAMERA_CH_PREVIEW;
+      mDisplayBuf.preview.num = PREVIEW_BUFFER_COUNT;
+      LOGE("Preview buf type =%d, offset[1] =%d, buffer[1] =%lx",
+        mDisplayBuf.ch_type, preview_offset[1], previewframes[1].buffer);
+    } else
+      ret = NO_MEMORY;
+
+    return ret;
 }
 
 status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *frame)

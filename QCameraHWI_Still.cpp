@@ -600,7 +600,9 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 {
     status_t ret = NO_ERROR;
     struct msm_frame *frame;
-    uint32_t frame_len, y_off, cbcr_off;
+    uint32_t frame_len;
+    uint8_t num_planes;
+    uint32_t planes[VIDEO_MAX_PLANES];
     mm_camera_reg_buf_t reg_buf;
 
     LOGD("%s: E", __func__);
@@ -622,7 +624,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             dim->raw_picture_width,
                                             dim->raw_picture_height,
                                             OUTPUT_TYPE_S,
-                                            &y_off, &cbcr_off);
+                                            &num_planes, planes);
 
     mSnapshotStreamBuf.frame_len = frame_len;
 
@@ -634,8 +636,8 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      frame_len,
                      num_of_buf,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "snapshot camera");
 
     if (!mRawSnapShotHeap->initialized()) {
@@ -644,6 +646,17 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
+    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
+    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num *
+                             sizeof(mm_camera_mp_buf_t)];
+    if (!reg_buf.def.buf.mp) {
+      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+      mRawSnapShotHeap.clear();
+      ret = NO_MEMORY;
+      goto end;
+    }
+    memset(reg_buf.def.buf.mp, 0,
+           mSnapshotStreamBuf.num * sizeof(mm_camera_mp_buf_t));
     for(int i = 0; i < mSnapshotStreamBuf.num; i++) {
         frame = &(mSnapshotStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -651,16 +664,26 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         frame->buffer = (uint32_t) mRawSnapShotHeap->mHeap->base() +
             mRawSnapShotHeap->mAlignedBufferSize * i;
         frame->path = OUTPUT_TYPE_S;
-        frame->cbcr_off = cbcr_off;
-        frame->y_off = y_off;
+        frame->cbcr_off = planes[0];
+        frame->y_off = 0;
+        reg_buf.def.buf.mp[i].frame = *frame;
+        reg_buf.def.buf.mp[i].num_planes = num_planes;
+        /* Plane 0 needs to be set seperately. Set other planes
+         * in a loop. */
+        reg_buf.def.buf.mp[i].planes[0].length = planes[0];
+        reg_buf.def.buf.mp[i].planes[0].m.userptr = frame->fd;
+        reg_buf.def.buf.mp[i].planes[0].reserved[0] = 0;
+        for (int j = 1; j < num_planes; j++) {
+          reg_buf.def.buf.mp[i].planes[j].length = planes[j];
+          reg_buf.def.buf.mp[i].planes[j].m.userptr = frame->fd;
+          reg_buf.def.buf.mp[i].planes[j].reserved[0] =
+            reg_buf.def.buf.mp[i].planes[j-1].length;
+        }
     }/*end of for loop*/
 
-
     /* register the streaming buffers for the channel*/
-    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
     reg_buf.ch_type = MM_CAMERA_CH_RAW;
     reg_buf.def.num = mSnapshotStreamBuf.num;
-    reg_buf.def.frame = mSnapshotStreamBuf.frame;
 
     ret = cam_config_prepare_buf(mCameraId, &reg_buf);
     if(ret != NO_ERROR) {
@@ -669,6 +692,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = FAILED_TRANSACTION;
         goto end;
     }
+
 
     /* If we have reached here successfully, we have allocated buffer.
        Set state machine.*/
@@ -679,6 +703,8 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
+    if (reg_buf.def.buf.mp)
+      delete []reg_buf.def.buf.mp;
     LOGD("%s: X", __func__);
     return ret;
 }
@@ -718,6 +744,8 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     status_t ret = NO_ERROR;
     struct msm_frame *frame;
     uint32_t frame_len, y_off, cbcr_off;
+    uint8_t num_planes;
+    uint32_t planes[VIDEO_MAX_PLANES];
     mm_camera_reg_buf_t reg_buf;
     uint32_t main_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
     uint32_t thumb_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
@@ -739,6 +767,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
     memset(&mSnapshotStreamBuf, 0, sizeof(mm_cameara_stream_buf_t));
     memset(&mPostviewStreamBuf, 0, sizeof(mm_cameara_stream_buf_t));
+    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
     /* Number of buffers to be set*/
     mSnapshotStreamBuf.num = num_of_buf;
     mPostviewStreamBuf.num = num_of_buf;
@@ -748,7 +777,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
     /*TBD: to be modified for 3D*/
     mm_jpeg_encoder_get_buffer_offset( dim->picture_width, dim->picture_height,
-                                       &y_off, &cbcr_off, &frame_len);
+                               &y_off, &cbcr_off, &frame_len, &num_planes, planes);
     mSnapshotStreamBuf.frame_len = frame_len;
 
     /* Allocate Memory to store snapshot image */
@@ -769,6 +798,16 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
+    reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf *
+                                   sizeof(mm_camera_mp_buf_t)];
+    if (!reg_buf.snapshot.main.buf.mp) {
+      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+      mRawHeap.clear();
+      ret = NO_MEMORY;
+      goto end;
+    }
+    memset(reg_buf.snapshot.main.buf.mp, 0,
+           num_of_buf * sizeof(mm_camera_mp_buf_t));
     for(int i = 0; i < mSnapshotStreamBuf.num; i++) {
         frame = &(mSnapshotStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -784,6 +823,24 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
              "cbcr_off: %d y_off: %d frame_len: %d", __func__,
              i, (unsigned int)frame->buffer, frame->fd,
              frame->phy_offset, cbcr_off, y_off, frame_len);
+        reg_buf.snapshot.main.buf.mp[i].frame = *frame;
+        reg_buf.snapshot.main.buf.mp[i].frame_offset = main_frame_offset[i];
+        reg_buf.snapshot.main.buf.mp[i].num_planes = num_planes;
+        /* Plane 0 needs to be set seperately. Set other planes
+         * in a loop. */
+        reg_buf.snapshot.main.buf.mp[i].planes[0].length = planes[0];
+        reg_buf.snapshot.main.buf.mp[i].planes[0].m.userptr = frame->fd;
+        reg_buf.snapshot.main.buf.mp[i].planes[0].data_offset = y_off;
+        reg_buf.snapshot.main.buf.mp[i].planes[0].reserved[0] =
+            reg_buf.snapshot.main.buf.mp[i].frame_offset;
+        for (int j = 1; j < num_planes; j++) {
+          reg_buf.snapshot.main.buf.mp[i].planes[j].length = planes[j];
+          reg_buf.snapshot.main.buf.mp[i].planes[j].m.userptr = frame->fd;
+          reg_buf.snapshot.main.buf.mp[i].planes[j].data_offset = cbcr_off;
+          reg_buf.snapshot.main.buf.mp[i].planes[j].reserved[0] =
+            reg_buf.snapshot.main.buf.mp[i].planes[j-1].reserved[0] +
+            reg_buf.snapshot.main.buf.mp[i].planes[j-1].length;
+        }
     }
 
     /* allocate memory for postview*/
@@ -791,7 +848,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             dim->ui_thumbnail_width,
                                             dim->ui_thumbnail_height,
                                             OUTPUT_TYPE_T,
-                                            &y_off, &cbcr_off);
+                                            &num_planes, planes);
     mPostviewStreamBuf.frame_len = frame_len;
 
 
@@ -803,8 +860,8 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      frame_len,
                      num_of_buf,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "thumbnail");
 
     if (!mPostviewHeap->initialized()) {
@@ -814,6 +871,17 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         ret = NO_MEMORY;
         goto end;
     }
+    reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf *
+                                   sizeof(mm_camera_mp_buf_t)];
+    if (!reg_buf.snapshot.thumbnail.buf.mp) {
+      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+      mRawHeap.clear();
+      mPostviewHeap.clear();
+      ret = NO_MEMORY;
+      goto end;
+    }
+    memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
+           num_of_buf * sizeof(mm_camera_mp_buf_t));
     for(int i = 0; i < mPostviewStreamBuf.num; i++) {
         frame = &(mPostviewStreamBuf.frame[i]);
         memset(frame, 0, sizeof(struct msm_frame));
@@ -823,23 +891,36 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         frame->buffer = (uint32_t)mPostviewHeap->mHeap->base() +
             thumb_frame_offset[i];
         frame->path = OUTPUT_TYPE_T;
-        frame->cbcr_off = cbcr_off;
-        frame->y_off = y_off;
+        frame->cbcr_off = planes[0];
+        frame->y_off = 0;
         LOGD("%s: Buffer idx: %d  addr: %x fd: %d phy_offset: %d"
-             "cbcr_off: %d y_off: %d frame_len: %d", __func__,
+             "frame_len: %d", __func__,
              i, (unsigned int)frame->buffer, frame->fd,
-             frame->phy_offset, cbcr_off, y_off, frame_len);
+             frame->phy_offset, frame_len);
+        reg_buf.snapshot.thumbnail.buf.mp[i].frame = *frame;
+        reg_buf.snapshot.thumbnail.buf.mp[i].frame_offset =
+            thumb_frame_offset[i];
+        reg_buf.snapshot.thumbnail.buf.mp[i].num_planes = num_planes;
+        /* Plane 0 needs to be set seperately. Set other planes
+         * in a loop. */
+        reg_buf.snapshot.thumbnail.buf.mp[i].planes[0].length = planes[0];
+        reg_buf.snapshot.thumbnail.buf.mp[i].planes[0].m.userptr = frame->fd;
+        reg_buf.snapshot.thumbnail.buf.mp[i].planes[0].reserved[0] =
+            reg_buf.snapshot.thumbnail.buf.mp[i].frame_offset;
+        for (int j = 1; j < num_planes; j++) {
+          reg_buf.snapshot.thumbnail.buf.mp[i].planes[j].length = planes[j];
+          reg_buf.snapshot.thumbnail.buf.mp[i].planes[j].m.userptr = frame->fd;
+          reg_buf.snapshot.thumbnail.buf.mp[i].planes[j].reserved[0] =
+            reg_buf.snapshot.thumbnail.buf.mp[i].planes[j-1].reserved[0] +
+            reg_buf.snapshot.thumbnail.buf.mp[i].planes[j-1].length;
+        }
     }/*end of for loop*/
 
     /* register the streaming buffers for the channel*/
-    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
+
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
     reg_buf.snapshot.main.num = mSnapshotStreamBuf.num;
-    reg_buf.snapshot.main.frame = mSnapshotStreamBuf.frame;
-    reg_buf.snapshot.main.frame_offset = main_frame_offset;
     reg_buf.snapshot.thumbnail.num = mPostviewStreamBuf.num;
-    reg_buf.snapshot.thumbnail.frame = mPostviewStreamBuf.frame;
-    reg_buf.snapshot.thumbnail.frame_offset = thumb_frame_offset;
 
     ret = cam_config_prepare_buf(mCameraId, &reg_buf);
     if(ret != NO_ERROR) {
@@ -856,6 +937,10 @@ end:
     if (ret != NO_ERROR) {
         handleError();
     }
+    if (reg_buf.snapshot.main.buf.mp)
+      delete []reg_buf.snapshot.main.buf.mp;
+    if (reg_buf.snapshot.thumbnail.buf.mp)
+      delete []reg_buf.snapshot.thumbnail.buf.mp;
     LOGD("%s: X", __func__);
     return ret;
 }

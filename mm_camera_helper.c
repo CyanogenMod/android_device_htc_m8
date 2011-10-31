@@ -124,43 +124,45 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
                                      int width,
                                      int height,
                                      int image_type,
-                                     uint32_t *yoffset,
-                                     uint32_t *cbcroffset)
-
+                                     uint8_t *num_planes,
+                                     uint32_t plane[])
 {
     uint32_t size;
+    *num_planes = 0;
 
-    *yoffset = 0;
     switch (fmt_type) {
     case CAMERA_YUV_420_NV12:
     case CAMERA_YUV_420_NV21:
+        *num_planes = 2;
         if(CAMERA_MODE_3D == mode) {
             size = (uint32_t)(PAD_TO_2K(width*height)*3/2);
-            *cbcroffset = PAD_TO_WORD(width*height);
+            plane[0] = PAD_TO_WORD(width*height);
         } else {
             if (image_type == OUTPUT_TYPE_V) {
-                *cbcroffset = PAD_TO_2K(width * height);
-                size = *cbcroffset + PAD_TO_2K(width * height/2);
+                plane[0] = PAD_TO_2K(width * height);
+                plane[1] = PAD_TO_2K(width * height/2);
             } else if (image_type == OUTPUT_TYPE_P) {
-                *cbcroffset = PAD_TO_WORD(width * height);
-                size = *cbcroffset + PAD_TO_WORD(width * height/2);
+                plane[0] = PAD_TO_WORD(width * height);
+                plane[1] = PAD_TO_WORD(width * height/2);
             } else {
-                *cbcroffset = PAD_TO_WORD(width * CEILING16(height));
-                size = *cbcroffset
-                        + PAD_TO_WORD(width * CEILING16(height)/2);
+                plane[0] = PAD_TO_WORD(width * CEILING16(height));
+                plane[1] = PAD_TO_WORD(width * CEILING16(height)/2);
             }
+            size = plane[0] + plane[1];
         }
         break;
     case CAMERA_BAYER_SBGGR10:
-        size = PAD_TO_WORD(width * height);
+        *num_planes = 1;
+        plane[0] = PAD_TO_WORD(width * height);
+        size = plane[0];
         break;
     default:
         CDBG("%s: format %d not supported.\n",
             __func__, fmt_type);
         size = 0;
     }
-    CDBG("%s:fmt=%d,image_type=%d,width=%d,height=%d,yoff=%d,cbcroff=%d,frame_len=%d\n",
-        __func__, fmt_type, image_type, width, height, *yoffset, *cbcroffset, size);
+    CDBG("%s:fmt=%d,image_type=%d,width=%d,height=%d,frame_len=%d\n",
+        __func__, fmt_type, image_type, width, height, size);
     return size;
 }
 

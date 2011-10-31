@@ -1660,11 +1660,11 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
     int height = 0; /* height of channel */
     uint32_t frame_len = 0; /* frame planner length */
     int buffer_num = 4; /* number of buffers for display */
-    uint32_t y_off=0;
-    uint32_t cbcr_off=0;
     status_t ret = NO_ERROR;
     struct msm_frame *preview_frame;
     unsigned long buffer_addr = 0;
+    uint32_t planes[VIDEO_MAX_PLANES];
+    uint8_t num_planes = 0;
 
     LOGI("%s: E", __func__);
 
@@ -1683,8 +1683,8 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                                             width,
                                             height,
                                             OUTPUT_TYPE_P,
-                                            &y_off,
-                                            &cbcr_off);
+                                            &num_planes,
+                                            planes);
 
     LOGE("%s: Frame Length calculated: %d", __func__, frame_len);
 
@@ -1695,8 +1695,8 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                      frame_len,
                      1,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "thumbnail");
 
     if (!mPostPreviewHeap->initialized()) {

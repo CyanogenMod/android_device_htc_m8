@@ -268,28 +268,35 @@ void mm_jpeg_encoder_join(void)
 /* This function returns the Yoffset and CbCr offset requirements for the Jpeg encoding*/
 int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
                                       uint32_t* p_y_offset, uint32_t* p_cbcr_offset,
-                                      uint32_t* p_buf_size)
+                                      uint32_t* p_buf_size, uint8_t *num_planes,
+                                      uint32_t planes[])
 {
   CDBG("jpeg_encoder_get_buffer_offset");
   if ((NULL == p_y_offset) || (NULL == p_cbcr_offset)) {
     return FALSE;
   }
-
+  /* Hardcode num planes and planes array for now. TBD Check if this
+   * needs to be set based on format. */
+  *num_planes = 2;
   if (hw_encode) {
     int cbcr_offset = 0;
     uint32_t actual_size = width*height;
     uint32_t padded_size = width * CEILING16(height);
     *p_y_offset = 0;
-    *p_cbcr_offset = padded_size;
+    *p_cbcr_offset = 0;
     if ((jpegRotation == 90) || (jpegRotation == 180)) {
-      *p_y_offset += padded_size - actual_size;
-      *p_cbcr_offset += ((padded_size - actual_size) >> 1);
+      *p_y_offset = padded_size - actual_size;
+      *p_cbcr_offset = ((padded_size - actual_size) >> 1);
     }
     *p_buf_size = padded_size * 3/2;
+    planes[0] = width * CEILING16(height);
+    planes[1] = width * CEILING16(height)/2;
   } else {
     *p_y_offset = 0;
     *p_cbcr_offset = PAD_TO_WORD(width*CEILING16(height));
     *p_buf_size = *p_cbcr_offset * 3/2;
+    planes[0] = PAD_TO_WORD(width*CEILING16(height));
+    planes[1] = PAD_TO_WORD(width*CEILING16(height)/2);
   }
   return TRUE;
 }
@@ -693,13 +700,9 @@ int8_t mm_jpeg_encoder_setRotation(int rotation)
   /* Set rotation configuration */
   switch(rotation)
   {
+      case 0:
       case 90:
       case 180:
-          /* TODO Remove this hack.
-           * For now for 90/180 degrees rotation
-           * use SW Encoder */
-          hw_encode = false;
-      case 0:
       case 270:
           jpegRotation = rotation;
           break;

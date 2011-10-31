@@ -59,7 +59,7 @@ extern int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality);
 extern int8_t mm_jpeg_encoder_setRotation(int rotation);
 extern void mm_jpeg_encoder_join(void);
 extern int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height, uint32_t* p_y_offset,
-  uint32_t* p_cbcr_offset, uint32_t* p_buf_size);
+  uint32_t* p_cbcr_offset, uint32_t* p_buf_size, uint8_t *num_planes, uint32_t planes[]);
 extern void mm_jpeg_encoder_set_3D_info(cam_3d_frame_format_t format);
 typedef void (*jpegfragment_callback_t)(uint8_t * buff_ptr,
                                         uint32_t buff_size,

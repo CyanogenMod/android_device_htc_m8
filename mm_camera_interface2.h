@@ -250,9 +250,23 @@ typedef struct {
 #define MM_CAMERA_MAX_FRAME_NUM 16
 
 typedef struct {
-    int8_t num;
     uint32_t *frame_offset;
     struct msm_frame *frame;
+} mm_camera_sp_buf_t;
+
+typedef struct {
+    int8_t num_planes;
+    struct v4l2_plane planes[VIDEO_MAX_PLANES];
+    uint32_t frame_offset;
+    struct msm_frame frame;
+} mm_camera_mp_buf_t;
+
+typedef struct {
+  int8_t num;
+  union {
+      mm_camera_sp_buf_t sp;
+      mm_camera_mp_buf_t *mp;
+  }buf;
 } mm_camera_buf_def_t;
 
 typedef struct {
@@ -569,7 +583,6 @@ extern uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
                                             int width,
                                             int height,
                                             int image_type,
-                                            uint32_t *yoffset,
-                                            uint32_t *cbcroffset);
-
+                                            uint8_t *num_planes,
+                                            uint32_t planes[]);
 #endif /*__MM_CAMERA_INTERFACE2_H__*/

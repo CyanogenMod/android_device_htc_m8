@@ -16,8 +16,8 @@
 
 /*#error uncomment this for compiler test!*/
 
-#define LOG_NDEBUG 0
-#define LOG_NIDEBUG 0
+//#define LOG_NDEBUG 0
+//#define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Preview"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -45,7 +45,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
 
     cam_ctrl_dimension_t dim;
 
-    LOGE("%s:BEGIN",__func__);
+    LOGV("%s:BEGIN",__func__);
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != ret) {
@@ -229,10 +229,10 @@ status_t QCameraStream_preview::start() {
 	  mPreviewHeap = NULL;
       return BAD_VALUE;
     }
-    LOGE("%s : Preview streaming Started",__func__);
+    LOGI("%s : Preview streaming Started",__func__);
 
     mActive =  true;
-    LOGE("%s: X", __func__);
+    LOGV("%s: X", __func__);
     return NO_ERROR;
   }
 
@@ -241,7 +241,7 @@ status_t QCameraStream_preview::start() {
 // QCameraStream_preview
 // ---------------------------------------------------------------------------
   void QCameraStream_preview::stop() {
-    LOGE("%s: E", __func__);
+    LOGV("%s: E", __func__);
     int ret=MM_CAMERA_OK;
 
     if(!mActive) {
@@ -253,7 +253,7 @@ status_t QCameraStream_preview::start() {
     mPreviewHeap.clear();
     mPreviewHeap = NULL;
 
-    LOGE("%s: X", __func__);
+    LOGV("%s: X", __func__);
 
   }
 // ---------------------------------------------------------------------------
@@ -261,7 +261,7 @@ status_t QCameraStream_preview::start() {
 // ---------------------------------------------------------------------------
   void QCameraStream_preview::release() {
 
-    LOGE("%s : BEGIN",__func__);
+    LOGV("%s : BEGIN",__func__);
     int ret=MM_CAMERA_OK,i;
 
     if(!mInit)
@@ -280,7 +280,7 @@ status_t QCameraStream_preview::start() {
     }
 
     mInit = false;
-    LOGE("%s: END", __func__);
+    LOGV("%s: END", __func__);
 
   }
 

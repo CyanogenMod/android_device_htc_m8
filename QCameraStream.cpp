@@ -16,7 +16,7 @@
 
 /*#error uncomment this for compiler test!*/
 
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 #define LOG_NIDEBUG 0
 #define LOG_TAG __FILE__
 #include <utils/Log.h>
@@ -96,41 +96,41 @@ void StreamQueue::flush(){
 static void preview_notify_cb(mm_camera_ch_data_buf_t *frame,
                                 void *user_data)
 {
-    LOGE("%s : E",__func__);
+    LOGV("%s : E",__func__);
     QCameraStream_preview *pme = (QCameraStream_preview *)user_data;
     if((frame->type == MM_CAMERA_CH_PREVIEW) && (pme != NULL)) {
         pme->processPreviewFrame(frame);
     }else{
         LOGE("Invalid stream Callback");
     }
-    LOGE("%s : X",__func__);
+    LOGV("%s : X",__func__);
 }
 
 static void record_notify_cb(mm_camera_ch_data_buf_t *frame,
                                 void *user_data)
 {
-    LOGE("%s : E",__func__);
+    LOGV("%s : E",__func__);
     QCameraStream_record *pme = (QCameraStream_record *)user_data;
     if((frame->type == MM_CAMERA_CH_VIDEO) && (pme != NULL)) {
         pme->processRecordFrame(frame);
     }else{
         LOGE("Invalid stream Callback");
     }
-    LOGE("%s : X",__func__);
+    LOGV("%s : X",__func__);
 
 }
 
 static void snapshot_notify_cb(mm_camera_ch_data_buf_t *frame,
                                 void *user_data)
 {
-    LOGE("%s : E",__func__);
+    LOGV("%s : E",__func__);
     QCameraStream_Snapshot *pme = (QCameraStream_Snapshot *)user_data;
     if((frame->type == MM_CAMERA_CH_SNAPSHOT) && (pme != NULL)) {
         pme->processSnapshotFrame(frame);
     }else{
         LOGE("Invalid stream Callback");
     }
-    LOGE("%s : X",__func__);
+    LOGV("%s : X",__func__);
 
 }
 

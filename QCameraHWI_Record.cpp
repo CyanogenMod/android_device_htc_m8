@@ -16,8 +16,8 @@
 
 /*#error uncomment this for compiler test!*/
 
-#define LOG_NDEBUG 0
-#define LOG_NIDEBUG 0
+//#define LOG_NDEBUG 0
+//#define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Record"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -220,7 +220,7 @@ void QCameraStream_record::release()
 
 status_t QCameraStream_record::processRecordFrame(void *data)
 {
-  LOGE("%s : BEGIN",__func__);
+  LOGV("%s : BEGIN",__func__);
   mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
   Mutex::Autolock lock(mStopCallbackLock);
 
@@ -250,7 +250,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
                       frame->video.video.frame->ts.tv_nsec;
 
   if(snapshot_enabled) {
-    LOGE("Live Snapshot Enabled");
+    LOGI("Live Snapshot Enabled");
     frame->snapshot.main.frame = frame->video.video.frame;
     frame->snapshot.main.idx = frame->video.video.idx;
     frame->snapshot.thumbnail.frame = frame->video.video.frame;
@@ -263,7 +263,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
 
     mJpegMaxSize = mHalCamCtrl->mDimension.video_width * mHalCamCtrl->mDimension.video_width * 1.5;
 #if 0
-    LOGE("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
+    LOGI("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
      if (mStreamSnap){
         LOGE("%s:Deleting old Snapshot stream instance",__func__);
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
@@ -281,7 +281,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     //mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
 #endif
     mHalCamCtrl->mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
-    LOGE("Calling takePictureLiveshot %d",record_frame_len);
+    LOGI("Calling takePictureLiveshot %d",record_frame_len);
     snapshot_enabled = false;
   }
 
@@ -323,14 +323,14 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId, frame))
       LOGE("%s : BUF DONE FAILED",__func__);
 #endif
-  LOGE("%s : END",__func__);
+  LOGV("%s : END",__func__);
   return NO_ERROR;
 }
 
 //Record Related Functions
 status_t QCameraStream_record::initEncodeBuffers()
 {
-  LOGE("%s : BEGIN",__func__);
+  LOGV("%s : BEGIN",__func__);
   status_t ret = NO_ERROR;
   const char *pmem_region;
   uint32_t frame_len;
@@ -384,8 +384,8 @@ status_t QCameraStream_record::initEncodeBuffers()
       return BAD_VALUE;
     }
   }
-  LOGE("PMEM Buffer Allocation Successfull");
-  LOGE("%s : END",__func__);
+  LOGI("PMEM Buffer Allocation Successfull");
+  LOGI("%s : END",__func__);
 	return ret;
 }
 
@@ -397,7 +397,7 @@ void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)
   unsigned int dst = 0;
   bool found = false;
 
-  LOGE("%s : BEGIN",__func__);
+  LOGV("%s : BEGIN",__func__);
   if(mem == NULL) {
     return;
   }
@@ -412,7 +412,7 @@ void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)
 
   mm_camera_ch_data_buf_t releasedBuf;
   mRecordFreeQueueLock.lock();
-  LOGE("%s (%d): mRecordFreeQueue has %d entries.\n", __FUNCTION__, __LINE__,
+  LOGI("%s (%d): mRecordFreeQueue has %d entries.\n", __FUNCTION__, __LINE__,
                                             mRecordFreeQueue.size());
   while(!mRecordFreeQueue.isEmpty()){
     LOGD("src = %d dst = %d",((unsigned int)(mRecordFreeQueue.itemAt(i)).video.video.frame->buffer),dst);
@@ -435,13 +435,13 @@ void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)
   if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &releasedBuf)){
       LOGE("%s : Buf Done Failed",__func__);
   }
-  LOGE("%s : END",__func__);
+  LOGV("%s : END",__func__);
   return;
 }
 
 status_t QCameraStream_record::getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize)
 {
-  LOGE("%s: BEGIN", __func__);
+  LOGV("%s: BEGIN", __func__);
   status_t ret;
   if( mRecordHeap != NULL){
     LOGE(" Setting valid buffer information allignedSize ");
@@ -459,7 +459,7 @@ status_t QCameraStream_record::getBufferInfo(sp<IMemory>& Frame, size_t *aligned
     Frame = NULL;
     ret = UNKNOWN_ERROR;
   }
-  LOGE("%s: X", __func__);
+  LOGV("%s: X", __func__);
   return ret;
 }
 
@@ -490,9 +490,9 @@ status_t  QCameraStream_record::takeLiveSnapshot()
   //snapshotframes = new msm_frame[1];
   //memset(snapshotframes,0,sizeof(struct msm_frame));
   //mJpegMaxSize = dim.video_width * dim.video_height * 1.5;
-  LOGE("%s: BEGIN", __func__);
+  LOGV("%s: BEGIN", __func__);
   snapshot_enabled = true;
-  LOGE("%s: END", __func__);
+  LOGV("%s: END", __func__);
   return true;
 }
 

@@ -995,15 +995,11 @@ void QCameraStream_Snapshot::deInitBuffer(void)
 }
 
 /*Temp: to be removed once event handling is enabled in mm-camera.
-  We need two events - one to call notifyShutter and other event for
+  We need an event - one event for
   stream-off to disable OPS_SNAPSHOT*/
 void QCameraStream_Snapshot::runSnapshotThread(void *data)
 {
     LOGD("%s: E", __func__);
-    /* play shutter sound */
-    LOGD("%s:Play shutter sound only", __func__);
-
-    notifyShutter(NULL, TRUE);
 
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
        /* TBD: Temp: Needs to be removed once event handling is enabled.
@@ -1534,58 +1530,6 @@ end:
     return ret;
 }
 
-/* Called twice - 1st to play shutter sound and 2nd to configure
-   overlay/surfaceflinger for postview */
-void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
-                                           bool mPlayShutterSoundOnly)
-{
-    image_rect_type size;
-    LOGD("%s: E", __func__);
-
-    if(mPlayShutterSoundOnly) {
-        /* At this point, invoke Notify Callback to play shutter sound only.
-         * We want to call notify callback again when we have the
-         * yuv picture ready. This is to reduce blanking at the time
-         * of displaying postview frame. Using ext2 to indicate whether
-         * to play shutter sound only or register the postview buffers.
-         */
-        LOGD("%s: Calling callback to play shutter sound", __func__);
-        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, 0,
-                                     mPlayShutterSoundOnly,
-                                     mHalCamCtrl->mCallbackCookie);
-        return;
-    }
-
-    if (mHalCamCtrl->mNotifyCb &&
-        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER)) {
-        mDisplayHeap = mPostviewHeap;
-        if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
-            size.width = crop->in1_w;
-            size.height = crop->in1_h;
-            LOGD("%s: Size from cropinfo: %dX%d", __func__,
-                 size.width, size.height);
-        }
-        else {
-            size.width = mPostviewWidth;
-            size.height = mPostviewHeight;
-            LOGD("%s: Size from global: %dX%d", __func__,
-                 size.width, size.height);
-        }
-        /*if(strTexturesOn == true) {
-            mDisplayHeap = mRawHeap;
-            size.width = mPictureWidth;
-            size.height = mPictureHeight;
-        }*/
-        /* Now, invoke Notify Callback to unregister preview buffer
-         * and register postview buffer with surface flinger. Set ext2
-         * as 0 to indicate not to play shutter sound.
-         */
-
-        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, (int32_t)&size, 0,
-                                     mHalCamCtrl->mCallbackCookie);
-    }
-    LOGD("%s: X", __func__);
-}
 
 status_t  QCameraStream_Snapshot::
 encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
@@ -1710,7 +1654,12 @@ status_t QCameraStream_Snapshot::processSnapshotFrame(mm_camera_ch_data_buf_t* r
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
         LOGD("%s: Call notifyShutter 2nd time", __func__);
-        notifyShutter(NULL, FALSE);
+        if(!mHalCamCtrl->mShutterSoundPlayed) {
+            notifyShutter(&crop, TRUE);
+        }
+        notifyShutter(&crop, FALSE);
+        mHalCamCtrl->mShutterSoundPlayed = FALSE;
+
         LOGD("%s: Sending Raw Snapshot Callback to Upperlayer", __func__);
         buf_index = recvd_frame->def.idx;
         if (mHalCamCtrl->mDataCb &&
@@ -1739,7 +1688,11 @@ status_t QCameraStream_Snapshot::processSnapshotFrame(mm_camera_ch_data_buf_t* r
         #endif
 
         LOGD("%s: Call notifyShutter 2nd time", __func__);
+        if(!mHalCamCtrl->mShutterSoundPlayed) {
+            notifyShutter(&crop, TRUE);
+        }
         notifyShutter(&crop, FALSE);
+        mHalCamCtrl->mShutterSoundPlayed = FALSE;
 
         /* The recvd_frame structre we receive from lower library is a local
            variable. So we'll need to save this structure so that we won't
@@ -2101,6 +2054,59 @@ void QCameraStream_Snapshot::deleteInstance(QCameraStream *p)
     delete p;
     p = NULL;
   }
+}
+
+/* Called twice - 1st to play shutter sound and 2nd to configure
+   overlay/surfaceflinger for postview */
+void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
+                                           bool mPlayShutterSoundOnly)
+{
+    image_rect_type size;
+    LOGD("%s: E", __func__);
+
+    if(mPlayShutterSoundOnly) {
+        /* At this point, invoke Notify Callback to play shutter sound only.
+         * We want to call notify callback again when we have the
+         * yuv picture ready. This is to reduce blanking at the time
+         * of displaying postview frame. Using ext2 to indicate whether
+         * to play shutter sound only or register the postview buffers.
+         */
+        LOGD("%s: Calling callback to play shutter sound", __func__);
+        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, 0,
+                                     mPlayShutterSoundOnly,
+                                     mHalCamCtrl->mCallbackCookie);
+        return;
+    }
+
+    if (mHalCamCtrl->mNotifyCb &&
+        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER)) {
+        mDisplayHeap = mPostviewHeap;
+        if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
+            size.width = crop->in1_w;
+            size.height = crop->in1_h;
+            LOGD("%s: Size from cropinfo: %dX%d", __func__,
+                 size.width, size.height);
+        }
+        else {
+            size.width = mPostviewWidth;
+            size.height = mPostviewHeight;
+            LOGD("%s: Size from global: %dX%d", __func__,
+                 size.width, size.height);
+        }
+        /*if(strTexturesOn == true) {
+            mDisplayHeap = mRawHeap;
+            size.width = mPictureWidth;
+            size.height = mPictureHeight;
+        }*/
+        /* Now, invoke Notify Callback to unregister preview buffer
+         * and register postview buffer with surface flinger. Set ext2
+         * as 0 to indicate not to play shutter sound.
+         */
+
+        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, (int32_t)&size, 0,
+                                     mHalCamCtrl->mCallbackCookie);
+    }
+    LOGD("%s Second: X", __func__);
 }
 
 }; // namespace android

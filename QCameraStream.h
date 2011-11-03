@@ -111,6 +111,8 @@ public:
     status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
                                  cam_ctrl_dimension_t *dim,
                                  int frame_len){return NO_ERROR;}
+    virtual void notifyShutter(common_crop_t *crop, bool play_shutter_sound){return;};
+
     QCameraStream();
     QCameraStream(int, camera_mode_t);
 
@@ -223,6 +225,7 @@ public:
     void        stop();
     void        release();
     void        prepareHardware();
+    void        notifyShutter(common_crop_t *crop, bool play_shutter_sound);
     static QCameraStream* createInstance(int cameraId, camera_mode_t);
     static void deleteInstance(QCameraStream *p);
 
@@ -250,8 +253,6 @@ private:
     status_t initRawSnapshot(int num_of_snapshots);
     status_t initZSLSnapshot(void);
     status_t cancelPicture();
-    void notifyShutter(common_crop_t *crop,
-                       bool play_shutter_sound);
     status_t initSnapshotBuffers(cam_ctrl_dimension_t *dim,
                                  int num_of_buf);
     status_t initRawSnapshotBuffers(cam_ctrl_dimension_t *dim,

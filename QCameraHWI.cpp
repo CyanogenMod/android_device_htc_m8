@@ -162,6 +162,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mZslLookBackMode(ZSL_LOOK_BACK_MODE_TIME),
                     mZslLookBackValue(0),
                     mZslEmptyQueueFlag(FALSE),
+                    mShutterSoundPlayed(FALSE),
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
                     mPostPreviewHeap(NULL)
@@ -715,6 +716,11 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
             autoFocusEvent(&event->status);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
+            break;
+        case MM_CAMERA_CTRL_EVT_SNAPSHOT_CONFIG_DONE:
+            mShutterSoundPlayed = TRUE;
+            mStreamSnap->notifyShutter(NULL, TRUE);
+
             break;
         default:
             break;

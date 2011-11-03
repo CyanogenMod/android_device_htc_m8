@@ -155,6 +155,7 @@ public:
                                      int *picture_height);
     void getJpegThumbnailSize(int *width, int *height) const;
     bool isRawSnapshot();
+    bool mShutterSoundPlayed;
 
     virtual status_t    dump(int fd, const Vector<String16>& args) const;
     void                dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);

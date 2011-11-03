@@ -400,7 +400,7 @@ status_t QCameraStream_record::initEncodeBuffers()
                         frame_len,
                         VIDEO_BUFFER_COUNT,
                         frame_len,
-                        cbcr_off,
+                        planes[0],
                         0,
                         "record");
 #else

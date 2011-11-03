@@ -1693,8 +1693,8 @@ status_t QCameraHardwareInterface::storePreviewFrameForPostview(void)
                      frame_len,
                      1,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "thumbnail");
 #else
     mPostPreviewHeap =

@@ -635,8 +635,8 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      frame_len,
                      num_of_buf,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "snapshot camera");
 #else
     mRawSnapShotHeap =
@@ -880,8 +880,8 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                      frame_len,
                      num_of_buf,
                      frame_len,
-                     cbcr_off,
-                     y_off,
+                     planes[0],
+                     0,
                      "thumbnail");
 #else
      mPostviewHeap =

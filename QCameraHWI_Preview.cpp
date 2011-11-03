@@ -133,7 +133,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
                           frame_len,
                           PREVIEW_BUFFER_COUNT,
                           frame_len,
-                          cbcr_off,
+                          planes[0],
                           0,
                           "preview");
 #else

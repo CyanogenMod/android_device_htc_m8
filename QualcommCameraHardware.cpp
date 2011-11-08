@@ -25,6 +25,7 @@
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <binder/MemoryHeapPmem.h>
+#include <binder/MemoryHeapIon.h>
 #include <utils/String16.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -3149,6 +3150,7 @@ static int parse_size(const char *str, int &width, int &height)
 bool QualcommCameraHardware::initPreview()
 {
     const char * pmem_region;
+    int ion_heap;
 
     LOGV("initPreview E: preview size=%dx%d videosize = %d x %d", previewWidth, previewHeight, videoWidth, videoHeight );
 
@@ -3182,6 +3184,7 @@ bool QualcommCameraHardware::initPreview()
     mInSnapshotModeWaitLock.unlock();
 
     pmem_region = "/dev/pmem_adsp";
+    ion_heap = ION_HEAP_ADSP_ID;
 
     int cnt = 0;
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
@@ -3245,6 +3248,17 @@ bool QualcommCameraHardware::initPreview()
       if(mInHFRThread == false)
       {
         mPrevHeapDeallocRunning = false;
+#ifdef USE_ION
+        mPreviewHeap = new IonPool(ion_heap,
+                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
+                                mPreviewFrameSize,
+                                kPreviewBufferCountActual,
+                                mPreviewFrameSize,
+                                CbCrOffset,
+                                0,
+                                "preview");
+#else
         mPreviewHeap = new PmemPool(pmem_region,
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
@@ -3254,7 +3268,7 @@ bool QualcommCameraHardware::initPreview()
                                 CbCrOffset,
                                 0,
                                 "preview");
-
+#endif
         if (!mPreviewHeap->initialized()) {
           mPreviewHeap.clear();
           LOGE("initPreview X: could not initialize Camera preview heap.");
@@ -3290,6 +3304,17 @@ bool QualcommCameraHardware::initPreview()
         ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627 ) &&
         previewWidth%32 != 0 ){
         LOGE("initpreview : creating YV12 heap as previewwidth %d not 32 aligned", previewWidth);
+#ifdef USE_ION
+        mYV12Heap = new IonPool(ion_heap,
+                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                MSM_PMEM_PREVIEW,
+                                yv12framesize,
+                                NUM_YV12_FRAMES,
+                                yv12framesize,
+                                CbCrOffset,
+                                0,
+                                "postview");
+#else
         mYV12Heap = new PmemPool(pmem_region,
                                 MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 MSM_PMEM_PREVIEW,
@@ -3299,6 +3324,7 @@ bool QualcommCameraHardware::initPreview()
                                 CbCrOffset,
                                 0,
                                 "postview");
+#endif
             if (!mYV12Heap->initialized()) {
                 mYV12Heap.clear();
                 LOGE("initPreview X: could not initialize YV12 Camera preview heap.");
@@ -3404,6 +3430,7 @@ bool QualcommCameraHardware::initRawSnapshot()
 {
     LOGV("initRawSnapshot E");
     const char * pmem_region;
+    int ion_heap;
 
     //get width and height from Dimension Object
     bool ret = native_set_parms(CAMERA_PARM_DIMENSION,
@@ -3426,12 +3453,26 @@ bool QualcommCameraHardware::initRawSnapshot()
         LOGV("initRawSnapshot: clearing old mRawSnapShotPmemHeap.");
         mRawSnapShotPmemHeap.clear();
     }
-    if(mCurrentTarget == TARGET_MSM8660)
+    if(mCurrentTarget == TARGET_MSM8660) {
        pmem_region = "/dev/pmem_smipool";
-    else
+       ion_heap = ION_HEAP_SMI_ID;
+    } else {
        pmem_region = "/dev/pmem_adsp";
+       ion_heap = ION_HEAP_ADSP_ID;
+    }
 
     //Pmem based pool for Camera Driver
+#ifdef USE_ION
+    mRawSnapShotPmemHeap = new IonPool(ion_heap,
+                                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                    MSM_PMEM_RAW_MAINIMG,
+                                    rawSnapshotSize,
+                                    1,
+                                    rawSnapshotSize,
+                                    0,
+                                    0,
+                                    "raw pmem snapshot camera");
+#else
     mRawSnapShotPmemHeap = new PmemPool(pmem_region,
                                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                     MSM_PMEM_RAW_MAINIMG,
@@ -3441,7 +3482,7 @@ bool QualcommCameraHardware::initRawSnapshot()
                                     0,
                                     0,
                                     "raw pmem snapshot camera");
-
+#endif
     if (!mRawSnapShotPmemHeap->initialized()) {
         mRawSnapShotPmemHeap.clear();
         LOGE("initRawSnapshot X: error initializing mRawSnapshotHeap");
@@ -3459,6 +3500,7 @@ bool QualcommCameraHardware::initRawSnapshot()
 bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     LOGE("Init ZSL buffers E");
     const char * pmem_region;
+    int ion_heap;
     int postViewBufferSize;
 
     mPostviewWidth = mDimension.display_width;
@@ -3509,11 +3551,26 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
     }
 
     LOGV("initZslBuffer: initializing mRawHeap.");
-    if(mCurrentTarget == TARGET_MSM8660)
+    if(mCurrentTarget == TARGET_MSM8660) {
        pmem_region = "/dev/pmem_smipool";
-    else
+       ion_heap = ION_HEAP_SMI_ID;
+    } else {
        pmem_region = "/dev/pmem_adsp";
+       ion_heap = ION_HEAP_ADSP_ID;
+    }
     //Main Raw Image
+#ifdef USE_ION
+    mRawHeap =
+        new IonPool( ion_heap,
+                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     MSM_PMEM_MAINIMG,
+                     mJpegMaxSize,
+                     MAX_SNAPSHOT_BUFFERS,
+                     mRawSize,
+                     mCbCrOffsetRaw,
+                     yOffset,
+                     "snapshot camera");
+#else
     mRawHeap =
         new PmemPool(pmem_region,
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3524,7 +3581,7 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
                      mCbCrOffsetRaw,
                      yOffset,
                      "snapshot camera");
-
+#endif
     if (!mRawHeap->initialized()) {
        LOGE("initZslBuffer X failed ");
        mRawHeap.clear();
@@ -3552,6 +3609,19 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
 
     //PostView
     pmem_region = "/dev/pmem_adsp";
+    ion_heap = ION_HEAP_ADSP_ID;
+#ifdef USE_ION
+    mPostviewHeap =
+            new IonPool(ion_heap,
+                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                        MSM_PMEM_THUMBNAIL,
+                        postViewBufferSize,
+                        MAX_SNAPSHOT_BUFFERS,
+                        postViewBufferSize,
+                        CbCrOffsetPostview,
+                        0,
+                        "thumbnail");
+#else
     mPostviewHeap =
             new PmemPool(pmem_region,
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3562,7 +3632,7 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
                          CbCrOffsetPostview,
                          0,
                          "thumbnail");
-
+#endif
 
     if (!mPostviewHeap->initialized()) {
         mPostviewHeap.clear();
@@ -3610,6 +3680,7 @@ bool QualcommCameraHardware::deinitZslBuffers()
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 {
     const char * pmem_region;
+    int ion_heap;
     int postViewBufferSize;
     uint32_t pictureAspectRatio;
     uint32_t i;
@@ -3764,10 +3835,13 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     LOGE("rawsize = %d cbcr offset =%d", mRawSize, mCbCrOffsetRaw);
 
     LOGV("initRaw: initializing mRawHeap.");
-    if(mCurrentTarget == TARGET_MSM8660)
+    if(mCurrentTarget == TARGET_MSM8660) {
        pmem_region = "/dev/pmem_smipool";
-    else
+       ion_heap = ION_HEAP_SMI_ID;
+    } else {
        pmem_region = "/dev/pmem_adsp";
+       ion_heap = ION_HEAP_ADSP_ID;
+    }
 
     mPmemWaitLock.lock();
     if(!mPrevHeapDeallocRunning){
@@ -3776,6 +3850,18 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
     mPmemWaitLock.unlock();
 
     //Main Raw Image
+#ifdef USE_ION
+    mRawHeap =
+        new IonPool(ion_heap,
+                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                     MSM_PMEM_MAINIMG,
+                     mJpegMaxSize,
+                     numCapture,
+                     mRawSize,
+                     mCbCrOffsetRaw,
+                     yOffset,
+                     "snapshot camera");
+#else
     mRawHeap =
         new PmemPool(pmem_region,
                      MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3786,7 +3872,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                      mCbCrOffsetRaw,
                      yOffset,
                      "snapshot camera");
-
+#endif
     if (!mRawHeap->initialized()) {
        LOGE("initRaw X failed ");
        mRawHeap.clear();
@@ -3820,7 +3906,19 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     //PostView
     pmem_region = "/dev/pmem_adsp";
-
+    ion_heap = ION_HEAP_ADSP_ID;
+#ifdef USE_ION
+    mPostviewHeap =
+            new IonPool(ion_heap,
+                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                         MSM_PMEM_THUMBNAIL,
+                         postViewBufferSize,
+                         numCapture,
+                         postViewBufferSize,
+                         CbCrOffsetPostview,
+                         0,
+                         "thumbnail");
+#else
     mPostviewHeap =
             new PmemPool(pmem_region,
                          MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3831,7 +3929,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
                          CbCrOffsetPostview,
                          0,
                          "thumbnail");
-
+#endif
     if (!mPostviewHeap->initialized()) {
         mPostviewHeap.clear();
         mJpegHeap.clear();
@@ -5439,6 +5537,7 @@ void QualcommCameraHardware::receiveCameraStats(camstats_type stype, camera_prev
 bool QualcommCameraHardware::initRecord()
 {
     const char *pmem_region;
+    int ion_heap;
     int CbCrOffset;
     int recordBufferSize;
 
@@ -5448,10 +5547,13 @@ bool QualcommCameraHardware::initRecord()
        return true;
     }
 
-    if(mCurrentTarget == TARGET_MSM8660)
+    if(mCurrentTarget == TARGET_MSM8660) {
         pmem_region = "/dev/pmem_smipool";
-    else
+        ion_heap = ION_HEAP_SMI_ID;
+    } else {
         pmem_region = "/dev/pmem_adsp";
+        ion_heap = ION_HEAP_ADSP_ID;
+    }
 
     LOGI("initRecord: mDimension.video_width = %d mDimension.video_height = %d",
              mDimension.video_width, mDimension.video_height);
@@ -5484,6 +5586,17 @@ bool QualcommCameraHardware::initRecord()
     }
     LOGV("mRecordFrameSize = %d", mRecordFrameSize);
     if(mRecordHeap == NULL) {
+#ifdef USE_ION
+        mRecordHeap = new IonPool(ion_heap,
+                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+                                MSM_PMEM_VIDEO,
+                                recordBufferSize,
+                                kRecordBufferCount,
+                                mRecordFrameSize,
+                                CbCrOffset,
+                                0,
+                                "record");
+#else
         mRecordHeap = new PmemPool(pmem_region,
                                MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
                                 MSM_PMEM_VIDEO,
@@ -5493,6 +5606,7 @@ bool QualcommCameraHardware::initRecord()
                                 CbCrOffset,
                                 0,
                                 "record");
+#endif
         if (!mRecordHeap->initialized()) {
             mRecordHeap.clear();
             mRecordHeap = NULL;
@@ -7658,6 +7772,122 @@ QualcommCameraHardware::PmemPool::~PmemPool()
     LOGI("%s: %s X", __FUNCTION__, mName);
 }
 
+#ifdef USE_ION
+const char QualcommCameraHardware::IonPool::mIonDevName[] = "/dev/ion";
+QualcommCameraHardware::IonPool::IonPool(int ion_heap_id, int flags,
+                                           int ion_type,
+                                           int buffer_size, int num_buffers,
+                                           int frame_size, int cbcr_offset,
+                                           int yOffset, const char *name) :
+    QualcommCameraHardware::MemPool(buffer_size,
+                                    num_buffers,
+                                    frame_size,
+                                    name),
+    mIonType(ion_type),
+    mCbCrOffset(cbcr_offset),
+    myOffset(yOffset)
+{
+    LOGI("constructing MemPool %s backed by pmem pool %s: "
+         "%d frames @ %d bytes, buffer size %d",
+         mName,
+         mIonDevName, num_buffers, frame_size,
+         buffer_size);
+
+    mMMCameraDLRef = QualcommCameraHardware::MMCameraDL::getInstance();
+
+
+    // Make a new mmap'ed heap that can be shared across processes.
+    // mAlignedBufferSize is already in 4k aligned. (do we need total size necessary to be in power of 2??)
+    mAlignedSize = mAlignedBufferSize * num_buffers;
+    sp<MemoryHeapIon> ionHeap = new MemoryHeapIon(mIonDevName, mAlignedSize,
+                                                  flags, 0x1<<ion_heap_id);
+    if (ionHeap->getHeapID() >= 0) {
+        mHeap = ionHeap;
+        ionHeap.clear();
+
+        mFd = mHeap->getHeapID();
+        LOGE("ion pool %s fd = %d", mIonDevName, mFd);
+        LOGE("mBufferSize=%d, mAlignedBufferSize=%d\n",
+                      mBufferSize, mAlignedBufferSize);
+
+        // Unregister preview buffers with the camera drivers.  Allow the VFE to write
+        // to all preview buffers except for the last one.
+        // Only Register the preview, snapshot and thumbnail buffers with the kernel.
+        if( (strcmp("postview", mName) != 0) ){
+            int num_buf = num_buffers;
+            if(!strcmp("preview", mName)) num_buf = kPreviewBufferCount;
+            LOGD("num_buffers = %d", num_buf);
+            for (int cnt = 0; cnt < num_buf; ++cnt) {
+                int active = 1;
+                if(ion_type == MSM_PMEM_VIDEO){
+                     active = (cnt<ACTIVE_VIDEO_BUFFERS);
+                     //When VPE is enabled, set the last record
+                     //buffer as active and pmem type as PMEM_VIDEO_VPE
+                     //as this is a requirement from VPE operation.
+                     //No need to set this pmem type to VIDEO_VPE while unregistering,
+                     //because as per camera stack design: "the VPE AXI is also configured
+                     //when VFE is configured for VIDEO, which is as part of preview
+                     //initialization/start. So during this VPE AXI config camera stack
+                     //will lookup the PMEM_VIDEO_VPE buffer and give it as o/p of VPE and
+                     //change it's type to PMEM_VIDEO".
+                     if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
+                         active = 1;
+                         ion_type = MSM_PMEM_VIDEO_VPE;
+                     }
+                     LOGV(" pmempool creating video buffers : active %d ", active);
+                }
+                else if (ion_type == MSM_PMEM_PREVIEW){
+                    active = (cnt < ACTIVE_PREVIEW_BUFFERS);
+                }
+                else if ((ion_type == MSM_PMEM_MAINIMG)
+                     || (ion_type == MSM_PMEM_THUMBNAIL)){
+                    active = (cnt < ACTIVE_ZSL_BUFFERS);
+                }
+                register_buf(mBufferSize,
+                         mFrameSize, mCbCrOffset, myOffset,
+                         mHeap->getHeapID(),
+                         mAlignedBufferSize * cnt,
+                         (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
+                         ion_type,
+                         active);
+            }
+        }
+
+        completeInitialization();
+    }
+    else LOGE("pmem pool %s error: could not create master heap!",
+              mIonDevName);
+    LOGI("%s: (%s) X ", __FUNCTION__, mName);
+}
+
+QualcommCameraHardware::IonPool::~IonPool()
+{
+    LOGI("%s: %s E", __FUNCTION__, mName);
+    if (mHeap != NULL) {
+        // Unregister preview buffers with the camera drivers.
+        //  Only Unregister the preview, snapshot and thumbnail
+        //  buffers with the kernel.
+        if( (strcmp("postview", mName) != 0) ){
+            int num_buffers = mNumBuffers;
+            if(!strcmp("preview", mName)) num_buffers = kPreviewBufferCount;
+            for (int cnt = 0; cnt < num_buffers; ++cnt) {
+                register_buf(mBufferSize,
+                         mFrameSize,
+                         mCbCrOffset,
+                         myOffset,
+                         mHeap->getHeapID(),
+                         mAlignedBufferSize * cnt,
+                         (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
+                         mIonType,
+                         false,
+                         false /* unregister */);
+            }
+        }
+    }
+    mMMCameraDLRef.clear();
+    LOGI("%s: %s X", __FUNCTION__, mName);
+}
+#endif
 QualcommCameraHardware::MemPool::~MemPool()
 {
     LOGV("destroying MemPool %s", mName);
@@ -7874,6 +8104,19 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
          mPreviewFrameSize);
     if(mLastPreviewFrameHeap == NULL) {
         int CbCrOffset = PAD_TO_WORD(mPreviewFrameSize * 2/3);
+#ifdef USE_ION
+
+        mLastPreviewFrameHeap =
+           new IonPool(ION_HEAP_ADSP_ID,
+           MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
+           MSM_PMEM_PREVIEW, //MSM_PMEM_OUTPUT2,
+           mPreviewFrameSize,
+           1,
+           mPreviewFrameSize,
+           CbCrOffset,
+           0,
+           "postview");
+#else
         mLastPreviewFrameHeap =
            new PmemPool("/dev/pmem_adsp",
            MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -7884,7 +8127,7 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
            CbCrOffset,
            0,
            "postview");
-
+#endif
            if (!mLastPreviewFrameHeap->initialized()) {
                mLastPreviewFrameHeap.clear();
                LOGE(" Failed to initialize Postview Heap");

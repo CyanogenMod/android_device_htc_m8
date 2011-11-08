@@ -21,6 +21,7 @@
 #include <camera/CameraHardwareInterface.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
+#include <binder/MemoryHeapIon.h>
 #include <stdint.h>
 #include <ui/Overlay.h>
 
@@ -226,6 +227,35 @@ private:
         sp<QualcommCameraHardware::MMCameraDL> mMMCameraDLRef;
     };
 
+    struct IonPool : public MemPool {
+        IonPool( int ion_heap_id, int flags, int ion_type,
+             int buffer_size, int num_buffers,
+             int frame_size, int cbcr_offset,
+             int yoffset, const char *name);
+    virtual ~IonPool();
+    int mFd;
+    int mIonType;
+    int mCbCrOffset;
+    int myOffset;
+    int mCameraControlFd;
+    uint32_t mAlignedSize;
+    sp<QualcommCameraHardware::MMCameraDL> mMMCameraDLRef;
+    static const char mIonDevName[];
+    };
+#ifdef USE_ION
+    sp<IonPool> mPreviewHeap;
+    sp<IonPool> mYV12Heap;
+    sp<IonPool> mRecordHeap;
+    sp<IonPool> mThumbnailHeap;
+    sp<IonPool> mRawHeap;
+    sp<IonPool> mDisplayHeap;
+    sp<AshmemPool> mJpegHeap;
+    sp<AshmemPool> mStatHeap;
+    sp<AshmemPool> mMetaDataHeap;
+    sp<IonPool> mRawSnapShotPmemHeap;
+    sp<IonPool> mLastPreviewFrameHeap;
+    sp<IonPool> mPostviewHeap;
+#else
     sp<PmemPool> mPreviewHeap;
     sp<PmemPool> mYV12Heap;
     sp<PmemPool> mRecordHeap;
@@ -238,7 +268,7 @@ private:
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<PmemPool> mLastPreviewFrameHeap;
     sp<PmemPool> mPostviewHeap;
-
+#endif
 
     sp<MMCameraDL> mMMCameraDLRef;
 

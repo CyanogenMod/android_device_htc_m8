@@ -365,7 +365,7 @@ void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
     mHalCamCtrl = ctrl;
 }
 
-status_t QCameraStream::initBuffers(uint8_t ch_type_mask,sp<PmemPool> mHeap)
+status_t QCameraStream::initBuffers(uint8_t ch_type_mask,sp<MemPool> mHeap)
 {
     uint8_t buffer_count = 0;
     status_t ret = NO_ERROR;
@@ -521,7 +521,7 @@ status_t QCameraStream::setFormat(uint8_t ch_type_mask)
     return ret;
 }
 
-status_t QCameraStream::start_stream(uint8_t ch_type, sp<PmemPool> mHeap)
+status_t QCameraStream::start_stream(uint8_t ch_type, sp<MemPool> mHeap)
 {
     status_t ret = NO_ERROR;
     mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO; //TODO : Check  Opmode

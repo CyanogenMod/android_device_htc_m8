@@ -75,9 +75,9 @@ public:
     bool mInit;
     bool mActive;
 
-    status_t start_stream(uint8_t ch_type, sp<PmemPool> mHeap);
+    status_t start_stream(uint8_t ch_type, sp<MemPool> mHeap);
     status_t stop_stream(uint8_t ch_type);
-    status_t initBuffers(uint8_t ch_type_mask,sp<PmemPool> mHeap);
+    status_t initBuffers(uint8_t ch_type_mask,sp<MemPool> mHeap);
     status_t setFormat(uint8_t ch_type_mask);
 
     virtual status_t    init();

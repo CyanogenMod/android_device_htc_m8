@@ -103,7 +103,8 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
             CAMERA_FACING_FRONT : CAMERA_FACING_BACK;
 
         cameraInfo->orientation = mm_camer_obj->camera_info.sensor_mount_angle;
-
+#if 0
+        // TODO: fix me
         /* We always supprot ZSL in our stack*/
         cameraInfo->mode = CAMERA_SUPPORT_MODE_ZSL;
         if (mm_camer_obj->camera_info.modes_supported & CAMERA_MODE_2D) {
@@ -112,13 +113,14 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
         if (mm_camer_obj->camera_info.modes_supported & CAMERA_MODE_3D) {
             cameraInfo->mode |= CAMERA_SUPPORT_MODE_3D;
         }
+#endif
     }
    LOGV("%s: X", __func__);
    return;
 }
 
 /* HAL should return NULL if it fails to open camera hardware. */
-extern "C" sp<CameraHardwareInterface> HAL_openCameraHardware(int cameraId, int mode)
+extern "C" void * HAL_openCameraHardware(int cameraId, int mode)
 {
     LOGV("%s: E", __func__);
     if (!HAL_numOfCameras || HAL_numOfCameras < cameraId ||cameraId < 0) {

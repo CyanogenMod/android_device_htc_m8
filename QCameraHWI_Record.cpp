@@ -16,8 +16,8 @@
 
 /*#error uncomment this for compiler test!*/
 
-//#define LOG_NDEBUG 0
-//#define LOG_NIDEBUG 0
+#define LOG_NDEBUG 0
+#define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Record"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -38,6 +38,7 @@
 // ---------------------------------------------------------------------------
 namespace android {
 
+
 QCameraStream* QCameraStream_record::createInstance(int cameraId,
                                       camera_mode_t mode)
 {
@@ -56,7 +57,6 @@ void QCameraStream_record::deleteInstance(QCameraStream *ptr)
   if (ptr){
     ptr->release();
     delete ptr;
-    ptr = NULL;
   }
   LOGV("%s: END", __func__);
 }
@@ -66,7 +66,9 @@ void QCameraStream_record::deleteInstance(QCameraStream *ptr)
 // ---------------------------------------------------------------------------
 QCameraStream_record::QCameraStream_record(int cameraId,
                                            camera_mode_t mode)
-  :QCameraStream(cameraId,mode),
+  :QCameraStream(),
+  mCameraId(cameraId),
+  myMode (mode),
   mDebugFps(false),
   snapshot_enabled(false)
 {
@@ -98,6 +100,23 @@ QCameraStream_record::~QCameraStream_record() {
 }
 
 // ---------------------------------------------------------------------------
+// QCameraStream_record Callback from mm_camera
+// ---------------------------------------------------------------------------
+static void record_notify_cb(mm_camera_ch_data_buf_t *bufs_new,
+                              void *user_data)
+{
+  QCameraStream_record *pme = (QCameraStream_record *)user_data;
+  mm_camera_ch_data_buf_t *bufs_used = 0;
+  LOGV("%s: BEGIN", __func__);
+
+  /*
+  * Call Function Process Video Data
+  */
+  pme->processRecordFrame(bufs_new);
+  LOGV("%s: END", __func__);
+}
+
+// ---------------------------------------------------------------------------
 // QCameraStream_record
 // ---------------------------------------------------------------------------
 status_t QCameraStream_record::init()
@@ -105,13 +124,30 @@ status_t QCameraStream_record::init()
   status_t ret = NO_ERROR;
   LOGV("%s: BEGIN", __func__);
 
-/*
+  /*
+  *  Allocating Encoder Frame Buffers
+  */
+  ret = initEncodeBuffers();
+  if (NO_ERROR!=ret) {
+    LOGE("%s ERROR: Buffer Allocation Failed\n",__func__);
+    return ret;
+  }
+
+  /*
   *  Acquiring Video Channel
   */
   ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_VIDEO_MASK);
   if (NO_ERROR!=ret) {
     LOGE("%s ERROR: Can't init native cammera preview ch\n",__func__);
     return ret;
+  }
+
+  ret = cam_config_prepare_buf(mCameraId, &mRecordBuf);
+  if(ret != MM_CAMERA_OK) {
+    LOGV("%s ERROR: Reg preview buf err=%d\n", __func__, ret);
+    ret = BAD_VALUE;
+  }else{
+    ret = NO_ERROR;
   }
   mInit = true;
   LOGV("%s: END", __func__);
@@ -126,30 +162,28 @@ status_t QCameraStream_record::start()
   status_t ret = NO_ERROR;
   LOGV("%s: BEGIN", __func__);
 
-  if(!mInit) {
+	if(!mInit) {
     LOGE("%s ERROR: Record buffer not registered",__func__);
     return BAD_VALUE;
   }
 
-  mRecordFreeQueueLock.lock();
-  mRecordFreeQueue.clear();
-  mRecordFreeQueueLock.unlock();
-
   /*
-  *  Allocating Encoder Frame Buffers
+  * Register the Callback with camera
   */
-  ret = initEncodeBuffers();
-  if (NO_ERROR!=ret) {
-    LOGE("%s ERROR: Buffer Allocation Failed\n",__func__);
-    return ret;
-  }
+  (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                            record_notify_cb,
+                                            this);
 
-  ret = start_stream(MM_CAMERA_CH_VIDEO_MASK,mRecordHeap);
-  if(NO_ERROR != ret){
-    LOGE("%s: X - start stream error", __func__);
-    mRecordHeap.clear();
-    mRecordHeap = NULL;
-    return BAD_VALUE;
+	/*
+  * Start Video Streaming
+  */
+  ret = cam_ops_action(mCameraId, TRUE, MM_CAMERA_OPS_VIDEO, 0);
+  if (MM_CAMERA_OK != ret) {
+    LOGE ("%s ERROR: Video streaming start err=%d\n", __func__, ret);
+    ret = BAD_VALUE;
+  }else{
+    LOGE("%s : Video streaming Started",__func__);
+    ret = NO_ERROR;
   }
   mActive = true;
   LOGV("%s: END", __func__);
@@ -168,7 +202,7 @@ void QCameraStream_record::stop()
     LOGE("%s : Record stream not started",__func__);
     return;
   }
-
+#if 0 //mzhu, when stop recording, all frame will be dirty. no need to queue frame back to kernel any more
   mRecordFreeQueueLock.lock();
   while(!mRecordFreeQueue.isEmpty()) {
     LOGV("%s : Pre-releasing of Encoder buffers!\n", __FUNCTION__);
@@ -181,15 +215,24 @@ void QCameraStream_record::stop()
         LOGE("%s : Buf Done Failed",__func__);
   }
   mRecordFreeQueueLock.unlock();
+#if 0
+  while (!mRecordFreeQueue.isEmpty()) {
+        LOGE("%s : Waiting for Encoder to release all buffer!\n", __FUNCTION__);
+  }
+#endif
+#endif // mzhu
+  /* unregister the notify fn from the mmmm_camera_t object
+   *  call stop() in parent class to stop the monitor thread */
 
-  mActive = false;
-  Mutex::Autolock lock(mStopCallbackLock);
-  stop_stream(MM_CAMERA_CH_VIDEO_MASK);
-  if(mRecordHeap != NULL) {
-    mRecordHeap.clear();
-    mRecordHeap = NULL;
+  ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_VIDEO, 0);
+  if (MM_CAMERA_OK != ret) {
+    LOGE ("%s ERROR: Video streaming Stop err=%d\n", __func__, ret);
   }
 
+ (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                            NULL,
+                                            NULL);
+  mActive = false;
   LOGV("%s: END", __func__);
 
 }
@@ -209,10 +252,26 @@ void QCameraStream_record::release()
     return;
   }
 
+  ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_VIDEO);
+  if(ret != MM_CAMERA_OK){
+    LOGE("%s ERROR: Ureg video buf \n", __func__);
+  }
+
   ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_VIDEO);
   if(ret != MM_CAMERA_OK) {
     LOGE("%s:Deinit Video channel failed=%d\n", __func__, ret);
   }
+
+  for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
+	  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->release(
+		  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]);
+	  close(mHalCamCtrl->mRecordingMemory.fd[cnt]);
+  }
+  memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
+  //mNumRecordFrames = 0;
+  delete[] recordframes;
+  if (mRecordBuf.video.video.buf.mp)
+    delete[] mRecordBuf.video.video.buf.mp;
 
   mInit = false;
   LOGV("%s: END", __func__);
@@ -220,37 +279,26 @@ void QCameraStream_record::release()
 
 status_t QCameraStream_record::processRecordFrame(void *data)
 {
-  LOGV("%s : BEGIN",__func__);
-  mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
-  Mutex::Autolock lock(mStopCallbackLock);
+    LOGE("%s : BEGIN",__func__);
+    mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
+    if (UNLIKELY(mDebugFps)) {
+        debugShowVideoFPS();
+    }
 
-  if(!mActive) {
-      if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, frame)){
-          LOGE("%s : BUF DONE FAILED",__func__);
-      }
-      return NO_ERROR;
-  }
 
-  if (UNLIKELY(mDebugFps)) {
-    debugShowVideoFPS();
-  }
+    //mHalCamCtrl->dumpFrameToFile(frame->video.video.frame, HAL_DUMP_FRM_VIDEO);
+    mHalCamCtrl->mCallbackLock.lock();
+    camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
+    void *rdata = mHalCamCtrl->mCallbackCookie;
+    mHalCamCtrl->mCallbackLock.unlock();
 
-  mHalCamCtrl->dumpFrameToFile(frame->video.video.frame, HAL_DUMP_FRM_VIDEO);
+    mRecordedFrames[frame->video.video.idx] = *frame;
 
-  mHalCamCtrl->mCallbackLock.lock();
-  data_callback_timestamp rcb = mHalCamCtrl->mDataCbTimestamp;
-  void *rdata = mHalCamCtrl->mCallbackCookie;
-  mHalCamCtrl->mCallbackLock.unlock();
-
-  mRecordFreeQueueLock.lock();
-  mRecordFreeQueue.add(*frame);
-  mRecordFreeQueueLock.unlock();
-
-  nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + \
+    nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + \
                       frame->video.video.frame->ts.tv_nsec;
 
   if(snapshot_enabled) {
-    LOGI("Live Snapshot Enabled");
+    LOGE("Live Snapshot Enabled");
     frame->snapshot.main.frame = frame->video.video.frame;
     frame->snapshot.main.idx = frame->video.video.idx;
     frame->snapshot.thumbnail.frame = frame->video.video.frame;
@@ -262,8 +310,8 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     dim.ui_thumbnail_height = mHalCamCtrl->mDimension.display_height;
 
     mJpegMaxSize = mHalCamCtrl->mDimension.video_width * mHalCamCtrl->mDimension.video_width * 1.5;
-#if 0
-    LOGI("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
+
+    LOGE("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
      if (mStreamSnap){
         LOGE("%s:Deleting old Snapshot stream instance",__func__);
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
@@ -277,28 +325,18 @@ status_t QCameraStream_record::processRecordFrame(void *data)
         LOGE("%s: error - can't creat snapshot stream!", __func__);
         return BAD_VALUE;
     }
-    //mStreamSnap->setHALCameraControl(this->mHalCamCtrl);
-    //mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
-#endif
-    mHalCamCtrl->mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
-    LOGI("Calling takePictureLiveshot %d",record_frame_len);
+    mStreamSnap->setHALCameraControl(this->mHalCamCtrl);
+    mStreamSnap->takePictureLiveshot(frame,&dim,mJpegMaxSize);
+
     snapshot_enabled = false;
   }
 
+  LOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
 #if 1
-  if(rcb != NULL && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-      LOGE("Send Video frame to services/encoder idx = %d, TimeStamp : %lld",frame->video.video.idx,timeStamp);
-      mStopCallbackLock.unlock();
-      if(mActive) {
-          rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
-      }
-      LOGE("rcb returned");
-  }else{
-      if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, frame)){
-        LOGE("%s : BUF DONE FAILED",__func__);
-      }
-      return NO_ERROR;
-  }
+   //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
+	 rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
+            mHalCamCtrl->mRecordingMemory.camera_memory[frame->video.video.idx],
+            0, mHalCamCtrl->mCallbackCookie);
 #else  //Dump the Frame
     {
       static int frameCnt = 0;
@@ -323,22 +361,27 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId, frame))
       LOGE("%s : BUF DONE FAILED",__func__);
 #endif
-  LOGV("%s : END",__func__);
+  LOGE("%s : END",__func__);
   return NO_ERROR;
 }
 
 //Record Related Functions
 status_t QCameraStream_record::initEncodeBuffers()
 {
-  LOGV("%s : BEGIN",__func__);
+  LOGE("%s : BEGIN",__func__);
   status_t ret = NO_ERROR;
   const char *pmem_region;
   uint32_t frame_len;
+  uint8_t num_planes;
+  uint32_t planes[VIDEO_MAX_PLANES];
   //cam_ctrl_dimension_t dim;
   int width = 0;  /* width of channel  */
   int height = 0; /* height of channel */
 
   pmem_region = "/dev/pmem_adsp";
+
+
+  memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
   memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
   ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
   if (MM_CAMERA_OK != ret) {
@@ -350,11 +393,12 @@ status_t QCameraStream_record::initEncodeBuffers()
     height = dim.video_height;
   }
 
-  num_planes = 0;
+  //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
   frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
                                  width,height, OUTPUT_TYPE_V,
                                  &num_planes, planes);
-  record_frame_len = frame_len;
+
+#if 0
   if(mRecordHeap == NULL)
   {
 #ifdef USE_ION
@@ -383,84 +427,161 @@ status_t QCameraStream_record::initEncodeBuffers()
       LOGE("%s: ERROR : could not initialize record heap.",__func__);
       return BAD_VALUE;
     }
+   } else {
+    /*if(mHFRMode == true) {
+    LOGI("%s: register record buffers with camera driver", __FUNCTION__);
+    register_record_buffers(true);
+    mHFRMode = false;
+    }*/
   }
-  LOGI("PMEM Buffer Allocation Successfull");
-  LOGI("%s : END",__func__);
-	return ret;
-}
+	LOGE("PMEM Buffer Allocation Successfull");
+#endif
 
-void QCameraStream_record::releaseRecordingFrame(const sp<IMemory>& mem)
-{
-  ssize_t offset;
-  size_t size;
-  int i = 0;
-  unsigned int dst = 0;
-  bool found = false;
-
-  LOGV("%s : BEGIN",__func__);
-  if(mem == NULL) {
-    return;
+#if 0
+  memset(&mRecordBuf, 0, sizeof(mRecordBuf));
+  /* allocate memory for mplanar frame struct. */
+  mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
+                                  sizeof(mm_camera_mp_buf_t)];
+  if (!mRecordBuf.video.video.buf.mp) {
+    LOGE("%s Error allocating memory for mplanar struct ", __func__);
+    mRecordHeap.clear();
+    mRecordHeap = NULL;
+    return BAD_VALUE;
   }
-  if(!mActive)
-  {
-    LOGE("%s : Recording already stopped!!! Leak???",__func__);
-    return;
-  }
-
-  sp<IMemoryHeap> heap = mem->getMemory(&offset, &size);
-  dst = (unsigned int)heap->base()+ offset;
-
-  mm_camera_ch_data_buf_t releasedBuf;
-  mRecordFreeQueueLock.lock();
-  LOGI("%s (%d): mRecordFreeQueue has %d entries.\n", __FUNCTION__, __LINE__,
-                                            mRecordFreeQueue.size());
-  while(!mRecordFreeQueue.isEmpty()){
-    LOGD("src = %d dst = %d",((unsigned int)(mRecordFreeQueue.itemAt(i)).video.video.frame->buffer),dst);
-    if(dst ==	((unsigned int)(mRecordFreeQueue.itemAt(i)).video.video.frame->buffer)) {
-      releasedBuf = mRecordFreeQueue.itemAt(i);
-      mRecordFreeQueue.removeAt(i);
-      found = true;
-      break;
+  memset(mRecordBuf.video.video.buf.mp, 0,
+         VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+  mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
+  mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
+  recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
+  if(recordframes != NULL) {
+    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
+    for (int cnt = 0; cnt < VIDEO_BUFFER_COUNT; cnt++) {
+      recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
+      recordframes[cnt].buffer =
+          (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
+      recordframes[cnt].y_off = 0;
+      recordframes[cnt].cbcr_off = planes[0];
+      recordframes[cnt].path = OUTPUT_TYPE_V;
+      //record_buffers_tracking_flag[cnt] = false;
+      record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
+      LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d offset = %d \n",
+        (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, record_offset[cnt]);
+      mRecordBuf.video.video.buf.mp[cnt].frame = recordframes[cnt];
+      mRecordBuf.video.video.buf.mp[cnt].frame_offset = record_offset[cnt];
+      mRecordBuf.video.video.buf.mp[cnt].num_planes = num_planes;
+      /* Plane 0 needs to be set seperately. Set other planes
+       * in a loop. */
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].reserved[0] =
+        mRecordBuf.video.video.buf.mp[cnt].frame_offset;
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].length = planes[0];
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].m.userptr =
+        recordframes[cnt].fd;
+      for (int j = 1; j < num_planes; j++) {
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].length = planes[j];
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].m.userptr =
+          recordframes[cnt].fd;
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].reserved[0] =
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].reserved[0] +
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].length;
+      }
     }
-    i++;
-  }
-  mRecordFreeQueueLock.unlock();
-  if(!found){
-    LOGE(" No Matching Buffer.. return");
-    return;
-  }
-  LOGI("%s (%d): releasedBuf.idx = %d\n", __FUNCTION__, __LINE__,
-                                            releasedBuf.video.video.idx);
-
-  if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &releasedBuf)){
-      LOGE("%s : Buf Done Failed",__func__);
-  }
-  LOGV("%s : END",__func__);
-  return;
-}
-
-status_t QCameraStream_record::getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize)
-{
-  LOGV("%s: BEGIN", __func__);
-  status_t ret;
-  if( mRecordHeap != NULL){
-    LOGE(" Setting valid buffer information allignedSize ");
-    Frame = mRecordHeap->mBuffers[0];
-    if( alignedSize != NULL) {
-      *alignedSize = mRecordHeap->mAlignedBufferSize;
-      LOGV(" HAL : alignedSize = %d ", *alignedSize);
-      ret = NO_ERROR;
-    } else {
-      LOGE(" HAL : alignedSize is NULL. Cannot update alignedSize ");
-      ret = UNKNOWN_ERROR;
-    }
+    LOGE("Record buf type =%d, offset[1] =%d, buffer[1] =%lx", mRecordBuf.ch_type, record_offset[1], recordframes[1].buffer);
+    LOGE("%s : END",__func__);
   } else {
-    LOGE(" RecordHeap is null. Buffer information wont be updated ");
-    Frame = NULL;
-    ret = UNKNOWN_ERROR;
+    ret = NO_MEMORY;
   }
-  LOGV("%s: X", __func__);
   return ret;
+#endif
+
+    recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
+    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
+
+		mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
+                                  sizeof(mm_camera_mp_buf_t)];
+		if (!mRecordBuf.video.video.buf.mp) {
+			LOGE("%s Error allocating memory for mplanar struct ", __func__);
+			return BAD_VALUE;
+		}
+		memset(mRecordBuf.video.video.buf.mp, 0,
+					 VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+
+    memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
+    mHalCamCtrl->mRecordingMemory.buffer_count = VIDEO_BUFFER_COUNT;
+
+		mHalCamCtrl->mRecordingMemory.size = frame_len;
+		mHalCamCtrl->mRecordingMemory.cbcr_offset = planes[0];
+
+    for (int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
+		mHalCamCtrl->mRecordingMemory.fd[cnt] = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
+		if(mHalCamCtrl->mRecordingMemory.fd[cnt] <= 0) {
+			LOGE("%s: no pmem for frame %d", __func__, cnt);
+			return UNKNOWN_ERROR;
+		}
+		mHalCamCtrl->mRecordingMemory.camera_memory[cnt] =
+		    mHalCamCtrl->mGetMemory(mHalCamCtrl->mRecordingMemory.fd[cnt],
+		mHalCamCtrl->mRecordingMemory.size, 1, (void *)this);
+    	recordframes[cnt].fd = mHalCamCtrl->mRecordingMemory.fd[cnt];
+    	recordframes[cnt].buffer = (uint32_t)mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data;
+	    recordframes[cnt].y_off = 0;
+	    recordframes[cnt].cbcr_off = mHalCamCtrl->mRecordingMemory.cbcr_offset;
+	    recordframes[cnt].path = OUTPUT_TYPE_V;
+			//record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
+
+	    //record_buffers_tracking_flag[cnt] = false;
+	    //record_offset[cnt] =  0;
+	    LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d\n",
+		    (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
+		    recordframes[cnt].cbcr_off);
+	    //mNumRecordFrames++;
+
+			mRecordBuf.video.video.buf.mp[cnt].frame = recordframes[cnt];
+      mRecordBuf.video.video.buf.mp[cnt].frame_offset = 0;
+      mRecordBuf.video.video.buf.mp[cnt].num_planes = num_planes;
+      /* Plane 0 needs to be set seperately. Set other planes
+       * in a loop. */
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].reserved[0] =
+        mRecordBuf.video.video.buf.mp[cnt].frame_offset;
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].length = planes[0];
+      mRecordBuf.video.video.buf.mp[cnt].planes[0].m.userptr =
+        recordframes[cnt].fd;
+      for (int j = 1; j < num_planes; j++) {
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].length = planes[j];
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].m.userptr =
+          recordframes[cnt].fd;
+        mRecordBuf.video.video.buf.mp[cnt].planes[j].reserved[0] =
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].reserved[0] +
+          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].length;
+      }
+    }
+
+    //memset(&mRecordBuf, 0, sizeof(mRecordBuf));
+    mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
+    mRecordBuf.video.video.num = mHalCamCtrl->mRecordingMemory.buffer_count;//kRecordBufferCount;
+    //mRecordBuf.video.video.frame_offset = &record_offset[0];
+    //mRecordBuf.video.video.frame = &recordframes[0];
+    LOGE("%s : END",__func__);
+    return NO_ERROR;
+}
+
+void QCameraStream_record::releaseRecordingFrame(const void *opaque)
+{
+    LOGE("%s : BEGIN, opaque = 0x%p",__func__, opaque);
+    if(!mActive)
+    {
+        LOGE("%s : Recording already stopped!!! Leak???",__func__);
+        return;
+    }
+    for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
+        if(mHalCamCtrl->mRecordingMemory.camera_memory[cnt] &&
+                mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data == opaque) {
+            /* found the match */
+            if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mRecordedFrames[cnt]))
+                LOGE("%s : Buf Done Failed",__func__);
+            LOGE("%s : END",__func__);
+            return;
+		}
+    }
+	LOGE("%s: cannot find the matched frame with opaue = 0x%p", __func__, opaque);
 }
 
 void QCameraStream_record::debugShowVideoFPS() const
@@ -480,6 +601,7 @@ void QCameraStream_record::debugShowVideoFPS() const
   }
 }
 
+#if 0
 sp<IMemoryHeap> QCameraStream_record::getHeap() const
 {
   return mRecordHeap != NULL ? mRecordHeap->mHeap : NULL;
@@ -490,10 +612,14 @@ status_t  QCameraStream_record::takeLiveSnapshot()
   //snapshotframes = new msm_frame[1];
   //memset(snapshotframes,0,sizeof(struct msm_frame));
   //mJpegMaxSize = dim.video_width * dim.video_height * 1.5;
-  LOGV("%s: BEGIN", __func__);
+  LOGE("%s: BEGIN", __func__);
   snapshot_enabled = true;
-  LOGV("%s: END", __func__);
+  LOGE("%s: END", __func__);
   return true;
+}
+#endif
+status_t  QCameraStream_record::takeLiveSnapshot(){
+	return true;
 }
 
 }//namespace android

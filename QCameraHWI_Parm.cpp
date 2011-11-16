@@ -22,7 +22,9 @@
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <binder/MemoryHeapPmem.h>
+#ifdef USE_ION
 #include <binder/MemoryHeapIon.h>
+#endif
 #include <utils/String16.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -1021,13 +1023,30 @@ void QCameraHardwareInterface::initDefaultParameters()
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }
-    mUseOverlay = useOverlay();
+    //mUseOverlay = useOverlay();
 
     mInitialized = true;
     strTexturesOn = false;
 
     LOGI("%s: X", __func__);
     return;
+}
+
+/**
+ * Set the camera parameters. This returns BAD_VALUE if any parameter is
+ * invalid or not supported.
+ */
+
+int QCameraHardwareInterface::setParameters(const char *parms)
+{
+    CameraParameters param;
+    String8 str = String8(parms);
+    param.unflatten(str);
+    status_t ret = setParameters(param);
+	if(ret == NO_ERROR)
+		return 0;
+	else
+		return -1;
 }
 
 /**
@@ -1044,15 +1063,15 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setRecordSize(params)))                   final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
-    if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
+    //  if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
     if ((rc = setEffect(params)))                       final_rc = rc;
     //    if ((rc = setGpsLocation(params)))            final_rc = rc;
-    if ((rc = setRotation(params)))               final_rc = rc;
-    if ((rc = setZoom(params)))                   final_rc = rc;
-    if ((rc = setOrientation(params)))            final_rc = rc;
-    if ((rc = setLensshadeValue(params)))         final_rc = rc;
-    if ((rc = setMCEValue(params)))               final_rc = rc;
+    if ((rc = setRotation(params)))                     final_rc = rc;
+    if ((rc = setZoom(params)))                         final_rc = rc;
+    if ((rc = setOrientation(params)))                  final_rc = rc;
+    if ((rc = setLensshadeValue(params)))               final_rc = rc;
+    if ((rc = setMCEValue(params)))                     final_rc = rc;
     if ((rc = setPictureFormat(params)))                final_rc = rc;
     if ((rc = setSharpness(params)))                    final_rc = rc;
     if ((rc = setSaturation(params)))                   final_rc = rc;
@@ -1079,9 +1098,9 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
         /* Fps mode has to be set before fps*/
         if ((rc = setPreviewFrameRate(params)))         final_rc = rc;
         if ((rc = setAutoExposure(params)))             final_rc = rc;
-        if ((rc = setExposureCompensation(params))) final_rc = rc;
+        if ((rc = setExposureCompensation(params)))     final_rc = rc;
         if ((rc = setWhiteBalance(params)))             final_rc = rc;
-        if ((rc = setFlash(params)))          final_rc = rc;
+        if ((rc = setFlash(params)))                    final_rc = rc;
         if ((rc = setFocusMode(params)))                final_rc = rc;
         if ((rc = setBrightness(params)))               final_rc = rc;
         if ((rc = setISOValue(params)))                 final_rc = rc;
@@ -1095,6 +1114,33 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     final_rc=NO_ERROR;
    LOGI("%s: X", __func__);
    return final_rc;
+}
+
+/** Retrieve the camera parameters.  The buffer returned by the camera HAL
+	must be returned back to it with put_parameters, if put_parameters
+	is not NULL.
+ */
+int QCameraHardwareInterface::getParameters(char **parms)
+{
+    char* rc = NULL;
+    String8 str;
+    CameraParameters param = getParameters();
+    str = param.flatten( );
+    rc = (char *)malloc(sizeof(char)*(str.length()+1));
+    strncpy(rc, str.string(), str.length());
+	rc[str.length()] = 0;
+	*parms = rc;
+    return 0;
+}
+
+/** The camera HAL uses its own memory to pass us the parameters when we
+	call get_parameters.  Use this function to return the memory back to
+	the camera HAL, if put_parameters is not NULL.  If put_parameters
+	is NULL, then you have to use free() to release the memory.
+*/
+void QCameraHardwareInterface::putParameters(char *rc)
+{
+    free(rc);
 }
 
 CameraParameters QCameraHardwareInterface::getParameters() const
@@ -2033,7 +2079,7 @@ status_t QCameraHardwareInterface::setOverlayFormats(const CameraParameters& par
 {
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
     if(mIs3DModeOn == true) {
-        int ovFormat = HAL_PIXEL_FORMAT_YCrCb_420_SP|HAL_3D_IN_SIDE_BY_SIDE_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
+       int ovFormat = HAL_PIXEL_FORMAT_YCrCb_420_SP|HAL_3D_IN_SIDE_BY_SIDE_L_R|HAL_3D_OUT_SIDE_BY_SIDE;
         mParameters.set("overlay-format", ovFormat);
     }
     return NO_ERROR;
@@ -2369,12 +2415,6 @@ cam_format_t QCameraHardwareInterface::getPreviewFormat() const
 int QCameraHardwareInterface::getJpegQuality() const
 {
     return mParameters.getInt(CameraParameters::KEY_JPEG_QUALITY);
-}
-
-void QCameraHardwareInterface::getJpegThumbnailSize(int *width, int *height) const
-{
-    *width  = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-    *height = mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
 }
 
 int QCameraHardwareInterface::getNumOfSnapshots(void) const

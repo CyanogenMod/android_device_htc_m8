@@ -18,12 +18,10 @@
 #ifndef __QCAMERAHWI_MEM_H
 #define __QCAMERAHWI_MEM_H
 
-#include <camera/CameraHardwareInterface.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <utils/threads.h>
 #include <stdint.h>
-#include <ui/Overlay.h>
 
 extern "C" {
 #include <linux/android_pmem.h>

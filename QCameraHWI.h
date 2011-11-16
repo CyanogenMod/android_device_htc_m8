@@ -19,12 +19,19 @@
 
 
 #include <utils/threads.h>
-#include <camera/CameraHardwareInterface.h>
+//#include <camera/CameraHardwareInterface.h>
+#include <hardware/camera.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <binder/MemoryHeapPmem.h>
 #include <utils/threads.h>
 #include <cutils/properties.h>
+#include <camera/Camera.h>
+#include <camera/CameraParameters.h>
+#include <system/window.h>
+#include <system/camera.h>
+#include <hardware/camera.h>
+#include <gralloc_priv.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -95,56 +102,245 @@ typedef enum {
 
 #define HAL_DUMP_FRM_MASK_ALL ( HAL_DUMP_FRM_PREVIEW + HAL_DUMP_FRM_VIDEO + \
     HAL_DUMP_FRM_MAIN + HAL_DUMP_FRM_THUMBNAIL)
+#define QCAMERA_HAL_PREVIEW_STOPPED    0
+#define QCAMERA_HAL_PREVIEW_START      1
+#define QCAMERA_HAL_PREVIEW_STARTED    2
+#define QCAMERA_HAL_RECORDING_STARTED  3
+#define QCAMERA_HAL_TAKE_PICTURE       4
+
+
+typedef struct {
+     int                     buffer_count;
+	 buffer_handle_t        *buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
+	 struct private_handle_t *private_buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
+	 int                     stride[MM_CAMERA_MAX_NUM_FRAMES];
+	 uint32_t                addr_offset[MM_CAMERA_MAX_NUM_FRAMES];
+	 uint8_t                 local_flag[MM_CAMERA_MAX_NUM_FRAMES];
+	 camera_memory_t        *camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+} QCameraHalMemory_t;
+
+
+typedef struct {
+     int                     buffer_count;
+     uint32_t                size;
+     uint32_t                y_offset;
+     uint32_t                cbcr_offset;
+	 int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
+	 int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
+	 camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+	 void*                   pmem[MM_CAMERA_MAX_NUM_FRAMES];
+} QCameraHalHeap_t;
 
 namespace android {
 
 class QCameraStream;
 
-class QCameraHardwareInterface : public CameraHardwareInterface {
+class QCameraHardwareInterface : public virtual RefBase {
 public:
-    virtual sp<IMemoryHeap> getPreviewHeap() const;
-    virtual sp<IMemoryHeap> getRawHeap() const;
 
-    virtual void        setCallbacks(notify_callback notify_cb,
-                                     data_callback data_cb,
-                                     data_callback_timestamp data_cb_timestamp,
-                                     void* user);
+    QCameraHardwareInterface(int  cameraId, int mode);
 
-    virtual void        enableMsgType(int32_t msgType);
-    virtual void        disableMsgType(int32_t msgType);
-    virtual bool        msgTypeEnabled(int32_t msgType);
+    /** Set the ANativeWindow to which preview frames are sent */
+    int setPreviewWindow(preview_stream_ops_t* window);
 
-    virtual status_t    startPreview();
-    virtual void        stopPreview();
-    virtual bool        previewEnabled();
+    /** Set the notification and data callbacks */
+    void setCallbacks(camera_notify_callback notify_cb,
+            camera_data_callback data_cb,
+            camera_data_timestamp_callback data_cb_timestamp,
+            camera_request_memory get_memory,
+            void *user);
 
-    virtual status_t    startRecording();
-    virtual void        stopRecording();
-    virtual bool        recordingEnabled();
-    virtual void        releaseRecordingFrame(const sp<IMemory>& mem);
+    /**
+     * The following three functions all take a msg_type, which is a bitmask of
+     * the messages defined in include/ui/Camera.h
+     */
 
-    virtual status_t    autoFocus();
-    virtual status_t    cancelAutoFocus();
-    virtual status_t    takePicture();
-    virtual status_t    cancelPicture();
-    virtual status_t    takeLiveSnapshot();
+    /**
+     * Enable a message, or set of messages.
+     */
+    void enableMsgType(int32_t msg_type);
 
-    virtual status_t          setParameters(const CameraParameters& params);
-    virtual CameraParameters  getParameters() const;
-    virtual status_t          getBufferInfo( sp<IMemory>& Frame,
-    size_t *alignedSize);
+    /**
+     * Disable a message, or a set of messages.
+     *
+     * Once received a call to disableMsgType(CAMERA_MSG_VIDEO_FRAME), camera
+     * HAL should not rely on its client to call releaseRecordingFrame() to
+     * release video recording frames sent out by the cameral HAL before and
+     * after the disableMsgType(CAMERA_MSG_VIDEO_FRAME) call. Camera HAL
+     * clients must not modify/access any video recording frame after calling
+     * disableMsgType(CAMERA_MSG_VIDEO_FRAME).
+     */
+    void disableMsgType(int32_t msg_type);
+
+    /**
+     * Query whether a message, or a set of messages, is enabled.  Note that
+     * this is operates as an AND, if any of the messages queried are off, this
+     * will return false.
+     */
+    int msgTypeEnabled(int32_t msg_type);
+
+    /**
+     * Start preview mode.
+     */
+    int startPreview();
+    int startPreview2();
+
+    /**
+     * Stop a previously started preview.
+     */
+    void stopPreview();
+
+    /**
+     * Returns true if preview is enabled.
+     */
+    int previewEnabled();
+
+
+    /**
+     * Request the camera HAL to store meta data or real YUV data in the video
+     * buffers sent out via CAMERA_MSG_VIDEO_FRAME for a recording session. If
+     * it is not called, the default camera HAL behavior is to store real YUV
+     * data in the video buffers.
+     *
+     * This method should be called before startRecording() in order to be
+     * effective.
+     *
+     * If meta data is stored in the video buffers, it is up to the receiver of
+     * the video buffers to interpret the contents and to find the actual frame
+     * data with the help of the meta data in the buffer. How this is done is
+     * outside of the scope of this method.
+     *
+     * Some camera HALs may not support storing meta data in the video buffers,
+     * but all camera HALs should support storing real YUV data in the video
+     * buffers. If the camera HAL does not support storing the meta data in the
+     * video buffers when it is requested to do do, INVALID_OPERATION must be
+     * returned. It is very useful for the camera HAL to pass meta data rather
+     * than the actual frame data directly to the video encoder, since the
+     * amount of the uncompressed frame data can be very large if video size is
+     * large.
+     *
+     * @param enable if true to instruct the camera HAL to store
+     *        meta data in the video buffers; false to instruct
+     *        the camera HAL to store real YUV data in the video
+     *        buffers.
+     *
+     * @return OK on success.
+     */
+    int storeMetaDataInBuffers(int enable);
+
+    /**
+     * Start record mode. When a record image is available, a
+     * CAMERA_MSG_VIDEO_FRAME message is sent with the corresponding
+     * frame. Every record frame must be released by a camera HAL client via
+     * releaseRecordingFrame() before the client calls
+     * disableMsgType(CAMERA_MSG_VIDEO_FRAME). After the client calls
+     * disableMsgType(CAMERA_MSG_VIDEO_FRAME), it is the camera HAL's
+     * responsibility to manage the life-cycle of the video recording frames,
+     * and the client must not modify/access any video recording frames.
+     */
+    int startRecording();
+
+    /**
+     * Stop a previously started recording.
+     */
+    void stopRecording();
+
+    /**
+     * Returns true if recording is enabled.
+     */
+    int recordingEnabled();
+
+    /**
+     * Release a record frame previously returned by CAMERA_MSG_VIDEO_FRAME.
+     *
+     * It is camera HAL client's responsibility to release video recording
+     * frames sent out by the camera HAL before the camera HAL receives a call
+     * to disableMsgType(CAMERA_MSG_VIDEO_FRAME). After it receives the call to
+     * disableMsgType(CAMERA_MSG_VIDEO_FRAME), it is the camera HAL's
+     * responsibility to manage the life-cycle of the video recording frames.
+     */
+    void releaseRecordingFrame(const void *opaque);
+
+    /**
+     * Start auto focus, the notification callback routine is called with
+     * CAMERA_MSG_FOCUS once when focusing is complete. autoFocus() will be
+     * called again if another auto focus is needed.
+     */
+    int autoFocus();
+
+    /**
+     * Cancels auto-focus function. If the auto-focus is still in progress,
+     * this function will cancel it. Whether the auto-focus is in progress or
+     * not, this function will return the focus position to the default.  If
+     * the camera does not support auto-focus, this is a no-op.
+     */
+    int cancelAutoFocus();
+
+    /**
+     * Take a picture.
+     */
+    int takePicture();
+
+    /**
+     * Cancel a picture that was started with takePicture. Calling this method
+     * when no picture is being taken is a no-op.
+     */
+    int cancelPicture();
+
+    /**
+     * Set the camera parameters. This returns BAD_VALUE if any parameter is
+     * invalid or not supported.
+     */
+    int setParameters(const char *parms);
+
+    //status_t setParameters(const CameraParameters& params);
+    /** Retrieve the camera parameters.  The buffer returned by the camera HAL
+        must be returned back to it with put_parameters, if put_parameters
+        is not NULL.
+     */
+    int getParameters(char **parms);
+
+    /** The camera HAL uses its own memory to pass us the parameters when we
+        call get_parameters.  Use this function to return the memory back to
+        the camera HAL, if put_parameters is not NULL.  If put_parameters
+        is NULL, then you have to use free() to release the memory.
+    */
+    void putParameters(char *);
+
+    /**
+     * Send command to camera driver.
+     */
+    int sendCommand(int32_t cmd, int32_t arg1, int32_t arg2);
+
+    /**
+     * Release the hardware resources owned by this object.  Note that this is
+     * *not* done in the destructor.
+     */
+    void release();
+
+    /**
+     * Dump state of the camera hardware
+     */
+    int dump(int fd);
+
+    //virtual sp<IMemoryHeap> getPreviewHeap() const;
+    //virtual sp<IMemoryHeap> getRawHeap() const;
+
+
+    status_t    takeLiveSnapshot();
+
+    status_t          setParameters(const CameraParameters& params);
+    CameraParameters  getParameters() const;
+    //virtual status_t          getBufferInfo( sp<IMemory>& Frame,
+    //size_t *alignedSize);
     void         getPictureSize(int *picture_width, int *picture_height) const;
     void         getPreviewSize(int *preview_width, int *preview_height) const;
     cam_format_t getPreviewFormat() const;
 
-    virtual bool     useOverlay(void);
-    virtual status_t setOverlay(const sp<Overlay> &overlay);
+    //bool     useOverlay(void);
+    //virtual status_t setOverlay(const sp<Overlay> &overlay);
 
-    virtual void release();
-
-    virtual status_t    sendCommand(int32_t command, int32_t arg1,
-                                    int32_t arg2);
-    virtual void        encodeData();
+    void        encodeData();
 
     void processEvent(mm_camera_event_t *);
     int  getJpegQuality() const;
@@ -153,23 +349,33 @@ public:
     int  getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                                      int *picture_width,
                                      int *picture_height);
-    void getJpegThumbnailSize(int *width, int *height) const;
     bool isRawSnapshot();
     bool mShutterSoundPlayed;
-
-    virtual status_t    dump(int fd, const Vector<String16>& args) const;
     void                dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
 
-    static sp<CameraHardwareInterface> createInstance(int, int);
+    static QCameraHardwareInterface *createInstance(int, int);
+	//QCameraHardwareInterface(int cameraId, int mode);
     status_t setZSLLookBack(int mode, int value);
     void getZSLLookBack(int *mode, int *value);
     void setZSLEmptyQueueFlag(bool flag);
     void getZSLEmptyQueueFlag(bool *flag);
+    //QCameraHardwareInterface(int  cameraId, int mode);
+    ~QCameraHardwareInterface();
+   int intiHeapMem(QCameraHalHeap_t *heap,
+				int num_of_buf,
+				int pmem_type,
+				int frame_len,
+				int cbcr_off,
+				int y_off,
+				mm_cameara_stream_buf_t *StreamBuf);
+
+	int releaseHeapMem( QCameraHalHeap_t *heap);
+	void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
+
+
+
 
 private:
-                        QCameraHardwareInterface(int  cameraId, int);
-    virtual             ~QCameraHardwareInterface();
-
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
     bool mUseOverlay;
 
@@ -180,7 +386,7 @@ private:
 
     void hasAutoFocusSupport();
     void debugShowPreviewFPS() const;
-    void prepareSnapshotAndWait();
+    //void prepareSnapshotAndWait();
 
     bool isPreviewRunning();
     bool isRecordingRunning();
@@ -210,9 +416,11 @@ private:
 
     void stopPreviewInternal();
     void stopRecordingInternal();
-    void stopPreviewZSL();
+    //void stopPreviewZSL();
     status_t cancelPictureInternal();
-    status_t startPreviewZSL();
+    //status_t startPreviewZSL();
+    void pausePreviewForSnapshot();
+	status_t resumePreviewAfterSnapshot();
 
     status_t runFaceDetection();
     status_t setPictureSizeTable(void);
@@ -272,29 +480,27 @@ private:
 
     void freePictureTable(void);
 
-    int32_t createPreview();
-    int32_t createRecord();
-    int32_t createSnapshot();
-
     int           mCameraId;
     camera_mode_t myMode;
 
     CameraParameters    mParameters;
-    sp<Overlay>         mOverlay;
+    //sp<Overlay>         mOverlay;
     int32_t             mMsgEnabled;
 
-    notify_callback         mNotifyCb;
-    data_callback           mDataCb;
-    data_callback_timestamp mDataCbTimestamp;
-    void                    *mCallbackCookie;
+    camera_notify_callback         mNotifyCb;
+    camera_data_callback           mDataCb;
+    camera_data_timestamp_callback mDataCbTimestamp;
+	camera_request_memory          mGetMemory;
+    void                           *mCallbackCookie;
 
-    sp<MemoryHeapBase>  mPreviewHeap;  //@Guru : Need to remove
+    //sp<MemoryHeapBase>  mPreviewHeap;  //@Guru : Need to remove
     sp<AshmemPool>      mMetaDataHeap;
 
     mutable Mutex       mLock;
     //mutable Mutex       eventLock;
     Mutex         mCallbackLock;
-    Mutex         mOverlayLock;
+    Mutex         mPreviewMemoryLock;
+    Mutex         mRecordingMemoryLock;
     Mutex         mAutofocusLock;
     Mutex         mMetaDataWaitLock;
     pthread_mutex_t     mAsyncCmdMutex;
@@ -394,6 +600,18 @@ private:
 #else
     sp<PmemPool> mPostPreviewHeap;
 #endif
+     mm_cameara_stream_buf_t mPrevForPostviewBuf;
+	 int mStoreMetaDataInFrame;
+	 preview_stream_ops_t *mPreviewWindow;
+     Mutex                mStateLock;
+	 int                  mPreviewState;
+     QCameraHalMemory_t   mPreviewMemory;
+     QCameraHalHeap_t     mSnapshotMemory;
+     QCameraHalHeap_t     mThumbnailMemory;
+     QCameraHalHeap_t     mRecordingMemory;
+     QCameraHalHeap_t     mJpegMemory;
+	 camera_frame_metadata_t mMetadata;
+	 camera_face_t           mFace[MAX_ROI];
 };
 
 }; // namespace android

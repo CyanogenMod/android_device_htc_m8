@@ -216,7 +216,7 @@ static void mm_camera_read_zsl_main_frame(mm_camera_obj_t * my_obj)
         if(frame) {
             rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
             if(rc < 0) {
-                CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
+                CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
                      __func__, frame->idx, rc);
                 return;
             }
@@ -245,7 +245,7 @@ static void mm_camera_read_zsl_postview_frame(mm_camera_obj_t * my_obj)
         if(frame) {
             rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
             if(rc < 0) {
-                CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
+                CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
                      __func__, frame->idx, rc);
                 return;
             }
@@ -350,13 +350,13 @@ void mm_camera_histo_mmap(mm_camera_obj_t * my_obj, mm_camera_event_t *evt)
             rc = mm_camera_util_s_ctrl(my_obj->ctrl_fd, MSM_V4L2_PID_MMAP_ENTRY,
                     (int)&my_obj->hist_mem_map.entry[i].cookie);
             if( rc < 0) {
-                CDBG_ERROR("%s: MSM_V4L2_PID_MMAP_ENTRY error", __func__);
+                CDBG("%s: MSM_V4L2_PID_MMAP_ENTRY error", __func__);
                 goto err;
             }
             ret = mmap(NULL, my_obj->hist_mem_map.entry[i].cookie.length,
                   (PROT_READ  | PROT_WRITE), MAP_SHARED, my_obj->ctrl_fd, offset);
             if(ret == MAP_FAILED) {
-                CDBG_ERROR("%s: mmap error at idx %d", __func__, i);
+                CDBG("%s: mmap error at idx %d", __func__, i);
                 goto err;
             }
             my_obj->hist_mem_map.entry[i].vaddr = (uint32_t)ret;
@@ -434,7 +434,7 @@ void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd)
             case MM_CAMERA_STATS_EVT_HISTO:
                 rc = mm_camera_histo_fill_vaddr(my_obj, evt);
                 if(rc != MM_CAMERA_OK) {
-                    CDBG_ERROR("%s:cannot find histo stat's vaddr (cookie=0x%x)",
+                    CDBG("%s:cannot find histo stat's vaddr (cookie=0x%x)",
                         __func__, evt->e.stats.e.stats_histo.cookie);
                     return;
                 }

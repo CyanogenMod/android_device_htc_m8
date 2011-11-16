@@ -18,7 +18,7 @@
 #define ANDROID_HARDWARE_QCAMERA_HAL_H
 
 
-#include <camera/CameraHardwareInterface.h>
+#include "QCameraHWI.h"
 
 extern "C" {
 #include <mm_camera_interface2.h>
@@ -26,9 +26,10 @@ extern "C" {
 namespace android {
 
 /* HAL should return NULL if it fails to open camera hardware. */
-extern "C" sp<CameraHardwareInterface>
+extern "C" void *
        QCameraHAL_openCameraHardware(int  cameraId, int mode);
-
+extern "C" int HAL_getNumberOfCameras();
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo);
 
 }; // namespace android
 

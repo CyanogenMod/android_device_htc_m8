@@ -49,7 +49,7 @@ typedef enum {
     ZSL_LOOK_BACK_MODE_UNDEFINED
 }mm_camera_zsl_lb_mode;
 
-#define ZSL_INTERNAL_QUEUE_SIZE 8
+#define ZSL_INTERNAL_QUEUE_SIZE 2
 
 typedef struct {
     int32_t width;

@@ -58,7 +58,7 @@ uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd)
     int  pmem_fd = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
 
     if (pmem_fd <= 0) {
-        CDBG_ERROR("do_mmap: Open device /dev/pmem_adsp failed!\n");
+        CDBG("do_mmap: Open device /dev/pmem_adsp failed!\n");
         return NULL;
     }
     /* to make it page size aligned */
@@ -70,7 +70,7 @@ uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd)
     pmem_fd,
     0);
     if (ret == MAP_FAILED) {
-        CDBG_ERROR("do_mmap: pmem mmap() failed: %s (%d)\n", strerror(errno), errno);
+        CDBG("do_mmap: pmem mmap() failed: %s (%d)\n", strerror(errno), errno);
         close(pmem_fd);
         return NULL;
     }
@@ -89,7 +89,7 @@ int mm_camera_do_munmap(int pmem_fd, void *addr, size_t size)
     int rc;
 
     if (pmem_fd <= 0) {
-        CDBG_ERROR("%s:invalid fd=%d\n", __func__, pmem_fd);
+        CDBG("%s:invalid fd=%d\n", __func__, pmem_fd);
         return -1;
     }
     size = (size + 4095) & (~4095);
@@ -158,7 +158,7 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
         size = plane[0];
         break;
     default:
-        CDBG_ERROR("%s: format %d not supported.\n",
+        CDBG("%s: format %d not supported.\n",
             __func__, fmt_type);
         size = 0;
     }

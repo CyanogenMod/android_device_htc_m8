@@ -314,13 +314,15 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
     /* not first open */
     if(g_cam_ctrl.cam_obj[camera_id]) {
         g_cam_ctrl.cam_obj[camera_id]->ref_count++;
+    CDBG("%s:  opened alreadyn", __func__);
         goto end;
     }
     g_cam_ctrl.cam_obj[camera_id] =
     (mm_camera_obj_t *)malloc(sizeof(mm_camera_obj_t));
     if(!g_cam_ctrl.cam_obj[camera_id]) {
         rc = -MM_CAMERA_E_NO_MEMORY;
-        goto end;
+     CDBG("%s:  no mem", __func__);
+       goto end;
     }
     memset(g_cam_ctrl.cam_obj[camera_id], 0,
                  sizeof(mm_camera_obj_t));
@@ -331,11 +333,12 @@ static int32_t mm_camera_ops_open (mm_camera_t * camera,
     pthread_mutex_init(&g_cam_ctrl.cam_obj[camera_id]->mutex, NULL);
     rc = mm_camera_open(g_cam_ctrl.cam_obj[camera_id], op_mode);
     if(rc < 0) {
-        CDBG_ERROR("%s: open failed\n", __func__);
+        CDBG("%s: open failed, rc = %d\n", __func__, rc);
         pthread_mutex_destroy(&g_cam_ctrl.cam_obj[camera_id]->mutex);
         g_cam_ctrl.cam_obj[camera_id]->ref_count--;
         free(g_cam_ctrl.cam_obj[camera_id]);
         g_cam_ctrl.cam_obj[camera_id]=NULL;
+    CDBG("%s: mm_camera_open err = %d", __func__, rc);
         goto end;
     }else{
         CDBG("%s: open succeded\n", __func__);

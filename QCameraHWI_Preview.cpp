@@ -129,7 +129,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		ret = UNKNOWN_ERROR;
 		goto end;
 	}
-	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
+	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count + 1; cnt++) {
 		int stride;
 		err = mPreviewWindow->dequeue_buffer(mPreviewWindow,
 										&mHalCamCtrl->mPreviewMemory.buffer_handle[cnt],
@@ -186,7 +186,7 @@ status_t QCameraStream_preview::putBufferToSurface() {
 
     //mDisplayLock.lock();
     mHalCamCtrl->mPreviewMemoryLock.lock();
-	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
+	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count + 1; cnt++) {
         mHalCamCtrl->mPreviewMemory.camera_memory[cnt]->release(mHalCamCtrl->mPreviewMemory.camera_memory[cnt]);
 	    err = mPreviewWindow->cancel_buffer(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
 		LOGE(" put buffer %d successfully", cnt);
@@ -527,9 +527,13 @@ status_t QCameraStream_preview::init() {
 
   buffer_handle_t *buffer_handle = NULL;
   int tmp_stride = 0;
-
+#if 0
   mPreviewWindow->dequeue_buffer(mPreviewWindow,
 		  &buffer_handle, &tmp_stride);
+
+  mPreviewWindow->cancel_buffer(mPreviewWindow,
+						  buffer_handle);
+
 
   for (int i = kPreviewBufferCount; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
 	  /*mPreviewWindow->cancel_buffer(mPreviewWindow,
@@ -537,7 +541,7 @@ status_t QCameraStream_preview::init() {
 	  *///mHalCamCtrl->mPreviewMemory.buffer_handle[i] = NULL;
 	  //mHalCamCtrl->mPreviewMemory.local_flag[i] = 0;
   }
-
+#endif
   mInit = true;
   return ret;
 }

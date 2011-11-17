@@ -665,8 +665,7 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         goto end;
     }
     memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
-    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num *
-                             sizeof(mm_camera_mp_buf_t)];
+    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num];
     if (!reg_buf.def.buf.mp) {
       LOGE("%s Error allocating memory for mplanar struct ", __func__);
       mRawSnapShotHeap.clear();
@@ -765,8 +764,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     uint8_t num_planes;
     uint32_t planes[VIDEO_MAX_PLANES];
     mm_camera_reg_buf_t reg_buf;
-    uint32_t main_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
-    uint32_t thumb_frame_offset[MM_CAMERA_MAX_NUM_FRAMES];
 
     LOGD("%s: E", __func__);
 
@@ -782,6 +779,26 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
          dim->picture_width, dim->picture_height,
          dim->ui_thumbnail_width, dim->ui_thumbnail_height);
 
+    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
+    reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
+    if (!reg_buf.snapshot.main.buf.mp) {
+	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+	      ret = NO_MEMORY;
+	      goto end;
+	    }
+    memset(reg_buf.snapshot.main.buf.mp, 0,
+	           num_of_buf * sizeof(mm_camera_mp_buf_t));
+    reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
+    if (!reg_buf.snapshot.thumbnail.buf.mp) {
+	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+	      mRawHeap.clear();
+	      mPostviewHeap.clear();
+	      ret = NO_MEMORY;
+	      goto end;
+	    }
+    memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
+	           num_of_buf * sizeof(mm_camera_mp_buf_t));
+
     /* Number of buffers to be set*/
     /* Set the JPEG Rotation here since get_buffer_offset needs
      * the value of rotation.*/
@@ -792,14 +809,14 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 	                                      &y_off, &cbcr_off, &frame_len,
                                               &num_planes, planes);
 
-	if (mHalCamCtrl->intiHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0, MSM_PMEM_MAX, NULL) < 0) {
+	if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0, MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
 		LOGE("%s: Error allocating JPEG memory", __func__);
 		ret = NO_MEMORY;
 		goto end;
 	}
 
-	if (mHalCamCtrl->intiHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
-	   frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf) < 0) {
+	if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
+	   frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf, &reg_buf.snapshot.main, num_planes, planes) < 0) {
 				ret = NO_MEMORY;
 				goto end;
 	};
@@ -811,22 +828,16 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                            OUTPUT_TYPE_T,
                                            &num_planes, planes);
 
-    if (mHalCamCtrl->intiHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
-	   frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf) < 0) {
+    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
+	   frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf, &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
 		        ret = NO_MEMORY;
 		        goto end;
 	};
-
-    for(int i = 0; i < num_of_buf; i++) {
-        main_frame_offset[i] = 0;
-        thumb_frame_offset[i] = 0;
-    }
 
     /* allocate memory for postview*/
     mPostviewStreamBuf.frame_len = frame_len;
 
     /* register the streaming buffers for the channel*/
-    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
     reg_buf.snapshot.main.num = mSnapshotStreamBuf.num;
     reg_buf.snapshot.thumbnail.num = mPostviewStreamBuf.num;
@@ -842,13 +853,17 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
        Set state machine.*/
     setSnapshotState(SNAPSHOT_STATE_BUF_INITIALIZED);
 
+    if (reg_buf.snapshot.main.buf.mp)
+      delete []reg_buf.snapshot.main.buf.mp;
+    if (reg_buf.snapshot.thumbnail.buf.mp)
+      delete []reg_buf.snapshot.thumbnail.buf.mp;
 end:
     if (ret != NO_ERROR) {
         handleError();
     }
-    if (reg_buf.snapshot.main.buf.mp)
+    if (!reg_buf.snapshot.main.buf.mp)
       delete []reg_buf.snapshot.main.buf.mp;
-    if (reg_buf.snapshot.thumbnail.buf.mp)
+    if (!reg_buf.snapshot.thumbnail.buf.mp)
       delete []reg_buf.snapshot.thumbnail.buf.mp;
     LOGD("%s: X", __func__);
     return ret;

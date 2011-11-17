@@ -1501,7 +1501,7 @@ status_t  QCameraHardwareInterface::takePicture()
 		mStreamSnap->setHALCameraControl(this);
 
 		/* Call prepareSnapshot before stopping preview */
-		mStreamSnap->prepareHardware();
+		//mStreamSnap->prepareHardware();
 
 		/* There's an issue where we have a glimpse of corrupted data between
 		   a time we stop a preview and display the postview. It happens because
@@ -2080,13 +2080,19 @@ int QCameraHardwareInterface::storeMetaDataInBuffers(int enable)
 	return 0;
 }
 
-int QCameraHardwareInterface::intiHeapMem( QCameraHalHeap_t *heap,
+int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 											int num_of_buf,
 											int buf_len,
 											int y_off,
 											int cbcr_off,
 											int pmem_type,
-											mm_cameara_stream_buf_t *StreamBuf)
+
+mm_cameara_stream_buf_t *StreamBuf,
+
+mm_camera_buf_def_t *buf_def,
+uint8_t num_planes,
+uint32_t *planes
+)
 {
 	int rc = 0;
 	int i;
@@ -2164,6 +2170,25 @@ int QCameraHardwareInterface::intiHeapMem( QCameraHalHeap_t *heap,
 				 "cbcr_off: %d y_off: %d frame_len: %d", __func__,
 				 i, (unsigned int)frame->buffer, frame->fd,
 				 frame->phy_offset, cbcr_off, y_off, buf_len);
+
+                        buf_def->buf.mp[i].frame = *frame;
+                        buf_def->buf.mp[i].frame_offset = heap->size * i;
+                        buf_def->buf.mp[i].num_planes = num_planes;
+                        /* Plane 0 needs to be set seperately. Set other planes
+                         * in a loop. */
+                        buf_def->buf.mp[i].planes[0].length = planes[0];
+            	        buf_def->buf.mp[i].planes[0].m.userptr = frame->fd;
+                        buf_def->buf.mp[i].planes[0].data_offset = y_off;
+         	        buf_def->buf.mp[i].planes[0].reserved[0] =
+              	            buf_def->buf.mp[i].frame_offset;
+           	        for (int j = 1; j < num_planes; j++) {
+                             buf_def->buf.mp[i].planes[j].length = planes[j];
+                             buf_def->buf.mp[i].planes[j].m.userptr = frame->fd;
+                             buf_def->buf.mp[i].planes[j].data_offset = cbcr_off;
+                             buf_def->buf.mp[i].planes[j].reserved[0] =
+               	                 buf_def->buf.mp[i].planes[j-1].reserved[0] +
+	                         buf_def->buf.mp[i].planes[j-1].length;
+	                }
 		 } else {
 		 }
 

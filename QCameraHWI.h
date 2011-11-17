@@ -361,13 +361,16 @@ public:
     void getZSLEmptyQueueFlag(bool *flag);
     //QCameraHardwareInterface(int  cameraId, int mode);
     ~QCameraHardwareInterface();
-   int intiHeapMem(QCameraHalHeap_t *heap,
+   int initHeapMem(QCameraHalHeap_t *heap,
 				int num_of_buf,
 				int pmem_type,
 				int frame_len,
 				int cbcr_off,
 				int y_off,
-				mm_cameara_stream_buf_t *StreamBuf);
+				mm_cameara_stream_buf_t *StreamBuf,
+                                mm_camera_buf_def_t *buf_def,
+                                uint8_t num_planes,
+                                uint32_t *planes);
 
 	int releaseHeapMem( QCameraHalHeap_t *heap);
 	void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);

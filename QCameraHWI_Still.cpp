@@ -766,6 +766,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     mm_camera_reg_buf_t reg_buf;
 
     LOGD("%s: E", __func__);
+    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
 
     if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
         LOGE("%s: Invalid number of buffers (=%d) requested!",
@@ -779,7 +780,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
          dim->picture_width, dim->picture_height,
          dim->ui_thumbnail_width, dim->ui_thumbnail_height);
 
-    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
     reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.main.buf.mp) {
 	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
@@ -853,17 +853,13 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
        Set state machine.*/
     setSnapshotState(SNAPSHOT_STATE_BUF_INITIALIZED);
 
-    if (reg_buf.snapshot.main.buf.mp)
-      delete []reg_buf.snapshot.main.buf.mp;
-    if (reg_buf.snapshot.thumbnail.buf.mp)
-      delete []reg_buf.snapshot.thumbnail.buf.mp;
 end:
     if (ret != NO_ERROR) {
         handleError();
     }
-    if (!reg_buf.snapshot.main.buf.mp)
+    if (reg_buf.snapshot.main.buf.mp)
       delete []reg_buf.snapshot.main.buf.mp;
-    if (!reg_buf.snapshot.thumbnail.buf.mp)
+    if (reg_buf.snapshot.thumbnail.buf.mp)
       delete []reg_buf.snapshot.thumbnail.buf.mp;
     LOGD("%s: X", __func__);
     return ret;

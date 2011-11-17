@@ -1501,7 +1501,7 @@ status_t  QCameraHardwareInterface::takePicture()
 		mStreamSnap->setHALCameraControl(this);
 
 		/* Call prepareSnapshot before stopping preview */
-		//mStreamSnap->prepareHardware();
+		mStreamSnap->prepareHardware();
 
 		/* There's an issue where we have a glimpse of corrupted data between
 		   a time we stop a preview and display the postview. It happens because

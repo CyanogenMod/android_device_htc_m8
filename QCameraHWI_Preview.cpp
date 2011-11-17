@@ -141,7 +141,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		} else
 			LOGE("%s: dequeue_buffer idx = %d err = %d", __func__, cnt, err);
 
-		LOGE("%s: dequeue buf: %u\n", mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
+		LOGE("%s: dequeue buf: %u\n", __func__, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
 
 		if(err != 0) {
             LOGE("%s: dequeue_buffer failed: %s (%d)", __func__,
@@ -268,11 +268,12 @@ status_t QCameraStream_preview::initDisplayBuffers()
                                           &num_planes, planes);
   this->mDisplayStreamBuf.frame_len = frame_len;
 
-  mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[PREVIEW_BUFFER_COUNT];
+  mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[mDisplayStreamBuf.num];
   if (!mDisplayBuf.preview.buf.mp) {
 	  LOGE("%s Error allocating memory for mplanar struct ", __func__);
   }
-  memset(mDisplayBuf.preview.buf.mp, 0,PREVIEW_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+  memset(mDisplayBuf.preview.buf.mp, 0,
+    mDisplayStreamBuf.num * sizeof(mm_camera_mp_buf_t));
 
   /*allocate memory for the buffers*/
   void *vaddr = NULL;
@@ -527,21 +528,6 @@ status_t QCameraStream_preview::init() {
 
   buffer_handle_t *buffer_handle = NULL;
   int tmp_stride = 0;
-#if 0
-  mPreviewWindow->dequeue_buffer(mPreviewWindow,
-		  &buffer_handle, &tmp_stride);
-
-  mPreviewWindow->cancel_buffer(mPreviewWindow,
-						  buffer_handle);
-
-
-  for (int i = kPreviewBufferCount; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
-	  /*mPreviewWindow->cancel_buffer(mPreviewWindow,
-							  mHalCamCtrl->mPreviewMemory.buffer_handle[i]);
-	  *///mHalCamCtrl->mPreviewMemory.buffer_handle[i] = NULL;
-	  //mHalCamCtrl->mPreviewMemory.local_flag[i] = 0;
-  }
-#endif
   mInit = true;
   return ret;
 }
@@ -658,7 +644,7 @@ status_t QCameraStream_preview::start() {
     //  mm_camera_do_munmap(mDisplayStreamBuf.frame[i].fd,(void *)mDisplayStreamBuf.frame[i].buffer,mDisplayStreamBuf.frame_len);
     //}
 	if (mDisplayBuf.preview.buf.mp != NULL) {
-		free(mDisplayBuf.preview.buf.mp);
+		delete[] mDisplayBuf.preview.buf.mp;
 	}
 	/*free camera_memory handles and return buffer back to surface*/
     putBufferToSurface();

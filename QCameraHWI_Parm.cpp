@@ -787,6 +787,8 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mPictureFormatValues);
 
     mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "85"); // max quality
+    //Set Video Format
+    mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, "yuv420sp");
 
     //Set Thumbnail parameters
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH,

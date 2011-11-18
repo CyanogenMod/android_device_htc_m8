@@ -18,12 +18,23 @@
 #ifndef ANDROID_HARDWARE_QUALCOMM_CAMERA_HARDWARE_H
 #define ANDROID_HARDWARE_QUALCOMM_CAMERA_HARDWARE_H
 
-#include <camera/CameraHardwareInterface.h>
+#define ICS
+
+//#include <camera/CameraHardwareInterface.h>
+#include <utils/threads.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
-#include <binder/MemoryHeapIon.h>
 #include <stdint.h>
-#include <ui/Overlay.h>
+#include <ui/egl/android_natives.h>
+#ifdef ICS
+#include <hardware/camera.h>
+#endif
+#include <camera/Camera.h>
+#include <camera/CameraParameters.h>
+#include <system/window.h>
+#include <system/camera.h>
+#include <hardware/camera.h>
+#include <gralloc_priv.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -36,6 +47,12 @@ extern "C" {
 struct str_map {
     const char *const desc;
     int val;
+};
+
+struct buffer_map {
+    msm_frame *frame;
+    buffer_handle_t * buffer;
+    int size;
 };
 
 typedef enum {
@@ -54,7 +71,7 @@ typedef enum {
     LIVESHOT_IN_PROGRESS,
     LIVESHOT_STOPPED
 }liveshotState;
-
+#define MIN_UNDEQUEUD_BUFFER_COUNT 2
 struct target_map {
     const char *targetStr;
     targetType targetEnum;
@@ -70,16 +87,18 @@ struct board_property{
 
 namespace android {
 
-class QualcommCameraHardware : public CameraHardwareInterface {
+class QualcommCameraHardware : public RefBase{
 public:
 
-    virtual sp<IMemoryHeap> getPreviewHeap() const;
-    virtual sp<IMemoryHeap> getRawHeap() const;
+    //virtual sp<IMemoryHeap> getPreviewHeap() const;
+    //virtual sp<IMemoryHeap> getRawHeap() const;
 
-    virtual void setCallbacks(notify_callback notify_cb,
-                              data_callback data_cb,
-                              data_callback_timestamp data_cb_timestamp,
-                              void* user);
+    void setCallbacks(camera_notify_callback notify_cb,
+                            camera_data_callback data_cb,
+                            camera_data_timestamp_callback data_cb_timestamp,
+                            camera_request_memory get_memory,
+                            void *user);
+
     virtual void enableMsgType(int32_t msgType);
     virtual void disableMsgType(int32_t msgType);
     virtual bool msgTypeEnabled(int32_t msgType);
@@ -101,27 +120,31 @@ public:
     virtual status_t setParameters(const CameraParameters& params);
     virtual CameraParameters getParameters() const;
     virtual status_t sendCommand(int32_t command, int32_t arg1, int32_t arg2);
+    virtual int32_t getNumberOfVideoBuffers();
+    virtual sp<IMemory> getVideoBuffer(int32_t index);
     virtual status_t getBufferInfo( sp<IMemory>& Frame, size_t *alignedSize);
     virtual void encodeData( );
-
+#ifdef ICS
+    virtual status_t set_PreviewWindow(void* param);
+    virtual status_t setPreviewWindow(preview_stream_ops_t* window);
+#endif
+    virtual status_t setPreviewWindow(const sp<ANativeWindow>& buf) {return NO_ERROR;};
     virtual void release();
-    virtual bool useOverlay();
-    virtual status_t setOverlay(const sp<Overlay> &overlay);
 
-    static sp<CameraHardwareInterface> createInstance();
-    static sp<QualcommCameraHardware> getInstance();
+    static QualcommCameraHardware* createInstance();
+    static QualcommCameraHardware* getInstance();
 
     void receivePreviewFrame(struct msm_frame *frame);
     void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
-    void receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer);
+    void receiveJpegPicture(status_t status, uint32_t size);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
-    void notifyShutter(common_crop_t *crop,bool mPlayShutterSoundOnly);
+    void notifyShutter(bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
-    void receiveRawPicture(status_t status, struct msm_frame *postviewframe, struct msm_frame *mainframe);
+    void receiveRawPicture(status_t status, void *cropp);
 
 private:
     QualcommCameraHardware();
@@ -142,9 +165,14 @@ private:
     bool updatePictureDimension(const CameraParameters& params, int& width, int& height);
     bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
     bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);
-    bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop,int framewidth,int frameheight);
+    bool native_zoom_image(int fd, int srcOffset, int dstOffset, common_crop_t *crop);
 
-    static wp<QualcommCameraHardware> singleton;
+    status_t startInitialPreview();
+    void stopInitialPreview();
+    status_t getBuffersAndStartPreview();
+    void relinquishBuffers();
+
+    QualcommCameraHardware * singleton;
 
     /* These constants reflect the number of buffers that libmmcamera requires
        for preview and raw, and need to be updated when libmmcamera
@@ -153,6 +181,7 @@ private:
     static const int kPreviewBufferCount = NUM_PREVIEW_BUFFERS;
     static const int kRawBufferCount = 1;
     static const int kJpegBufferCount = 1;
+    static const int kTotalPreviewBufferCount = kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT;
     int numCapture;
     int numJpegReceived;
     int jpegPadding;
@@ -179,13 +208,12 @@ private:
     // This class represents a heap which maintains several contiguous
     // buffers.  The heap may be backed by pmem (when pmem_pool contains
     // the name of a /dev/pmem* file), or by ashmem (when pmem_pool == NULL).
-
     struct MemPool : public RefBase {
         MemPool(int buffer_size, int num_buffers,
                 int frame_size,
                 const char *name);
 
-        virtual ~MemPool() = 0;
+        virtual ~MemPool()  ;// = 0;
 
         void completeInitialization();
         bool initialized() const {
@@ -203,6 +231,14 @@ private:
 
         const char *mName;
     };
+      struct DispMemPool : public MemPool {
+          DispMemPool(int fd, int buffer_size,
+          int num_buffers, int frame_size,
+          const char *name);
+          virtual ~DispMemPool();
+          int mFD;
+      };
+      sp<DispMemPool> mPreviewHeap[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
 
     struct AshmemPool : public MemPool {
         AshmemPool(int buffer_size, int num_buffers,
@@ -226,7 +262,7 @@ private:
         struct pmem_region mSize;
         sp<QualcommCameraHardware::MMCameraDL> mMMCameraDLRef;
     };
-
+//TODO
     struct IonPool : public MemPool {
         IonPool( int ion_heap_id, int flags, int ion_type,
              int buffer_size, int num_buffers,
@@ -256,7 +292,7 @@ private:
     sp<IonPool> mLastPreviewFrameHeap;
     sp<IonPool> mPostviewHeap;
 #else
-    sp<PmemPool> mPreviewHeap;
+//    sp<PmemPool> mPreviewHeap;
     sp<PmemPool> mYV12Heap;
     sp<PmemPool> mRecordHeap;
     sp<PmemPool> mThumbnailHeap;
@@ -268,6 +304,8 @@ private:
     sp<PmemPool> mRawSnapShotPmemHeap;
     sp<PmemPool> mLastPreviewFrameHeap;
     sp<PmemPool> mPostviewHeap;
+	sp<PmemPool> mPostViewHeap;
+    sp<PmemPool> mInitialPreviewHeap;
 #endif
 
     sp<MMCameraDL> mMMCameraDLRef;
@@ -292,6 +330,8 @@ private:
     friend void *hfr_thread(void *user);
     void runHFRThread(void *data);
     bool mHFRThreadRunning;
+	int mapBuffer(msm_frame *frame);
+	int mapFrame(buffer_handle_t *buffer);
     Mutex mHFRThreadWaitLock;
 
     class FrameQueue : public RefBase{
@@ -368,6 +408,7 @@ private:
     bool mEncodePending;
     Mutex mEncodePendingWaitLock;
     Condition mEncodePendingWait;
+	bool mBuffersInitialized;
 
     void debugShowPreviewFPS() const;
     void debugShowVideoFPS() const;
@@ -422,7 +463,6 @@ private:
     status_t setStrTextures(const CameraParameters& params);
     status_t setPreviewFormat(const CameraParameters& params);
     status_t setSelectableZoneAf(const CameraParameters& params);
-    status_t setOverlayFormats(const CameraParameters& params);
     status_t setHighFrameRate(const CameraParameters& params);
     bool register_record_buffers(bool register_buffer);
     status_t setRedeyeReduction(const CameraParameters& params);
@@ -435,6 +475,7 @@ private:
     status_t updateFocusDistances(const char *focusmode);
 
     Mutex mLock;
+	Mutex mDisplayLock;
     Mutex mCamframeTimeoutLock;
     bool camframe_timeout_flag;
     bool mReleasedRecordingFrame;
@@ -483,18 +524,28 @@ private:
     int mBrightness;
     int mSkinToneEnhancement;
     int mHJR;
-    struct msm_frame frames[kPreviewBufferCount];
+	unsigned int mThumbnailMapped;
+    int mRawfd;
+    int mJpegfd;
+    camera_memory_t *mPreviewMapped[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
+    camera_memory_t *mRawMapped;
+    camera_memory_t *mJpegMapped;
+    camera_memory_t *mRawSnapShotMapped;
+    struct msm_frame frames[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
+	struct buffer_map frame_buffer[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
     struct msm_frame *recordframes;
     bool *record_buffers_tracking_flag;
     bool mInPreviewCallback;
-    bool mUseOverlay;
+    preview_stream_ops_t* mPreviewWindow;
+    android_native_buffer_t *mPostViewBuffer;
+    buffer_handle_t *mThumbnailBuffer;
     bool mIs3DModeOn;
-    sp<Overlay>  mOverlay;
 
     int32_t mMsgEnabled;    // camera msg to be handled
-    notify_callback mNotifyCallback;
-    data_callback mDataCallback;
-    data_callback_timestamp mDataCallbackTimestamp;
+    camera_notify_callback mNotifyCallback;
+    camera_data_callback mDataCallback;
+    camera_data_timestamp_callback mDataCallbackTimestamp;
+    camera_request_memory mGetMemory;
     void *mCallbackCookie;  // same for all callbacks
     int mDebugFps;
     int kPreviewBufferCountActual;
@@ -508,7 +559,7 @@ private:
 
     bool mDisEnabled;
     int mRotation;
-    bool mResetOverlayCrop;
+    bool mResetWindowCrop;
     int mThumbnailWidth, mThumbnailHeight;
     status_t setVpeParameters();
     status_t setDIS();
@@ -517,6 +568,7 @@ private:
     int mPictureHeight;
     int mPostviewWidth;
     int mPostviewHeight;
+	int mTotalPreviewBufferCount;
     int mDenoiseValue;
     int mZslEnable;
     int mZslPanorama;
@@ -537,6 +589,9 @@ private:
     bool mExpBracketMode;
 };
 
+extern "C" int HAL_getNumberOfCameras();
+extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo);
+extern "C" QualcommCameraHardware* HAL_openCameraHardware(int cameraId);
 }; // namespace android
 
 #endif

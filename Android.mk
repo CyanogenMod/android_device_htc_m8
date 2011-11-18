@@ -1,3 +1,5 @@
+# for targets other than 8960 , HAL has been moved from vendor/qcom/android-open 
+ifneq ($(call is-board-platform,msm8960),true)
 ifneq ($(USE_CAMERA_STUB),true)
 ifeq ($(strip $(BOARD_USES_QCOM_HARDWARE)), true)
 BUILD_LIBCAMERA:=true
@@ -36,7 +38,7 @@ LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
                    QCameraHWI_Mem.cpp QCameraHWI_Display.cpp \
                    QCameraStream.cpp
 else
-LOCAL_HAL_FILES := QualcommCameraHardware.cpp
+LOCAL_HAL_FILES := QualcommCamera.cpp QualcommCameraHardware.cpp
 MM_CAM_FILES:=
 endif
 
@@ -81,7 +83,8 @@ else
 LOCAL_SHARED_LIBRARIES+= libdl
 endif
 
-LOCAL_MODULE:= libcamera
+LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
@@ -89,3 +92,4 @@ endif # BUILD_TINY_ANDROID
 endif # BUILD_LIBCAMERA
 endif # BOARD_USES_QCOM_HARDWARE
 endif # USE_CAMERA_STUB
+endif # if not 8960

@@ -2134,17 +2134,15 @@ int QCameraHardwareInterface::deallocate_ion_memory(QCameraHalHeap_t *p_camera_m
 }
 
 int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
-											int num_of_buf,
-											int buf_len,
-											int y_off,
-											int cbcr_off,
-											int pmem_type,
-
-mm_cameara_stream_buf_t *StreamBuf,
-
-mm_camera_buf_def_t *buf_def,
-uint8_t num_planes,
-uint32_t *planes
+                            int num_of_buf,
+                            int buf_len,
+                            int y_off,
+                            int cbcr_off,
+                            int pmem_type,
+                            mm_cameara_stream_buf_t *StreamBuf,
+                            mm_camera_buf_def_t *buf_def,
+                            uint8_t num_planes,
+                            uint32_t *planes
 )
 {
 	int rc = 0;
@@ -2170,6 +2168,7 @@ uint32_t *planes
                 StreamBuf->frame_len = buf_len;
 		switch (pmem_type) {
 			case  MSM_PMEM_MAINIMG:
+			case  MSM_PMEM_RAW_MAINIMG:
 				path = OUTPUT_TYPE_S;
 				break;
 

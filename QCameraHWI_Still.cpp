@@ -199,7 +199,7 @@ receiveJpegFragment(uint8_t *ptr, uint32_t size)
     }
     #else
     if(mHalCamCtrl->mJpegMemory.camera_memory[0] != NULL && ptr != NULL && size > 0) {
-		memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.pmem[0] + mJpegOffset), ptr, size);
+		memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.camera_memory[0]->data + mJpegOffset), ptr, size);
 		mJpegOffset += size;
 
 		/*
@@ -243,7 +243,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     msg_type = isLiveSnapshot() ?
         (int)MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : (int)CAMERA_MSG_COMPRESSED_IMAGE;
 
-    mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.pmem[0], mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
+    mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
     if (mHalCamCtrl->mDataCb &&
         (mHalCamCtrl->mMsgEnabled & msg_type)) {
 

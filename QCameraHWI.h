@@ -128,7 +128,6 @@ typedef struct {
 	 int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
 	 int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
 	 camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
-	 void*                   pmem[MM_CAMERA_MAX_NUM_FRAMES];
 } QCameraHalHeap_t;
 
 namespace android {

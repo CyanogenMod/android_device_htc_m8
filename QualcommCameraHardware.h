@@ -110,7 +110,7 @@ public:
     virtual status_t startRecording();
     virtual void stopRecording();
     virtual bool recordingEnabled();
-    virtual void releaseRecordingFrame(const sp<IMemory>& mem);
+    virtual void releaseRecordingFrame(const void *opaque);
     virtual status_t autoFocus();
     virtual status_t cancelAutoFocus();
     virtual status_t takePicture();
@@ -331,6 +331,7 @@ private:
     void runHFRThread(void *data);
     bool mHFRThreadRunning;
 	int mapBuffer(msm_frame *frame);
+        int mapvideoBuffer( msm_frame *frame);
 	int mapFrame(buffer_handle_t *buffer);
     Mutex mHFRThreadWaitLock;
 
@@ -527,12 +528,14 @@ private:
 	unsigned int mThumbnailMapped;
     int mRawfd;
     int mJpegfd;
+    int mRecordfd[9];
     camera_memory_t *mPreviewMapped[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
     camera_memory_t *mRawMapped;
     camera_memory_t *mJpegMapped;
     camera_memory_t *mRawSnapShotMapped;
+    camera_memory_t *mRecordMapped[9];
     struct msm_frame frames[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
-	struct buffer_map frame_buffer[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
+    struct buffer_map frame_buffer[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
     struct msm_frame *recordframes;
     bool *record_buffers_tracking_flag;
     bool mInPreviewCallback;

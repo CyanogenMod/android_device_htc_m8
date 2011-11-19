@@ -550,7 +550,7 @@ void release_recording_frame(struct camera_device * device,
   LOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
-    //hardware->releaseRecordingFrame( opaque);
+    hardware->releaseRecordingFrame( opaque);
   }
 }
 

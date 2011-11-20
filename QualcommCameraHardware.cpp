@@ -79,8 +79,8 @@ extern "C" {
 
 #define DUMP_LIVESHOT_JPEG_FILE 0
 
-#define DEFAULT_PICTURE_WIDTH  352 //640
-#define DEFAULT_PICTURE_HEIGHT 288 //480
+#define DEFAULT_PICTURE_WIDTH  640
+#define DEFAULT_PICTURE_HEIGHT 480
 #define DEFAULT_PICTURE_WIDTH_3D 1920
 #define DEFAULT_PICTURE_HEIGHT_3D 1080
 #define INITIAL_PREVIEW_HEIGHT 144
@@ -217,8 +217,8 @@ union zoomimage
 } zoomImage;
 
 //Default to VGA
-#define DEFAULT_PREVIEW_WIDTH 352 //640
-#define DEFAULT_PREVIEW_HEIGHT 288 //480
+#define DEFAULT_PREVIEW_WIDTH 640
+#define DEFAULT_PREVIEW_HEIGHT 480
 #define DEFAULT_PREVIEW_WIDTH_3D 1280
 #define DEFAULT_PREVIEW_HEIGHT_3D 720
 
@@ -1311,7 +1311,9 @@ QualcommCameraHardware::QualcommCameraHardware()
       mInHFRThread(false),
       mPrevHeapDeallocRunning(false),
       mHdrMode(false ),
-      mExpBracketMode(false)
+      mExpBracketMode(false),
+      mRawMapped (NULL),
+      mJpegMapped(NULL)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -2712,7 +2714,8 @@ void QualcommCameraHardware::runFrameThread(void *data)
                   type,
                   false,false);
                if(mRecordMapped[cnt]) {
-                 mRecordMapped[cnt]->release(mRecordMapped[cnt]);
+                   mRecordMapped[cnt]->release(mRecordMapped[cnt]);
+                   close(mRecordfd[cnt]);
                }
             }
 	    }
@@ -4218,10 +4221,14 @@ void QualcommCameraHardware::deinitRaw()
 {
     LOGV("deinitRaw E");
     if(NULL != mRawMapped) {
-      mRawMapped->release(mRawMapped);
+        mRawMapped->release(mRawMapped);
+        close(mRawfd);
+        mRawMapped = NULL;
     }
-    if(mJpegMapped) {
-      mJpegMapped->release(mJpegMapped);
+    if(NULL != mJpegMapped) {
+        mJpegMapped->release(mJpegMapped);
+        close(mJpegfd);
+        mJpegMapped = NULL;
     }
 #if 0
     mJpegHeap.clear();
@@ -4540,13 +4547,14 @@ void QualcommCameraHardware::release()
     LOGI("release X: mCameraRunning = %d, mFrameThreadRunning = %d", mCameraRunning, mFrameThreadRunning);
     LOGI("mVideoThreadRunning = %d, mSnapshotThreadRunning = %d, mJpegThreadRunning = %d", mVideoThreadRunning, mSnapshotThreadRunning, mJpegThreadRunning);
     LOGI("camframe_timeout_flag = %d, mAutoFocusThreadRunning = %d", camframe_timeout_flag, mAutoFocusThreadRunning);
+
+    libmmcamera = NULL;
+    mMMCameraDLRef.clear();
 }
 
 QualcommCameraHardware::~QualcommCameraHardware()
 {
     LOGI("~QualcommCameraHardware E");
-    libmmcamera = NULL;
-    //mMMCameraDLRef.clear();
 
     //singleton_lock.lock();
     if( mCurrentTarget == TARGET_MSM7630 || mCurrentTarget == TARGET_QSD8250 || mCurrentTarget == TARGET_MSM8660 ) {

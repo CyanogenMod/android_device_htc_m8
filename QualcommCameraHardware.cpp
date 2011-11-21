@@ -6175,8 +6175,12 @@ void QualcommCameraHardware::receiveCameraStats(camstats_type stype, camera_prev
 uint8_t *mm_camera_do_mmap(uint32_t size, int *pmemFd)
 {
     void *ret; /* returned virtual address */
-    int  pmem_fd = open("/dev/pmem_smipool", O_RDWR|O_SYNC);
+    int pmem_fd;
 
+    if(mCurrentTarget == TARGET_MSM8660)
+        pmem_fd = open("/dev/pmem_smipool", O_RDWR|O_SYNC);
+    else
+        pmem_fd = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
     if (pmem_fd <= 0) {
         LOGE("do_mmap: Open device /dev/pmem_smipool failed!\n");
         return NULL;

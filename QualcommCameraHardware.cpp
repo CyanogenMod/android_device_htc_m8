@@ -4436,7 +4436,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
             return retVal;
         }
 
-	    mPreviewWindow->set_usage (mPreviewWindow, GRALLOC_USAGE_PRIVATE_ADSP_HEAP);
+	    mPreviewWindow->set_usage (mPreviewWindow, GRALLOC_USAGE_PRIVATE_ADSP_HEAP | GRALLOC_USAGE_PRIVATE_UNCACHED);
 
         int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
         int cnt = 0, active = 1;

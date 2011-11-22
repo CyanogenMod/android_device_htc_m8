@@ -128,6 +128,9 @@ typedef struct {
 	 int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
 	 int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
 	 camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     int main_ion_fd[MM_CAMERA_MAX_NUM_FRAMES];
+     struct ion_allocation_data alloc[MM_CAMERA_MAX_NUM_FRAMES];
+     struct ion_fd_data ion_info_fd[MM_CAMERA_MAX_NUM_FRAMES];
 } QCameraHalHeap_t;
 
 namespace android {
@@ -372,7 +375,9 @@ public:
                                 uint32_t *planes);
 
 	int releaseHeapMem( QCameraHalHeap_t *heap);
-	void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
+    int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt, int ion_type);
+    int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
+    void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
 
 
 

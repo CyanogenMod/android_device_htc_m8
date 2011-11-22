@@ -123,7 +123,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          ret = UNKNOWN_ERROR;
 		 goto end;
     }
-    err = mPreviewWindow->set_usage(mPreviewWindow, GRALLOC_USAGE_PRIVATE_ADSP_HEAP);
+    err = mPreviewWindow->set_usage(mPreviewWindow, GRALLOC_USAGE_PRIVATE_ADSP_HEAP | GRALLOC_USAGE_PRIVATE_UNCACHED);
 	if(err != 0) {
         /* set_usage error out */
 		LOGE("%s: set_usage rc = %d", __func__, err);

@@ -29,6 +29,7 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
+
 /* QCameraHardwareInterface class implementation goes here*/
 /* following code implement the contol logic of this class*/
 
@@ -2080,6 +2081,58 @@ int QCameraHardwareInterface::storeMetaDataInBuffers(int enable)
 	return 0;
 }
 
+int QCameraHardwareInterface::allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt, int ion_type)
+{
+  int rc = 0;
+  struct ion_handle_data handle_data;
+
+  p_camera_memory->main_ion_fd[cnt] = open("/dev/ion", O_RDONLY | O_SYNC);
+  if (p_camera_memory->main_ion_fd[cnt] < 0) {
+    LOGE("Ion dev open failed\n");
+    LOGE("Error is %s\n", strerror(errno));
+    goto ION_OPEN_FAILED;
+  }
+  p_camera_memory->alloc[cnt].len = p_camera_memory->size;
+  /* to make it page size aligned */
+  p_camera_memory->alloc[cnt].len = (p_camera_memory->alloc[cnt].len + 4095) & (~4095);
+  p_camera_memory->alloc[cnt].align = 4096;
+  p_camera_memory->alloc[cnt].flags = 0x1 << ion_type;
+
+  rc = ioctl(p_camera_memory->main_ion_fd[cnt], ION_IOC_ALLOC, &p_camera_memory->alloc[cnt]);
+  if (rc < 0) {
+    LOGE("ION allocation failed\n");
+    goto ION_ALLOC_FAILED;
+  }
+
+  p_camera_memory->ion_info_fd[cnt].handle = p_camera_memory->alloc[cnt].handle;
+  rc = ioctl(p_camera_memory->main_ion_fd[cnt], ION_IOC_SHARE, &p_camera_memory->ion_info_fd[cnt]);
+  if (rc < 0) {
+    LOGE("ION map failed %s\n", strerror(errno));
+    goto ION_MAP_FAILED;
+  }
+  p_camera_memory->fd[cnt] = p_camera_memory->ion_info_fd[cnt].fd; 
+  return 0;
+
+ION_MAP_FAILED:
+  handle_data.handle = p_camera_memory->ion_info_fd[cnt].handle;
+  ioctl(p_camera_memory->main_ion_fd[cnt], ION_IOC_FREE, &handle_data);
+ION_ALLOC_FAILED:
+  close(p_camera_memory->main_ion_fd[cnt]);
+ION_OPEN_FAILED:
+  return -1;
+}
+
+int QCameraHardwareInterface::deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt)
+{
+  struct ion_handle_data handle_data;
+  int rc = 0;
+
+  handle_data.handle = p_camera_memory->ion_info_fd[cnt].handle;
+  ioctl(p_camera_memory->main_ion_fd[cnt], ION_IOC_FREE, &handle_data);
+  close(p_camera_memory->main_ion_fd[cnt]);
+  return rc;
+}
+
 int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 											int num_of_buf,
 											int buf_len,
@@ -2132,12 +2185,20 @@ uint32_t *planes
 
 
 	for(i = 0; i < num_of_buf; i++) {
+#ifdef USE_ION
+        rc = allocate_ion_memory(heap, i, ION_HEAP_ADSP_ID);
+        if (rc < 0) {
+            LOGE("%sION allocation failed\n", __func__);
+            break;
+        }
+#else
 		heap->fd[i] = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
 		if ( heap->fd[i] <= 0) {
 			rc = -1;
 			LOGE("Open fail: heap->fd[%d] =%d", i, heap->fd[i]);
 			break;
 		}
+#endif
 		heap->camera_memory[i] =  mGetMemory( heap->fd[i], buf_len, 1, (void *)this);
 
 		if (heap->camera_memory[i] == NULL ) {
@@ -2192,7 +2253,7 @@ uint32_t *planes
 
 int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
 {
-	int rc = -1;
+	int rc = 0;
 	LOGE("Release %p", heap);
 	if (heap != NULL) {
 
@@ -2213,6 +2274,9 @@ int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
 			heap->size = 0;
 			heap->y_offset = 0;
 			heap->cbcr_offset = 0;
+#ifdef USE_ION
+            deallocate_ion_memory(heap, i);
+#endif
 		}
 	}
 	return rc;

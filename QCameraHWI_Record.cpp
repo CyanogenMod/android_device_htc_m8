@@ -266,6 +266,9 @@ void QCameraStream_record::release()
 	  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->release(
 		  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]);
 	  close(mHalCamCtrl->mRecordingMemory.fd[cnt]);
+#ifdef USE_ION
+    mHalCamCtrl->deallocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt);
+#endif
   }
   memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
   //mNumRecordFrames = 0;
@@ -512,14 +515,21 @@ status_t QCameraStream_record::initEncodeBuffers()
 		mHalCamCtrl->mRecordingMemory.cbcr_offset = planes[0];
 
     for (int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
-		mHalCamCtrl->mRecordingMemory.fd[cnt] = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
-		if(mHalCamCtrl->mRecordingMemory.fd[cnt] <= 0) {
-			LOGE("%s: no pmem for frame %d", __func__, cnt);
-			return UNKNOWN_ERROR;
-		}
-		mHalCamCtrl->mRecordingMemory.camera_memory[cnt] =
+#ifdef USE_ION
+      if(mHalCamCtrl->allocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt, ION_HEAP_ADSP_ID) < 0) {
+        LOGE("%s ION alloc failed\n", __func__);
+        return UNKNOWN_ERROR;
+      }
+#else
+		  mHalCamCtrl->mRecordingMemory.fd[cnt] = open("/dev/pmem_adsp", O_RDWR|O_SYNC);
+		  if(mHalCamCtrl->mRecordingMemory.fd[cnt] <= 0) {
+			  LOGE("%s: no pmem for frame %d", __func__, cnt);
+			  return UNKNOWN_ERROR;
+		  }
+#endif
+		  mHalCamCtrl->mRecordingMemory.camera_memory[cnt] =
 		    mHalCamCtrl->mGetMemory(mHalCamCtrl->mRecordingMemory.fd[cnt],
-		mHalCamCtrl->mRecordingMemory.size, 1, (void *)this);
+		  mHalCamCtrl->mRecordingMemory.size, 1, (void *)this);
     	recordframes[cnt].fd = mHalCamCtrl->mRecordingMemory.fd[cnt];
     	recordframes[cnt].buffer = (uint32_t)mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data;
 	    recordframes[cnt].y_off = 0;

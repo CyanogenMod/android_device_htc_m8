@@ -2045,10 +2045,10 @@ bool QualcommCameraHardware::startCamera()
     *(void **)&LINK_yuv_convert_ycrcb420sp_to_yv12 =
         ::dlsym(libmmcamera, "yuv_convert_ycrcb420sp_to_yv12_ver2");
 
-/* Disabling until support is available.
+    /* Disabling until support is available.*/
     *(void **)&LINK_zoom_crop_upscale =
         ::dlsym(libmmcamera, "zoom_crop_upscale");
-*/
+
 
 #else
     mCamNotify.preview_frame_cb = &receive_camframe_callback;
@@ -2658,7 +2658,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
         {
            int mBufferSize = previewWidth * previewHeight * 3/2;
            int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
-           LOGE("sravank unregistering all preview buffers");
+           LOGE("unregistering all preview buffers");
             //unregister preview buffers. we are not deallocating here.
             for (int cnt = 0; cnt < mTotalPreviewBufferCount; ++cnt) {
                 register_buf(mBufferSize,
@@ -2858,8 +2858,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
             pcb(CAMERA_MSG_PREVIEW_FRAME, mPreviewHeap[bufferIndex]->mBuffers[0],
             pdata);
 #endif
- // TODO : may have to reutn proper frame as pcb
-LOGE("sravank in runpreviewthread");
+           // TODO : may have to reutn proper frame as pcb
            mDisplayLock.lock();
            if( mPreviewWindow != NULL) {
 	        retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
@@ -4244,21 +4243,24 @@ void QualcommCameraHardware::deinitRaw()
     LOGV("deinitRaw X");
 }
 
-void QualcommCameraHardware::relinquishBuffers() {
+void QualcommCameraHardware::relinquishBuffers()
+{
+    status_t retVal;
     LOGV("%s: E ", __FUNCTION__);
     mDisplayLock.lock();
     if( mPreviewWindow != NULL) {
-        for (int cnt = 0; cnt < mTotalPreviewBufferCount; cnt++) {
-            LOGV(" Cancelling preview buffers %d ",frames[cnt].fd);
-            status_t retVal;
-   	    retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
+      for(int cnt = 0; cnt < mTotalPreviewBufferCount; cnt++) {
+         LOGE(" Cancelling preview buffers %d ",frames[cnt].fd);
+         retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
 	                         frame_buffer[cnt].buffer);
-        if(retVal != NO_ERROR)
+         mPreviewMapped[cnt]->release(mPreviewMapped[cnt]);
+         LOGE("release preview buffers");
+         if(retVal != NO_ERROR)
            LOGE("%s: cancelBuffer failed for preview buffer %d ",
              __FUNCTION__, frames[cnt].fd);
-        }
+      }
     } else {
-        LOGV(" PreviewWindow is null, will not cancelBuffers ");
+      LOGV(" PreviewWindow is null, will not cancelBuffers ");
     }
     mDisplayLock.unlock();
     LOGV("%s: X ", __FUNCTION__);
@@ -4463,7 +4465,7 @@ LOGE(" getbuffersandrestartpreview deQ %d", handle->fd);
     mBuffersInitialized = true;
 
     //Starting preview now as the preview buffers are allocated
- //   if(!mPreviewInitialized && !mCameraRunning) {   // sravank TODO just for testing 
+ //   if(!mPreviewInitialized && !mCameraRunning) {   // TODO just for testing 
         LOGE("setPreviewWindow: Starting preview after buffer allocation");
         startPreviewInternal();
  //   }
@@ -5543,7 +5545,6 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
 	if ((rc = setPictureFormat(params))) final_rc = rc;
 	if ((rc = setRecordSize(params)))  final_rc = rc;
 	if ((rc = setPreviewFormat(params)))   final_rc = rc;
-#if 0
     if ((rc = setEffect(params)))       final_rc = rc;
     if ((rc = setGpsLocation(params)))  final_rc = rc;
     if ((rc = setRotation(params)))     final_rc = rc;
@@ -5565,7 +5566,6 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFormat(params)))   final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))   final_rc = rc;
     if ((rc = setAntibanding(params)))  final_rc = rc;
-    if ((rc = setOverlayFormats(params)))  final_rc = rc;
     if ((rc = setRedeyeReduction(params)))  final_rc = rc;
     if ((rc = setDenoise(params)))  final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))  final_rc = rc;
@@ -5590,7 +5590,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
-	#endif
+
     LOGV("setParameters: X");
     return final_rc;
 }
@@ -7385,8 +7385,6 @@ status_t QualcommCameraHardware::setPreviewFrameRate(const CameraParameters& par
 }
 
 status_t QualcommCameraHardware::setPreviewFrameRateMode(const CameraParameters& params) {
-    return NO_ERROR;
-#if 0
     if( !mCfgControl.mm_camera_is_supported(CAMERA_PARM_FPS_MODE) &&  !mCfgControl.mm_camera_is_supported(CAMERA_PARM_FPS)){
          LOGI("set fps mode is not supported for this sensor");
         return NO_ERROR;
@@ -7417,7 +7415,6 @@ status_t QualcommCameraHardware::setPreviewFrameRateMode(const CameraParameters&
     }
     LOGE("Invalid preview frame rate mode value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
 }
 
 status_t QualcommCameraHardware::setJpegThumbnailSize(const CameraParameters& params){
@@ -7508,7 +7505,6 @@ status_t QualcommCameraHardware::setJpegQuality(const CameraParameters& params) 
 
 status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
 {
-#if 0
     const char *str = params.get(CameraParameters::KEY_EFFECT);
     int result;
 
@@ -7531,13 +7527,11 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
     }
     LOGE("Invalid effect value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-    return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setExposureCompensation(
         const CameraParameters & params){
-#if 0
+    LOGE("DEBBUG: %s E",__FUNCTION__);
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_EXPOSURE_COMPENSATION)) {
         LOGI("Exposure Compensation is not supported for this sensor");
         return NO_ERROR;
@@ -7555,17 +7549,15 @@ status_t QualcommCameraHardware::setExposureCompensation(
                             numerator);
        bool ret = native_set_parms(CAMERA_PARM_EXPOSURE_COMPENSATION,
                                     sizeof(value), (void *)&value);
-        return ret ? NO_ERROR : UNKNOWN_ERROR;
+       LOGE("DEBBUG: %s ret = %d X",__FUNCTION__, ret);
+       return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     LOGE("Invalid Exposure Compensation");
-    return BAD_VALUE;
-#endif
     return BAD_VALUE;
 }
 
 status_t QualcommCameraHardware::setAutoExposure(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_EXPOSURE)) {
         LOGI("Auto Exposure not supported for this sensor");
         return NO_ERROR;
@@ -7582,13 +7574,10 @@ status_t QualcommCameraHardware::setAutoExposure(const CameraParameters& params)
     }
     LOGE("Invalid auto exposure value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-    return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setSharpness(const CameraParameters& params)
 {
-#if 0
      if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_SHARPNESS)) {
         LOGI("Sharpness not supported for this sensor");
         return NO_ERROR;
@@ -7603,13 +7592,10 @@ status_t QualcommCameraHardware::setSharpness(const CameraParameters& params)
     bool ret = native_set_parms(CAMERA_PARM_SHARPNESS, sizeof(sharpness),
                                (void *)&sharpness);
     return ret ? NO_ERROR : UNKNOWN_ERROR;
-#endif 
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setContrast(const CameraParameters& params)
 {
-#if 0
      if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_CONTRAST)) {
         LOGI("Contrast not supported for this sensor");
         return NO_ERROR;
@@ -7634,13 +7620,10 @@ status_t QualcommCameraHardware::setContrast(const CameraParameters& params)
           "when the scenemode selected is %s", str);
     return NO_ERROR;
     }
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_SATURATION)) {
         LOGI("Saturation not supported for this sensor");
         return NO_ERROR;
@@ -7660,8 +7643,6 @@ status_t QualcommCameraHardware::setSaturation(const CameraParameters& params)
         LOGI("Saturation Value: %d is not set as the selected value is not supported", saturation);
 
     return ret ? NO_ERROR : UNKNOWN_ERROR;
-#endif 
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setPreviewFormat(const CameraParameters& params) {
@@ -7684,7 +7665,6 @@ status_t QualcommCameraHardware::setPreviewFormat(const CameraParameters& params
 }
 
 status_t QualcommCameraHardware::setStrTextures(const CameraParameters& params) {
-#if 0
     const char *str = params.get("strtextures");
     if(str != NULL) {
         LOGV("strtextures = %s", str);
@@ -7692,16 +7672,11 @@ status_t QualcommCameraHardware::setStrTextures(const CameraParameters& params) 
         if(!strncmp(str, "on", 2) || !strncmp(str, "ON", 2)) {
             LOGI("Resetting mUseOverlay to false");
             strTexturesOn = true;
-            mUseOverlay = false;
         } else if (!strncmp(str, "off", 3) || !strncmp(str, "OFF", 3)) {
             strTexturesOn = false;
-            if((mCurrentTarget == TARGET_MSM7630) || (mCurrentTarget == TARGET_MSM8660))
-                mUseOverlay = true;
         }
     }
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {
@@ -7722,7 +7697,6 @@ status_t QualcommCameraHardware::setBrightness(const CameraParameters& params) {
 }
 
 status_t QualcommCameraHardware::setSkinToneEnhancement(const CameraParameters& params) {
-#if 0
      if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_SCE_FACTOR)) {
         LOGI("SkinToneEnhancement not supported for this sensor");
         return NO_ERROR;
@@ -7737,13 +7711,10 @@ status_t QualcommCameraHardware::setSkinToneEnhancement(const CameraParameters& 
           return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setWhiteBalance(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_WHITE_BALANCE)) {
         LOGI("WhiteBalance not supported for this sensor");
         return NO_ERROR;
@@ -7766,13 +7737,11 @@ status_t QualcommCameraHardware::setWhiteBalance(const CameraParameters& params)
     }
         LOGE("Invalid whitebalance value: %s", (str == NULL) ? "NULL" : str);
         return BAD_VALUE;
-#endif 
-return NO_ERROR;
+
 }
 
 status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_LED_MODE)) {
         LOGI("%s: flash not supported", __FUNCTION__);
         return NO_ERROR;
@@ -7795,14 +7764,11 @@ status_t QualcommCameraHardware::setFlash(const CameraParameters& params)
     }
     LOGE("Invalid flash mode value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
 {
-#if 0
-   int result;
+    int result;
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ANTIBANDING)) {
         LOGI("Parameter AntiBanding is not supported for this sensor");
         return NO_ERROR;
@@ -7824,13 +7790,10 @@ status_t QualcommCameraHardware::setAntibanding(const CameraParameters& params)
     }
     LOGE("Invalid antibanding value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setMCEValue(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_MCE)) {
         LOGI("Parameter MCE is not supported for this sensor");
         return NO_ERROR;
@@ -7850,13 +7813,10 @@ status_t QualcommCameraHardware::setMCEValue(const CameraParameters& params)
     }
     LOGE("Invalid MCE value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-	#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setHighFrameRate(const CameraParameters& params)
 {
-#if 0
     if((!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HFR)) || (mIs3DModeOn)) {
         LOGI("Parameter HFR is not supported for this sensor");
         return NO_ERROR;
@@ -7893,13 +7853,10 @@ status_t QualcommCameraHardware::setHighFrameRate(const CameraParameters& params
     }
     LOGE("Invalid HFR value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setHDRImaging(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HDR) && mZslEnable) {
         LOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
         return NO_ERROR;
@@ -7926,13 +7883,10 @@ status_t QualcommCameraHardware::setHDRImaging(const CameraParameters& params)
     }
     LOGE("Invalid HDR value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_HDR) && mZslEnable) {
         LOGI("Parameter Exposure Bracketing is not supported for this sensor/ZSL mode");
         return NO_ERROR;
@@ -7962,13 +7916,10 @@ status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params
     } else
         mExpBracketMode = false;
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ROLLOFF)) {
         LOGI("Parameter Rolloff is not supported for this sensor");
         return NO_ERROR;
@@ -7987,14 +7938,11 @@ status_t QualcommCameraHardware::setLensshadeValue(const CameraParameters& param
         }
     }
     LOGE("Invalid lensShade value: %s", (str == NULL) ? "NULL" : str);
-    return BAD_VALUE;
-	#endif
-return NO_ERROR;
+    return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setSelectableZoneAf(const CameraParameters& params)
 {
-#if 0
     if(mHasAutoFocusSupport && supportsSelectableZoneAf()) {
         const char *str = params.get(CameraParameters::KEY_SELECTABLE_ZONE_AF);
         if (str != NULL) {
@@ -8010,13 +7958,10 @@ status_t QualcommCameraHardware::setSelectableZoneAf(const CameraParameters& par
         return BAD_VALUE;
     }
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 {
-#if 0
     if(mHasAutoFocusSupport){
         int xAec, yAec, xAf, yAf;
 
@@ -8088,13 +8033,10 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
         return BAD_VALUE;
     }
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setFaceDetection(const char *str)
 {
-#if 0
     if(supportsFaceDetection() == false){
         LOGI("Face detection is not enabled");
         return NO_ERROR;
@@ -8112,8 +8054,6 @@ status_t QualcommCameraHardware::setFaceDetection(const char *str)
     }
     LOGE("Invalid Face Detection value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setRedeyeReduction(const CameraParameters& params)
@@ -8140,7 +8080,6 @@ status_t QualcommCameraHardware::setRedeyeReduction(const CameraParameters& para
 }
 
 status_t  QualcommCameraHardware::setISOValue(const CameraParameters& params) {
-#if 0
     int8_t temp_hjr;
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_ISO)) {
             LOGE("Parameter ISO Value is not supported for this sensor");
@@ -8172,13 +8111,10 @@ status_t  QualcommCameraHardware::setISOValue(const CameraParameters& params) {
     }
     LOGE("Invalid Iso value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;	
 }
 
 status_t QualcommCameraHardware::setSceneDetect(const CameraParameters& params)
 {
-#if 0
     bool retParm1, retParm2;
     if (supportsSceneDetection()) {
         if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_BL_DETECTION) && !mCfgControl.mm_camera_is_supported(CAMERA_PARM_SNOW_DETECTION)) {
@@ -8213,13 +8149,10 @@ status_t QualcommCameraHardware::setSceneDetect(const CameraParameters& params)
     return BAD_VALUE;
     }
     return NO_ERROR;
-#endif
-return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setSceneMode(const CameraParameters& params)
 {
-#if 0
     if(!mCfgControl.mm_camera_is_supported(CAMERA_PARM_BESTSHOT_MODE)) {
         LOGE("Parameter Scenemode is not supported for this sensor");
         return NO_ERROR;
@@ -8238,8 +8171,6 @@ status_t QualcommCameraHardware::setSceneMode(const CameraParameters& params)
     }
     LOGE("Invalid scenemode value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-return NO_ERROR;
 }
 status_t QualcommCameraHardware::setGpsLocation(const CameraParameters& params)
 {
@@ -8437,34 +8368,31 @@ status_t QualcommCameraHardware::setSnapshotCount(const CameraParameters& params
 
 status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
 {
-#if 0
     LOGV("%s: IN", __FUNCTION__);
     focus_distances_info_t focusDistances;
     if( mCfgControl.mm_camera_get_parm(CAMERA_PARM_FOCUS_DISTANCES,
         (void *)&focusDistances) == MM_CAMERA_SUCCESS) {
         String8 str;
         char buffer[32];
-        sprintf(buffer, sizeof(buffer), "%f", focusDistances.focus_distance[0]);
+        snprintf(buffer, sizeof(buffer), "%f", focusDistances.focus_distance[0]);
         str.append(buffer);
-        sprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[1]);
+        snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[1]);
         str.append(buffer);
         if(strcmp(focusmode, CameraParameters::FOCUS_MODE_INFINITY) == 0)
-            sprintf(buffer, sizeof(buffer), ",%s", "Infinity");
+            snprintf(buffer, sizeof(buffer), ",%s", "Infinity");
         else
-            sprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[2]);
+            snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[2]);
         str.append(buffer);
         LOGI("%s: setting KEY_FOCUS_DISTANCES as %s", __FUNCTION__, str.string());
         mParameters.set(CameraParameters::KEY_FOCUS_DISTANCES, str.string());
         return NO_ERROR;
     }
     LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
-#endif
-    return NO_ERROR;
+    return BAD_VALUE;
 }
 
 status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
 {
-#if 0
     const char *str = params.get(CameraParameters::KEY_FOCUS_MODE);
     if (str != NULL) {
         int32_t value = attr_lookup(focus_modes,
@@ -8492,8 +8420,7 @@ status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
     }
     LOGE("Invalid focus mode value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
-#endif
-    return NO_ERROR;	
+
 }
 QualcommCameraHardware::DispMemPool::DispMemPool(int fd, int buffer_size,
                                                int num_buffers, int frame_size,

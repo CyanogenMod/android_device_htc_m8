@@ -2718,6 +2718,9 @@ void QualcommCameraHardware::runFrameThread(void *data)
                if(mRecordMapped[cnt]) {
                    mRecordMapped[cnt]->release(mRecordMapped[cnt]);
                    close(mRecordfd[cnt]);
+#ifdef USE_ION
+                   deallocate_ion_memory(&record_main_ion_fd[cnt], &record_ion_info_fd[cnt]);
+#endif
                }
             }
 	    }
@@ -3318,6 +3321,59 @@ static int parse_size(const char *str, int &width, int &height)
     return 0;
 }
 QualcommCameraHardware* hardware;
+
+int QualcommCameraHardware::allocate_ion_memory(int *main_ion_fd, struct ion_allocation_data* alloc,
+     struct ion_fd_data* ion_info_fd, int ion_type, int size, int *memfd)
+{
+    int rc = 0;
+    struct ion_handle_data handle_data;
+
+    *main_ion_fd = open("/dev/ion", O_RDONLY | O_SYNC);
+    if (*main_ion_fd < 0) {
+      LOGE("Ion dev open failed\n");
+      LOGE("Error is %s\n", strerror(errno));
+      goto ION_OPEN_FAILED;
+    }
+    alloc->len = size;
+    /* to make it page size aligned */
+    alloc->len = (alloc->len + 4095) & (~4095);
+    alloc->align = 4096;
+    alloc->flags = 0x1 << ion_type;
+
+    rc = ioctl(*main_ion_fd, ION_IOC_ALLOC, alloc);
+    if (rc < 0) {
+      LOGE("ION allocation failed\n");
+      goto ION_ALLOC_FAILED;
+    }
+
+    ion_info_fd->handle = alloc->handle;
+    rc = ioctl(*main_ion_fd, ION_IOC_SHARE, ion_info_fd);
+    if (rc < 0) {
+      LOGE("ION map failed %s\n", strerror(errno));
+      goto ION_MAP_FAILED;
+    }
+    *memfd = ion_info_fd->fd; 
+    return 0;
+
+ION_MAP_FAILED:
+    handle_data.handle = ion_info_fd->handle;
+    ioctl(*main_ion_fd, ION_IOC_FREE, &handle_data);
+ION_ALLOC_FAILED:
+    close(*main_ion_fd);
+ION_OPEN_FAILED:
+    return -1;
+}
+int QualcommCameraHardware::deallocate_ion_memory(int *main_ion_fd, struct ion_fd_data* ion_info_fd)
+{
+    struct ion_handle_data handle_data;
+    int rc = 0;
+
+    handle_data.handle = ion_info_fd->handle;
+    ioctl(*main_ion_fd, ION_IOC_FREE, &handle_data);
+    close(*main_ion_fd);
+    return rc;
+}
+
 bool QualcommCameraHardware::initPreview()
 {
     const char * pmem_region;
@@ -3890,12 +3946,18 @@ bool QualcommCameraHardware::deinitZslBuffers()
             mRawMapped[cnt]->release(mRawMapped[cnt]);
             mRawMapped[cnt] = NULL;
             close(mRawfd[cnt]);
+#ifdef USE_ION
+            deallocate_ion_memory(&raw_main_ion_fd[cnt], &raw_ion_info_fd[cnt]);
+#endif
         }
     }
     for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
         if(mJpegMapped[cnt]) {
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
+#ifdef USE_ION
+            deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
+#endif
         }
     }
     LOGE("deinitZslBuffers X");
@@ -3906,19 +3968,30 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
 {
     char * pmem_region;
     int ret;
+    int ion_heap;
     if(mCurrentTarget == TARGET_MSM8660) {
        pmem_region = "/dev/pmem_smipool";
+       ion_heap = ION_HEAP_SMI_ID;
     } else {
        pmem_region = "/dev/pmem_adsp";
+       ion_heap = ION_HEAP_ADSP_ID;
     }
     // Create Raw memory for snapshot
     for(int cnt = 0; cnt < numberOfRawBuffers; cnt++)
     {
+#ifdef USE_ION
+        if (allocate_ion_memory(&raw_main_ion_fd[cnt], &raw_alloc[cnt], &raw_ion_info_fd[cnt],
+                                ion_heap, mJpegMaxSize, &mRawfd[cnt]) < 0){
+          LOGE("do_mmap: Open device %s failed!\n",pmem_region);
+	      return NULL;
+        }
+#else
         mRawfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
         if (mRawfd[cnt] <= 0) {
             LOGE("%s: Open device %s failed!\n",__func__, pmem_region);
                 return false;
         }
+#endif
         LOGE("%s  Raw memory index: %d , fd is %d ", __func__, cnt, mRawfd[cnt]);
         mRawMapped[cnt]=mGetMemory(mRawfd[cnt], mJpegMaxSize,1,mCallbackCookie);
         if(mRawMapped[cnt] == NULL) {
@@ -3955,11 +4028,19 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
     {
         for(int cnt = 0; cnt < numberOfJpegBuffers; cnt++)
         {
+#ifdef USE_ION
+            if (allocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_alloc[cnt], &Jpeg_ion_info_fd[cnt],
+                                    ion_heap, mJpegMaxSize, &mJpegfd[cnt]) < 0){
+              LOGE("do_mmap: Open device %s failed!\n",pmem_region);
+	          return NULL;
+            }
+#else
             mJpegfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
             if (mJpegfd[cnt] <= 0) {
                 LOGE("%s: Open device for jpeg mem %s failed!\n",__func__, pmem_region);
                 return false;
             }
+#endif
             LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
             mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
             if(mJpegMapped[cnt] == NULL) {
@@ -4270,6 +4351,9 @@ void QualcommCameraHardware::deinitRaw()
             mRawMapped[cnt]->release(mRawMapped[cnt]);
             mRawMapped[cnt] = NULL;
             close(mRawfd[cnt]);
+#ifdef USE_ION
+            deallocate_ion_memory(&raw_main_ion_fd[cnt], &raw_ion_info_fd[cnt]);
+#endif
         }
     }
     for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS) : numCapture); cnt++) {
@@ -4277,6 +4361,9 @@ void QualcommCameraHardware::deinitRaw()
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
             close(mJpegfd[cnt]);
+#ifdef USE_ION
+            deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
+#endif
         }
     }
     if( mPreviewWindow != NULL ) {
@@ -6443,11 +6530,19 @@ bool QualcommCameraHardware::initRecord()
          return false;
        }
 #endif
+#ifdef USE_ION
+    if (allocate_ion_memory(&record_main_ion_fd[cnt], &record_alloc[cnt], &record_ion_info_fd[cnt],
+                            ion_heap, mRecordFrameSize, &mRecordfd[cnt]) < 0){
+      LOGE("do_mmap: Open device %s failed!\n",pmem_region);
+	  return NULL;
+    }
+#else
     mRecordfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
     if (mRecordfd[cnt] <= 0) {
         LOGE("%s: Open device %s failed!\n",__func__, pmem_region);
 	        return NULL;
     }
+#endif
     LOGE("%s  Record fd is %d ", __func__, mRecordfd[cnt]);
         mRecordMapped[cnt]=mGetMemory(mRecordfd[cnt], mRecordFrameSize,1,mCallbackCookie);
         LOGE("sravnak initrecord 14");
@@ -8656,7 +8751,7 @@ QualcommCameraHardware::PmemPool::~PmemPool()
     mMMCameraDLRef.clear();
     LOGI("%s: %s X", __FUNCTION__, mName);
 }
-
+#if 0
 #ifdef USE_ION
 const char QualcommCameraHardware::IonPool::mIonDevName[] = "/dev/ion";
 QualcommCameraHardware::IonPool::IonPool(int ion_heap_id, int flags,
@@ -8772,7 +8867,8 @@ QualcommCameraHardware::IonPool::~IonPool()
     mMMCameraDLRef.clear();
     LOGI("%s: %s X", __FUNCTION__, mName);
 }
-#endif
+#endif             
+#endif 
 QualcommCameraHardware::MemPool::~MemPool()
 {
     LOGV("destroying MemPool %s", mName);

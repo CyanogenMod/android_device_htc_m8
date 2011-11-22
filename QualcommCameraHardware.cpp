@@ -2702,9 +2702,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
 	  }
 #endif
              type = MSM_PMEM_VIDEO;
-             if((mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
-               type = MSM_PMEM_VIDEO_VPE;
-             }
+             LOGE("%s: unregister record buffers[%d] with camera driver", __FUNCTION__, cnt);
              if(recordframes) {
                register_buf(mRecordFrameSize,
                   mRecordFrameSize, CbCrOffset, 0,
@@ -3631,6 +3629,7 @@ bool QualcommCameraHardware::initRawSnapshot()
     }
 
     //Pmem based pool for Camera Driver
+#if 0
 #ifdef USE_ION
     mRawSnapShotPmemHeap = new IonPool(ion_heap,
                                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
@@ -3651,6 +3650,7 @@ bool QualcommCameraHardware::initRawSnapshot()
                                     0,
                                     0,
                                     "raw pmem snapshot camera");
+#endif
 #endif
     if (!mRawSnapShotPmemHeap->initialized()) {
         mRawSnapShotPmemHeap.clear();
@@ -4219,15 +4219,22 @@ void QualcommCameraHardware::deinitRawSnapshot()
 void QualcommCameraHardware::deinitRaw()
 {
     LOGV("deinitRaw E");
-    if(NULL != mRawMapped) {
-        mRawMapped->release(mRawMapped);
-        close(mRawfd);
-        mRawMapped = NULL;
+    if (NULL != mRawMapped) {
+      LOGE("Unregister MAIN_IMG");
+      register_buf(mJpegMaxSize,
+                  mRawSize,mCbCrOffsetRaw,0,
+                  mRawfd,0,
+                  (uint8_t *)mRawMapped->data,
+                  MSM_PMEM_MAINIMG,
+                  0, 0);
+      mRawMapped->release(mRawMapped);
+      close(mRawfd);
+      mRawMapped = NULL;
     }
     if(NULL != mJpegMapped) {
-        mJpegMapped->release(mJpegMapped);
-        close(mJpegfd);
-        mJpegMapped = NULL;
+      mJpegMapped->release(mJpegMapped);
+      close(mJpegfd);
+      mJpegMapped = NULL;
     }
 #if 0
     mJpegHeap.clear();
@@ -4235,8 +4242,8 @@ void QualcommCameraHardware::deinitRaw()
 #endif
     if(mCurrentTarget != TARGET_MSM8660){
 #if 0
-       mThumbnailHeap.clear();
-       mDisplayHeap.clear();
+      mThumbnailHeap.clear();
+      mDisplayHeap.clear();
 #endif
     }
 
@@ -4400,7 +4407,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
                        mPreviewMapped[cnt]->handle,
                        mPreviewMapped[cnt]->release,
                        mPreviewMapped[cnt]->size);
-LOGE(" getbuffersandrestartpreview deQ %d", handle->fd);
+                  LOGE(" getbuffersandrestartpreview deQ %d", handle->fd);
                   frames[cnt].fd = handle->fd;
                   frames[cnt].buffer = (unsigned int)mPreviewMapped[cnt]->data;//(unsigned int)mPreviewHeap[cnt]->mHeap->base();
                   if(((void *)frames[cnt].buffer == MAP_FAILED)
@@ -6685,7 +6692,7 @@ void QualcommCameraHardware::notifyShutter(bool mPlayShutterSoundOnly)
     }
 
     if (mShutterPending && mNotifyCallback && (mMsgEnabled & CAMERA_MSG_SHUTTER)) {
-        mDisplayHeap = mThumbnailHeap;
+        //mDisplayHeap = mThumbnailHeap;
 #if 0
         if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
             size.width = crop->in1_w;
@@ -6944,7 +6951,7 @@ void QualcommCameraHardware::receiveRawPicture(status_t status, void *cropp)
               LOGE("Error un-mmapping the thumbnail buffer!!!");
             }
           }
-          mThumbnailBuffer = NULL;
+          //mThumbnailBuffer = NULL;
         }
         /* Give the main Image as raw to upper layers */
         //Either CAMERA_MSG_RAW_IMAGE or CAMERA_MSG_RAW_IMAGE_NOTIFY will be set not both
@@ -9067,6 +9074,7 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
          mPreviewFrameSize);
     if(mLastPreviewFrameHeap == NULL) {
         int CbCrOffset = PAD_TO_WORD(mPreviewFrameSize * 2/3);
+#if 0
 #ifdef USE_ION
 
         mLastPreviewFrameHeap =
@@ -9096,6 +9104,7 @@ bool QualcommCameraHardware::storePreviewFrameForPostview(void) {
                LOGE(" Failed to initialize Postview Heap");
                return false;
             }
+#endif
     }
 #if 0
     if( mLastPreviewFrameHeap != NULL && mLastQueuedFrame != NULL) {

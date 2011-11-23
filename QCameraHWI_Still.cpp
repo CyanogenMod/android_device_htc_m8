@@ -829,13 +829,10 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                            &num_planes, planes);
 
     if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
-	   frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf, &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
+	   frame_len, 0, planes[0], MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf, &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
 		        ret = NO_MEMORY;
 		        goto end;
 	};
-
-    /* allocate memory for postview*/
-    mPostviewStreamBuf.frame_len = frame_len;
 
     /* register the streaming buffers for the channel*/
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;

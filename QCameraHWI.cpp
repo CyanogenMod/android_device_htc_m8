@@ -2114,6 +2114,7 @@ uint32_t *planes
 
     if (StreamBuf != NULL) {
 		StreamBuf->num = num_of_buf;
+                StreamBuf->frame_len = buf_len;
 		switch (pmem_type) {
 			case  MSM_PMEM_MAINIMG:
 				path = OUTPUT_TYPE_S;

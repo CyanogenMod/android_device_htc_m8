@@ -4019,9 +4019,17 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         mCbCrOffsetRaw = buf_info.cbcr_offset;
         yOffset = buf_info.yoffset;
     }
-    mParameters.getPreviewSize(&previewWidth, &previewHeight);
-    int mBufferSize = previewWidth * previewHeight * 3/2;
-    int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+    int mBufferSize;
+    int CbCrOffset;
+    if(mCurrentTarget != TARGET_MSM7627 && mCurrentTarget != TARGET_MSM7627A){
+        mParameters.getPreviewSize(&previewWidth, &previewHeight);
+        mBufferSize = previewWidth * previewHeight * 3/2;
+        CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+    }
+    else {
+        mBufferSize = mPostviewWidth * mPostviewHeight * 3/2;
+        CbCrOffset = PAD_TO_WORD(mPostviewWidth * mPostviewHeight);
+    }
     private_handle_t *thumbnailHandle;
     if(mThumbnailBuffer) {
        thumbnailHandle = (private_handle_t *)(*mThumbnailBuffer);
@@ -4240,7 +4248,27 @@ void QualcommCameraHardware::deinitRaw()
     mJpegHeap.clear();
     mRawHeap.clear();
 #endif
-    if(mCurrentTarget != TARGET_MSM8660){
+    if(mCurrentTarget == TARGET_MSM7627 || mCurrentTarget == TARGET_MSM7627A){
+        private_handle_t *handle;
+        if(mThumbnailBuffer != NULL) {
+            handle = (private_handle_t *)(*mThumbnailBuffer);
+                if(handle) {
+                int mBufferSize = mPostviewWidth * mPostviewHeight * 3/2;
+                int mCbCrOffset = PAD_TO_WORD(mPostviewWidth * mPostviewHeight);
+                register_buf(mBufferSize,
+                            mBufferSize,
+                            mCbCrOffset,0,
+                            handle->fd,0,
+                            (uint8_t *)mThumbnailMapped,
+                            MSM_PMEM_THUMBNAIL,
+                            false,
+                            false ) ;
+                if (munmap((void *)mThumbnailMapped,handle->size ) == -1) {
+                    LOGE("Error un-mmapping the thumbnail buffer!!!");
+                }
+            }
+            mThumbnailBuffer = NULL;
+        }
 #if 0
       mThumbnailHeap.clear();
       mDisplayHeap.clear();
@@ -6933,25 +6961,26 @@ void QualcommCameraHardware::receiveRawPicture(status_t status, void *cropp)
         if( retVal != NO_ERROR)
           LOGE("%s: Queuebuffer failed for postview buffer", __FUNCTION__);
           mDisplayLock.unlock();
-          if(handle) {
-            mParameters.getPreviewSize(&previewWidth, &previewHeight);
-            int mBufferSize = previewWidth * previewHeight * 3/2;
-            int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
-            register_buf(mBufferSize,
-                         mBufferSize,
-                         mCbCrOffset,
-                         0,
-                         handle->fd,
-                         0,
-                         (uint8_t *)mThumbnailMapped,
-                         MSM_PMEM_THUMBNAIL,
-                         false,
-                         false /* unregister */);
-            if (munmap((void *)mThumbnailMapped,handle->size ) == -1) {
-              LOGE("Error un-mmapping the thumbnail buffer!!!");
-            }
-          }
-          //mThumbnailBuffer = NULL;
+          if(mCurrentTarget != TARGET_MSM7627 && mCurrentTarget != TARGET_MSM7627A){
+              if(handle) {
+                  mParameters.getPreviewSize(&previewWidth, &previewHeight);
+                  int mBufferSize = previewWidth * previewHeight * 3/2;
+                  int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+                  register_buf(mBufferSize,
+                               mBufferSize,
+                               mCbCrOffset,
+                               0,
+                               handle->fd,
+                               0,
+                               (uint8_t *)mThumbnailMapped,
+                               MSM_PMEM_THUMBNAIL,
+                               false,
+                               false /* unregister */);
+                  if(munmap((void *)mThumbnailMapped,handle->size ) == -1) {
+                      LOGE("Error un-mmapping the thumbnail buffer!!!");
+                  }
+              }
+          mThumbnailBuffer = NULL;
         }
         /* Give the main Image as raw to upper layers */
         //Either CAMERA_MSG_RAW_IMAGE or CAMERA_MSG_RAW_IMAGE_NOTIFY will be set not both
@@ -7009,6 +7038,7 @@ void QualcommCameraHardware::receiveRawPicture(status_t status, void *cropp)
     mInSnapshotModeWaitLock.unlock();
 
     LOGV("%s: X", __FUNCTION__);
+}
 }
 
 void QualcommCameraHardware::receiveJpegPicture(status_t status, uint32_t buffer_size)

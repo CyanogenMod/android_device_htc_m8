@@ -2060,7 +2060,7 @@ bool QualcommCameraHardware::startCamera()
      mCamNotify.video_frame_cb = &receive_camframe_video_callback;
 
 #endif // DLOPEN_LIBMMCAMERA
-
+#if 0 //commenting this for now as not getting graphics permission
     if((mCurrentTarget != TARGET_MSM7630) && (mCurrentTarget != TARGET_MSM8660)){
         fb_fd = open("/dev/graphics/fb0", O_RDWR);
         if (fb_fd < 0) {
@@ -2068,6 +2068,7 @@ bool QualcommCameraHardware::startCamera()
             return FALSE;
         }
     }
+#endif
     int ret_val;
     if (pthread_join(mDeviceOpenThread, (void**)&ret_val) != 0) {
          LOGE("openCamera thread exit failed");

@@ -2137,19 +2137,6 @@ uint32_t *planes
 			LOGE("Open fail: heap->fd[%d] =%d", i, heap->fd[i]);
 			break;
 		}
-		heap->pmem[i] = mmap(NULL,
-			 buf_len,
-			 PROT_READ  | PROT_WRITE,
-			 MAP_SHARED,
-			 heap->fd[i],
-			 0);
-		if (heap->pmem[i] == MAP_FAILED) {
-			LOGE("do_mmap: pmem mmap() failed: %s (%d)\n", strerror(errno), errno);
-			heap->pmem[i]= NULL;
-			rc = -1;
-			break;
-		}
-
 		heap->camera_memory[i] =  mGetMemory( heap->fd[i], buf_len, 1, (void *)this);
 
 		if (heap->camera_memory[i] == NULL ) {
@@ -2215,11 +2202,6 @@ int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
 			} else if (heap->fd[i] <= 0) {
 				LOGE("impossible: amera_memory[%d] = %p, fd = %d",
 				i, heap->camera_memory[i], heap->fd[i]);
-			}
-
-			if(heap->pmem[i] != NULL) {
-				munmap(heap->pmem[i], heap->size);
-				heap->pmem[i] = NULL;
 			}
 
 			if(heap->fd[i] > 0) {

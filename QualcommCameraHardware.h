@@ -138,13 +138,13 @@ public:
     void receiveLiveSnapshot(uint32_t jpeg_size);
     void receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo);
     void receiveRecordingFrame(struct msm_frame *frame);
-    void receiveJpegPicture(status_t status, uint32_t size);
+    void receiveJpegPicture(status_t status, mm_camera_buffer_t *encoded_buffer);
     void jpeg_set_location();
     void receiveJpegPictureFragment(uint8_t *buf, uint32_t size);
     void notifyShutter(bool mPlayShutterSoundOnly);
     void receive_camframe_error_timeout();
     static void getCameraInfo();
-    void receiveRawPicture(status_t status, void *cropp);
+    void receiveRawPicture(status_t status,struct msm_frame *postviewframe, struct msm_frame *mainframe);
 
 private:
     QualcommCameraHardware();
@@ -322,6 +322,7 @@ private:
     void deinitRaw();
     void deinitRawSnapshot();
     bool mPreviewThreadRunning;
+    bool createSnapshotMemory (int numberOfRawBuffers, int numberOfJpegBuffers, bool initJpegHeap);
     Mutex mPreviewThreadWaitLock;
     Condition mPreviewThreadWait;
     friend void *preview_thread(void *user);
@@ -331,6 +332,9 @@ private:
     void runHFRThread(void *data);
     bool mHFRThreadRunning;
 	int mapBuffer(msm_frame *frame);
+	int mapRawBuffer(msm_frame *frame);
+	int mapThumbnailBuffer(msm_frame *frame);
+	int mapJpegBuffer(mm_camera_buffer_t* buffer);
         int mapvideoBuffer( msm_frame *frame);
 	int mapFrame(buffer_handle_t *buffer);
     Mutex mHFRThreadWaitLock;
@@ -525,23 +529,24 @@ private:
     int mBrightness;
     int mSkinToneEnhancement;
     int mHJR;
-	unsigned int mThumbnailMapped;
-    int mRawfd;
-    int mJpegfd;
+    unsigned int mThumbnailMapped[MAX_SNAPSHOT_BUFFERS]; 
+    int mRawfd[MAX_SNAPSHOT_BUFFERS];  
+    int mJpegfd[MAX_SNAPSHOT_BUFFERS]; 
     int mRecordfd[9];
     camera_memory_t *mPreviewMapped[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
-    camera_memory_t *mRawMapped;
-    camera_memory_t *mJpegMapped;
+    camera_memory_t *mRawMapped[MAX_SNAPSHOT_BUFFERS]; 
+    camera_memory_t *mJpegMapped[MAX_SNAPSHOT_BUFFERS]; 
     camera_memory_t *mRawSnapShotMapped;
     camera_memory_t *mRecordMapped[9];
     struct msm_frame frames[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
     struct buffer_map frame_buffer[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
     struct msm_frame *recordframes;
+    struct msm_frame *rawframes;
     bool *record_buffers_tracking_flag;
     bool mInPreviewCallback;
     preview_stream_ops_t* mPreviewWindow;
     android_native_buffer_t *mPostViewBuffer;
-    buffer_handle_t *mThumbnailBuffer;
+    buffer_handle_t *mThumbnailBuffer[MAX_SNAPSHOT_BUFFERS];  
     bool mIs3DModeOn;
 
     int32_t mMsgEnabled;    // camera msg to be handled

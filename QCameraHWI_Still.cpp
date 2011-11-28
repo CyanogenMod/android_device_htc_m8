@@ -247,10 +247,21 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     if (mHalCamCtrl->mDataCb &&
         (mHalCamCtrl->mMsgEnabled & msg_type)) {
 
+        // Create camera_memory_t object backed by the same physical
+        // memory but with actual bitstream size.
+        camera_memory_t *encodedMem = mHalCamCtrl->mGetMemory(
+            mHalCamCtrl->mJpegMemory.fd[0], mJpegOffset, 1,
+            mHalCamCtrl);
+        if (!encodedMem || !encodedMem->data) {
+            LOGE("%s: mGetMemory failed.\n", __func__);
+            return;
+        }
 
       mHalCamCtrl->mDataCb(msg_type,
-                           mHalCamCtrl->mJpegMemory.camera_memory[0], 0, NULL,
+                           encodedMem, 0, NULL,
                            mHalCamCtrl->mCallbackCookie);
+
+        encodedMem->release(encodedMem);
     } else {
       LOGW("%s: JPEG callback was cancelled--not delivering image.", __func__);
     }

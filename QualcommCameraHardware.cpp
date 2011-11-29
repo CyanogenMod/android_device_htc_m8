@@ -225,9 +225,9 @@ union zoomimage
 
 //Default FPS
 #define MINIMUM_FPS 5
-#define MAXIMUM_FPS 20
+#define MAXIMUM_FPS 31
 #define DEFAULT_FPS MAXIMUM_FPS
-#define DEFAULT_FIXED_FPS_VALUE 20 //30
+#define DEFAULT_FIXED_FPS_VALUE 30
 /*
  * Modifying preview size requires modification
  * in bitmasks for boardproperties
@@ -2762,7 +2762,6 @@ void QualcommCameraHardware::runPreviewThread(void *data)
         // signal smooth zoom thread , that a new preview frame is available
         mSmoothzoomThreadWaitLock.lock();
         if(mSmoothzoomThreadRunning) {
-        //LOGV("smooth thread in progress , got a previe frame");
             mSmoothzoomThreadWait.signal();
         }
         mSmoothzoomThreadWaitLock.unlock();
@@ -2807,11 +2806,11 @@ void QualcommCameraHardware::runPreviewThread(void *data)
              if(zoomCropInfo.top < 0) zoomCropInfo.top = 0;
              zoomCropInfo.right = zoomCropInfo.left + crop->in1_w;
              zoomCropInfo.bottom = zoomCropInfo.top + crop->in1_h;
-	            mPreviewWindow-> set_crop (mPreviewWindow,
-	                                      zoomCropInfo.left,
-	                                      zoomCropInfo.top,
-	                                      zoomCropInfo.right,
-	                                      zoomCropInfo.bottom);
+             mPreviewWindow-> set_crop (mPreviewWindow,
+                                       zoomCropInfo.left,
+                                       zoomCropInfo.top,
+                                       zoomCropInfo.right,
+                                       zoomCropInfo.bottom);
              /* Set mResetOverlayCrop to true, so that when there is
               * no crop information, setCrop will be called
               * with zero crop values.
@@ -2831,11 +2830,11 @@ void QualcommCameraHardware::runPreviewThread(void *data)
               * multiple calls, reset once.
               */
              if(mResetWindowCrop == true){
-	                mPreviewWindow-> set_crop (mPreviewWindow,
-	                                      zoomCropInfo.left,
-	                                      zoomCropInfo.top,
-	                                      zoomCropInfo.right,
-	                                      zoomCropInfo.bottom);
+                mPreviewWindow-> set_crop (mPreviewWindow,
+                                      zoomCropInfo.left,
+                                      zoomCropInfo.top,
+                                      zoomCropInfo.right,
+                                      zoomCropInfo.bottom);
                  mResetWindowCrop = false;
              }
          }
@@ -2866,27 +2865,23 @@ void QualcommCameraHardware::runPreviewThread(void *data)
            // TODO : may have to reutn proper frame as pcb
            mDisplayLock.lock();
            if( mPreviewWindow != NULL) {
-            if (GENLOCK_FAILURE == genlock_unlock_buffer(
+             if (GENLOCK_FAILURE == genlock_unlock_buffer(
                         (native_handle_t*)(*(frame_buffer[bufferIndex].buffer)))) {
-                LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
-            }
-	        retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
-	                                        frame_buffer[bufferIndex].buffer);
-            LOGE(" enQ preview buffers %d ",frame_buffer[bufferIndex].frame->fd);
-          //  LOGE(" enQ preview buffers ");
-           //  if( retVal != NO_ERROR)
-               //LOGE("%s: Failed while queueing buffer %d for display."
-                //   " Error = %d", __FUNCTION__,
-               //    mPreviewHeap[bufferIndex]->mFD, retVal);
-		    int stride;
-			retVal = mPreviewWindow->dequeue_buffer(mPreviewWindow,
-			                         &(handle),
-									 &(stride));
-            private_handle_t *bhandle = (private_handle_t *)(*handle);
-             LOGE(" deQ preview buffers %d ",bhandle->fd);
+               LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
+             }
+             retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
+                                        frame_buffer[bufferIndex].buffer);
+             if( retVal != NO_ERROR)
+               LOGE("%s: Failed while queueing buffer %d for display."
+                         " Error = %d", __FUNCTION__,
+                         frames[bufferIndex].fd, retVal);
+             int stride;
+             retVal = mPreviewWindow->dequeue_buffer(mPreviewWindow,
+                                                &(handle),&(stride));
+             private_handle_t *bhandle = (private_handle_t *)(*handle);
              if( retVal != NO_ERROR) {
                LOGE("%s: Failed while dequeueing buffer from display."
-                " Error = %d", __FUNCTION__, retVal);
+                        " Error = %d", __FUNCTION__, retVal);
              } else {
                retVal = mPreviewWindow->lock_buffer(mPreviewWindow,handle);
                // lock the buffer for write using genlock
@@ -4633,7 +4628,6 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
             status_t retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
                                 frame_buffer[cnt].buffer);
             LOGE(" Cancelling preview buffers %d ",frame_buffer[cnt].frame->fd);
-            //LOGE(" Cancelling preview buffers ");
         }
 
     } else {
@@ -6066,9 +6060,7 @@ void QualcommCameraHardware::runSmoothzoomThread(void * data) {
         /* wait on singal, which will be signalled on
          * receiving next preview frame */
         mSmoothzoomThreadWaitLock.lock();
-        //LOGV("Smoothzoom thread: waiting for preview frame.");
         mSmoothzoomThreadWait.wait(mSmoothzoomThreadWaitLock);
-        //LOGV("Smoothzoom thread: wait over for preview frame.");
         mSmoothzoomThreadWaitLock.unlock();
     } // while loop over, exiting thread
 
@@ -6329,7 +6321,7 @@ void QualcommCameraHardware::receiveLiveSnapshot(uint32_t jpeg_size)
 }
 void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
 {
-    LOGE("receivePreviewFrame E");
+    LOGI("receivePreviewFrame E");
     if (!mCameraRunning) {
         LOGE("ignoring preview callback--camera has been stopped");
         LINK_camframe_add_frame(CAM_PREVIEW_FRAME,frame);
@@ -6340,7 +6332,7 @@ void QualcommCameraHardware::receivePreviewFrame(struct msm_frame *frame)
         LINK_camframe_add_frame(CAM_PREVIEW_FRAME,frame);
 
 
-  LOGV("receivePreviewFrame X");
+    LOGI("receivePreviewFrame X");
 }
 void QualcommCameraHardware::receiveCameraStats(camstats_type stype, camera_preview_histogram_info* histinfo)
 {
@@ -6848,7 +6840,6 @@ void QualcommCameraHardware::releaseRecordingFrame(const void *opaque)
         size_t size;
         //sp<IMemoryHeap> heap = mem->getMemory(&offset, &size);
         msm_frame* releaseframe = NULL;
-        //LOGV(" in release recording frame :  heap base %d offset %d buffer %d ", heap->base(), offset, heap->base() + offset );
         int cnt;
         for (cnt = 0; cnt < kRecordBufferCount; cnt++) {
             if(recordframes[cnt].buffer && ((unsigned long)opaque == recordframes[cnt].buffer) ){

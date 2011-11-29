@@ -68,13 +68,14 @@ LOCAL_C_INCLUDES+= \
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
-LOCAL_C_INCLUDES += hardware/msm7k/libgralloc-qsd8k
+LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
+                    hardware/qcom/display/libgenlock
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg
 
-LOCAL_SHARED_LIBRARIES+= libbinder
+LOCAL_SHARED_LIBRARIES+= libgenlock libbinder
 ifneq ($(DLOPEN_LIBMMCAMERA),1)
 LOCAL_SHARED_LIBRARIES+= liboemcamera
 else

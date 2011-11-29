@@ -27,6 +27,7 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 #include <gralloc_priv.h>
+#include <genlock.h>
 
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
 
@@ -122,7 +123,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          ret = UNKNOWN_ERROR;
 		 goto end;
     }
-    err = mPreviewWindow->set_usage(mPreviewWindow, GRALLOC_USAGE_PRIVATE_PMEM_ADSP);
+    err = mPreviewWindow->set_usage(mPreviewWindow, GRALLOC_USAGE_PRIVATE_ADSP_HEAP);
 	if(err != 0) {
         /* set_usage error out */
 		LOGE("%s: set_usage rc = %d", __func__, err);
@@ -137,6 +138,13 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		if(!err) {
            err = mPreviewWindow->lock_buffer(this->mPreviewWindow,
                      mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
+
+            // lock the buffer using genlock
+            LOGD("%s: camera call genlock_lock", __FUNCTION__);
+            if (GENLOCK_NO_ERROR != genlock_lock_buffer((native_handle_t *)(*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]),
+                                                      GENLOCK_WRITE_LOCK, GENLOCK_MAX_TIMEOUT)) {
+                LOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
+            }
 		   mHalCamCtrl->mPreviewMemory.local_flag[cnt] = 1;
 		} else
 			LOGE("%s: dequeue_buffer idx = %d err = %d", __func__, cnt, err);
@@ -148,6 +156,10 @@ status_t QCameraStream_preview::getBufferFromSurface() {
                     strerror(-err), -err);
             ret = UNKNOWN_ERROR;
 			for(int i = 0; i < cnt; i++) {
+                        LOGD("%s: camera call genlock_unlock", __FUNCTION__);
+                        if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)(*(mHalCamCtrl->mPreviewMemory.buffer_handle[i])))) {
+                                LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
+                        }
 		        err = mPreviewWindow->cancel_buffer(mPreviewWindow,
 										mHalCamCtrl->mPreviewMemory.buffer_handle[i]);
 				mHalCamCtrl->mPreviewMemory.buffer_handle[i] = NULL;
@@ -188,7 +200,11 @@ status_t QCameraStream_preview::putBufferToSurface() {
     mHalCamCtrl->mPreviewMemoryLock.lock();
 	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count + 1; cnt++) {
         mHalCamCtrl->mPreviewMemory.camera_memory[cnt]->release(mHalCamCtrl->mPreviewMemory.camera_memory[cnt]);
-	    err = mPreviewWindow->cancel_buffer(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
+        LOGD("%s: camera call genlock_unlock", __FUNCTION__);
+	    if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)(*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])))) {
+            LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
+        }
+        err = mPreviewWindow->cancel_buffer(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
 		LOGE(" put buffer %d successfully", cnt);
 	}
 	memset(&mHalCamCtrl->mPreviewMemory, 0, sizeof(mHalCamCtrl->mPreviewMemory));
@@ -416,6 +432,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 
   LOGI("Enqueue buf handle %u\n",
 	   mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
+  LOGD("%s: camera call genlock_unlock", __FUNCTION__);
+  if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t*)
+	            (*mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]))) {
+       LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
+  }
   err = this->mPreviewWindow->enqueue_buffer(this->mPreviewWindow,
 		    (buffer_handle_t *)mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
   if(err != 0) {
@@ -428,6 +449,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 	              &buffer_handle, &tmp_stride);
   if (err == NO_ERROR && buffer_handle != NULL) {
       err = this->mPreviewWindow->lock_buffer(this->mPreviewWindow, buffer_handle);
+      LOGD("%s: camera call genlock_lock", __FUNCTION__);
+      if (GENLOCK_FAILURE == genlock_lock_buffer((native_handle_t*)(*buffer_handle), GENLOCK_WRITE_LOCK,
+                                                 GENLOCK_MAX_TIMEOUT)) {
+            LOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
+      }
       for(int i = 0; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
 		  LOGE("h1: %u h2: %u\n", mHalCamCtrl->mPreviewMemory.buffer_handle[i], buffer_handle);
 		  if(mHalCamCtrl->mPreviewMemory.buffer_handle[i] == buffer_handle) {

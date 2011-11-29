@@ -190,7 +190,7 @@ receiveJpegFragment(uint8_t *ptr, uint32_t size)
     LOGE("%s: E", __func__);
 #if 0
     if (mJpegHeap != NULL) {
-		LOGE("%s: Copy jpeg...", __func__);
+        LOGE("%s: Copy jpeg...", __func__);
         memcpy((uint8_t *)mJpegHeap->mHeap->base()+ mJpegOffset, ptr, size);
         mJpegOffset += size;
     }
@@ -199,16 +199,17 @@ receiveJpegFragment(uint8_t *ptr, uint32_t size)
     }
     #else
     if(mHalCamCtrl->mJpegMemory.camera_memory[0] != NULL && ptr != NULL && size > 0) {
-		memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.camera_memory[0]->data + mJpegOffset), ptr, size);
-		mJpegOffset += size;
+        memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.camera_memory[0]->data + mJpegOffset), ptr, size);
+        mJpegOffset += size;
 
-		/*
-		        memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.camera_memory[0]->data + mJpegOffset), ptr, size);
-		        mJpegOffset += size;
-		*/
-	} else {
-		LOGE("%s: mJpegHeap is NULL!", __func__);
-	}
+
+        /*
+                memcpy((uint8_t *)((uint32_t)mHalCamCtrl->mJpegMemory.camera_memory[0]->data + mJpegOffset), ptr, size);
+                mJpegOffset += size;
+        */
+    } else {
+        LOGE("%s: mJpegHeap is NULL!", __func__);
+    }
 
 
     #endif
@@ -271,7 +272,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     mJpegOffset = 0;
 
     /* this will free up the resources used for previous encoding task */
-    mm_jpeg_encoder_join();
+
 
     /* Tell lower layer that we are done with this buffer.
        If it's live snapshot, we don't need to call it. Recording
@@ -282,7 +283,11 @@ receiveCompleteJpegPicture(jpeg_event_t event)
              (unsigned int)mCurrentFrameEncoded->snapshot.main.frame->buffer);
         cam_evt_buf_done(mCameraId, mCurrentFrameEncoded);
     }
-
+    LOGD("%s: Before omxJpegJoin", __func__);
+    omxJpegJoin();
+    LOGD("%s: After omxJpegJoin", __func__);
+    omxJpegClose();
+    LOGD("%s: After omxJpegClose", __func__);
     /* free the resource we allocated to maintain the structure */
     //mm_camera_do_munmap(main_fd, (void *)main_buffer_addr, mSnapshotStreamBuf.frame_len);
     free(mCurrentFrameEncoded);
@@ -735,20 +740,21 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
     reg_buf.snapshot.main.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.main.buf.mp) {
-	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
-	      ret = NO_MEMORY;
-	      goto end;
-	    }
+          LOGE("%s Error allocating memory for mplanar struct ", __func__);
+          ret = NO_MEMORY;
+          goto end;
+        }
     memset(reg_buf.snapshot.main.buf.mp, 0,
-	           num_of_buf * sizeof(mm_camera_mp_buf_t));
+               num_of_buf * sizeof(mm_camera_mp_buf_t));
     reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.thumbnail.buf.mp) {
-	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
-	      ret = NO_MEMORY;
-	      goto end;
-	    }
+          LOGE("%s Error allocating memory for mplanar struct ", __func__);
+          ret = NO_MEMORY;
+          goto end;
+        }
+
     memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
-	           num_of_buf * sizeof(mm_camera_mp_buf_t));
+               num_of_buf * sizeof(mm_camera_mp_buf_t));
 
     /* Number of buffers to be set*/
     /* Set the JPEG Rotation here since get_buffer_offset needs
@@ -757,31 +763,32 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
     /*TBD: to be modified for 3D*/
      mm_jpeg_encoder_get_buffer_offset( dim->picture_width, dim->picture_height,
-	                                      &y_off, &cbcr_off, &frame_len,
+                                          &y_off, &cbcr_off, &frame_len,
                                               &num_planes, planes);
 
-	if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0, MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
-		LOGE("%s: Error allocating JPEG memory", __func__);
-		ret = NO_MEMORY;
-		goto end;
-	}
+    if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0, MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
+        LOGE("%s: Error allocating JPEG memory", __func__);
+        ret = NO_MEMORY;
+        goto end;
+    }
 
-	if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
-	   frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf, &reg_buf.snapshot.main, num_planes, planes) < 0) {
-				ret = NO_MEMORY;
-				goto end;
-	};
+    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
+       frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf, &reg_buf.snapshot.main, num_planes, planes) < 0) {
+                ret = NO_MEMORY;
+                goto end;
+    };
 
     /* allocate memory for postview*/
     mm_jpeg_encoder_get_buffer_offset( dim->ui_thumbnail_width, dim->ui_thumbnail_height,
-	                                      &y_off, &cbcr_off, &frame_len,
+                                          &y_off, &cbcr_off, &frame_len,
                                               &num_planes, planes);
     if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
-	frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf,
+    frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf,
         &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
-	    ret = NO_MEMORY;
-	    goto end;
+        ret = NO_MEMORY;
+        goto end;
     };
+
 
     /* register the streaming buffers for the channel*/
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
@@ -1262,7 +1269,7 @@ takePictureZSL(void)
                    snapshot_thread, (void *)this);
 */
 end:
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 }
 
@@ -1285,7 +1292,7 @@ startStreamZSL(void)
     }
 
 end:
-	LOGD("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 
 }
@@ -1303,11 +1310,14 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     common_crop_t crop;
     cam_point_t main_crop_offset;
     cam_point_t thumb_crop_offset;
+    int width, height;
+    uint8_t *thumbnail_buf;
+    uint32_t thumbnail_fd;
 
-    LOGD("%s: E", __func__);
+    omx_jpeg_encode_params encode_params;
 
     /* If it's the only frame, we directly pass to encoder.
-       If not, we'll queue it and check during next jpeg callback.
+       If not, we'll queue it and check during next jpeg .
        Also, if the queue isn't empty then we need to queue this
        one too till its turn comes (only if it's not already
        queued up there)*/
@@ -1346,8 +1356,10 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
 
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
-        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this);
-        mm_jpeg_encoder_init();
+        LOGD(" Passing my obj: %x", (unsigned int) this);
+        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this,
+             mHalCamCtrl->mJpegMemory.camera_memory[0]->data, &mJpegOffset);
+        omxJpegInit();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
 
         LOGD("%s: Dimension to encode: main: %dx%d thumbnail: %dx%d", __func__,
@@ -1386,20 +1398,22 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
         thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
 
-        /* mm_jpeg_encoder returns FALSE if there's any problem with encoding */
-        if (!mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
-                          (uint8_t *)postviewframe->buffer,
-                          postviewframe->fd,
-                          postviewframe->phy_offset,
-                          (uint8_t *)mainframe->buffer,
-                          mainframe->fd,
-                          mainframe->phy_offset,
-                          &crop,
-                          NULL,
-                          0,
-                          -1,
-                          &main_crop_offset,
-                          &thumb_crop_offset)){
+        /*Fill in the encode parameters*/
+        encode_params.dimension = (const cam_ctrl_dimension_t *)&dimension;
+        encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
+        encode_params.thumbnail_fd = postviewframe->fd;
+        encode_params.thumbnail_offset = postviewframe->phy_offset;
+        encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
+        encode_params.snapshot_fd = mainframe->fd;
+        encode_params.snapshot_offset = mainframe->phy_offset;
+        encode_params.scaling_params = &crop;
+        encode_params.exif_data = NULL;
+        encode_params.exif_numEntries = 0;
+        encode_params.a_cbcroffset = -1;
+        encode_params.main_crop_offset = &main_crop_offset;
+        encode_params.thumb_crop_offset = &thumb_crop_offset;
+
+        if (!omxJpegEncode(&encode_params)){
             LOGE("%s: Failure! JPEG encoder returned error.", __func__);
             ret = FAILED_TRANSACTION;
             goto end;
@@ -1422,13 +1436,13 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
                                            bool mPlayShutterSoundOnly)
 {
     //image_rect_type size;
-	int32_t ext1 = 0, ext2 = 0;
+    int32_t ext1 = 0, ext2 = 0;
     LOGD("%s: E", __func__);
 
     ext2 = mPlayShutterSoundOnly;
-	LOGD("%s: Calling callback to play shutter sound", __func__);
-	mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
-								 mHalCamCtrl->mCallbackCookie);
+    LOGD("%s: Calling callback to play shutter sound", __func__);
+    mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
+                                 mHalCamCtrl->mCallbackCookie);
     if(mPlayShutterSoundOnly) {
         /* At this point, invoke Notify Callback to play shutter sound only.
          * We want to call notify callback again when we have the
@@ -1436,7 +1450,7 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
          * of displaying postview frame. Using ext2 to indicate whether
          * to play shutter sound only or register the postview buffers.
          */
-		 ext2 = mPlayShutterSoundOnly;
+         ext2 = mPlayShutterSoundOnly;
         LOGD("%s: Calling callback to play shutter sound", __func__);
         mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
                                      mHalCamCtrl->mCallbackCookie);
@@ -1750,14 +1764,14 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
     memset(&mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
     memset(&mPostviewStreamBuf, 0, sizeof(mPostviewStreamBuf));
     mSnapshotBufferNum = 0;
-	mMainSize = 0;
-	mThumbSize = 0;
-	for(int i = 0; i < mMaxSnapshotBufferCount; i++) {
+    mMainSize = 0;
+    mThumbSize = 0;
+    for(int i = 0; i < mMaxSnapshotBufferCount; i++) {
         mMainfd[i] = 0;
         mThumbfd[i] = 0;
-	    mCameraMemoryPtrMain[i] = NULL;
-	    mCameraMemoryPtrThumb[i] = NULL;
-	}
+        mCameraMemoryPtrMain[i] = NULL;
+        mCameraMemoryPtrThumb[i] = NULL;
+    }
     LOGV("%s: X", __func__);
   }
 
@@ -1889,7 +1903,7 @@ void QCameraStream_Snapshot::stop(void)
             stopPolling();
 
             if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
-                mm_jpeg_encoder_cancel();
+                omxJpegCancel();
             }
 
             /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
@@ -1908,6 +1922,9 @@ void QCameraStream_Snapshot::release()
     /* release is generally called in case of explicit call from
        upper-layer during disconnect. So we need to deinit everything
        whatever state we are in */
+    LOGV("Calling omxjpegjoin from release\n");
+    omxJpegJoin();
+    omxJpegClose();
     deinit();
 
     LOGV("%s: X", __func__);

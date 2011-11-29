@@ -40,7 +40,7 @@ extern "C" {
 #include <camera_defs_i.h>
 #include <mm_camera_interface2.h>
 
-#include "mm_jpeg_encoder.h"
+#include "mm_omx_jpeg_encoder.h"
 
 } //extern C
 

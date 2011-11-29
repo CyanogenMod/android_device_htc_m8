@@ -17,15 +17,16 @@ LOCAL_CFLAGS:= -DDLOPEN_LIBMMCAMERA=$(DLOPEN_LIBMMCAMERA)
 ifeq ($(strip $(TARGET_USES_ION)),true)
 LOCAL_CFLAGS += -DUSE_ION
 endif
-
+ifeq ($(call is-board-platform,msm8960),true)
 MM_CAM_FILES:= \
-	mm_camera_interface2.c \
-	mm_camera_stream.c \
-	mm_camera_channel.c \
-	mm_camera.c \
-	mm_camera_poll_thread.c \
-	mm_camera_notify.c mm_camera_helper.c \
-	mm_jpeg_encoder.c
+        mm_camera_interface2.c \
+        mm_camera_stream.c \
+        mm_camera_channel.c \
+        mm_camera.c \
+        mm_camera_poll_thread.c \
+        mm_camera_notify.c mm_camera_helper.c \
+        mm_omx_jpeg_encoder.c
+endif
 
 LOCAL_CFLAGS+= -DHW_ENCODE
 
@@ -65,6 +66,11 @@ LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera/common \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
+ifeq ($(call is-board-platform,msm8960),true)
+LOCAL_C_INCLUDES+= $(TARGET_OUT_HEADERS)/mm-core/omxcore
+LOCAL_C_INCLUDES+= $(TARGET_OUT_HEADERS)/mm-still/mm-omx
+endif
+
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
@@ -73,7 +79,11 @@ LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
+ifeq ($(call is-board-platform,msm8960),true)
+LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg libmmstillomx libimage-jpeg-enc-omx-comp
+else
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg
+endif
 
 LOCAL_SHARED_LIBRARIES+= libgenlock libbinder
 ifneq ($(DLOPEN_LIBMMCAMERA),1)

@@ -349,10 +349,21 @@ static const str_map picture_formats[] = {
         {CameraParameters::PIXEL_FORMAT_RAW, PICTURE_FORMAT_RAW}
 };
 
+static const str_map recording_Hints[] = {
+        {"false", FALSE},
+        {"true",  TRUE}
+};
+
 static const str_map preview_formats[] = {
         {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
         {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO}
 };
+
+static const str_map zsl_modes[] = {
+    { CameraParameters::ZSL_OFF, FALSE },
+    { CameraParameters::ZSL_ON, TRUE },
+};
+
 /**************************************************************************/
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -727,6 +738,9 @@ void QCameraHardwareInterface::initDefaultParameters()
         mRedeyeReductionValues = create_values_str(
             redeye_reduction, sizeof(redeye_reduction) / sizeof(str_map));
 
+        mZslValues = create_values_str(
+            zsl_modes,sizeof(zsl_modes)/sizeof(str_map));
+
         mParamStringInitialized = true;
     }
 
@@ -840,6 +854,9 @@ void QCameraHardwareInterface::initDefaultParameters()
     } else {
         mParameters.set("video-zoom-support", "false");
     }
+
+    //Set Camera Mode
+    mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
 
     //Set Antibanding
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
@@ -966,10 +983,10 @@ void QCameraHardwareInterface::initDefaultParameters()
                     CameraParameters::TOUCH_AF_AEC_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_TOUCH_AF_AEC,
                     mTouchAfAecValues);
-    mParameters.setTouchIndexAec(-1, -1);
-    mParameters.setTouchIndexAf(-1, -1);
     mParameters.set("touchAfAec-dx","100");
     mParameters.set("touchAfAec-dy","100");
+    mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
+    mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "1");
 
     //Set Scene Detection
     mParameters.set(CameraParameters::KEY_SCENE_DETECT,
@@ -994,6 +1011,12 @@ void QCameraHardwareInterface::initDefaultParameters()
                     CameraParameters::REDEYE_REDUCTION_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_REDEYE_REDUCTION,
                     mRedeyeReductionValues);
+
+    //Set ZSL
+    mParameters.set(CameraParameters::KEY_ZSL,
+                    CameraParameters::ZSL_OFF);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_ZSL_MODES,
+                    mZslValues);
 
     //Set Focal length, horizontal and vertical view angles
     float focalLength = 0.0f;
@@ -1071,6 +1094,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     Mutex::Autolock l(&mLock);
     status_t rc, final_rc = NO_ERROR;
 
+    if ((rc = setCameraMode(params)))                   final_rc = rc;
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setRecordSize(params)))                   final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
@@ -1728,18 +1752,34 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
     LOGE("%s",__func__);
     if(mHasAutoFocusSupport){
         int xAec, yAec, xAf, yAf;
+        int cx, cy;
+        int width, height;
+        params.getMeteringAreaCenter(&cx, &cy);
+        getPreviewSize(&width, &height);
 
-        params.getTouchIndexAec(&xAec, &yAec);
-        params.getTouchIndexAf(&xAf, &yAf);
+        // @Punit
+        // The coords sent from upper layer is in range (-1000, -1000) to (1000, 1000)
+        // So, they are transformed to range (0, 0) to (previewWidth, previewHeight)
+        cx = cx + 1000;
+        cy = cy + 1000;
+        cx = cx * (width / 2000.0f);
+        cy = cy * (height / 2000.0f);
+
+        //Negative values are invalid and does not update anything
+        LOGE("Touch Area Center (cx, cy) = (%d, %d)", cx, cy);
+
+        //Currently using same values for AF and AEC
+        xAec = cx; yAec = cy;
+        xAf = cx; yAf = cy;
+
         const char *str = params.get(CameraParameters::KEY_TOUCH_AF_AEC);
-         if (str != NULL) {
+        if (str != NULL) {
             int value = attr_lookup(touchafaec,
                     sizeof(touchafaec) / sizeof(str_map), str);
             if (value != NOT_FOUND) {
 
                 //Dx,Dy will be same as defined in res/layout/camera.xml
                 //passed down to HAL in a key.value pair.
-
                 int FOCUS_RECTANGLE_DX = params.getInt("touchAfAec-dx");
                 int FOCUS_RECTANGLE_DY = params.getInt("touchAfAec-dy");
                 mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC, str);
@@ -1777,8 +1817,10 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
                     af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
                     af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
                     af_roi_value.is_multiwindow = mMultiTouch;
+                    native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
+                    native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
                 }
-                else {
+                else if(value == false) {
                     //Set Touch AEC params
                     aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
                     aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
@@ -1787,9 +1829,10 @@ status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
 
                     //Set Touch AF params
                     af_roi_value.num_roi = 0;
+                    native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
+                    native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
                 }
-                native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
-                native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
+                //@Punit: If the values are negative, we dont send anything to the lower layer
             }
             return NO_ERROR;
         }
@@ -1901,6 +1944,19 @@ status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)
     return NO_ERROR;
 }
 
+status_t QCameraHardwareInterface::setCameraMode(const CameraParameters& params) {
+    int32_t value = params.getInt(CameraParameters::KEY_CAMERA_MODE);
+    mParameters.set(CameraParameters::KEY_CAMERA_MODE,value);
+
+    LOGI("ZSL is enabled  %d", value);
+    if (value == 1) {
+        myMode = (camera_mode_t)(myMode | CAMERA_ZSL_MODE);
+    } else {
+        myMode = (camera_mode_t)(myMode & ~CAMERA_ZSL_MODE);
+    }
+    return NO_ERROR;
+}
+
 status_t QCameraHardwareInterface::setPreviewSize(const CameraParameters& params)
 {
     int width, height;
@@ -1996,6 +2052,7 @@ status_t QCameraHardwareInterface::setJpegRotation(void) {
 status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params) {
     status_t rc = NO_ERROR;
     int quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
+    LOGE("setJpegQuality E");
     if (quality >= 0 && quality <= 100) {
         mParameters.set(CameraParameters::KEY_JPEG_QUALITY, quality);
     } else {
@@ -2405,6 +2462,29 @@ status_t QCameraHardwareInterface::setPictureFormat(const CameraParameters& para
     return NO_ERROR;
 }
 
+
+status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& params)
+{
+
+  const char * str = params.get(CameraParameters::KEY_RECORDING_HINT);
+
+  if(str != NULL){
+      int32_t value = attr_lookup(recording_Hints,
+                                  sizeof(recording_Hints) / sizeof(str_map), str);
+      if(value != NOT_FOUND){
+
+        native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
+                                               (void *)&value);
+        native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),
+                                               (void *)&value);
+        mParameters.set(CameraParameters::KEY_RECORDING_HINT, str);
+      } else {
+          LOGE("Invalid Picture Format value: %s", str);
+          return BAD_VALUE;
+      }
+  }
+  return NO_ERROR;
+}
 
 isp3a_af_mode_t QCameraHardwareInterface::getAutoFocusMode(
   const CameraParameters& params)

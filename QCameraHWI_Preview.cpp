@@ -149,7 +149,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		} else
 			LOGE("%s: dequeue_buffer idx = %d err = %d", __func__, cnt, err);
 
-		LOGE("%s: dequeue buf: %u\n", __func__, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
+		LOGE("%s: dequeue buf: %u\n", __func__, (unsigned int)mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
 
 		if(err != 0) {
             LOGE("%s: dequeue_buffer failed: %s (%d)", __func__,
@@ -342,7 +342,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
         }
 
 		for (int j = 0; j < num_planes; j++) {
-			LOGE("Planes: %d length: %d userptr: %d offset: %d\n",
+			LOGE("Planes: %d length: %d userptr: %lu offset: %d\n",
 				 j, mDisplayBuf.preview.buf.mp[i].planes[j].length,
 				 mDisplayBuf.preview.buf.mp[i].planes[j].m.userptr,
 				 mDisplayBuf.preview.buf.mp[i].planes[j].reserved[0]);
@@ -432,13 +432,13 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
       mHalCamCtrl->debugShowPreviewFPS();
   }
   //dumpFrameToFile(frame->def.frame);
-  //mHalCamCtrl->dumpFrameToFile(frame->def.frame, HAL_DUMP_FRM_PREVIEW);
+  mHalCamCtrl->dumpFrameToFile(frame->def.frame, HAL_DUMP_FRM_PREVIEW);
 
   mHalCamCtrl->mPreviewMemoryLock.lock();
   mNotifyBuffer[frame->def.idx] = *frame;
   // mzhu fix me, need to check meta data also.
 
-  LOGI("Enqueue buf handle %u\n",
+  LOGI("Enqueue buf handle %p\n",
 	   mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
   LOGD("%s: camera call genlock_unlock", __FUNCTION__);
   if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t*)
@@ -463,7 +463,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
             LOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
       }
       for(int i = 0; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
-		  LOGE("h1: %u h2: %u\n", mHalCamCtrl->mPreviewMemory.buffer_handle[i], buffer_handle);
+		  LOGE("h1: %p h2: %p\n", mHalCamCtrl->mPreviewMemory.buffer_handle[i], buffer_handle);
 		  if(mHalCamCtrl->mPreviewMemory.buffer_handle[i] == buffer_handle) {
 	          mm_camera_ch_data_buf_t tmp_frame;
               if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {

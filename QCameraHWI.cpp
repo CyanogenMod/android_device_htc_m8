@@ -908,9 +908,6 @@ status_t QCameraHardwareInterface::startPreview2()
         /* Store HAL object in snapshot stream Object */
         mStreamSnap->setHALCameraControl(this);
 
-        /* Call prepareSnapshot before stopping preview */
-        mStreamSnap->prepareHardware();
-
         /* Call snapshot init*/
         ret =  mStreamSnap->init();
         if (MM_CAMERA_OK != ret){

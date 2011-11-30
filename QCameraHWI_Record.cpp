@@ -299,7 +299,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     }
 
 
-    //mHalCamCtrl->dumpFrameToFile(frame->video.video.frame, HAL_DUMP_FRM_VIDEO);
+    mHalCamCtrl->dumpFrameToFile(frame->video.video.frame, HAL_DUMP_FRM_VIDEO);
     mHalCamCtrl->mCallbackLock.lock();
     camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
     void *rdata = mHalCamCtrl->mCallbackCookie;

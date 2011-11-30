@@ -1595,8 +1595,8 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
                                mPostviewStreamBuf.frame_len);
 */
 
-    //mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
-    //mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame, HAL_DUMP_FRM_THUMBNAIL);
+    mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
+    mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame, HAL_DUMP_FRM_THUMBNAIL);
 
     LOGE("%s: after dump", __func__);
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/

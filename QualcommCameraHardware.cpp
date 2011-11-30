@@ -796,6 +796,10 @@ static const str_map redeye_reduction[] = {
     { CameraParameters::REDEYE_REDUCTION_DISABLE, FALSE }
 };
 
+static const str_map zsl_modes[] = {
+    { CameraParameters::ZSL_OFF, FALSE  },
+    { CameraParameters::ZSL_ON, TRUE },
+};
 
 /*
  * Values based on aec.c
@@ -877,6 +881,7 @@ static String8 selectable_zone_af_values;
 static String8 facedetection_values;
 static String8 hfr_values;
 static String8 redeye_reduction_values;
+static String8 zsl_values;
 
 mm_camera_notify mCamNotify;
 mm_camera_ops mCamOps;
@@ -1300,7 +1305,6 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPostviewHeight(0),
 	  mPreviewWindow(NULL),
       mTotalPreviewBufferCount(0),
-      mZslEnable(0),
       mZslFlashEnable(false),
       mZslPanorama(false),
       mSnapshotCancel(false),
@@ -1313,17 +1317,17 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPrevHeapDeallocRunning(false),
       mHdrMode(false ),
       mExpBracketMode(false),
-      mStoreMetaDataInFrame(false)
+      mZslEnable(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
     libmmcamera = mMMCameraDLRef->pointer();
     char value[PROPERTY_VALUE_MAX];
     mCameraOpen = false;
-    if(HAL_currentSnapshotMode == CAMERA_SNAPSHOT_ZSL) {
+    /*if(HAL_currentSnapshotMode == CAMERA_SNAPSHOT_ZSL) {
         LOGI("%s: this is ZSL mode", __FUNCTION__);
         mZslEnable = true;
-    }
+    }*/
 
     property_get("persist.camera.hal.multitouchaf", value, "0");
     mMultiTouch = atoi(value);
@@ -1335,6 +1339,9 @@ QualcommCameraHardware::QualcommCameraHardware()
        mThumbnailMapped[i] = NULL;
 	}
     mRawSnapshotMapped = NULL;
+	for(int i=0; i< RECORD_BUFFERS; i++) {
+        mRecordMapped[i] = NULL;
+    }
 
     for(int i=0; i<3; i++)
         mStatsMapped[i] = NULL;
@@ -1604,6 +1611,9 @@ void QualcommCameraHardware::initDefaultParameters()
             touchafaec_values = create_values_str(
                 touchafaec,sizeof(touchafaec)/sizeof(str_map));
         }
+        zsl_values = create_values_str(
+            zsl_modes,sizeof(zsl_modes)/sizeof(str_map));
+
         if(mZslEnable){
            picture_format_values = create_values_str(
                picture_formats_zsl, sizeof(picture_formats_zsl)/sizeof(str_map));
@@ -1734,6 +1744,8 @@ void QualcommCameraHardware::initDefaultParameters()
     } else {
         mParameters.set("video-zoom-support", "false");
     }
+
+    mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
 
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
                     CameraParameters::ANTIBANDING_OFF);
@@ -1879,14 +1891,17 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::DENOISE_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_DENOISE,
                     denoise_values);
+
+    //touch af/aec parameters
     mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC,
                     CameraParameters::TOUCH_AF_AEC_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_TOUCH_AF_AEC,
                     touchafaec_values);
-    mParameters.setTouchIndexAec(-1, -1);
-    mParameters.setTouchIndexAf(-1, -1);
     mParameters.set("touchAfAec-dx","100");
     mParameters.set("touchAfAec-dy","100");
+    mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
+    mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "1");
+
     mParameters.set(CameraParameters::KEY_SCENE_DETECT,
                     CameraParameters::SCENE_DETECT_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_DETECT,
@@ -1903,6 +1918,10 @@ void QualcommCameraHardware::initDefaultParameters()
                     CameraParameters::REDEYE_REDUCTION_DISABLE);
     mParameters.set(CameraParameters::KEY_SUPPORTED_REDEYE_REDUCTION,
                     redeye_reduction_values);
+    mParameters.set(CameraParameters::KEY_ZSL,
+                    CameraParameters::ZSL_OFF);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_ZSL_MODES,
+                    zsl_values);
 
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
@@ -2692,6 +2711,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
             }
         }
     }
+    if(!mZslEnable) {
     if(( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || (mCurrentTarget == TARGET_MSM8660)){
         if(mHFRMode != true) {
 #if 0
@@ -2744,6 +2764,7 @@ void QualcommCameraHardware::runFrameThread(void *data)
             }
 	    }
     }
+	}
 
     mFrameThreadWaitLock.lock();
     mFrameThreadRunning = false;
@@ -4892,6 +4913,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
      return NO_ERROR;
    }
    mPreviewStopping = false;
+#if 0
    if(mZslEnable && !mZslPanorama){
        LOGE("start zsl Preview called");
        mCamOps.mm_camera_start(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
@@ -4900,6 +4922,7 @@ status_t QualcommCameraHardware::startPreviewInternal()
            mLastPreviewFrameHeap.clear();
     }
     }
+#endif
     if(mCameraRunning) {
         LOGV("startPreview X: preview already running.");
         return NO_ERROR;
@@ -5488,7 +5511,6 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
     mSnapshotThreadRunning = false;
     mSnapshotThreadWait.signal();
     mSnapshotThreadWaitLock.unlock();
-    mCamOps.mm_camera_deinit(current_ops_type, NULL, NULL);
     LOGI("runSnapshotThread X");
 }
 
@@ -5595,12 +5617,14 @@ status_t QualcommCameraHardware::takePicture()
 #endif 
     if(!mZslEnable || mZslFlashEnable)
         stopPreviewInternal();
+#if 0
     else if(mZslEnable && !mZslPanorama) {
         /* Dont stop preview if ZSL Panorama is enabled for
          * Continuous viewfinder support*/
         LOGE("Calling stop preview");
         mCamOps.mm_camera_stop(CAMERA_OPS_ZSL_STREAMING_CB,NULL, NULL);
     }
+#endif
 
     mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
                                              CAMERA_OPS_CAPTURE_AND_ENCODE :
@@ -5780,6 +5804,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
 
+    if ((rc = setCameraMode(params)))  final_rc = rc;
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;
     if ((rc = setPictureSize(params)))  final_rc = rc;
@@ -7384,6 +7409,27 @@ status_t QualcommCameraHardware::setRecordSize(const CameraParameters& params)
     return NO_ERROR;
 }
 
+status_t  QualcommCameraHardware::setCameraMode(const CameraParameters& params) {
+    int32_t value = params.getInt(CameraParameters::KEY_CAMERA_MODE);
+    mParameters.set(CameraParameters::KEY_CAMERA_MODE,value);
+
+    LOGI("ZSL is enabled  %d", value);
+    if(value == 1) {
+        mZslEnable = true;
+       /* mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
+                       CameraParameters::FOCUS_MODE_INFINITY);
+        mParameters.set(CameraParameters::KEY_FOCUS_MODE,
+                       CameraParameters::FOCUS_MODE_INFINITY);*/
+    }else{
+        mZslEnable = false;
+        /*mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
+                    focus_mode_values);
+        mParameters.set(CameraParameters::KEY_FOCUS_MODE,
+                    CameraParameters::FOCUS_MODE_AUTO);*/
+    }
+    return NO_ERROR;
+}
+
 status_t QualcommCameraHardware::setPreviewSize(const CameraParameters& params)
 {
     int width, height;
@@ -8023,13 +8069,30 @@ status_t QualcommCameraHardware::setSelectableZoneAf(const CameraParameters& par
 
 status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 {
+    LOGE("%s",__func__);
     if(mHasAutoFocusSupport){
         int xAec, yAec, xAf, yAf;
+        int cx, cy;
+        int width, height;
+        params.getMeteringAreaCenter(&cx, &cy);
+        mParameters.getPreviewSize(&width, &height);
 
-        params.getTouchIndexAec(&xAec, &yAec);
-        params.getTouchIndexAf(&xAf, &yAf);
+        // @Punit
+        // The coords sent from upper layer is in range (-1000, -1000) to (1000, 1000)
+        // So, they are transformed to range (0, 0) to (previewWidth, previewHeight)
+        cx = cx + 1000;
+        cy = cy + 1000;
+        cx = cx * (width / 2000.0f);
+        cy = cy * (height / 2000.0f);
+
+        //Negative values are invalid and does not update anything
+        LOGE("Touch Area Center (cx, cy) = (%d, %d)", cx, cy);
+
+        //Currently using same values for AF and AEC
+        xAec = cx; yAec = cy;
+        xAf = cx; yAf = cy;
+
         const char *str = params.get(CameraParameters::KEY_TOUCH_AF_AEC);
-
         if (str != NULL) {
             int value = attr_lookup(touchafaec,
                     sizeof(touchafaec) / sizeof(str_map), str);
@@ -8037,7 +8100,6 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                 //Dx,Dy will be same as defined in res/layout/camera.xml
                 //passed down to HAL in a key.value pair.
-
                 int FOCUS_RECTANGLE_DX = params.getInt("touchAfAec-dx");
                 int FOCUS_RECTANGLE_DY = params.getInt("touchAfAec-dy");
                 mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC, str);
@@ -8074,10 +8136,11 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                     af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
                     af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
-
                     af_roi_value.is_multiwindow = mMultiTouch;
+                    native_set_parms(CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
+                    native_set_parms(CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
                 }
-                else {
+                else if(value == false) {
                     //Set Touch AEC params
                     aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
                     aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
@@ -8086,9 +8149,10 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                     //Set Touch AF params
                     af_roi_value.num_roi = 0;
+                    native_set_parms(CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
+                    native_set_parms(CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
                 }
-                native_set_parms(CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
-                native_set_parms(CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
+                //@Punit: If the values are negative, we dont send anything to the lower layer
             }
             return NO_ERROR;
         }

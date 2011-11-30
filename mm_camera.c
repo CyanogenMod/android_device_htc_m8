@@ -278,6 +278,9 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_AF_ROI:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_AF_ROI, sizeof(roi_info_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_CAF_ENABLE:
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_PARM_CAF, sizeof(uint32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_BESTSHOT_MODE:
         CDBG("%s : MM_CAMERA_PARM_BESTSHOT_MODE value : %d",__func__,*((int *)(parm->p_value)));
         return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -338,6 +341,10 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_ASD_ENABLE:
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_ASD_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
+
+    case MM_CAMERA_PARM_RECORDING_HINT:
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_RECORDING_HINT, sizeof(uint32_t), (void *)parm->p_value);
 
     case MM_CAMERA_PARM_PREVIEW_FORMAT:
       return mm_camera_send_native_ctrl_cmd(my_obj,

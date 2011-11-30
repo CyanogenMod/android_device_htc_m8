@@ -437,6 +437,7 @@ private:
     void initDefaultParameters();
     bool initImageEncodeParameters(int size);
     bool initZslParameter(void);
+    status_t setCameraMode(const CameraParameters& params);
     status_t setPreviewSize(const CameraParameters& params);
     status_t setJpegThumbnailSize(const CameraParameters& params);
     status_t setPreviewFpsRange(const CameraParameters& params);

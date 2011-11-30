@@ -432,6 +432,7 @@ private:
 	status_t resumePreviewAfterSnapshot();
 
     status_t runFaceDetection();
+    status_t setCameraMode(const CameraParameters& params);
     status_t setPictureSizeTable(void);
     status_t setPreviewSizeTable(void);
     status_t setPreviewSize(const CameraParameters& params);
@@ -479,6 +480,7 @@ private:
     status_t setFaceDetect(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
     status_t setHistogram(int histogram_en);
+    status_t setRecordingHint(const CameraParameters& params);
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);
@@ -596,6 +598,7 @@ private:
     String8 mRedeyeReductionValues;
     String8 denoise_value;
     String8 mFpsRangesSupportedValues;
+    String8 mZslValues;
 
     friend class QCameraStream;
     friend class QCameraStream_record;

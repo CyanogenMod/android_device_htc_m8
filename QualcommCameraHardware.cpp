@@ -7217,7 +7217,7 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
     int32_t buffer_size = 0;
     if(encoded_buffer && status == NO_ERROR) {
       buffer_size = encoded_buffer->filled_size;
-      LOGV("receiveJpegPicture: E image %d ",buffer_size);
+      LOGV("receiveJpegPicture: E buffer_size %d mJpegMaxSize = %d",buffer_size, mJpegMaxSize);
 
         index = mapJpegBuffer(encoded_buffer);
         LOGE("receiveJpegPicutre : mapJpegBuffer index : %d", index);
@@ -7238,8 +7238,17 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
 
             if(status == NO_ERROR) {
             //  mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
-                LOGE("receiveJpegPicture : giving jpeg image callback to services");
-                mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mJpegMapped[index], data_counter, NULL, mCallbackCookie);
+              LOGE("receiveJpegPicture : giving jpeg image callback to services");
+              camera_memory_t *encodedMem = mGetMemory(mJpegfd[index], encoded_buffer->filled_size,
+                                           1, mCallbackCookie);
+              if (!encodedMem || !encodedMem->data) {
+                LOGE("%s: mGetMemory failed.\n", __func__);
+                return;
+              }
+              mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, encodedMem, data_counter,
+                            NULL, mCallbackCookie);
+              encodedMem->release(encodedMem);
+              LOGE("%s release memory",__FUNCTION__);
             }
            // buffer = NULL;
       } else {

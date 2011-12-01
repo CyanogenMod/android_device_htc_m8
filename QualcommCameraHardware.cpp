@@ -4136,8 +4136,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
         }
     }
     /* calculate thumbnail aspect ratio */
-    if(mCurrentTarget == TARGET_MSM7627 ||
-       mCurrentTarget == TARGET_MSM7627A) {
+    if(mCurrentTarget == TARGET_MSM7627 ) {
         int thumbnail_aspect_ratio =
         (uint32_t)((mThumbnailWidth * Q12) / mThumbnailHeight);
 
@@ -4173,9 +4172,7 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
      * which won't use optimalPreviewSize based on picture size.
     */
     if((mPictureHeight >= previewHeight) &&
-       (mCurrentTarget != TARGET_MSM7627 &&
-        mCurrentTarget != TARGET_MSM7627A &&
-        mCurrentTarget != TARGET_MSM7625A) && !mIs3DModeOn) {
+       (mCurrentTarget != TARGET_MSM7627) && !mIs3DModeOn) {
         mPostviewHeight = previewHeight;
         mPostviewWidth = (previewHeight * mPictureWidth) / mPictureHeight;
     }else if(mActualPictHeight < mThumbnailHeight){

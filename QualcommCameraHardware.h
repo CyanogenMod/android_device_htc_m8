@@ -610,6 +610,8 @@ private:
     bool mPrevHeapDeallocRunning;
     bool mHdrMode;
     bool mExpBracketMode;
+
+    bool mMultiTouch;
 };
 
 extern "C" int HAL_getNumberOfCameras();

@@ -1324,6 +1324,9 @@ QualcommCameraHardware::QualcommCameraHardware()
         mZslEnable = true;
     }
 
+    property_get("persist.camera.hal.multitouchaf", value, "0");
+    mMultiTouch = atoi(value);
+
     storeTargetType();
     for(int i=0; i< MAX_SNAPSHOT_BUFFERS; i++) {
        mRawMapped[i] = NULL;
@@ -8017,6 +8020,8 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                     af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
                     af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
+
+                    af_roi_value.is_multiwindow = mMultiTouch;
                 }
                 else {
                     //Set Touch AEC params

@@ -1328,7 +1328,10 @@ QualcommCameraHardware::QualcommCameraHardware()
     for(int i=0; i< MAX_SNAPSHOT_BUFFERS; i++) {
        mRawMapped[i] = NULL;
 	   mJpegMapped[i] = NULL;
+       mThumbnailMapped[i] = NULL;
 	}
+    mRawSnapshotMapped = NULL;
+
     if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
         mIs3DModeOn = true;
     }
@@ -3719,45 +3722,10 @@ bool QualcommCameraHardware::initRawSnapshot()
           rawSnapshotSize, mDimension.raw_picture_height,
           mDimension.raw_picture_width);
 
-    if (mRawSnapShotPmemHeap != NULL) {
-        LOGV("initRawSnapshot: clearing old mRawSnapShotPmemHeap.");
-        mRawSnapShotPmemHeap.clear();
-    }
-    if(mCurrentTarget == TARGET_MSM8660) {
-       pmem_region = "/dev/pmem_smipool";
-       ion_heap = ION_HEAP_SMI_ID;
-    } else {
-       pmem_region = "/dev/pmem_adsp";
-       ion_heap = ION_HEAP_ADSP_ID;
-    }
-
-    //Pmem based pool for Camera Driver
-#if 0
-#ifdef USE_ION
-    mRawSnapShotPmemHeap = new IonPool(ion_heap,
-                                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                                    MSM_PMEM_RAW_MAINIMG,
-                                    rawSnapshotSize,
-                                    1,
-                                    rawSnapshotSize,
-                                    0,
-                                    0,
-                                    "raw pmem snapshot camera");
-#else
-    mRawSnapShotPmemHeap = new PmemPool(pmem_region,
-                                    MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                                    MSM_PMEM_RAW_MAINIMG,
-                                    rawSnapshotSize,
-                                    1,
-                                    rawSnapshotSize,
-                                    0,
-                                    0,
-                                    "raw pmem snapshot camera");
-#endif
-#endif
-    if (!mRawSnapShotPmemHeap->initialized()) {
-        mRawSnapShotPmemHeap.clear();
-        LOGE("initRawSnapshot X: error initializing mRawSnapshotHeap");
+    // Create Memory for Raw Snapshot
+    if( createSnapshotMemory(numCapture, numCapture, false, PICTURE_FORMAT_RAW) == false ) // TODO : check if the numbers are correct
+    {
+        LOGE("ERROR :  initRawSnapshot , createSnapshotMemory failed");
         return false;
     }
 
@@ -3917,7 +3885,7 @@ bool QualcommCameraHardware::initZslBuffers(bool initJpegHeap){
 #endif
     if( createSnapshotMemory(MAX_SNAPSHOT_BUFFERS, MAX_SNAPSHOT_BUFFERS, initJpegHeap) == false ) // TODO : check if the numbers are correct
     {
-        LOGE("ERROR :  initZslraw , createSnapshotMemory failed");			
+        LOGE("ERROR :  initZslraw , createSnapshotMemory failed");
         return false;
     }
     /* frame all the exif and encode information into encode_params_t */
@@ -3959,7 +3927,8 @@ bool QualcommCameraHardware::deinitZslBuffers()
     return true;
 }
 
-bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int numberOfJpegBuffers, bool initJpegHeap)
+bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int numberOfJpegBuffers,
+                                                   bool initJpegHeap, int snapshotFormat)
 {
     char * pmem_region;
     int ret;
@@ -3971,128 +3940,166 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
        pmem_region = "/dev/pmem_adsp";
        ion_heap = ION_HEAP_ADSP_ID;
     }
-    // Create Raw memory for snapshot
-    for(int cnt = 0; cnt < numberOfRawBuffers; cnt++)
-    {
-#ifdef USE_ION
-        if (allocate_ion_memory(&raw_main_ion_fd[cnt], &raw_alloc[cnt], &raw_ion_info_fd[cnt],
-                                ion_heap, mJpegMaxSize, &mRawfd[cnt]) < 0){
-          LOGE("do_mmap: Open device %s failed!\n",pmem_region);
-	      return NULL;
-        }
-#else
-        mRawfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
-        if (mRawfd[cnt] <= 0) {
-            LOGE("%s: Open device %s failed!\n",__func__, pmem_region);
-                return false;
-        }
-#endif
-        LOGE("%s  Raw memory index: %d , fd is %d ", __func__, cnt, mRawfd[cnt]);
-        mRawMapped[cnt]=mGetMemory(mRawfd[cnt], mJpegMaxSize,1,mCallbackCookie);
-        if(mRawMapped[cnt] == NULL) {
-            LOGE("Failed to get camera memory for mRawMapped heap index: %d", cnt);
-            return false;
-        }else{
-           LOGE("Received following info for raw mapped data:%p,handle:%p, size:%d,release:%p",
-           mRawMapped[cnt]->data ,mRawMapped[cnt]->handle, mRawMapped[cnt]->size, mRawMapped[cnt]->release);
-        }
-        rawframes = new msm_frame[MAX_SNAPSHOT_BUFFERS];
-        rawframes[cnt].buffer = (unsigned int)mRawMapped[cnt]->data;
-        rawframes[cnt].fd = mRawfd[cnt];
-        rawframes[cnt].y_off = 0;
-        rawframes[cnt].cbcr_off = mCbCrOffsetRaw; 
-        rawframes[cnt].path = OUTPUT_TYPE_V;
-        //record_buffers_tracking_flag[cnt] = false; TODO ?
-        LOGV ("createSnapshotMemory :  raw heap ,  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
-          (unsigned long)rawframes[cnt].buffer, rawframes[cnt].fd, rawframes[cnt].y_off,
-          rawframes[cnt].cbcr_off);
-
-        // Register Raw frames
-        LOGE("Registering buffer %d with fd :%d with kernel",cnt,mRawfd[cnt]);
-        int active = (cnt < ACTIVE_ZSL_BUFFERS);  // TODO check ?
-        register_buf(mJpegMaxSize,
-            mRawSize,
-            mCbCrOffsetRaw,0,
-            mRawfd[cnt],0,
-            (uint8_t *)mRawMapped[cnt]->data,
-            MSM_PMEM_MAINIMG,
-            active);
-    }
-    // Create Jpeg memory for snapshot 
-    if (initJpegHeap)
-    {
-        for(int cnt = 0; cnt < numberOfJpegBuffers; cnt++)
+    if( snapshotFormat == PICTURE_FORMAT_JPEG) {
+        // Create Raw memory for snapshot
+        for(int cnt = 0; cnt < numberOfRawBuffers; cnt++)
         {
-#ifdef USE_ION
-            if (allocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_alloc[cnt], &Jpeg_ion_info_fd[cnt],
-                                    ion_heap, mJpegMaxSize, &mJpegfd[cnt]) < 0){
+        #ifdef USE_ION
+            if (allocate_ion_memory(&raw_main_ion_fd[cnt], &raw_alloc[cnt], &raw_ion_info_fd[cnt],
+                                    ion_heap, mJpegMaxSize, &mRawfd[cnt]) < 0){
               LOGE("do_mmap: Open device %s failed!\n",pmem_region);
-	          return NULL;
+              return NULL;
             }
-#else
-            mJpegfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
-            if (mJpegfd[cnt] <= 0) {
-                LOGE("%s: Open device for jpeg mem %s failed!\n",__func__, pmem_region);
-                return false;
+        #else
+            mRawfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
+            if (mRawfd[cnt] <= 0) {
+                LOGE("%s: Open device %s failed!\n",__func__, pmem_region);
+                    return false;
             }
-#endif
-            LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
-            mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
-            if(mJpegMapped[cnt] == NULL) {
-                LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
+        #endif
+            LOGE("%s  Raw memory index: %d , fd is %d ", __func__, cnt, mRawfd[cnt]);
+            mRawMapped[cnt]=mGetMemory(mRawfd[cnt], mJpegMaxSize,1,mCallbackCookie);
+            if(mRawMapped[cnt] == NULL) {
+                LOGE("Failed to get camera memory for mRawMapped heap index: %d", cnt);
                 return false;
             }else{
-               LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
-               mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
+               LOGE("Received following info for raw mapped data:%p,handle:%p, size:%d,release:%p",
+               mRawMapped[cnt]->data ,mRawMapped[cnt]->handle, mRawMapped[cnt]->size, mRawMapped[cnt]->release);
+            }
+            rawframes = new msm_frame[MAX_SNAPSHOT_BUFFERS];
+            rawframes[cnt].buffer = (unsigned int)mRawMapped[cnt]->data;
+            rawframes[cnt].fd = mRawfd[cnt];
+            rawframes[cnt].y_off = 0;
+            rawframes[cnt].cbcr_off = mCbCrOffsetRaw;
+            rawframes[cnt].path = OUTPUT_TYPE_V;
+            //record_buffers_tracking_flag[cnt] = false; TODO ?
+            LOGV ("createSnapshotMemory :  raw heap ,  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
+              (unsigned long)rawframes[cnt].buffer, rawframes[cnt].fd, rawframes[cnt].y_off,
+              rawframes[cnt].cbcr_off);
+
+            // Register Raw frames
+            LOGE("Registering buffer %d with fd :%d with kernel",cnt,mRawfd[cnt]);
+            int active = (cnt < ACTIVE_ZSL_BUFFERS);  // TODO check ?
+            register_buf(mJpegMaxSize,
+                mRawSize,
+                mCbCrOffsetRaw,0,
+                mRawfd[cnt],0,
+                (uint8_t *)mRawMapped[cnt]->data,
+                MSM_PMEM_MAINIMG,
+                active);
+        }
+        // Create Jpeg memory for snapshot
+        if (initJpegHeap)
+        {
+            for(int cnt = 0; cnt < numberOfJpegBuffers; cnt++)
+            {
+            #ifdef USE_ION
+                if (allocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_alloc[cnt], &Jpeg_ion_info_fd[cnt],
+                                        ion_heap, mJpegMaxSize, &mJpegfd[cnt]) < 0){
+                  LOGE("do_mmap: Open device %s failed!\n",pmem_region);
+                  return NULL;
+                }
+            #else
+                mJpegfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
+                if (mJpegfd[cnt] <= 0) {
+                    LOGE("%s: Open device for jpeg mem %s failed!\n",__func__, pmem_region);
+                    return false;
+                }
+            #endif
+                LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
+                mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
+                if(mJpegMapped[cnt] == NULL) {
+                    LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
+                    return false;
+                }else{
+                   LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
+                   mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
+                }
             }
         }
-    }  
-    // Lock Thumbnail buffers, and register them
-    LOGE("Locking and registering Thumbnail buffer(s)");
-    for(int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
-        // TODO : change , lock all thumbnail buffers
-        if((mPreviewWindow != NULL) && (mThumbnailBuffer[cnt] != NULL)) {
-            LOGE("createsnapshotbuffers : display lock");
-            mDisplayLock.lock();
-            /* Lock the postview buffer before use */
-            LOGV(" Locking thumbnail/postview buffer %d", cnt);
-            if( (ret = mPreviewWindow->lock_buffer(mPreviewWindow,
-                             mThumbnailBuffer[cnt])) != NO_ERROR) {
-                LOGE(" Error locking postview buffer. Error = %d ", ret);
-                LOGE("createsnapshotbuffers : display unlock error");
+        // Lock Thumbnail buffers, and register them
+        LOGE("Locking and registering Thumbnail buffer(s)");
+        for(int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
+            // TODO : change , lock all thumbnail buffers
+            if((mPreviewWindow != NULL) && (mThumbnailBuffer[cnt] != NULL)) {
+                LOGE("createsnapshotbuffers : display lock");
+                mDisplayLock.lock();
+                /* Lock the postview buffer before use */
+                LOGV(" Locking thumbnail/postview buffer %d", cnt);
+                if( (ret = mPreviewWindow->lock_buffer(mPreviewWindow,
+                                 mThumbnailBuffer[cnt])) != NO_ERROR) {
+                    LOGE(" Error locking postview buffer. Error = %d ", ret);
+                    LOGE("createsnapshotbuffers : display unlock error");
+                    mDisplayLock.unlock();
+                    return false;
+                }
+                if (GENLOCK_FAILURE == genlock_lock_buffer((native_handle_t*)(*mThumbnailBuffer[cnt]),
+                                                           GENLOCK_WRITE_LOCK, GENLOCK_MAX_TIMEOUT)) {
+                    LOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
+                }
                 mDisplayLock.unlock();
-                return false;
+                LOGE("createsnapshotbuffers : display unlock");
             }
-            if (GENLOCK_FAILURE == genlock_lock_buffer((native_handle_t*)(*mThumbnailBuffer[cnt]),
-                                                       GENLOCK_WRITE_LOCK, GENLOCK_MAX_TIMEOUT)) {
-                LOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
-            }
-            mDisplayLock.unlock();
-            LOGE("createsnapshotbuffers : display unlock");
-        }
 
-        private_handle_t *thumbnailHandle;
-        int mBufferSize = previewWidth * previewHeight * 3/2;
-        int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+            private_handle_t *thumbnailHandle;
+            int mBufferSize = previewWidth * previewHeight * 3/2;
+            int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
 
-        if(mThumbnailBuffer[cnt]) {
-            thumbnailHandle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
-            LOGV("fd thumbnailhandle fd %d size %d", thumbnailHandle->fd, thumbnailHandle->size);
-            mThumbnailMapped [cnt]= (unsigned int) mmap(0, thumbnailHandle->size, PROT_READ|PROT_WRITE,
-            MAP_SHARED, thumbnailHandle->fd, 0);
-            if((void *)mThumbnailMapped[cnt] == MAP_FAILED){
-                LOGE(" Couldnt map Thumbnail buffer %d", errno);
-                return false;
+            if(mThumbnailBuffer[cnt]) {
+                thumbnailHandle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
+                LOGV("fd thumbnailhandle fd %d size %d", thumbnailHandle->fd, thumbnailHandle->size);
+                mThumbnailMapped [cnt]= (unsigned int) mmap(0, thumbnailHandle->size, PROT_READ|PROT_WRITE,
+                MAP_SHARED, thumbnailHandle->fd, 0);
+                if((void *)mThumbnailMapped[cnt] == MAP_FAILED){
+                    LOGE(" Couldnt map Thumbnail buffer %d", errno);
+                    return false;
+                }
+                register_buf(mBufferSize,
+                    mBufferSize, mCbCrOffset, 0,
+                    thumbnailHandle->fd,
+                    0,
+                    (uint8_t *)mThumbnailMapped[cnt],
+                    MSM_PMEM_THUMBNAIL,
+                    (cnt < ACTIVE_ZSL_BUFFERS));
             }
-            register_buf(mBufferSize,
-                mBufferSize, mCbCrOffset, 0,
-                thumbnailHandle->fd,
-                0,
-                (uint8_t *)mThumbnailMapped[cnt],
-                MSM_PMEM_THUMBNAIL,
-                (cnt < ACTIVE_ZSL_BUFFERS));
-        }
-    }
+        } // for loop locking and registering thumbnail buffers
+    }  else { // End if Format is Jpeg , start if format is RAW
+         if(numberOfRawBuffers ==1) {
+              mRawSnapshotfd = open(pmem_region, O_RDWR|O_SYNC);
+            if (mRawSnapshotfd <= 0) {
+                LOGE("%s: Open device %s failed for rawnspashot!\n",__func__, pmem_region);
+                    return false;
+            }
+            int rawSnapshotSize = mDimension.raw_picture_height * mDimension.raw_picture_width;
+            LOGE("%s  Raw snapshot memory , fd is %d ", __func__, mRawSnapshotfd);
+            mRawSnapshotMapped=mGetMemory(mRawSnapshotfd,
+                                          rawSnapshotSize,
+                                          1,
+                                          mCallbackCookie);
+            if(mRawSnapshotMapped == NULL) {
+                LOGE("Failed to get camera memory for mRawSnapshotMapped ");
+                return false;
+            }else{
+               LOGE("Received following info for raw mapped data:%p,handle:%p, size:%d,release:%p",
+               mRawSnapshotMapped->data ,mRawSnapshotMapped->handle, mRawSnapshotMapped->size, mRawSnapshotMapped->release);
+            }
+                        // Register Raw frames
+            LOGE("Registering RawSnapshot buffer with fd :%d with kernel",mRawSnapshotfd);
+            int active = 1;  // TODO check ?
+            register_buf(     rawSnapshotSize,
+                              rawSnapshotSize,
+                                            0,
+                                            0,
+                              mRawSnapshotfd,
+                                            0,
+                              (uint8_t *)mRawSnapshotMapped->data,
+                              MSM_PMEM_RAW_MAINIMG,
+                                        active);
+         } else {
+             LOGE("Multiple raw snapshot capture not supported for now....");
+             return false;
+         }
+    } // end else , if RAW format
     return true;
 }
 bool QualcommCameraHardware::initRaw(bool initJpegHeap)
@@ -4265,27 +4272,13 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 
     LOGV("initRaw: initializing mRawHeap.");
 
-    //This is kind of workaround for the GPU limitation, as it can't
-    //output in line to correct NV21 adreno formula for some snapshot
-    //sizes (like 3264x2448). This change of cbcr offset will ensure that
-    //chroma plane always starts at the beginning of a row.
-    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
-        mCbCrOffsetRaw = CEILING32(mPictureWidth * w_scale_factor) * CEILING32(mPictureHeight);
-
-
     //PostView
     pmem_region = "/dev/pmem_adsp";
     ion_heap = ION_HEAP_ADSP_ID;
-    //This is kind of workaround for the GPU limitation, as it can't
-    //output in line to correct NV21 adreno formula for some snapshot
-    //sizes (like 3264x2448). This change of cbcr offset will ensure that
-    //chroma plane always starts at the beginning of a row.
-    if(mPreviewFormat != CAMERA_YUV_420_NV21_ADRENO)
-        mCbCrOffsetRaw = CEILING32(mPictureWidth * w_scale_factor) * CEILING32(mPictureHeight);
-    // Create memory for Raw YUV frames and Jpeg images 
+    // Create memory for Raw YUV frames and Jpeg images
     if( createSnapshotMemory(numCapture, numCapture, initJpegHeap) == false )
     {
-        LOGE("ERROR :  initraw , createSnapshotMemory failed");			
+        LOGE("ERROR :  initraw , createSnapshotMemory failed");
         return false;
     }
     /* frame all the exif and encode information into encode_params_t */
@@ -4324,9 +4317,24 @@ bool QualcommCameraHardware::initRaw(bool initJpegHeap)
 void QualcommCameraHardware::deinitRawSnapshot()
 {
     LOGV("deinitRawSnapshot E");
-#if 0
-    mRawSnapShotPmemHeap.clear();
-#endif
+
+    int rawSnapshotSize = mDimension.raw_picture_height * mDimension.raw_picture_width;
+     // Unregister and de allocated memory for Raw Snapshot
+    if(mRawSnapshotMapped) {
+        register_buf(         rawSnapshotSize,
+                              rawSnapshotSize,
+                                            0,
+                                            0,
+                               mRawSnapshotfd,
+                                            0,
+          (uint8_t *)mRawSnapshotMapped->data,
+                         MSM_PMEM_RAW_MAINIMG,
+                                        false,
+                                        false);
+        mRawSnapshotMapped->release(mRawSnapshotMapped);
+        mRawSnapshotMapped = NULL;
+        close(mRawSnapshotfd);
+    }
     LOGV("deinitRawSnapshot X");
 }
 
@@ -4392,7 +4400,7 @@ void QualcommCameraHardware::deinitRaw()
                         MSM_PMEM_THUMBNAIL,
                         false, false);
                      if (munmap((void *)(mThumbnailMapped[cnt]),handle->size ) == -1) {
-                       LOGE("StopPreview : Error un-mmapping the thumbnail buffer %d", index);
+                       LOGE("deinitraw : Error un-mmapping the thumbnail buffer %d", index);
                      }
                      mThumbnailBuffer[cnt] = NULL;
                 }
@@ -4436,7 +4444,7 @@ status_t QualcommCameraHardware::set_PreviewWindow(void* param)
   preview_stream_ops_t* window = (preview_stream_ops_t*)param;
   return setPreviewWindow(window);
 }
-	
+
 status_t QualcommCameraHardware::setPreviewWindow(preview_stream_ops_t* window)
 {
     status_t retVal = NO_ERROR;
@@ -4608,7 +4616,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
 
  // Dequeue Thumbnail/Postview  Buffers here , Consider ZSL/Multishot cases
         for (cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
-            
+
             retVal = mPreviewWindow->dequeue_buffer(mPreviewWindow,
                                      &mThumbnailBuffer[cnt], &(stride));
             private_handle_t* handle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
@@ -4619,7 +4627,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
             return retVal;
             }
         }
-        
+
         // Cancel minUndequeuedBufs.
         for (cnt = kPreviewBufferCount; cnt < mTotalPreviewBufferCount; cnt++) {
             if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t*)(*(frame_buffer[cnt].buffer)))) {
@@ -4642,7 +4650,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
     mBuffersInitialized = true;
 
     //Starting preview now as the preview buffers are allocated
- //   if(!mPreviewInitialized && !mCameraRunning) {   // TODO just for testing 
+ //   if(!mPreviewInitialized && !mCameraRunning) {   // TODO just for testing
         LOGE("setPreviewWindow: Starting preview after buffer allocation");
         startPreviewInternal();
  //   }
@@ -5160,7 +5168,7 @@ void QualcommCameraHardware::stopPreview()
                 // unregister , unmap and release as well
                 int mBufferSize = previewWidth * previewHeight * 3/2;
                 int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
-                if(mThumbnailMapped[cnt]) {
+                if(mThumbnailMapped[cnt] && (mSnapshotFormat == PICTURE_FORMAT_JPEG)) {
                     LOGE("%s:  Unregistering Thumbnail Buffer %d ", __FUNCTION__, handle->fd);
                     register_buf(mBufferSize,
                         mBufferSize, mCbCrOffset, 0,
@@ -5434,6 +5442,8 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
         notifyShutter(TRUE);
         mCamOps.mm_camera_start(current_ops_type,(void *)&mRawCaptureParms,
                                  NULL);
+        // Waiting for callback to come
+        LOGV("runSnapshotThread : waiting for callback to come");
         mJpegThreadWaitLock.lock();
         while (mJpegThreadRunning) {
             LOGV("%s: waiting for jpeg callback.", __FUNCTION__);
@@ -5441,6 +5451,9 @@ void QualcommCameraHardware::runSnapshotThread(void *data)
             LOGV("%s: jpeg callback received.", __FUNCTION__);
         }
         mJpegThreadWaitLock.unlock();
+        LOGV("runSnapshotThread : calling deinitRawSnapshot");
+        deinitRawSnapshot();
+
     }
 
     if(!mZslEnable || mZslFlashEnable)
@@ -6526,7 +6539,7 @@ bool QualcommCameraHardware::initRecord()
     if (allocate_ion_memory(&record_main_ion_fd[cnt], &record_alloc[cnt], &record_ion_info_fd[cnt],
                             ion_heap, mRecordFrameSize, &mRecordfd[cnt]) < 0){
       LOGE("do_mmap: Open device %s failed!\n",pmem_region);
-	  return NULL;
+      return NULL;
     }
 #else
     mRecordfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
@@ -7144,28 +7157,6 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
             LOGE(" enQ thumbnailbuffer");
             if( retVal != NO_ERROR) {
                 LOGE("%s: Queuebuffer failed for postview buffer", __FUNCTION__);
-#if 0
-                if(handle) {
-                    mParameters.getPreviewSize(&previewWidth, &previewHeight);
-                    int mBufferSize = previewWidth * previewHeight * 3/2;
-                    int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
-                    register_buf(mBufferSize,
-                                 mBufferSize,
-                                 mCbCrOffset,
-                                           0,
-                                  handle->fd,
-                                           0,
-                                  (uint8_t *)mThumbnailMapped[index],
-                          MSM_PMEM_THUMBNAIL,
-                                       false,
-                                        false /* unregister */);
-                   if (munmap((void *)(mThumbnailMapped[index]),handle->size ) == -1) {
-                       LOGE("Error un-mmapping the thumbnail buffer!!!");
-                   }
-                }
-                mThumbnailBuffer[index] = NULL;
-                mThumbnailMapped[index] = NULL;
-#endif
             }
 
         }
@@ -7174,20 +7165,29 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
         /* Give the main Image as raw to upper layers */
         //Either CAMERA_MSG_RAW_IMAGE or CAMERA_MSG_RAW_IMAGE_NOTIFY will be set not both
         if (mDataCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE))
-           // native_send_data_callback(CAMERA_MSG_RAW_IMAGE, mRawMapped,
-             //               mCallbackCookie);
-            //mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawHeap->mBuffers[0],
-            //                mCallbackCookie);
             mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawMapped[index],data_counter,
                           NULL, mCallbackCookie);
         else if (mNotifyCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY))
-            //native_send_data_callback(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0,
-            //                          mCallbackCookie);
+
             mNotifyCallback(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0,
                             mCallbackCookie);
     } else {  // Not Jpeg snapshot, it is Raw Snapshot , handle later
-            LOGE("ReceiveRawPicture : raw snapshot not Jpeg");
-    }  
+            LOGV("ReceiveRawPicture : raw snapshot not Jpeg, sending callback up");
+             if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
+                mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,
+                                       mRawSnapshotMapped,
+                                             data_counter,
+                                                     NULL,
+                                         mCallbackCookie);
+
+              // TEMP
+             LOGE("receiveRawPicture : gave raw frame to app, giving signal");
+              mJpegThreadWaitLock.lock();
+              mJpegThreadRunning = false;
+              mJpegThreadWait.signal();
+              mJpegThreadWaitLock.unlock();
+
+    }
     /* can start preview at this stage? early preview? */
     mInSnapshotModeWaitLock.lock();
     mInSnapshotMode = false;

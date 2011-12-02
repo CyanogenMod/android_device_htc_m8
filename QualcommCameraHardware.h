@@ -325,7 +325,8 @@ private:
     void deinitRaw();
     void deinitRawSnapshot();
     bool mPreviewThreadRunning;
-    bool createSnapshotMemory (int numberOfRawBuffers, int numberOfJpegBuffers, bool initJpegHeap);
+    bool createSnapshotMemory (int numberOfRawBuffers, int numberOfJpegBuffers,
+                                   bool initJpegHeap, int snapshotFormat = 1 /*PICTURE_FORMAT_JPEG*/);
     Mutex mPreviewThreadWaitLock;
     Condition mPreviewThreadWait;
     friend void *preview_thread(void *user);
@@ -532,14 +533,15 @@ private:
     int mBrightness;
     int mSkinToneEnhancement;
     int mHJR;
-    unsigned int mThumbnailMapped[MAX_SNAPSHOT_BUFFERS]; 
-    int mRawfd[MAX_SNAPSHOT_BUFFERS];  
-    int mJpegfd[MAX_SNAPSHOT_BUFFERS]; 
+    unsigned int mThumbnailMapped[MAX_SNAPSHOT_BUFFERS];
+    int mRawfd[MAX_SNAPSHOT_BUFFERS];
+    int mRawSnapshotfd;
+    int mJpegfd[MAX_SNAPSHOT_BUFFERS];
     int mRecordfd[9];
     camera_memory_t *mPreviewMapped[kPreviewBufferCount + MIN_UNDEQUEUD_BUFFER_COUNT];
-    camera_memory_t *mRawMapped[MAX_SNAPSHOT_BUFFERS]; 
-    camera_memory_t *mJpegMapped[MAX_SNAPSHOT_BUFFERS]; 
-    camera_memory_t *mRawSnapShotMapped;
+    camera_memory_t *mRawMapped[MAX_SNAPSHOT_BUFFERS];
+    camera_memory_t *mJpegMapped[MAX_SNAPSHOT_BUFFERS];
+    camera_memory_t *mRawSnapshotMapped;
     camera_memory_t *mRecordMapped[9];
     int raw_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
     int Jpeg_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
@@ -559,7 +561,7 @@ private:
     bool mInPreviewCallback;
     preview_stream_ops_t* mPreviewWindow;
     android_native_buffer_t *mPostViewBuffer;
-    buffer_handle_t *mThumbnailBuffer[MAX_SNAPSHOT_BUFFERS];  
+    buffer_handle_t *mThumbnailBuffer[MAX_SNAPSHOT_BUFFERS];
     bool mIs3DModeOn;
 
     int32_t mMsgEnabled;    // camera msg to be handled

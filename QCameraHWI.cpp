@@ -2212,7 +2212,7 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 			frame->phy_offset = 0;
 			frame->buffer = (uint32_t) heap->camera_memory[i]->data;
 			frame->path = path;
-			frame->cbcr_off =  heap->cbcr_offset;
+			frame->cbcr_off =  planes[0]+heap->cbcr_offset;
 			frame->y_off =  heap->y_offset;
 			LOGD("%s: Buffer idx: %d  addr: %x fd: %d phy_offset: %d"
 				 "cbcr_off: %d y_off: %d frame_len: %d", __func__,
@@ -2220,7 +2220,7 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 				 frame->phy_offset, cbcr_off, y_off, buf_len);
 
                         buf_def->buf.mp[i].frame = *frame;
-                        buf_def->buf.mp[i].frame_offset = heap->size * i;
+                        buf_def->buf.mp[i].frame_offset = 0;
                         buf_def->buf.mp[i].num_planes = num_planes;
                         /* Plane 0 needs to be set seperately. Set other planes
                          * in a loop. */

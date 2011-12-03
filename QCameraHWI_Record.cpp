@@ -263,9 +263,19 @@ void QCameraStream_record::release()
   }
 
   for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
+    if (mHalCamCtrl->mStoreMetaDataInFrame) {
+      struct encoder_media_buffer_type * packet = 
+          (struct encoder_media_buffer_type  *)
+          mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data;
+      native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle)); 
+      mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->release(
+		    mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]);
+
+    }
 	  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->release(
 		  mHalCamCtrl->mRecordingMemory.camera_memory[cnt]);
 	  close(mHalCamCtrl->mRecordingMemory.fd[cnt]);
+
 #ifdef USE_ION
     mHalCamCtrl->deallocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt);
 #endif
@@ -336,10 +346,16 @@ status_t QCameraStream_record::processRecordFrame(void *data)
 
   LOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
 #if 1
-   //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
-	 rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
+  if (mHalCamCtrl->mStoreMetaDataInFrame) {
+    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
+            mHalCamCtrl->mRecordingMemory.metadata_memory[frame->video.video.idx],
+            0, mHalCamCtrl->mCallbackCookie);
+  } else {
+    //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
+    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
             mHalCamCtrl->mRecordingMemory.camera_memory[frame->video.video.idx],
             0, mHalCamCtrl->mCallbackCookie);
+  }
 #else  //Dump the Frame
     {
       static int frameCnt = 0;
@@ -529,7 +545,22 @@ status_t QCameraStream_record::initEncodeBuffers()
 #endif
 		  mHalCamCtrl->mRecordingMemory.camera_memory[cnt] =
 		    mHalCamCtrl->mGetMemory(mHalCamCtrl->mRecordingMemory.fd[cnt],
-		  mHalCamCtrl->mRecordingMemory.size, 1, (void *)this);
+		    mHalCamCtrl->mRecordingMemory.size, 1, (void *)this);
+
+      if (mHalCamCtrl->mStoreMetaDataInFrame) {
+        mHalCamCtrl->mRecordingMemory.metadata_memory[cnt] =
+          mHalCamCtrl->mGetMemory(-1,
+          sizeof(struct encoder_media_buffer_type), 1, (void *)this); 
+        struct encoder_media_buffer_type * packet = 
+          (struct encoder_media_buffer_type  *)
+          mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data;
+        packet->meta_handle = native_handle_create(1, 2); //1 fd, 1 offset and 1 size
+        packet->buffer_type = kMetadataBufferTypeCameraSource;
+        native_handle_t * nh = const_cast<native_handle_t *>(packet->meta_handle);
+        nh->data[0] = mHalCamCtrl->mRecordingMemory.fd[cnt];
+        nh->data[1] = 0; 
+        nh->data[2] = mHalCamCtrl->mRecordingMemory.size;
+      }
     	recordframes[cnt].fd = mHalCamCtrl->mRecordingMemory.fd[cnt];
     	recordframes[cnt].buffer = (uint32_t)mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data;
 	    recordframes[cnt].y_off = 0;
@@ -582,6 +613,16 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
         return;
     }
     for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
+      if (mHalCamCtrl->mStoreMetaDataInFrame) {
+        if(mHalCamCtrl->mRecordingMemory.metadata_memory[cnt] &&
+                mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data == opaque) {
+            /* found the match */
+            if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mRecordedFrames[cnt]))
+                LOGE("%s : Buf Done Failed",__func__);
+            LOGE("%s : END",__func__);
+            return;
+        }
+      } else {
         if(mHalCamCtrl->mRecordingMemory.camera_memory[cnt] &&
                 mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data == opaque) {
             /* found the match */
@@ -589,7 +630,8 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
                 LOGE("%s : Buf Done Failed",__func__);
             LOGE("%s : END",__func__);
             return;
-		}
+        }
+      }
     }
 	LOGE("%s: cannot find the matched frame with opaue = 0x%p", __func__, opaque);
 }

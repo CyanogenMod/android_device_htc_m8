@@ -32,6 +32,7 @@
 #include <system/camera.h>
 #include <hardware/camera.h>
 #include <gralloc_priv.h>
+#include <QComOMXMetadata.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -128,6 +129,7 @@ typedef struct {
 	 int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
 	 int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
 	 camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     camera_memory_t*        metadata_memory[MM_CAMERA_MAX_NUM_FRAMES];
      int main_ion_fd[MM_CAMERA_MAX_NUM_FRAMES];
      struct ion_allocation_data alloc[MM_CAMERA_MAX_NUM_FRAMES];
      struct ion_fd_data ion_info_fd[MM_CAMERA_MAX_NUM_FRAMES];

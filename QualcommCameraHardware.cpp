@@ -1335,6 +1335,9 @@ QualcommCameraHardware::QualcommCameraHardware()
 	}
     mRawSnapshotMapped = NULL;
 
+    for(int i=0; i<3; i++)
+        mStatsMapped[i] = NULL;
+
     if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
         mIs3DModeOn = true;
     }
@@ -5829,18 +5832,18 @@ CameraParameters QualcommCameraHardware::getParameters() const
 status_t QualcommCameraHardware::setHistogramOn()
 {
     LOGV("setHistogramOn: EX");
-#if 0
     mStatsWaitLock.lock();
     mSendData = true;
     if(mStatsOn == CAMERA_HISTOGRAM_ENABLE) {
         mStatsWaitLock.unlock();
         return NO_ERROR;
      }
-
+#if 0
     if (mStatHeap != NULL) {
         LOGV("setHistogram on: clearing old mStatHeap.");
         mStatHeap.clear();
     }
+#endif
 
     mStatSize = sizeof(uint32_t)* HISTOGRAM_STATS_SIZE;
     mCurrent = -1;
@@ -5849,7 +5852,7 @@ status_t QualcommCameraHardware::setHistogramOn()
     individually expected to be page aligned  */
     int page_size_minus_1 = getpagesize() - 1;
     int32_t mAlignedStatSize = ((mStatSize + page_size_minus_1) & (~page_size_minus_1));
-
+#if 0
     mStatHeap =
             new AshmemPool(mAlignedStatSize,
                            3,
@@ -5862,19 +5865,30 @@ status_t QualcommCameraHardware::setHistogramOn()
           mStatsWaitLock.unlock();
           return UNKNOWN_ERROR;
       }
+#endif
+    for(int cnt = 0; cnt<3; cnt++) {
+            mStatsMapped[cnt]=mGetMemory(-1, mStatSize,1,mCallbackCookie);
+            if(mStatsMapped[cnt] == NULL) {
+                LOGE("Failed to get camera memory for stats heap index: %d", cnt);
+                return false;
+            }else{
+               LOGV("Received following info for stats mapped data:%p,handle:%p, size:%d,release:%p",
+               mStatsMapped[cnt]->data ,mStatsMapped[cnt]->handle, mStatsMapped[cnt]->size, mStatsMapped[cnt]->release);
+            }
+    }
+
+
     mStatsOn = CAMERA_HISTOGRAM_ENABLE;
 
     mStatsWaitLock.unlock();
     mCfgControl.mm_camera_set_parm(CAMERA_PARM_HISTOGRAM, &mStatsOn);
-    #endif
-	return NO_ERROR;
+    return NO_ERROR;
 
 }
 
 status_t QualcommCameraHardware::setHistogramOff()
 {
     LOGV("setHistogramOff: EX");
-	#if 0
     mStatsWaitLock.lock();
     if(mStatsOn == CAMERA_HISTOGRAM_DISABLE) {
     mStatsWaitLock.unlock();
@@ -5886,9 +5900,15 @@ status_t QualcommCameraHardware::setHistogramOff()
     mCfgControl.mm_camera_set_parm(CAMERA_PARM_HISTOGRAM, &mStatsOn);
 
     mStatsWaitLock.lock();
-    mStatHeap.clear();
+//    mStatHeap.clear();
+    for(int i=0; i<3; i++){
+        if(mStatsMapped[i] != NULL){
+            mStatsMapped[i]->release(mStatsMapped[i]);
+            mStatsMapped[i] = NULL;
+        }
+    }
+
     mStatsWaitLock.unlock();
-#endif
     return NO_ERROR;
 }
 
@@ -5957,7 +5977,6 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
     Mutex::Autolock l(&mLock);
 
     switch(command)  {
-#if 0
       case CAMERA_CMD_HISTOGRAM_ON:
                                    LOGV("histogram set to on");
                                    return setHistogramOn();
@@ -5970,6 +5989,7 @@ status_t QualcommCameraHardware::sendCommand(int32_t command, int32_t arg1,
                                        mSendData = true;
                                    mStatsWaitLock.unlock();
                                    return NO_ERROR;
+#if 0
       case CAMERA_CMD_FACE_DETECTION_ON:
                                    if(supportsFaceDetection() == false){
                                         LOGI("face detection support is not available");
@@ -6381,15 +6401,16 @@ void QualcommCameraHardware::receiveCameraStats(camstats_type stype, camera_prev
         mSendData = false;
         mCurrent = (mCurrent+1)%3;
     // The first element of the array will contain the maximum hist value provided by driver.
-        *(uint32_t *)((unsigned int)mStatHeap->mHeap->base()+ (mStatHeap->mBufferSize * mCurrent)) = histinfo->max_value;
-        memcpy((uint32_t *)((unsigned int)mStatHeap->mHeap->base()+ (mStatHeap->mBufferSize * mCurrent)+ sizeof(int32_t)), (uint32_t *)histinfo->buffer,(sizeof(int32_t) * 256));
+    //    *(uint32_t *)((unsigned int)mStatHeap->mHeap->base()+ (mStatHeap->mBufferSize * mCurrent)) = histinfo->max_value;
+    //    memcpy((uint32_t *)((unsigned int)mStatHeap->mHeap->base()+ (mStatHeap->mBufferSize * mCurrent)+ sizeof(int32_t)), (uint32_t *)histinfo->buffer,(sizeof(int32_t) * 256));
+        *(uint32_t *)((unsigned int)(mStatsMapped[mCurrent]->data)) = histinfo->max_value;
+        memcpy((uint32_t *)((unsigned int)mStatsMapped[mCurrent]->data + sizeof(int32_t)), (uint32_t *)histinfo->buffer,(sizeof(int32_t) * 256));
 
         mStatsWaitLock.unlock();
-/*
+
         if (scb != NULL && (msgEnabled & CAMERA_MSG_STATS_DATA))
-            scb(CAMERA_MSG_STATS_DATA, mStatHeap->mBuffers[mCurrent],
-                sdata);
-*/
+            scb(CAMERA_MSG_STATS_DATA, mStatsMapped[mCurrent], data_counter, NULL,sdata);
+
      }
   //  LOGV("receiveCameraStats X");
 }

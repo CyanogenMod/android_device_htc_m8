@@ -617,6 +617,7 @@ private:
      QCameraHalHeap_t     mThumbnailMemory;
      QCameraHalHeap_t     mRecordingMemory;
      QCameraHalHeap_t     mJpegMemory;
+     QCameraHalHeap_t     mRawMemory;
 	 camera_frame_metadata_t mMetadata;
 	 camera_face_t           mFace[MAX_ROI];
 };

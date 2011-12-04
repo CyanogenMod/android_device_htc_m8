@@ -625,6 +625,8 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     mm_camera_reg_buf_t reg_buf;
 
     LOGD("%s: E", __func__);
+    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
+    memset(&mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
 
     if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
         LOGE("%s: Invalid number of buffers (=%d) requested!", __func__, num_of_buf);
@@ -632,10 +634,13 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
         goto end;
     }
 
-    memset(&mSnapshotStreamBuf, 0, sizeof(mm_cameara_stream_buf_t));
-
-    /* Number of buffers to be set*/
-    mSnapshotStreamBuf.num = num_of_buf;
+    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
+    if (!reg_buf.def.buf.mp) {
+      LOGE("%s Error allocating memory for mplanar struct ", __func__);
+      ret = NO_MEMORY;
+      goto end;
+    }
+    memset(reg_buf.def.buf.mp, 0, num_of_buf * sizeof(mm_camera_mp_buf_t));
 
     /* Get a frame len for buffer to be allocated*/
     frame_len = mm_camera_get_msm_frame_len(CAMERA_BAYER_SBGGR10,
@@ -645,69 +650,13 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
                                             OUTPUT_TYPE_S,
                                             &num_planes, planes);
 
-    mSnapshotStreamBuf.frame_len = frame_len;
-
-    /* Allocate Memory to store snapshot image */
-#ifdef USE_ION
-    mRawSnapShotHeap =
-        new IonPool(MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                     frame_len,
-                     num_of_buf,
-                     frame_len,
-                     planes[0],
-                     0,
-                     "snapshot camera");
-#else
-    mRawSnapShotHeap =
-        new PmemPool("/dev/pmem_adsp",
-                     MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                     MSM_PMEM_RAW_MAINIMG,
-                     frame_len,
-                     num_of_buf,
-                     frame_len,
-                     planes[0],
-                     0,
-                     "snapshot camera");
-#endif
-    if (!mRawSnapShotHeap->initialized()) {
-        mRawSnapShotHeap.clear();
-        LOGE("%s: Error allocating buffer for raw snapshot", __func__);
+    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mRawMemory, num_of_buf,
+                                        frame_len, 0, planes[0], MSM_PMEM_RAW_MAINIMG,
+                                        &mSnapshotStreamBuf, &reg_buf.def,
+                                        num_planes, planes) < 0) {
         ret = NO_MEMORY;
         goto end;
     }
-    memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
-    reg_buf.def.buf.mp = new mm_camera_mp_buf_t[mSnapshotStreamBuf.num];
-    if (!reg_buf.def.buf.mp) {
-      LOGE("%s Error allocating memory for mplanar struct ", __func__);
-      mRawSnapShotHeap.clear();
-      ret = NO_MEMORY;
-      goto end;
-    }
-    memset(reg_buf.def.buf.mp, 0,
-           mSnapshotStreamBuf.num * sizeof(mm_camera_mp_buf_t));
-    for(int i = 0; i < mSnapshotStreamBuf.num; i++) {
-        frame = &(mSnapshotStreamBuf.frame[i]);
-        memset(frame, 0, sizeof(struct msm_frame));
-        frame->fd = mRawSnapShotHeap->mHeap->getHeapID();
-        frame->buffer = (uint32_t) mRawSnapShotHeap->mHeap->base() +
-            mRawSnapShotHeap->mAlignedBufferSize * i;
-        frame->path = OUTPUT_TYPE_S;
-        frame->cbcr_off = planes[0];
-        frame->y_off = 0;
-        reg_buf.def.buf.mp[i].frame = *frame;
-        reg_buf.def.buf.mp[i].num_planes = num_planes;
-        /* Plane 0 needs to be set seperately. Set other planes
-         * in a loop. */
-        reg_buf.def.buf.mp[i].planes[0].length = planes[0];
-        reg_buf.def.buf.mp[i].planes[0].m.userptr = frame->fd;
-        reg_buf.def.buf.mp[i].planes[0].reserved[0] = 0;
-        for (int j = 1; j < num_planes; j++) {
-          reg_buf.def.buf.mp[i].planes[j].length = planes[j];
-          reg_buf.def.buf.mp[i].planes[j].m.userptr = frame->fd;
-          reg_buf.def.buf.mp[i].planes[j].reserved[0] =
-            reg_buf.def.buf.mp[i].planes[j-1].length;
-        }
-    }/*end of for loop*/
 
     /* register the streaming buffers for the channel*/
     reg_buf.ch_type = MM_CAMERA_CH_RAW;
@@ -716,11 +665,9 @@ initRawSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     ret = cam_config_prepare_buf(mCameraId, &reg_buf);
     if(ret != NO_ERROR) {
         LOGV("%s:reg snapshot buf err=%d\n", __func__, ret);
-        mRawSnapShotHeap.clear();
         ret = FAILED_TRANSACTION;
         goto end;
     }
-
 
     /* If we have reached here successfully, we have allocated buffer.
        Set state machine.*/
@@ -753,12 +700,6 @@ status_t QCameraStream_Snapshot::deinitRawSnapshotBuffers(void)
             ret = FAILED_TRANSACTION;
             goto end;
         }
-
-        /* Clear raw heap*/
-        if (mRawSnapShotHeap != NULL) {
-            mRawSnapShotHeap.clear();
-            mRawSnapShotHeap = NULL;
-        }
     }
 
 end:
@@ -778,6 +719,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
 
     LOGD("%s: E", __func__);
     memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
+    memset(&mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
 
     if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
         LOGE("%s: Invalid number of buffers (=%d) requested!",
@@ -802,8 +744,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
     if (!reg_buf.snapshot.thumbnail.buf.mp) {
 	      LOGE("%s Error allocating memory for mplanar struct ", __func__);
-	      mRawHeap.clear();
-	      mPostviewHeap.clear();
 	      ret = NO_MEMORY;
 	      goto end;
 	    }
@@ -895,6 +835,7 @@ deinitSnapshotBuffers(void)
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mJpegMemory);
+        mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mRawMemory);
     }
 end:
     LOGD("%s: X", __func__);
@@ -1043,7 +984,6 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
     cam_ctrl_dimension_t dim;
     bool initSnapshot = false;
     mm_camera_op_mode_type_t op_mode;
-    mm_camera_reg_buf_t reg_buf;
     mm_camera_raw_streaming_type_t raw_stream_type =
         MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE;
 
@@ -1060,13 +1000,13 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
     }
 
     /* For raw snapshot, we do not know the dimension as it
-       depends on sensor to sensor. We call setDimension which will
+       depends on sensor to sensor. We call getDimension which will
        give us raw width and height */
-    LOGD("%s: Get Raw Snapshot Dimension", __func__);
-    ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
-    if (NO_ERROR != ret) {
-      LOGE("%s: error - can't set snapshot parms!", __func__);
-      ret = FAILED_TRANSACTION;
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+    if (MM_CAMERA_OK != ret) {
+      LOGE("%s: error - can't get dimension!", __func__);
+      LOGE("%s: X", __func__);
       goto end;
     }
     LOGD("%s: Raw Snapshot dimension: %dx%d", __func__,
@@ -1517,7 +1457,6 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
                  mPostviewWidth, mPostviewHeight);
         }
         /*if(strTexturesOn == true) {
-            mDisplayHeap = mRawHeap;
             size.width = mPictureWidth;
             size.height = mPictureHeight;
         }*/
@@ -1661,7 +1600,7 @@ void QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recvd_fr
             (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)){
                 mHalCamCtrl->mDataCb(
                     CAMERA_MSG_COMPRESSED_IMAGE,
-                    mHalCamCtrl->mSnapshotMemory.camera_memory[buf_index], 0, NULL,
+                    mHalCamCtrl->mRawMemory.camera_memory[buf_index], 0, NULL,
                     mHalCamCtrl->mCallbackCookie);
         }
         /* TBD: Temp: To be removed once event handling is enabled */
@@ -1801,8 +1740,8 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
     mActualPictureHeight(0),
     mJpegDownscaling(false),
     mJpegHeap(NULL),
-    mDisplayHeap(NULL),mRawHeap(NULL),
-    mPostviewHeap(NULL), mRawSnapShotHeap(NULL),
+    mDisplayHeap(NULL),
+    mPostviewHeap(NULL),
     mCurrentFrameEncoded(NULL)
   {
     LOGV("%s: E", __func__);

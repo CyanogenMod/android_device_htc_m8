@@ -301,14 +301,10 @@ private:
     /*TBD:Bikas: This is defined in HWI too.*/
 #ifdef USE_ION
     sp<IonPool>  mDisplayHeap;
-    sp<IonPool>  mRawHeap;
     sp<IonPool>  mPostviewHeap;
-    sp<IonPool>  mRawSnapShotHeap;
 #else
     sp<PmemPool>  mDisplayHeap;
-    sp<PmemPool>  mRawHeap;
     sp<PmemPool>  mPostviewHeap;
-    sp<PmemPool>  mRawSnapShotHeap;
 #endif
     mm_camera_ch_data_buf_t *mCurrentFrameEncoded;
     mm_cameara_stream_buf_t mSnapshotStreamBuf;

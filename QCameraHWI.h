@@ -474,6 +474,7 @@ private:
     status_t setOverlayFormats(const CameraParameters& params);
     status_t setHighFrameRate(const CameraParameters& params);
     status_t setRedeyeReduction(const CameraParameters& params);
+    status_t setFaceDetect(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
     status_t setHistogram(int histogram_en);
 

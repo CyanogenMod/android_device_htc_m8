@@ -413,6 +413,9 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 {
   LOGV("%s",__func__);
   int err = 0;
+  int msgType = 0;
+  camera_memory_t *data = NULL;
+  camera_frame_metadata_t *metadata = NULL;
 
   if(mHalCamCtrl==NULL) {
     LOGE("%s: X: HAL control object not set",__func__);

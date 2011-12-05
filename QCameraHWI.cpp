@@ -79,7 +79,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
-                    mPostPreviewHeap(NULL)
+                    mPostPreviewHeap(NULL),
+                    mFaceDetectOn(0)
 
 {
     LOGI("QCameraHardwareInterface: E");
@@ -320,14 +321,14 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
                 LOGE("Face detection support is not available");
                 return NO_ERROR;
            }
-           setFaceDetection("on");
+           //setFaceDetection("on");
            return runFaceDetection();
         case CAMERA_CMD_STOP_FACE_DETECTION:
            if(supportsFaceDetection() == false){
                 LOGE("Face detection support is not available");
                 return NO_ERROR;
            }
-           setFaceDetection("off");
+           //setFaceDetection("off");
            return runFaceDetection();
 #if 0
         case CAMERA_CMD_SEND_META_DATA:
@@ -1080,7 +1081,7 @@ void QCameraHardwareInterface::stopPreview()
 {
     LOGI("%s: stopPreview: E", __func__);
     Mutex::Autolock lock(mLock);
-
+    mFaceDetectOn = false;
 	switch(mPreviewState) {
 	case QCAMERA_HAL_PREVIEW_START:
 		//mPreviewWindow = NULL;
@@ -1677,7 +1678,7 @@ void QCameraHardwareInterface::roiEvent(fd_roi_t roi)
 {
     LOGE("roiEvent: E");
 
-    mStreamDisplay->notifyROIEvent(roi);
+    if(mStreamDisplay) mStreamDisplay->notifyROIEvent(roi);
 #if 0 //TODO: move to preview obj
     mCallbackLock.lock();
     data_callback mcb = mDataCb;

@@ -771,6 +771,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     //Set Overlay Format
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
+    mParameters.set("max-num-detected-faces-hw", "0");
 
     //Set Picture Size
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
@@ -1084,6 +1085,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
     if ((rc = setSceneDetect(params)))                  final_rc = rc;
+    //if ((rc = setFaceDetect(params)))                final_rc = rc;
     //    if ((rc = setStrTextures(params)))            final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))          final_rc = rc;
@@ -1162,7 +1164,7 @@ status_t QCameraHardwareInterface::runFaceDetection()
     if (str != NULL) {
         int value = attr_lookup(facedetection,
                 sizeof(facedetection) / sizeof(str_map), str);
-
+#if 0
         mMetaDataWaitLock.lock();
         if (value == true) {
             if(mMetaDataHeap != NULL)
@@ -1186,9 +1188,10 @@ status_t QCameraHardwareInterface::runFaceDetection()
                 mMetaDataHeap.clear();
         }
         mMetaDataWaitLock.unlock();
-		cam_ctrl_dimension_t dim;
-		cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
-	    preview_parm_config (&dim, mParameters);
+#endif
+        cam_ctrl_dimension_t dim;
+        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+        preview_parm_config (&dim, mParameters);
         ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
         ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
         return ret ? NO_ERROR : UNKNOWN_ERROR;
@@ -2182,6 +2185,26 @@ status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& par
     return BAD_VALUE;
 }
 
+status_t QCameraHardwareInterface::setFaceDetect(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_FACE_DETECTION);
+    LOGE("setFaceDetect: %s", str);
+    if (str != NULL) {
+        int value = attr_lookup(facedetection,
+                sizeof(facedetection) / sizeof(str_map), str);
+        mFaceDetectOn = value;
+        LOGE("%s Face detection value = %d",__func__, value);
+        cam_ctrl_dimension_t dim;
+        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+        preview_parm_config (&dim, mParameters);
+        cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+        native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
+        mParameters.set(CameraParameters::KEY_FACE_DETECTION, str);
+        return NO_ERROR;
+    }
+    LOGE("Invalid Face Detection value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
 status_t QCameraHardwareInterface::setFaceDetection(const char *str)
 {
     if(supportsFaceDetection() == false){

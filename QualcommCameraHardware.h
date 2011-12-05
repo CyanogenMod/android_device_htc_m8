@@ -148,10 +148,10 @@ public:
     int allocate_ion_memory(int *main_ion_fd, struct ion_allocation_data* alloc,
     struct ion_fd_data* ion_info_fd, int ion_type, int size, int *memfd);
     int deallocate_ion_memory(int *main_ion_fd, struct ion_fd_data* ion_info_fd);
+    virtual ~QualcommCameraHardware();
 
 private:
     QualcommCameraHardware();
-    virtual ~QualcommCameraHardware();
     status_t startPreviewInternal();
     status_t startRecordingInternal();
     status_t setHistogramOn();

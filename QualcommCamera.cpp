@@ -275,6 +275,18 @@ QualcommCameraHardware * util_get_Hal_obj( struct camera_device * device)
   }
   return hardware;
 }
+void close_Hal_obj( struct camera_device * device)
+{
+  LOGI("%s: E", __func__);
+  QualcommCameraHardware* hardware = NULL;
+  if(device && device->priv){
+      camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
+      LOGI("%s: clear hw", __func__);
+      hardware = camHal->hardware;
+      delete hardware;
+  }
+  LOGI("%s: X", __func__);
+}
 
 
 CameraParameters* util_get_HAL_parameter( struct camera_device * device)
@@ -374,6 +386,7 @@ extern "C"  int close_camera_device( hw_device_t *hw_dev)
 
          }
       //}
+      close_Hal_obj(device);
       free(device->priv);
       device->priv = NULL;
     }

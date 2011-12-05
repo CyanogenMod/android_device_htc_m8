@@ -3969,17 +3969,6 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
                LOGE("Received following info for raw mapped data:%p,handle:%p, size:%d,release:%p",
                mRawMapped[cnt]->data ,mRawMapped[cnt]->handle, mRawMapped[cnt]->size, mRawMapped[cnt]->release);
             }
-            rawframes = new msm_frame[MAX_SNAPSHOT_BUFFERS];
-            rawframes[cnt].buffer = (unsigned int)mRawMapped[cnt]->data;
-            rawframes[cnt].fd = mRawfd[cnt];
-            rawframes[cnt].y_off = 0;
-            rawframes[cnt].cbcr_off = mCbCrOffsetRaw;
-            rawframes[cnt].path = OUTPUT_TYPE_V;
-            //record_buffers_tracking_flag[cnt] = false; TODO ?
-            LOGV ("createSnapshotMemory :  raw heap ,  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
-              (unsigned long)rawframes[cnt].buffer, rawframes[cnt].fd, rawframes[cnt].y_off,
-              rawframes[cnt].cbcr_off);
-
             // Register Raw frames
             LOGE("Registering buffer %d with fd :%d with kernel",cnt,mRawfd[cnt]);
             int active = (cnt < ACTIVE_ZSL_BUFFERS);  // TODO check ?
@@ -4734,9 +4723,14 @@ void QualcommCameraHardware::release()
     LOGI("release X: mCameraRunning = %d, mFrameThreadRunning = %d", mCameraRunning, mFrameThreadRunning);
     LOGI("mVideoThreadRunning = %d, mSnapshotThreadRunning = %d, mJpegThreadRunning = %d", mVideoThreadRunning, mSnapshotThreadRunning, mJpegThreadRunning);
     LOGI("camframe_timeout_flag = %d, mAutoFocusThreadRunning = %d", camframe_timeout_flag, mAutoFocusThreadRunning);
+    mFrameThreadWaitLock.lock();
+    while (mFrameThreadRunning) {
+        LOGV("release: waiting for old frame thread to complete.");
+        mFrameThreadWait.wait(mFrameThreadWaitLock);
+        LOGV("release: old frame thread completed.");
+    }
+    mFrameThreadWaitLock.unlock();
 
-    libmmcamera = NULL;
-    mMMCameraDLRef.clear();
 }
 
 QualcommCameraHardware::~QualcommCameraHardware()
@@ -4748,10 +4742,8 @@ QualcommCameraHardware::~QualcommCameraHardware()
         delete [] recordframes;
         recordframes = NULL;
         delete [] record_buffers_tracking_flag;
-        record_buffers_tracking_flag = NULL;
-        delete [] rawframes;
-        rawframes = NULL;
     }
+    mMMCameraDLRef.clear();
     //singleton.clear();
     //singleton_releasing = false;
     //singleton_releasing_start_time = 0;

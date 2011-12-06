@@ -6857,9 +6857,9 @@ void QualcommCameraHardware::stopRecording()
         pthread_cond_signal(&(g_busy_frame_queue.wait));
         pthread_mutex_unlock(&(g_busy_frame_queue.mut));
     }
+#if 0
     else  // for other targets where output2 is not enabled
         stopPreviewInternal();
-#if 0
     if (mJpegHeap != NULL) {
         LOGV("stopRecording: clearing old mJpegHeap.");
         mJpegHeap.clear();

@@ -3999,7 +3999,11 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
                 }
             #endif
                 LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
-                mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
+                if(mCurrentTarget == TARGET_MSM8660)
+                    mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
+                else
+                    mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
+
                 if(mJpegMapped[cnt] == NULL) {
                     LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
                     return false;
@@ -4352,7 +4356,8 @@ void QualcommCameraHardware::deinitRaw()
         if(NULL != mJpegMapped[cnt]) {
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
-            close(mJpegfd[cnt]);
+            if(mCurrentTarget == TARGET_MSM8660)
+              close(mJpegfd[cnt]);
 #ifdef USE_ION
             deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
 #endif
@@ -7222,16 +7227,20 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
             if(status == NO_ERROR) {
             //  mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
               LOGE("receiveJpegPicture : giving jpeg image callback to services");
-              camera_memory_t *encodedMem = mGetMemory(mJpegfd[index], encoded_buffer->filled_size,
-                                           1, mCallbackCookie);
-              if (!encodedMem || !encodedMem->data) {
-                LOGE("%s: mGetMemory failed.\n", __func__);
-                return;
+              if(mCurrentTarget == TARGET_MSM8660){
+                camera_memory_t *encodedMem = mGetMemory(mJpegfd[index], encoded_buffer->filled_size,
+                                             1, mCallbackCookie);
+                if (!encodedMem || !encodedMem->data) {
+                  LOGE("%s: mGetMemory failed.\n", __func__);
+                  return;
+                }
+                mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, encodedMem, data_counter,
+                              NULL, mCallbackCookie);
+                encodedMem->release(encodedMem);
+                LOGE("%s release memory",__FUNCTION__);
+              } else{
+                 mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,mJpegMapped[index],data_counter,NULL,mCallbackCookie);
               }
-              mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, encodedMem, data_counter,
-                            NULL, mCallbackCookie);
-              encodedMem->release(encodedMem);
-              LOGE("%s release memory",__FUNCTION__);
             }
            // buffer = NULL;
       } else {

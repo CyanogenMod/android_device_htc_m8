@@ -771,7 +771,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     //Set Overlay Format
     mParameters.set("overlay-format", HAL_PIXEL_FORMAT_YCbCr_420_SP);
-    mParameters.set("max-num-detected-faces-hw", "0");
+    mParameters.set("max-num-detected-faces-hw", "2");
 
     //Set Picture Size
     mParameters.setPictureSize(DEFAULT_PICTURE_WIDTH, DEFAULT_PICTURE_HEIGHT);
@@ -1085,7 +1085,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
     if ((rc = setSceneDetect(params)))                  final_rc = rc;
-    //if ((rc = setFaceDetect(params)))                final_rc = rc;
+    if ((rc = setFaceDetect(params)))                   final_rc = rc;
     //    if ((rc = setStrTextures(params)))            final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))          final_rc = rc;

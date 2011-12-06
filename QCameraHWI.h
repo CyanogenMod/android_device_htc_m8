@@ -558,6 +558,9 @@ private:
     int            mCurrentHisto;
     bool           mSendData;
     sp<AshmemPool> mStatHeap;
+    camera_memory_t *mStatsMapped[3];
+    int32_t        mStatSize;
+
     bool mZslLookBackMode;
     int mZslLookBackValue;
     bool mZslEmptyQueueFlag;

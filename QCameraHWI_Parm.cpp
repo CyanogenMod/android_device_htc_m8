@@ -101,6 +101,9 @@ extern "C" {
 #define JPEG_THUMBNAIL_SIZE_COUNT (sizeof(jpeg_thumbnail_sizes)/sizeof(camera_size_type))
 #define DONT_CARE_COORDINATE -1
 
+//for histogram stats
+#define HISTOGRAM_STATS_SIZE 257
+
 //Supported preview fps ranges should be added to this array in the form (minFps,maxFps)
 static  android::FPSRange FpsRangesSupported[] = {
             android::FPSRange(MINIMUM_FPS*1000,MAXIMUM_FPS*1000)
@@ -2601,34 +2604,54 @@ void QCameraHardwareInterface::freePictureTable(void)
 status_t QCameraHardwareInterface::setHistogram(int histogram_en)
 {
     LOGE("setHistogram: E");
-
     if(mStatsOn == histogram_en) {
         return NO_ERROR;
-     }
+    }
 
     mSendData = histogram_en;
     mStatsOn = histogram_en;
     mCurrentHisto = -1;
-    if (histogram_en  && mStatHeap == NULL) {
-    /*Currently the Ashmem is multiplying the buffer size with total number
-    of buffers and page aligning. This causes a crash in JNI as each buffer
-    individually expected to be page aligned  */
-    int page_size_minus_1 = getpagesize() - 1;
-    int statSize = sizeof (camera_preview_histogram_info );
-    int32_t mAlignedStatSize = ((statSize + page_size_minus_1) & (~page_size_minus_1));
+    mStatSize = sizeof(uint32_t)* HISTOGRAM_STATS_SIZE;
 
-    mStatHeap =
-      new AshmemPool(mAlignedStatSize, 3, statSize, "stat");
-      if (!mStatHeap->initialized()) {
-          LOGE("Stat Heap X failed ");
-          mStatHeap.clear();
-          mStatHeap = NULL;
-          return UNKNOWN_ERROR;
-      }
+    if (histogram_en == QCAMERA_PARM_ENABLE) {
+        /*Currently the Ashmem is multiplying the buffer size with total number
+        of buffers and page aligning. This causes a crash in JNI as each buffer
+        individually expected to be page aligned  */
+        int page_size_minus_1 = getpagesize() - 1;
+        int statSize = sizeof (camera_preview_histogram_info );
+        int32_t mAlignedStatSize = ((statSize + page_size_minus_1) & (~page_size_minus_1));
+#if 0
+        mStatHeap =
+        new AshmemPool(mAlignedStatSize, 3, statSize, "stat");
+        if (!mStatHeap->initialized()) {
+            LOGE("Stat Heap X failed ");
+            mStatHeap.clear();
+            mStatHeap = NULL;
+            return UNKNOWN_ERROR;
+        }
+#endif
+        for(int cnt = 0; cnt<3; cnt++) {
+                mStatsMapped[cnt]=mGetMemory(-1, mStatSize, 1, mCallbackCookie);
+                if(mStatsMapped[cnt] == NULL) {
+                    LOGE("Failed to get camera memory for stats heap index: %d", cnt);
+                    return(-1);
+                } else {
+                   LOGE("Received following info for stats mapped data:%p,handle:%p, size:%d,release:%p",
+                   mStatsMapped[cnt]->data ,mStatsMapped[cnt]->handle, mStatsMapped[cnt]->size, mStatsMapped[cnt]->release);
+                }
+        }
     }
+    LOGV("Setting histogram = %d", histogram_en);
     native_set_parms(MM_CAMERA_PARM_HISTOGRAM, sizeof(int), &histogram_en);
-    /*when turn histogram off, do not release the heap memory, release it
-    when close camera */
+    if(histogram_en == QCAMERA_PARM_DISABLE)
+    {
+        //release memory
+        for(int i=0; i<3; i++){
+            if(mStatsMapped[i] != NULL) {
+                mStatsMapped[i]->release(mStatsMapped[i]);
+            }
+        }
+    }
     return NO_ERROR;
 }
 

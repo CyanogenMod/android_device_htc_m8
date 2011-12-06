@@ -640,7 +640,7 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
 
 void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
 {
-    LOGI("processStatsEvent E");
+    LOGI("processStatsEvent: E");
     //Mutex::Autolock lock(eventLock); //Guru
     if (!isPreviewRunning( )) {
         LOGE("preview is not running");
@@ -648,31 +648,28 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
     }
 
     switch (event->event_id) {
-#if 0 //  fix me. need to use camear_memory_t
         case MM_CAMERA_STATS_EVT_HISTO:
         {
-        LOGE("HAL process Histo: mMsgEnabled=0x%x, mStatsOn=%d, mSendData=%d, mDataCb=%p ",
-             (mMsgEnabled & CAMERA_MSG_STATS_DATA), mStatsOn, mSendData, mDataCb);
-        int msgEnabled = mMsgEnabled;
-        camera_preview_histogram_info* hist_info = (camera_preview_histogram_info*)
-                                                    event->e.stats_histo.histo_info;
-        if(mStatsOn == QCAMERA_PARM_ENABLE && mSendData &&
-           mDataCb && (msgEnabled & CAMERA_MSG_STATS_DATA) ) {
-            uint32_t *dest;
-            mSendData = false;
-            mCurrentHisto = (mCurrentHisto + 1) % 3;
-            // The first element of the array will contain the maximum hist value provided by driver.
-            dest = (uint32_t *) ((unsigned int)mStatHeap->mHeap->base() +
-              (mStatHeap->mBufferSize * mCurrentHisto));
-            *dest = hist_info->max_value;
-            dest++;
-            memcpy(dest , (uint32_t *)hist_info->buffer,(sizeof(int32_t) * 256));
-            mDataCb(CAMERA_MSG_STATS_DATA, mStatHeap->mBuffers[mCurrentHisto], mCallbackCookie);
+            LOGE("HAL process Histo: mMsgEnabled=0x%x, mStatsOn=%d, mSendData=%d, mDataCb=%p ",
+            (mMsgEnabled & CAMERA_MSG_STATS_DATA), mStatsOn, mSendData, mDataCb);
+            int msgEnabled = mMsgEnabled;
+            camera_preview_histogram_info* hist_info =
+                (camera_preview_histogram_info*) event->e.stats_histo.histo_info;
+
+            if(mStatsOn == QCAMERA_PARM_ENABLE && mSendData &&
+                            mDataCb && (msgEnabled & CAMERA_MSG_STATS_DATA) ) {
+                uint32_t *dest;
+                mSendData = false;
+                mCurrentHisto = (mCurrentHisto + 1) % 3;
+                // The first element of the array will contain the maximum hist value provided by driver.
+                *(uint32_t *)((unsigned int)(mStatsMapped[mCurrentHisto]->data)) = hist_info->max_value;
+                memcpy((uint32_t *)((unsigned int)mStatsMapped[mCurrentHisto]->data + sizeof(int32_t)),
+                                                    (uint32_t *)hist_info->buffer,(sizeof(int32_t) * 256));
+                mDataCb(CAMERA_MSG_STATS_DATA, mStatsMapped[mCurrentHisto], 0, NULL, (void*)mCallbackCookie);
+            }
+            break;
         }
-        }
-        break;
-#endif //mzhu
-     default:
+        default:
         break;
     }
   LOGV("receiveCameraStats X");

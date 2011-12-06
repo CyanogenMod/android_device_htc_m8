@@ -411,11 +411,10 @@ status_t QCameraStream_record::initEncodeBuffers()
     width =  dim.video_width;
     height = dim.video_height;
   }
-
-  //myMode=CAMERA_MODE_2D; /*Need to assign this in constructor after translating from mask*/
-  frame_len = mm_camera_get_msm_frame_len(dim.enc_format , CAMERA_MODE_2D,
-                                 width,height, OUTPUT_TYPE_V,
-                                 &num_planes, planes);
+  num_planes = 2;
+  planes[0] = dim.video_frame_offset.mp[0].len;
+  planes[1] = dim.video_frame_offset.mp[1].len;
+  frame_len = planes[0] + planes[1];
 
 #if 0
   if(mRecordHeap == NULL)

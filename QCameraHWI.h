@@ -445,6 +445,7 @@ private:
     status_t setJpegQuality(const CameraParameters& params);
     status_t setNumOfSnapshot(const CameraParameters& params);
     status_t setJpegRotation(void);
+	int getJpegRotation(void);
     status_t setAntibanding(const CameraParameters& params);
     status_t setEffect(const CameraParameters& params);
     status_t setExposureCompensation(const CameraParameters &params);

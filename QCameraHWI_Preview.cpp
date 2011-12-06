@@ -284,10 +284,11 @@ status_t QCameraStream_preview::initDisplayBuffers()
   mHalCamCtrl->mPreviewMemoryLock.lock();
   this->mDisplayStreamBuf.num = mHalCamCtrl->mPreviewMemory.buffer_count;
   this->myMode=myMode; /*Need to assign this in constructor after translating from mask*/
-  frame_len = mm_camera_get_msm_frame_len(CAMERA_YUV_420_NV21, this->myMode,
-                                          width, height, OUTPUT_TYPE_P,
-                                          &num_planes, planes);
-  this->mDisplayStreamBuf.frame_len = frame_len;
+  num_planes = 2;
+  planes[0] = dim.display_frame_offset.mp[0].len;
+  planes[1] = dim.display_frame_offset.mp[1].len;
+  this->mDisplayStreamBuf.frame_len = planes[0] + planes[1];
+  //this->mDisplayStreamBuf.frame_len = frame_len;
 
   mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[mDisplayStreamBuf.num];
   if (!mDisplayBuf.preview.buf.mp) {

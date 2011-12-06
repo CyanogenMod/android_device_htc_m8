@@ -724,6 +724,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     uint8_t num_planes;
     uint32_t planes[VIDEO_MAX_PLANES];
     mm_camera_reg_buf_t reg_buf;
+    int rotation = 0;
 
     LOGD("%s: E", __func__);
     memset(&reg_buf,  0,  sizeof(mm_camera_reg_buf_t));
@@ -755,7 +756,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
           ret = NO_MEMORY;
           goto end;
         }
-
     memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
                num_of_buf * sizeof(mm_camera_mp_buf_t));
 
@@ -763,28 +763,42 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     /* Set the JPEG Rotation here since get_buffer_offset needs
      * the value of rotation.*/
     mHalCamCtrl->setJpegRotation();
-
-    /*TBD: to be modified for 3D*/
-     mm_jpeg_encoder_get_buffer_offset( dim->picture_width, dim->picture_height,
-                                          &y_off, &cbcr_off, &frame_len,
-                                              &num_planes, planes);
-
-    if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0, MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
-        LOGE("%s: Error allocating JPEG memory", __func__);
-        ret = NO_MEMORY;
-        goto end;
+    rotation = mHalCamCtrl->getJpegRotation();
+    if(rotation != dim->rotation) {
+        dim->rotation = rotation;
+        ret = cam_config_set_parm(mHalCamCtrl->mCameraId, MM_CAMERA_PARM_DIMENSION, dim);
     }
+    num_planes = 2;
+    planes[0] = dim->picture_frame_offset.mp[0].len;
+    planes[1] = dim->picture_frame_offset.mp[1].len;
+    frame_len = planes[0] + planes[1];
+    y_off = dim->picture_frame_offset.mp[0].offset;
+    cbcr_off = dim->picture_frame_offset.mp[1].offset;
+    LOGE("%s: main image: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
+         __func__, dim->rotation, y_off, cbcr_off, frame_len, dim->picture_width, dim->picture_height);
+	if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0,
+                                  MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
+		LOGE("%s: Error allocating JPEG memory", __func__);
+		ret = NO_MEMORY;
+		goto end;
+	}
 
-    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
-       frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf, &reg_buf.snapshot.main, num_planes, planes) < 0) {
-                ret = NO_MEMORY;
-                goto end;
-    };
+	if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory, num_of_buf,
+	   frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG, &mSnapshotStreamBuf,
+                                 &reg_buf.snapshot.main, num_planes, planes) < 0) {
+				ret = NO_MEMORY;
+				goto end;
+	};
+    num_planes = 2;
+    planes[0] = dim->thumb_frame_offset.mp[0].len;
+    planes[1] = dim->thumb_frame_offset.mp[1].len;
+    frame_len = planes[0] + planes[1];
+    y_off = dim->thumb_frame_offset.mp[0].offset;
+    cbcr_off = dim->thumb_frame_offset.mp[1].offset;
+    LOGE("%s: thumbnail: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
+         __func__, dim->rotation, y_off, cbcr_off, frame_len,
+         dim->thumbnail_width, dim->thumbnail_height);
 
-    /* allocate memory for postview*/
-    mm_jpeg_encoder_get_buffer_offset( dim->ui_thumbnail_width, dim->ui_thumbnail_height,
-                                          &y_off, &cbcr_off, &frame_len,
-                                              &num_planes, planes);
     if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
     frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf,
         &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
@@ -808,7 +822,6 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     /* If we have reached here successfully, we have allocated buffer.
        Set state machine.*/
     setSnapshotState(SNAPSHOT_STATE_BUF_INITIALIZED);
-
 end:
     if (ret != NO_ERROR) {
         handleError();

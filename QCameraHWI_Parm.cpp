@@ -2053,6 +2053,11 @@ status_t QCameraHardwareInterface::setJpegRotation(void) {
     return mm_jpeg_encoder_setRotation(rotation);
 }
 
+int QCameraHardwareInterface::getJpegRotation(void) {
+    int rotation = mParameters.getInt("rotation");
+    return rotation;
+}
+
 status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params) {
     status_t rc = NO_ERROR;
     int quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);

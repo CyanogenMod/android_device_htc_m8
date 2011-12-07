@@ -2450,33 +2450,6 @@ int QCameraHardwareInterface::getNumOfSnapshots(void) const
    return mParameters.getInt("num-snaps-per-shutter");
 }
 
-int QCameraHardwareInterface::getRemainingSnapshots(void)
-{
-    int remaining_snapshot = 0;
-
-    if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
-                                             MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
-                                             &remaining_snapshot)){
-        LOGE("%s:Failed to get max zoom",__func__);
-    }
-
-    /* if remaining snapshot is 0 reset the  parameter to original
-       value */
-    if (!remaining_snapshot) {
-        int num_of_snapshot = mParameters.getInt("num-snaps-per-shutter");
-
-        LOGI("%s: Resetting snapshot counter to %d", __func__, num_of_snapshot);
-        bool result = native_set_parms(MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
-                                       sizeof(int),
-                                       (void *)&num_of_snapshot);
-        if(!result)
-            LOGI("%s:Failure setting number of snapshots!!!", __func__);
-    }
-
-    LOGI("%s: Remaining snapshots: %d", __func__, remaining_snapshot);
-    return remaining_snapshot;
-}
-
 int QCameraHardwareInterface::
 getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                              int *picture_width,

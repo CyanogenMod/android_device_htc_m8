@@ -223,6 +223,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
 {
     int msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
     LOGE("%s: E", __func__);
+    Mutex::Autolock l(&snapshotLock);
 
     // Save jpeg for debugging
 /*  static int loop = 0;
@@ -293,6 +294,8 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     free(mCurrentFrameEncoded);
     setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODE_DONE);
 
+    mNumOfRecievedJPEG++;
+
     /* Before leaving check the jpeg queue. If it's not empty give the available
        frame for encoding*/
     if (!mSnapshotQueue.isEmpty()) {
@@ -307,8 +310,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     {
         /* getRemainingSnapshots call will give us number of snapshots still
            remaining after flushing current zsl buffer once*/
-        int remaining_cb = mHalCamCtrl->getRemainingSnapshots();
-        if (!remaining_cb) {
+        if (mNumOfRecievedJPEG == mNumOfSnapshot) {
             LOGD("%s: Complete JPEG Encoding Done!", __func__);
             setSnapshotState(SNAPSHOT_STATE_JPEG_COMPLETE_ENCODE_DONE);
             mBurstModeFlag = false;
@@ -705,6 +707,7 @@ status_t QCameraStream_Snapshot::deinitRawSnapshotBuffers(void)
             ret = FAILED_TRANSACTION;
             goto end;
         }
+        mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mRawMemory);
     }
 
 end:
@@ -840,7 +843,6 @@ deinitSnapshotBuffers(void)
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mJpegMemory);
-        mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mRawMemory);
     }
 end:
     LOGD("%s: X", __func__);
@@ -881,6 +883,7 @@ void QCameraStream_Snapshot::deinit(void)
     mSnapshotQueue.flush();
 
     mNumOfSnapshot = 0;
+    mNumOfRecievedJPEG = 0;
     setSnapshotState(SNAPSHOT_STATE_UNINIT);
 
     LOGD("%s: X", __func__);
@@ -1815,6 +1818,7 @@ status_t QCameraStream_Snapshot::init()
     }
     LOGD("%s: Number of images to be captured: %d", __func__, mNumOfSnapshot);
 
+    mNumOfRecievedJPEG = 0;
     /* Check if it's a ZSL mode */
     if (isZSLMode()) {
         ret = initZSLSnapshot();
@@ -1889,6 +1893,7 @@ void QCameraStream_Snapshot::stop(void)
     mm_camera_ops_type_t ops_type;
 
     LOGV("%s: E", __func__);
+    Mutex::Autolock l(&snapshotLock);
 
     /* if it's live snapshot, we don't need to deinit anything
        as recording object will handle everything. We just set
@@ -1918,7 +1923,7 @@ void QCameraStream_Snapshot::stop(void)
 void QCameraStream_Snapshot::release()
 {
     LOGV("%s: E", __func__);
-
+    Mutex::Autolock l(&snapshotLock);
     /* release is generally called in case of explicit call from
        upper-layer during disconnect. So we need to deinit everything
        whatever state we are in */

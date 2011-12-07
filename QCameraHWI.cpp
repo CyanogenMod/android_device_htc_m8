@@ -160,6 +160,7 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     break;
     case QCAMERA_HAL_RECORDING_STARTED:
         stopRecordingInternal();
+        stopPreview();
         break;
     case QCAMERA_HAL_TAKE_PICTURE:
         cancelPictureInternal();
@@ -206,6 +207,7 @@ void QCameraHardwareInterface::release()
     break;
     case QCAMERA_HAL_RECORDING_STARTED:
         stopRecordingInternal();
+        stopPreview();
         break;
     case QCAMERA_HAL_TAKE_PICTURE:
         cancelPictureInternal();
@@ -1100,6 +1102,12 @@ void QCameraHardwareInterface::stopPreview()
 //#endif //mzhu
 		mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
 		break;
+
+    case QCAMERA_HAL_RECORDING_STARTED:
+        stopRecordingInternal();
+        stopPreview();
+        mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
+        break;
 	case QCAMERA_HAL_TAKE_PICTURE:
 	case QCAMERA_HAL_PREVIEW_STOPPED:
 		default:
@@ -2108,7 +2116,7 @@ int QCameraHardwareInterface::allocate_ion_memory(QCameraHalHeap_t *p_camera_mem
     LOGE("ION map failed %s\n", strerror(errno));
     goto ION_MAP_FAILED;
   }
-  p_camera_memory->fd[cnt] = p_camera_memory->ion_info_fd[cnt].fd; 
+  p_camera_memory->fd[cnt] = p_camera_memory->ion_info_fd[cnt].fd;
   return 0;
 
 ION_MAP_FAILED:
@@ -2267,14 +2275,14 @@ int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
 				close(heap->fd[i]);
 				heap->fd[i] = -1;
 			}
-			heap->buffer_count = 0;
-			heap->size = 0;
-			heap->y_offset = 0;
-			heap->cbcr_offset = 0;
 #ifdef USE_ION
             deallocate_ion_memory(heap, i);
 #endif
 		}
+        heap->buffer_count = 0;
+        heap->size = 0;
+        heap->y_offset = 0;
+        heap->cbcr_offset = 0;
 	}
 	return rc;
 }

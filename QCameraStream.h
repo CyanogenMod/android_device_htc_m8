@@ -292,6 +292,7 @@ private:
 	int mJpegOffset;
     int mSnapshotState;
     int mNumOfSnapshot;
+	int mNumOfRecievedJPEG;
     bool mModeLiveSnapshot;
     bool mBurstModeFlag;
 	int mActualPictureWidth;
@@ -319,6 +320,7 @@ private:
 	camera_memory_t        *mCameraMemoryPtrMain[mMaxSnapshotBufferCount];
 	camera_memory_t        *mCameraMemoryPtrThumb[mMaxSnapshotBufferCount];
 	int                     dump_fd;
+	Mutex					snapshotLock;
 }; // QCameraStream_Snapshot
 
 

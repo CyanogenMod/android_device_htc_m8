@@ -544,12 +544,15 @@ private:
     camera_memory_t *mRawSnapshotMapped;
     camera_memory_t *mRecordMapped[9];
     int raw_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
+    int raw_snapshot_main_ion_fd;
     int Jpeg_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
     int record_main_ion_fd[9];
     struct ion_allocation_data raw_alloc[MAX_SNAPSHOT_BUFFERS];
+    struct ion_allocation_data raw_snapshot_alloc;
     struct ion_allocation_data Jpeg_alloc[MAX_SNAPSHOT_BUFFERS];
     struct ion_allocation_data record_alloc[9];
     struct ion_fd_data raw_ion_info_fd[MAX_SNAPSHOT_BUFFERS];
+    struct ion_fd_data raw_snapshot_ion_info_fd;
     struct ion_fd_data Jpeg_ion_info_fd[MAX_SNAPSHOT_BUFFERS];
     struct ion_fd_data record_ion_info_fd[9];
 

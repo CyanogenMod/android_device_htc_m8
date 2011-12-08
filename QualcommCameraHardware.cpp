@@ -4061,12 +4061,20 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
         } // for loop locking and registering thumbnail buffers
     }  else { // End if Format is Jpeg , start if format is RAW
          if(numberOfRawBuffers ==1) {
-              mRawSnapshotfd = open(pmem_region, O_RDWR|O_SYNC);
+             int rawSnapshotSize = mDimension.raw_picture_height * mDimension.raw_picture_width;
+#ifdef USE_ION
+            if (allocate_ion_memory(&raw_snapshot_main_ion_fd, &raw_snapshot_alloc, &raw_snapshot_ion_info_fd,
+                                    ion_heap, rawSnapshotSize, &mRawSnapshotfd) < 0){
+              LOGE("do_mmap: Open device %s failed!\n",pmem_region);
+              return false;
+            }
+#else
+            mRawSnapshotfd = open(pmem_region, O_RDWR|O_SYNC);
             if (mRawSnapshotfd <= 0) {
                 LOGE("%s: Open device %s failed for rawnspashot!\n",__func__, pmem_region);
-                    return false;
+                return false;
             }
-            int rawSnapshotSize = mDimension.raw_picture_height * mDimension.raw_picture_width;
+#endif
             LOGE("%s  Raw snapshot memory , fd is %d ", __func__, mRawSnapshotfd);
             mRawSnapshotMapped=mGetMemory(mRawSnapshotfd,
                                           rawSnapshotSize,
@@ -4327,6 +4335,9 @@ void QualcommCameraHardware::deinitRawSnapshot()
         mRawSnapshotMapped->release(mRawSnapshotMapped);
         mRawSnapshotMapped = NULL;
         close(mRawSnapshotfd);
+#ifdef USE_ION
+        deallocate_ion_memory(&raw_snapshot_main_ion_fd, &raw_snapshot_ion_info_fd);
+#endif
     }
     LOGV("deinitRawSnapshot X");
 }

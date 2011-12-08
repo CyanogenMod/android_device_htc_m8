@@ -266,14 +266,18 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
        mHalCamCtrl->mDimension.display_height);
     mDisplayLock.lock();
     for (int i = 0; i < faces_detected; i++) {
+       // top
        mHalCamCtrl->mFace[i].rect[0] =
            roi.faces[i].x*2000/mHalCamCtrl->mDimension.display_width - 1000;
+       //right
        mHalCamCtrl->mFace[i].rect[1] =
-           roi.faces[i].y*2000/mHalCamCtrl->mDimension.display_height - 1000;
-       mHalCamCtrl->mFace[i].rect[2] =
-           roi.faces[i].dx*2000/mHalCamCtrl->mDimension.display_width;
-       mHalCamCtrl->mFace[i].rect[3] =
-           roi.faces[i].dy*2000/mHalCamCtrl->mDimension.display_height;
+          ((roi.faces[i].y)*2000)/mHalCamCtrl->mDimension.display_height - 1000;
+      //bottom
+      mHalCamCtrl->mFace[i].rect[2] =  mHalCamCtrl->mFace[i].rect[0] +
+          (( roi.faces[i].dx*2000)/mHalCamCtrl->mDimension.display_width);
+      //left
+      mHalCamCtrl->mFace[i].rect[3] = mHalCamCtrl->mFace[i].rect[1] +
+           (roi.faces[i].dy*2000)/mHalCamCtrl->mDimension.display_height;
     }
     mHalCamCtrl->mMetadata.number_of_faces = faces_detected;
     mHalCamCtrl->mMetadata.faces = mHalCamCtrl->mFace;

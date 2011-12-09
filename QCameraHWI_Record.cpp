@@ -550,7 +550,7 @@ status_t QCameraStream_record::initEncodeBuffers()
 
     for (int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
 #ifdef USE_ION
-      if(mHalCamCtrl->allocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt, ION_HEAP_ADSP_ID) < 0) {
+      if(mHalCamCtrl->allocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt, ION_CP_MM_HEAP_ID) < 0) {
         LOGE("%s ION alloc failed\n", __func__);
         return UNKNOWN_ERROR;
       }

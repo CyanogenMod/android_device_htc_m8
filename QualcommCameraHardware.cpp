@@ -823,6 +823,11 @@ static const str_map picture_formats[] = {
         {CameraParameters::PIXEL_FORMAT_RAW, PICTURE_FORMAT_RAW}
 };
 
+static const str_map recording_Hints[] = {
+        {"false", FALSE},
+        {"true",  TRUE}
+};
+
 static const str_map picture_formats_zsl[] = {
         {CameraParameters::PIXEL_FORMAT_JPEG, PICTURE_FORMAT_JPEG}
 };
@@ -5839,6 +5844,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFpsRange(params)))  final_rc = rc;
     if ((rc = setZslParam(params)))  final_rc = rc;
     if ((rc = setSnapshotCount(params)))  final_rc = rc;
+    if((rc = setRecordingHint(params)))   final_rc = rc;
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
 
@@ -7634,6 +7640,29 @@ status_t QualcommCameraHardware::setEffect(const CameraParameters& params)
     }
     LOGE("Invalid effect value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
+}
+
+status_t QualcommCameraHardware::setRecordingHint(const CameraParameters& params)
+{
+
+  const char * str = params.get(CameraParameters::KEY_RECORDING_HINT);
+
+  if(str != NULL){
+      int32_t value = attr_lookup(recording_Hints,
+                                  sizeof(recording_Hints) / sizeof(str_map), str);
+      if(value != NOT_FOUND){
+
+        native_set_parms(CAMERA_PARM_RECORDING_HINT, sizeof(value),
+                                               (void *)&value);
+        /*native_set_parms(CAMERA_PARM_CAF_ENABLE, sizeof(value),
+                                               (void *)&value);*/
+        mParameters.set(CameraParameters::KEY_RECORDING_HINT, str);
+      } else {
+          LOGE("Invalid Picture Format value: %s", str);
+          return BAD_VALUE;
+      }
+  }
+  return NO_ERROR;
 }
 
 status_t QualcommCameraHardware::setExposureCompensation(

@@ -1124,6 +1124,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     //    if ((rc = setPreviewFpsRange(params)))        final_rc = rc;
+    if((rc = setRecordingHint(params)))                 final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);

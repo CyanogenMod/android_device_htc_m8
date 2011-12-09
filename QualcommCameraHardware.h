@@ -448,6 +448,7 @@ private:
     status_t setJpegQuality(const CameraParameters& params);
     status_t setAntibanding(const CameraParameters& params);
     status_t setEffect(const CameraParameters& params);
+    status_t setRecordingHint(const CameraParameters& params);
     status_t setExposureCompensation(const CameraParameters &params);
     status_t setAutoExposure(const CameraParameters& params);
     status_t setWhiteBalance(const CameraParameters& params);

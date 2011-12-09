@@ -216,21 +216,26 @@ status_t QCameraStream_preview::putBufferToSurface() {
 
 void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
 {
-	int faces_detected = roi.rect_num;
-
-	if(faces_detected > MAX_ROI)
-		faces_detected = MAX_ROI;
-	mDisplayLock.lock();
-	for (int i = 0; i < faces_detected; i++)
-	{
-		mHalCamCtrl->mFace[i].rect[0] = roi.faces[i].x*2000/dim.display_width - 1000;
-		mHalCamCtrl->mFace[i].rect[1] = roi.faces[i].y*2000/dim.display_height - 1000;
-		mHalCamCtrl->mFace[i].rect[2] = roi.faces[i].dx*2000/dim.display_height;
-		mHalCamCtrl->mFace[i].rect[3] = roi.faces[i].dy*2000/dim.display_height;
-	}
-	mHalCamCtrl->mMetadata.number_of_faces = faces_detected;
-	mHalCamCtrl->mMetadata.faces = mHalCamCtrl->mFace;
-	mDisplayLock.unlock();
+    int faces_detected = roi.rect_num;
+    if(faces_detected > MAX_ROI)
+      faces_detected = MAX_ROI;
+    LOGI("%s, width = %d height = %d", __func__,
+       mHalCamCtrl->mDimension.display_width,
+       mHalCamCtrl->mDimension.display_height);
+    mDisplayLock.lock();
+    for (int i = 0; i < faces_detected; i++) {
+       mHalCamCtrl->mFace[i].rect[0] =
+           roi.faces[i].x*2000/mHalCamCtrl->mDimension.display_width - 1000;
+       mHalCamCtrl->mFace[i].rect[1] =
+           roi.faces[i].y*2000/mHalCamCtrl->mDimension.display_height - 1000;
+       mHalCamCtrl->mFace[i].rect[2] =
+           roi.faces[i].dx*2000/mHalCamCtrl->mDimension.display_width;
+       mHalCamCtrl->mFace[i].rect[3] =
+           roi.faces[i].dy*2000/mHalCamCtrl->mDimension.display_height;
+    }
+    mHalCamCtrl->mMetadata.number_of_faces = faces_detected;
+    mHalCamCtrl->mMetadata.faces = mHalCamCtrl->mFace;
+    mDisplayLock.unlock();
 }
 
 status_t QCameraStream_preview::initDisplayBuffers()
@@ -476,22 +481,33 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
      when preview stops and postview start during snapshot.*/
   mLastQueuedFrame = &(mDisplayStreamBuf.frame[frame->def.idx]);
   mHalCamCtrl->mPreviewMemoryLock.unlock();
-  return NO_ERROR;
 
   mHalCamCtrl->mCallbackLock.lock();
-  int msgEnabled = mHalCamCtrl->mMsgEnabled;
   camera_data_callback pcb = mHalCamCtrl->mDataCb;
-  void *pdata = mHalCamCtrl->mCallbackCookie;
   mHalCamCtrl->mCallbackLock.unlock();
+  LOGI("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
 
-  if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME)){
-    LOGE("Buffer Callback to Service");
-    //pcb(CAMERA_MSG_PREVIEW_FRAME,mPreviewHeap->mBuffers[frame->def.idx],pdata);
+  if (pcb != NULL) {
+      LOGE("prepare buffer for face detection");
+      if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+      LOGE("in preview case ");
+          msgType |=  CAMERA_MSG_PREVIEW_FRAME;
+          data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
+      } else {
+          data = NULL;
+      }
+      if(mHalCamCtrl->mFaceDetectOn) {
+          msgType  |= CAMERA_MSG_PREVIEW_METADATA;
+          metadata = &mHalCamCtrl->mMetadata;
+      }
+      LOGE("Buffer Callback to Service FD = %d msgType = 0x%x", mHalCamCtrl->mFaceDetectOn, msgType);
+      pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+      LOGE("end of cb");
   }
 
   /* Save the last displayed frame. We'll be using it to fill the gap between
      when preview stops and postview start during snapshot.*/
-  mLastQueuedFrame = frame->def.frame;
+  //mLastQueuedFrame = frame->def.frame;
 /*
   if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, frame))
   {

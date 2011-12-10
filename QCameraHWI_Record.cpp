@@ -57,6 +57,7 @@ void QCameraStream_record::deleteInstance(QCameraStream *ptr)
   if (ptr){
     ptr->release();
     delete ptr;
+    ptr = NULL;
   }
   LOGV("%s: END", __func__);
 }
@@ -66,9 +67,7 @@ void QCameraStream_record::deleteInstance(QCameraStream *ptr)
 // ---------------------------------------------------------------------------
 QCameraStream_record::QCameraStream_record(int cameraId,
                                            camera_mode_t mode)
-  :QCameraStream(),
-  mCameraId(cameraId),
-  myMode (mode),
+  :QCameraStream(cameraId,mode),
   mDebugFps(false),
   snapshot_enabled(false)
 {
@@ -125,15 +124,6 @@ status_t QCameraStream_record::init()
   LOGV("%s: BEGIN", __func__);
 
   /*
-  *  Allocating Encoder Frame Buffers
-  */
-  ret = initEncodeBuffers();
-  if (NO_ERROR!=ret) {
-    LOGE("%s ERROR: Buffer Allocation Failed\n",__func__);
-    return ret;
-  }
-
-  /*
   *  Acquiring Video Channel
   */
   ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_VIDEO_MASK);
@@ -142,13 +132,13 @@ status_t QCameraStream_record::init()
     return ret;
   }
 
-  ret = cam_config_prepare_buf(mCameraId, &mRecordBuf);
-  if(ret != MM_CAMERA_OK) {
-    LOGV("%s ERROR: Reg preview buf err=%d\n", __func__, ret);
-    ret = BAD_VALUE;
-  }else{
-    ret = NO_ERROR;
-  }
+  /*
+  * Register the Callback with camera
+  */
+  (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                            record_notify_cb,
+                                            this);
+
   mInit = true;
   LOGV("%s: END", __func__);
   return ret;
@@ -162,19 +152,34 @@ status_t QCameraStream_record::start()
   status_t ret = NO_ERROR;
   LOGV("%s: BEGIN", __func__);
 
-	if(!mInit) {
+  Mutex::Autolock lock(mStopCallbackLock);
+  if(!mInit) {
     LOGE("%s ERROR: Record buffer not registered",__func__);
     return BAD_VALUE;
   }
 
+  setFormat(MM_CAMERA_CH_VIDEO_MASK);
+  //mRecordFreeQueueLock.lock();
+  //mRecordFreeQueue.clear();
+  //mRecordFreeQueueLock.unlock();
   /*
-  * Register the Callback with camera
+  *  Allocating Encoder Frame Buffers
   */
-  (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
-                                            record_notify_cb,
-                                            this);
+  ret = initEncodeBuffers();
+  if (NO_ERROR!=ret) {
+    LOGE("%s ERROR: Buffer Allocation Failed\n",__func__);
+    return ret;
+  }
 
-	/*
+  ret = cam_config_prepare_buf(mCameraId, &mRecordBuf);
+  if(ret != MM_CAMERA_OK) {
+    LOGV("%s ERROR: Reg Record buf err=%d\n", __func__, ret);
+    ret = BAD_VALUE;
+  }else{
+    ret = NO_ERROR;
+  }
+
+  /*
   * Start Video Streaming
   */
   ret = cam_ops_action(mCameraId, TRUE, MM_CAMERA_OPS_VIDEO, 0);
@@ -202,6 +207,8 @@ void QCameraStream_record::stop()
     LOGE("%s : Record stream not started",__func__);
     return;
   }
+  mActive =  false;
+  Mutex::Autolock lock(mStopCallbackLock);
 #if 0 //mzhu, when stop recording, all frame will be dirty. no need to queue frame back to kernel any more
   mRecordFreeQueueLock.lock();
   while(!mRecordFreeQueue.isEmpty()) {
@@ -229,37 +236,9 @@ void QCameraStream_record::stop()
     LOGE ("%s ERROR: Video streaming Stop err=%d\n", __func__, ret);
   }
 
- (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
-                                            NULL,
-                                            NULL);
-  mActive = false;
-  LOGV("%s: END", __func__);
-
-}
-// ---------------------------------------------------------------------------
-// QCameraStream_record
-// ---------------------------------------------------------------------------
-void QCameraStream_record::release()
-{
-  status_t ret = NO_ERROR;
-  LOGV("%s: BEGIN", __func__);
-
-  if(mActive) {
-    stop();
-  }
-  if(!mInit) {
-    LOGE("%s : Record stream not initialized",__func__);
-    return;
-  }
-
   ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_VIDEO);
   if(ret != MM_CAMERA_OK){
     LOGE("%s ERROR: Ureg video buf \n", __func__);
-  }
-
-  ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_VIDEO);
-  if(ret != MM_CAMERA_OK) {
-    LOGE("%s:Deinit Video channel failed=%d\n", __func__, ret);
   }
 
   for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
@@ -286,6 +265,34 @@ void QCameraStream_record::release()
   if (mRecordBuf.video.video.buf.mp)
     delete[] mRecordBuf.video.video.buf.mp;
 
+
+  mActive = false;
+  LOGV("%s: END", __func__);
+
+}
+// ---------------------------------------------------------------------------
+// QCameraStream_record
+// ---------------------------------------------------------------------------
+void QCameraStream_record::release()
+{
+  status_t ret = NO_ERROR;
+  LOGV("%s: BEGIN", __func__);
+
+  if(mActive) {
+    stop();
+  }
+  if(!mInit) {
+    LOGE("%s : Record stream not initialized",__func__);
+    return;
+  }
+
+  ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_VIDEO);
+  if(ret != MM_CAMERA_OK) {
+    LOGE("%s:Deinit Video channel failed=%d\n", __func__, ret);
+  }
+  (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                            NULL,
+                                            NULL);
   mInit = false;
   LOGV("%s: END", __func__);
 }
@@ -294,6 +301,13 @@ status_t QCameraStream_record::processRecordFrame(void *data)
 {
     LOGE("%s : BEGIN",__func__);
     mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
+
+    Mutex::Autolock lock(mStopCallbackLock);
+    if(!mActive) {
+      LOGE("Recording Stopped. Returning callback");
+      return NO_ERROR;
+    }
+
     if (UNLIKELY(mDebugFps)) {
         debugShowVideoFPS();
     }
@@ -305,9 +319,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     void *rdata = mHalCamCtrl->mCallbackCookie;
     mHalCamCtrl->mCallbackLock.unlock();
 
-    mRecordedFrames[frame->video.video.idx] = *frame;
-
-    nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + \
+	nsecs_t timeStamp = nsecs_t(frame->video.video.frame->ts.tv_sec)*1000000000LL + \
                       frame->video.video.frame->ts.tv_nsec;
 
   if(snapshot_enabled) {
@@ -345,16 +357,23 @@ status_t QCameraStream_record::processRecordFrame(void *data)
   }
 
   LOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
+  mRecordedFrames[frame->video.video.idx] = *frame;
 #if 1
   if (mHalCamCtrl->mStoreMetaDataInFrame) {
-    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
-            mHalCamCtrl->mRecordingMemory.metadata_memory[frame->video.video.idx],
-            0, mHalCamCtrl->mCallbackCookie);
+    mStopCallbackLock.unlock();
+    if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
+      rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
+              mHalCamCtrl->mRecordingMemory.metadata_memory[frame->video.video.idx],
+              0, mHalCamCtrl->mCallbackCookie);
+    }
   } else {
     //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
-    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
-            mHalCamCtrl->mRecordingMemory.camera_memory[frame->video.video.idx],
-            0, mHalCamCtrl->mCallbackCookie);
+    mStopCallbackLock.unlock();
+    if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
+      rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
+              mHalCamCtrl->mRecordingMemory.camera_memory[frame->video.video.idx],
+              0, mHalCamCtrl->mCallbackCookie);
+    }
   }
 #else  //Dump the Frame
     {

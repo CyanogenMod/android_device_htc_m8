@@ -420,6 +420,7 @@ private:
     bool supportsSceneDetection();
     bool supportsSelectableZoneAf();
     bool supportsFaceDetection();
+    bool supportsRedEyeReduction();
     bool preview_parm_config (cam_ctrl_dimension_t* dim,CameraParameters& parm);
 
     void stopPreviewInternal();

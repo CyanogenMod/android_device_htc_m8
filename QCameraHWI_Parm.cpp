@@ -948,8 +948,11 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mHfrSizeValues.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
                     mHfrValues);
-    } else
+	LOGE("<DEBUG> HFR supported");
+    } else{
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
+	LOGE("<DEBUG> HFR not supported");
+    }
 
     //Set Histogram
     mParameters.set(CameraParameters::KEY_HISTOGRAM,
@@ -1091,7 +1094,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     status_t ret = NO_ERROR;
 
     LOGI("%s: E", __func__);
-    Mutex::Autolock l(&mLock);
+//    Mutex::Autolock l(&mLock);
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setCameraMode(params)))                   final_rc = rc;
@@ -1146,7 +1149,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setSelectableZoneAf(params)))             final_rc = rc;   //@Guru : Need support from Lower level
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
-    //    if ((rc = setHighFrameRate(params)))  final_rc = rc;
+    if ((rc = setHighFrameRate(params)))  final_rc = rc;
 
     final_rc=NO_ERROR;
    LOGI("%s: X", __func__);
@@ -2184,9 +2187,13 @@ status_t QCameraHardwareInterface::setMCEValue(const CameraParameters& params)
 
 status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& params)
 {
-#if 0
-    if(!mCfgControl.mm_camera_is_supported(MM_CAMERA_PARM_HFR)) {
-        LOGI("Parameter HFR is not supported for this sensor");
+
+    bool mCameraRunning;
+
+    LOGE("<DEBUG>: Entering SetHFR");
+    int rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_HFR);
+    if(!rc) {
+        LOGE("%s:<DEBUG> MM_CAMERA_PARM_HFR not supported", __func__);
         return NO_ERROR;
     }
 
@@ -2195,23 +2202,27 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
         int value = attr_lookup(hfr, sizeof(hfr) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             int32_t temp = (int32_t)value;
-            LOGI("%s: setting HFR value of %s(%d)", __FUNCTION__, str, temp);
+            LOGE("%s: <DEBUG>setting HFR value of %s(%d)", __FUNCTION__, str, temp);
             //Check for change in HFR value
             const char *oldHfr = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
             if(strcmp(oldHfr, str)){
-                LOGI("%s: old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
+                LOGE("%s:<DEBUG> old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
                 mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE, str);
-                mHFRMode = true;
+//              mHFRMode = true;
+		mCameraRunning=isPreviewRunning();
                 if(mCameraRunning == true) {
-                    mHFRThreadWaitLock.lock();
-                    pthread_attr_t pattr;
-                    pthread_attr_init(&pattr);
-                    pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_DETACHED);
-                    mHFRThreadRunning = !pthread_create(&mHFRThread,
-                                      &pattr,
-                                      hfr_thread,
-                                      (void*)NULL);
-                    mHFRThreadWaitLock.unlock();
+//                    mHFRThreadWaitLock.lock();
+//                    pthread_attr_t pattr;
+//                    pthread_attr_init(&pattr);
+//                    pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_DETACHED);
+//                    mHFRThreadRunning = !pthread_create(&mHFRThread,
+//                                      &pattr,
+//                                      hfr_thread,
+//                                      (void*)NULL);
+//                    mHFRThreadWaitLock.unlock();
+ 		    stopPreview();
+                    native_set_parms(MM_CAMERA_PARM_HFR, sizeof(int32_t), (void *)&temp);
+                    startPreview();
                     return NO_ERROR;
                 }
             }
@@ -2220,7 +2231,6 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
         }
     }
     LOGE("Invalid HFR value: %s", (str == NULL) ? "NULL" : str);
-#endif
     return BAD_VALUE;
 }
 

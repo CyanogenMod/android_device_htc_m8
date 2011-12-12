@@ -97,6 +97,10 @@ typedef enum {
   CAMERA_STATE_MAX
 } HAL_camera_state_type_t;
 
+enum {
+  BUFFER_UNLOCKED,
+  BUFFER_LOCKED,
+};
 
 typedef enum {
   HAL_DUMP_FRM_PREVIEW = 1,

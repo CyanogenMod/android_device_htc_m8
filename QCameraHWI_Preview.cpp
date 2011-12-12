@@ -91,7 +91,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 	//mDisplayLock.lock();
     cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 
-	format = HAL_PIXEL_FORMAT_YCrCb_420_SP;
+	format = mHalCamCtrl->getPreviewFormatInfo().Hal_format;
 	if(ret != NO_ERROR) {
         LOGE("%s: display format %d is not supported", __func__, dim.prev_format);
 		goto end;

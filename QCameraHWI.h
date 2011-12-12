@@ -68,6 +68,13 @@ struct str_map {
     int val;
 };
 
+struct preview_format_info_t {
+   int Hal_format;
+   cam_format_t mm_cam_format;
+   cam_pad_format_t padding;
+   int num_planar;
+};
+
 typedef enum {
   CAMERA_STATE_UNINITED,
   CAMERA_STATE_READY,
@@ -341,6 +348,8 @@ public:
     void         getPreviewSize(int *preview_width, int *preview_height) const;
     cam_format_t getPreviewFormat() const;
 
+    cam_pad_format_t getPreviewPadding() const;
+
     //bool     useOverlay(void);
     //virtual status_t setOverlay(const sp<Overlay> &overlay);
 
@@ -379,6 +388,7 @@ public:
     int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt, int ion_type);
     int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
     void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
+    preview_format_info_t  getPreviewFormatInfo( );
 
 
 
@@ -630,6 +640,7 @@ private:
      QCameraHalHeap_t     mRawMemory;
 	 camera_frame_metadata_t mMetadata;
 	 camera_face_t           mFace[MAX_ROI];
+     preview_format_info_t  mPreviewFormatInfo;
 };
 
 }; // namespace android

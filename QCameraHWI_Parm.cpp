@@ -356,8 +356,18 @@ static const str_map recording_Hints[] = {
 };
 
 static const str_map preview_formats[] = {
-        {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
-        {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO}
+        {CameraParameters::PIXEL_FORMAT_YUV420SP,   HAL_PIXEL_FORMAT_YCrCb_420_SP},
+        {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, HAL_PIXEL_FORMAT_YCrCb_420_SP_ADRENO},
+        {CameraParameters::PIXEL_FORMAT_YV12, HAL_PIXEL_FORMAT_YV12},
+        {CameraParameters::PIXEL_FORMAT_YUV420P,HAL_PIXEL_FORMAT_YV12},
+        {CameraParameters::PIXEL_FORMAT_NV12, HAL_PIXEL_FORMAT_YCbCr_420_SP}
+};
+
+static const preview_format_info_t preview_format_info_list[] = {
+  {HAL_PIXEL_FORMAT_YCrCb_420_SP, CAMERA_YUV_420_NV21, CAMERA_PAD_TO_WORD, 2},
+  {HAL_PIXEL_FORMAT_YCrCb_420_SP_ADRENO, CAMERA_YUV_420_NV21, CAMERA_PAD_TO_4K, 2},
+  {HAL_PIXEL_FORMAT_YCbCr_420_SP, CAMERA_YUV_420_NV12, CAMERA_PAD_TO_WORD, 2},
+  {HAL_PIXEL_FORMAT_YV12,         CAMERA_YUV_420_YV12, CAMERA_PAD_TO_WORD, 3}
 };
 
 static const str_map zsl_modes[] = {
@@ -599,6 +609,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     //cam_ctrl_dimension_t dim;
     memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
+    memset(&mPreviewFormatInfo, 0, sizeof(preview_format_info_t));
     mDimension.video_width     = DEFAULT_STREAM_WIDTH;
     mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
     mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
@@ -616,6 +627,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     mDimension.enc_format      = CAMERA_YUV_420_NV12;
     mDimension.main_img_format = CAMERA_YUV_420_NV21;
     mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+    mDimension.prev_padding_format = CAMERA_PAD_TO_WORD;
 
     ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
                               sizeof(cam_ctrl_dimension_t), (void *) &mDimension);
@@ -1119,7 +1131,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setContrast(params)))                     final_rc = rc;
     if ((rc = setSceneDetect(params)))                  final_rc = rc;
     if ((rc = setFaceDetect(params)))                   final_rc = rc;
-    //    if ((rc = setStrTextures(params)))            final_rc = rc;
+    if ((rc = setStrTextures(params)))                  final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))          final_rc = rc;
     if ((rc = setWaveletDenoise(params)))               final_rc = rc;
@@ -2107,12 +2119,32 @@ status_t QCameraHardwareInterface::setPreviewFormat(const CameraParameters& para
     const char *str = params.getPreviewFormat();
     int32_t previewFormat = attr_lookup(preview_formats, sizeof(preview_formats) / sizeof(str_map), str);
     if(previewFormat != NOT_FOUND) {
-        bool ret = native_set_parms(MM_CAMERA_PARM_PREVIEW_FORMAT, sizeof(previewFormat),
-                                   (void *)&previewFormat);
+        preview_format_info_t format_info;
+        int num = sizeof(preview_format_info_list)/sizeof(preview_format_info_t);
+        int i;
+        for (i = 0; i < num; i++) {
+          if (preview_format_info_list[i].Hal_format == previewFormat) {
+            mPreviewFormatInfo = preview_format_info_list[i];
+            break;
+          }
+        }
+        if (i == num) {
+          mPreviewFormatInfo.mm_cam_format = CAMERA_YUV_420_NV21;
+          mPreviewFormatInfo.padding = CAMERA_PAD_TO_WORD;
+          return BAD_VALUE;
+        }
+        bool ret = native_set_parms(MM_CAMERA_PARM_PREVIEW_FORMAT, sizeof(cam_format_t),
+                                   (void *)&format_info.mm_cam_format);
         mParameters.set(CameraParameters::KEY_PREVIEW_FORMAT, str);
         mPreviewFormat = previewFormat;
         LOGE("Setting preview format to %d",mPreviewFormat);
         return NO_ERROR;
+    } else if ( strTexturesOn ) {
+      mPreviewFormatInfo.mm_cam_format = CAMERA_YUV_420_NV21;
+      mPreviewFormatInfo.padding = CAMERA_PAD_TO_4K;
+    } else {
+      mPreviewFormatInfo.mm_cam_format = CAMERA_YUV_420_NV21;
+      mPreviewFormatInfo.padding = CAMERA_PAD_TO_WORD;
     }
     LOGE("Invalid preview format value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
@@ -2536,11 +2568,29 @@ void QCameraHardwareInterface::getPreviewSize(int *preview_width,
 
 cam_format_t QCameraHardwareInterface::getPreviewFormat() const
 {
+  cam_format_t foramt = CAMERA_YUV_420_NV21;
     const char *str = mParameters.getPreviewFormat();
     int32_t value = attr_lookup(preview_formats,
                                 sizeof(preview_formats)/sizeof(str_map),
                                 str);
-    return (cam_format_t)value;
+
+    if(value != NOT_FOUND) {
+        int num = sizeof(preview_format_info_list)/sizeof(preview_format_info_t);
+        int i;
+        for (i = 0; i < num; i++) {
+          if (preview_format_info_list[i].Hal_format == value) {
+            foramt = preview_format_info_list[i].mm_cam_format;
+            break;
+          }
+        }
+    }
+
+    return foramt;
+}
+
+cam_pad_format_t QCameraHardwareInterface::getPreviewPadding() const
+{
+  return mPreviewFormatInfo.padding;
 }
 
 int QCameraHardwareInterface::getJpegQuality() const

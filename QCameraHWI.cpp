@@ -751,6 +751,7 @@ bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
         //Setting to default Format.
         dim->prev_format = CAMERA_YUV_420_NV21;
     }
+    dim->prev_padding_format =  getPreviewPadding( );
 
     dim->enc_format = CAMERA_YUV_420_NV12;
     dim->orig_video_width = mDimension.orig_video_width;
@@ -2282,6 +2283,11 @@ int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
         heap->cbcr_offset = 0;
 	}
 	return rc;
+}
+
+preview_format_info_t  QCameraHardwareInterface::getPreviewFormatInfo( )
+{
+  return mPreviewFormatInfo;
 }
 
 }; // namespace android

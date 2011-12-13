@@ -972,7 +972,21 @@ void QCameraHardwareInterface::initDefaultParameters()
                     CameraParameters::WHITE_BALANCE_AUTO);
     mParameters.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE,mWhitebalanceValues);
 
-   if(mHasAutoFocusSupport){
+    //Set AEC_LOCK
+    mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK, "false");
+    if(cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_AEC_LOCK))
+        mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK_SUPPORTED, "true");
+    else
+        mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK_SUPPORTED, "false");
+    //Set AWB_LOCK
+    mParameters.set(CameraParameters::KEY_AUTO_WHITEBALANCE_LOCK, "false");
+    if(cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_AWB_LOCK))
+        mParameters.set(CameraParameters::KEY_AUTO_WHITEBALANCE_LOCK_SUPPORTED, "true");
+    else
+        mParameters.set(CameraParameters::KEY_AUTO_WHITEBALANCE_LOCK_SUPPORTED, "false");
+
+    //Set Focus Mode
+    if(mHasAutoFocusSupport){
        mParameters.set(CameraParameters::KEY_FOCUS_MODE,
                           CameraParameters::FOCUS_MODE_AUTO);
        mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
@@ -1236,6 +1250,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
+    if ((rc = setAecAwbLock(params)))                   final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -2484,6 +2499,30 @@ status_t QCameraHardwareInterface::setFlash(const CameraParameters& params)
     LOGE("Invalid flash mode value: %s", (str == NULL) ? "NULL" : str);
 
     return BAD_VALUE;
+}
+
+status_t QCameraHardwareInterface::setAecAwbLock(const CameraParameters & params)
+{
+    LOGD("%s : E", __func__);
+    status_t rc = NO_ERROR;
+    int32_t value;
+    const char* str;
+
+    //for AEC lock
+    str = params.get(CameraParameters::KEY_AUTO_EXPOSURE_LOCK);
+    value = (strcmp(str, "true") == 0)? 1 : 0;
+    mParameters.set(CameraParameters::KEY_AUTO_EXPOSURE_LOCK, str);
+    rc = (native_set_parms(MM_CAMERA_PARM_AEC_LOCK, sizeof(int32_t), (void *)(&value))) ?
+                            NO_ERROR : UNKNOWN_ERROR;
+
+    //for AWB lock
+    str = params.get(CameraParameters::KEY_AUTO_WHITEBALANCE_LOCK);
+    value = (strcmp(str, "true") == 0)? 1 : 0;
+    mParameters.set(CameraParameters::KEY_AUTO_WHITEBALANCE_LOCK, str);
+    rc = (native_set_parms(MM_CAMERA_PARM_AWB_LOCK, sizeof(int32_t), (void *)(&value))) ?
+                        NO_ERROR : UNKNOWN_ERROR;
+    LOGD("%s : X", __func__);
+    return rc;
 }
 
 status_t QCameraHardwareInterface::setOverlayFormats(const CameraParameters& params)

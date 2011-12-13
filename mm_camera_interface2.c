@@ -103,6 +103,8 @@ static uint8_t mm_camera_cfg_is_parm_supported (mm_camera_t * camera,
     case MM_CAMERA_PARM_MAX_PICTURE_SIZE:
     case MM_CAMERA_PARM_MAX_PREVIEW_SIZE:
     case MM_CAMERA_PARM_ASD_ENABLE:
+    case MM_CAMERA_PARM_AEC_LOCK:
+    case MM_CAMERA_PARM_AWB_LOCK:
     case MM_CAMERA_PARM_MAX:
         return 1;
     default:

@@ -308,6 +308,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_FD:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_FD, sizeof(int32_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_AEC_LOCK:
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_AWB_LOCK:
+        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
+                                                     sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_MCE:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_PARM_MCE,
                                                      sizeof(int32_t), (void *)parm->p_value);

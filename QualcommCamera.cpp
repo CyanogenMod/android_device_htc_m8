@@ -521,7 +521,7 @@ int store_meta_data_in_buffers(struct camera_device * device, int enable)
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
-    //rc = hardware->store_meta_data_in_buffers( enable)
+    rc = hardware->storeMetaDataInBuffers( enable);
   }
   return rc;
 }

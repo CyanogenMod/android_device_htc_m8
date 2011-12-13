@@ -35,6 +35,7 @@
 #include <system/camera.h>
 #include <hardware/camera.h>
 #include <gralloc_priv.h>
+#include <QComOMXMetadata.h>
 
 extern "C" {
 #include <linux/android_pmem.h>
@@ -149,6 +150,7 @@ public:
     struct ion_fd_data* ion_info_fd, int ion_type, int size, int *memfd);
     int deallocate_ion_memory(int *main_ion_fd, struct ion_fd_data* ion_info_fd);
     virtual ~QualcommCameraHardware();
+    int storeMetaDataInBuffers(int enable);
 
 private:
     QualcommCameraHardware();
@@ -482,6 +484,7 @@ private:
     bool storePreviewFrameForPostview();
     bool isValidDimension(int w, int h);
     status_t updateFocusDistances(const char *focusmode);
+    int mStoreMetaDataInFrame;
 
     Mutex mLock;
 	Mutex mDisplayLock;
@@ -544,6 +547,7 @@ private:
     camera_memory_t *mRawSnapshotMapped;
     camera_memory_t *mStatsMapped[3];
     camera_memory_t *mRecordMapped[9];
+    camera_memory_t* metadata_memory[9];
     int raw_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
     int raw_snapshot_main_ion_fd;
     int Jpeg_main_ion_fd[MAX_SNAPSHOT_BUFFERS];

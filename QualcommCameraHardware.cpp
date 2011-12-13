@@ -1312,7 +1312,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mInHFRThread(false),
       mPrevHeapDeallocRunning(false),
       mHdrMode(false ),
-      mExpBracketMode(false)
+      mExpBracketMode(false),
+      mStoreMetaDataInFrame(false)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();
@@ -1337,6 +1338,8 @@ QualcommCameraHardware::QualcommCameraHardware()
 
     for(int i=0; i<3; i++)
         mStatsMapped[i] = NULL;
+    for (int i = 0; i < kRecordBufferCount; i++)
+        metadata_memory[i] = NULL;
 
     if(HAL_currentCameraMode == CAMERA_SUPPORT_MODE_3D){
         mIs3DModeOn = true;
@@ -2727,6 +2730,13 @@ void QualcommCameraHardware::runFrameThread(void *data)
                if(mRecordMapped[cnt]) {
                    mRecordMapped[cnt]->release(mRecordMapped[cnt]);
                    close(mRecordfd[cnt]);
+                   if(mStoreMetaDataInFrame && (metadata_memory[cnt] != NULL)){
+                       struct encoder_media_buffer_type * packet =
+                               (struct encoder_media_buffer_type  *)metadata_memory[cnt]->data;
+                       native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle));
+                       metadata_memory[cnt]->release(metadata_memory[cnt]);
+                       metadata_memory[cnt] = NULL;
+                   }
 #ifdef USE_ION
                    deallocate_ion_memory(&record_main_ion_fd[cnt], &record_ion_info_fd[cnt]);
 #endif
@@ -3225,7 +3235,11 @@ void QualcommCameraHardware::runVideoThread(void *data)
                 record_buffers_tracking_flag[index] = true;
                 if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME) ) {
                     LOGV("in video_thread : got video frame, giving frame to services/encoder index = %d", index);
-                    rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordMapped[index],0,rdata);
+                    if(mStoreMetaDataInFrame){
+                        rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, metadata_memory[index],0,rdata);
+                    } else {
+                        rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordMapped[index],0,rdata);
+                    }
                 }
             }
 #if 0
@@ -5870,20 +5884,17 @@ status_t QualcommCameraHardware::setHistogramOn()
             mStatsMapped[cnt]=mGetMemory(-1, mStatSize,1,mCallbackCookie);
             if(mStatsMapped[cnt] == NULL) {
                 LOGE("Failed to get camera memory for stats heap index: %d", cnt);
+                mStatsWaitLock.unlock();
                 return false;
             }else{
                LOGV("Received following info for stats mapped data:%p,handle:%p, size:%d,release:%p",
                mStatsMapped[cnt]->data ,mStatsMapped[cnt]->handle, mStatsMapped[cnt]->size, mStatsMapped[cnt]->release);
             }
     }
-
-
     mStatsOn = CAMERA_HISTOGRAM_ENABLE;
-
     mStatsWaitLock.unlock();
     mCfgControl.mm_camera_set_parm(CAMERA_PARM_HISTOGRAM, &mStatsOn);
     return NO_ERROR;
-
 }
 
 status_t QualcommCameraHardware::setHistogramOff()
@@ -6542,17 +6553,7 @@ bool QualcommCameraHardware::initRecord()
         }
     }
 #endif
-#if 1
-    LOGV("initRecord: Allocating Record buffers");
-    if(mCurrentTarget == TARGET_MSM8660) {
-       pmem_region = "/dev/pmem_adsp";
-       ion_heap = ION_HEAP_SMI_ID;
-    } else {
-       pmem_region = "/dev/pmem_adsp";
-       ion_heap = ION_HEAP_ADSP_ID;
-    }
 
-#endif
     for (int cnt = 0; cnt < kRecordBufferCount; cnt++) {
 #if 0
        //recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
@@ -6717,6 +6718,21 @@ status_t QualcommCameraHardware::startRecording()
       }
       if( ( mCurrentTarget == TARGET_MSM7630 ) || (mCurrentTarget == TARGET_QSD8250) || 
         (mCurrentTarget == TARGET_MSM8660))  {
+        for (int cnt = 0; cnt < kRecordBufferCount; cnt++) {
+            if(mStoreMetaDataInFrame)
+            {
+                LOGE("startRecording : meta data mode enabled");
+                metadata_memory[cnt] = mGetMemory(-1,  sizeof(struct encoder_media_buffer_type), 1, mCallbackCookie);
+                struct encoder_media_buffer_type * packet =
+                                  (struct encoder_media_buffer_type  *)metadata_memory[cnt]->data;
+                packet->meta_handle = native_handle_create(1, 2); //1 fd, 1 offset and 1 size
+                packet->buffer_type = kMetadataBufferTypeCameraSource;
+                native_handle_t * nh = const_cast<native_handle_t *>(packet->meta_handle);
+                nh->data[0] = mRecordfd[cnt];
+                nh->data[1] = 0;
+                nh->data[2] = mRecordFrameSize;
+            }
+        }
         LOGV(" in startREcording : calling start_recording");
         native_start_ops(CAMERA_OPS_VIDEO_RECORDING, NULL);
         recordingState = 1;
@@ -6884,10 +6900,18 @@ void QualcommCameraHardware::releaseRecordingFrame(const void *opaque)
         msm_frame* releaseframe = NULL;
         int cnt;
         for (cnt = 0; cnt < kRecordBufferCount; cnt++) {
-            if(recordframes[cnt].buffer && ((unsigned long)opaque == recordframes[cnt].buffer) ){
-                LOGV("in release recording frame found match , releasing buffer %d", (unsigned int)recordframes[cnt].buffer);
-                releaseframe = &recordframes[cnt];
-                break;
+            if(mStoreMetaDataInFrame){
+                if(metadata_memory[cnt] && metadata_memory[cnt]->data == opaque){
+                    LOGV("in release recording frame(meta) found match , releasing buffer %d", (unsigned int)recordframes[cnt].buffer);
+                    releaseframe = &recordframes[cnt];
+                    break;
+                }
+            }else {
+                if(recordframes[cnt].buffer && ((unsigned long)opaque == recordframes[cnt].buffer) ){
+                    LOGV("in release recording frame found match , releasing buffer %d", (unsigned int)recordframes[cnt].buffer);
+                    releaseframe = &recordframes[cnt];
+                    break;
+                }
             }
         }
         if(cnt < kRecordBufferCount) {
@@ -9027,6 +9051,14 @@ static void receive_camframe_video_callback(struct msm_frame *frame)
             obj->receiveRecordingFrame(frame);
          }
     LOGV("receive_camframe_video_callback X");
+}
+
+
+int QualcommCameraHardware::storeMetaDataInBuffers(int enable)
+{
+        /* this is a dummy func now. fix me later */
+    mStoreMetaDataInFrame = enable;
+        return 0;
 }
 
 void QualcommCameraHardware::setCallbacks(camera_notify_callback notify_cb,

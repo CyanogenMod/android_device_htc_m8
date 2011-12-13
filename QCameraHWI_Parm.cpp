@@ -1077,7 +1077,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     //  if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
     if ((rc = setEffect(params)))                       final_rc = rc;
-    //    if ((rc = setGpsLocation(params)))            final_rc = rc;
+    if ((rc = setGpsLocation(params)))                  final_rc = rc;
     if ((rc = setRotation(params)))                     final_rc = rc;
     if ((rc = setZoom(params)))                         final_rc = rc;
     if ((rc = setOrientation(params)))                  final_rc = rc;

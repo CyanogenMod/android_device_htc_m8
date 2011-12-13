@@ -49,6 +49,8 @@ static uint32_t phy_offset;
 void *user_data;
 
 static int encoding = 0;
+pthread_mutex_t jpege_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t jpegcb_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 jpegfragment_callback_t mmcamera_jpegfragment_callback;
 jpeg_callback_t mmcamera_jpeg_callback;
@@ -97,11 +99,13 @@ void set_callbacks(
     jpeg_callback_t eventcallback, void* userdata,
     void* output_buffer,
     int * outBufferSize) {
+    pthread_mutex_lock(&jpegcb_mutex);
     mmcamera_jpegfragment_callback = fragcallback;
     mmcamera_jpeg_callback = eventcallback;
     user_data = userdata;
     out_buffer = output_buffer;
     out_buffer_size = outBufferSize;
+    pthread_mutex_unlock(&jpegcb_mutex);
 }
 
 
@@ -218,6 +222,7 @@ int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
 int8_t omxJpegInit()
 {
     LOGE("%s", __func__);
+    pthread_mutex_lock(&jpege_mutex);
     callbacks.EmptyBufferDone = etbdone;
     callbacks.FillBufferDone = ftbdone;
     callbacks.EventHandler = eventHandler;
@@ -228,6 +233,7 @@ int8_t omxJpegInit()
     "OMX.qcom.image.jpeg.encoder",
     NULL,
     &callbacks);
+    pthread_mutex_unlock(&jpege_mutex);
     return 0;
 }
 
@@ -240,6 +246,8 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params) {
     int size = 0;
     uint8_t num_planes;
     uint32_t planes[10];
+
+    pthread_mutex_lock(&jpege_mutex);
     inputPort->nPortIndex = INPUT_PORT;
     outputPort->nPortIndex = OUTPUT_PORT;
     inputPort1->nPortIndex = INPUT_PORT1;
@@ -421,10 +429,12 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params) {
     OMX_EmptyThisBuffer(pHandle, pInBuffers);
     OMX_EmptyThisBuffer(pHandle, pInBuffers1);
     OMX_FillThisBuffer(pHandle, pOutBuffers);
+    pthread_mutex_unlock(&jpege_mutex);
     return 1;
 }
 
 void omxJpegJoin(){
+    pthread_mutex_lock(&jpege_mutex);
     if (encoding) {
         LOGE("%s", __func__);
         encoding = 0;
@@ -438,6 +448,7 @@ void omxJpegJoin(){
         OMX_Deinit();
 
     }
+    pthread_mutex_unlock(&jpege_mutex);
 }
 
 void omxJpegClose(){
@@ -447,42 +458,40 @@ void omxJpegClose(){
 
 void omxJpegCancel()
 {
-    /*TODO: need to enable it.*/
-    /*pthread_mutex_lock(&jpegcb_mutex);*/
+    pthread_mutex_lock(&jpegcb_mutex);
     mmcamera_jpegfragment_callback = NULL;
     mmcamera_jpeg_callback = NULL;
     user_data = NULL;
-    /*TODO: need to enable it.*/
-    /*pthread_mutex_unlock(&jpegcb_mutex);*/
+    pthread_mutex_unlock(&jpegcb_mutex);
     omxJpegJoin();
 }
 
 
 int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality)
 {
-    /*pthread_mutex_lock(&jpege_mutex);*/
+    pthread_mutex_lock(&jpege_mutex);
     LOGE("%s: current main inage quality %d ," \
     " new quality : %d\n", __func__, jpegMainimageQuality, quality);
     if (quality <= 100)
         jpegMainimageQuality = quality;
-   /*pthread_mutex_unlock(&jpege_mutex);*/
+    pthread_mutex_unlock(&jpege_mutex);
     return TRUE;
 }
 
 int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality)
 {
-    /*pthread_mutex_lock(&jpege_mutex);*/
+    pthread_mutex_lock(&jpege_mutex);
     LOGE("%s: current thumbnail quality %d ," \
     " new quality : %d\n", __func__, jpegThumbnailQuality, quality);
     if (quality <= 100)
         jpegThumbnailQuality = quality;
-    /*pthread_mutex_unlock(&jpege_mutex);*/
+    pthread_mutex_unlock(&jpege_mutex);
     return TRUE;
 }
 
 int8_t mm_jpeg_encoder_setRotation(int rotation)
 {
-    /*pthread_mutex_lock(&jpege_mutex);*/
+    pthread_mutex_lock(&jpege_mutex);
     /* Set rotation configuration */
     switch (rotation) {
     case 0:
@@ -497,7 +506,7 @@ int8_t mm_jpeg_encoder_setRotation(int rotation)
         jpegRotation = 0;
         break;
     }
-    /*pthread_mutex_unlock(&jpege_mutex);*/
+    pthread_mutex_unlock(&jpege_mutex);
     return TRUE;
 }
 

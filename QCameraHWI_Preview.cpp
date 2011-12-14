@@ -107,8 +107,8 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		}
 	}
     mHalCamCtrl->mPreviewMemoryLock.lock();
-    mHalCamCtrl->mPreviewMemory.buffer_count = kPreviewBufferCount + numMinUndequeuedBufs;// + 1;
-    err = mPreviewWindow->set_buffer_count(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_count + 1);
+    mHalCamCtrl->mPreviewMemory.buffer_count = kPreviewBufferCount + numMinUndequeuedBufs;;
+    err = mPreviewWindow->set_buffer_count(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_count );
     if (err != 0) {
          LOGE("set_buffer_count failed: %s (%d)",
                     strerror(-err), -err);
@@ -130,7 +130,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 		ret = UNKNOWN_ERROR;
 		goto end;
 	}
-	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count + 1; cnt++) {
+	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
 		int stride;
 		err = mPreviewWindow->dequeue_buffer(mPreviewWindow,
 										&mHalCamCtrl->mPreviewMemory.buffer_handle[cnt],
@@ -198,7 +198,7 @@ status_t QCameraStream_preview::putBufferToSurface() {
 
     //mDisplayLock.lock();
     mHalCamCtrl->mPreviewMemoryLock.lock();
-	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count + 1; cnt++) {
+	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
         mHalCamCtrl->mPreviewMemory.camera_memory[cnt]->release(mHalCamCtrl->mPreviewMemory.camera_memory[cnt]);
         LOGD("%s: camera call genlock_unlock", __FUNCTION__);
 	    if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)(*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])))) {

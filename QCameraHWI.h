@@ -52,7 +52,7 @@ extern "C" {
 #define  NOT_FOUND -1
 
 #define VIDEO_BUFFER_COUNT 8
-#define PREVIEW_BUFFER_COUNT 4
+#define PREVIEW_BUFFER_COUNT 3
 #define MAX_ZOOM_RATIOS 62
 
 #ifdef Q12

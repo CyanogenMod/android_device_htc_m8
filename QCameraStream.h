@@ -208,7 +208,7 @@ private:
     mm_cameara_stream_buf_t  mDisplayStreamBuf;
 	 Mutex                   mDisplayLock;
 	 preview_stream_ops_t   *mPreviewWindow;
-     static const int        kPreviewBufferCount = NUM_PREVIEW_BUFFERS;
+     static const int        kPreviewBufferCount = PREVIEW_BUFFER_COUNT;
  	 mm_camera_ch_data_buf_t mNotifyBuffer[16];
 };
 

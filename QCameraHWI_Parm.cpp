@@ -559,6 +559,11 @@ bool QCameraHardwareInterface::supportsSelectableZoneAf() {
    return rc;
 }
 
+bool QCameraHardwareInterface::supportsRedEyeReduction() {
+   bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_REDEYE_REDUCTION);
+   return rc;
+}
+
 static String8 create_str(int16_t *arr, int length){
     String8 str;
     char buffer[32];
@@ -1092,7 +1097,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setWaveletDenoise(params)))               final_rc = rc;
     if ((rc = setAntibanding(params)))                  final_rc = rc;
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
-    //    if ((rc = setRedeyeReduction(params)))        final_rc = rc;
+    if ((rc = setRedeyeReduction(params)))              final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     //    if ((rc = setPreviewFpsRange(params)))        final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
@@ -2228,9 +2233,8 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
 
 status_t QCameraHardwareInterface::setRedeyeReduction(const CameraParameters& params)
 {
-#if 0
-    if(!mCfgControl.mm_camera_is_supported(MM_CAMERA_PARM_REDEYE_REDUCTION)) {
-        LOGI("Parameter Redeye Reduction is not supported for this sensor");
+    if(supportsRedEyeReduction() == false) {
+        LOGE("Parameter Redeye Reduction is not supported for this sensor");
         return NO_ERROR;
     }
 
@@ -2247,7 +2251,6 @@ status_t QCameraHardwareInterface::setRedeyeReduction(const CameraParameters& pa
         }
     }
     LOGE("Invalid Redeye Reduction value: %s", (str == NULL) ? "NULL" : str);
-#endif
     return BAD_VALUE;
 }
 

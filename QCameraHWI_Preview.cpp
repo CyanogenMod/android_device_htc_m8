@@ -468,7 +468,6 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 	          mm_camera_ch_data_buf_t tmp_frame;
               if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {
                   LOGE("BUF DONE FAILED");
-				  mDisplayLock.unlock();
                   return BAD_VALUE;
               }
 			   mHalCamCtrl->mPreviewMemory.local_flag[i] = 1;
@@ -497,12 +496,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
           data = NULL;
       }
       if(mHalCamCtrl->mFaceDetectOn) {
+          LOGI("face detection is turned on");
           msgType  |= CAMERA_MSG_PREVIEW_METADATA;
           metadata = &mHalCamCtrl->mMetadata;
+          pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
       }
-      LOGE("Buffer Callback to Service FD = %d msgType = 0x%x", mHalCamCtrl->mFaceDetectOn, msgType);
-      pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
-      LOGE("end of cb");
   }
 
   /* Save the last displayed frame. We'll be using it to fill the gap between

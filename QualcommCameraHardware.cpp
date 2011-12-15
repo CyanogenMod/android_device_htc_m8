@@ -269,6 +269,7 @@ static struct camera_size_type for_3D_picture_sizes[] = {
 };
 
 static int data_counter = 0;
+static int sensor_rotation = 0;
 static camera_size_type* picture_sizes;
 static camera_size_type* preview_sizes;
 static camera_size_type* hfr_sizes;
@@ -8412,6 +8413,7 @@ status_t QualcommCameraHardware::setRotation(const CameraParameters& params)
     if (rotation != NOT_FOUND) {
         if (rotation == 0 || rotation == 90 || rotation == 180
             || rotation == 270) {
+          rotation = (rotation + sensor_rotation)%360;
           mParameters.set(CameraParameters::KEY_ROTATION, rotation);
           mRotation = rotation;
         } else {
@@ -9482,6 +9484,7 @@ extern "C" void HAL_getCameraInfo(int cameraId, struct CameraInfo* cameraInfo)
                 cameraInfo->orientation = ((APP_ORIENTATION - HAL_cameraInfo[i].sensor_mount_angle) + 360)%360;
 
             LOGI("%s: orientation = %d", __FUNCTION__, cameraInfo->orientation);
+            sensor_rotation = HAL_cameraInfo[i].sensor_mount_angle;
             cameraInfo->mode = 0;
             if(HAL_cameraInfo[i].modes_supported & CAMERA_MODE_2D)
                 cameraInfo->mode |= CAMERA_SUPPORT_MODE_2D;

@@ -455,7 +455,6 @@ void omxJpegClose(){
     LOGE("%s", __func__);
 }
 
-
 void omxJpegCancel()
 {
     pthread_mutex_lock(&jpegcb_mutex);
@@ -463,7 +462,21 @@ void omxJpegCancel()
     mmcamera_jpeg_callback = NULL;
     user_data = NULL;
     pthread_mutex_unlock(&jpegcb_mutex);
-    omxJpegJoin();
+    pthread_mutex_lock(&jpege_mutex);
+    if (encoding) {
+      LOGE("%s", __func__);
+      encoding = 0;
+      OMX_SendCommand(pHandle, OMX_CommandFlush, NULL, NULL);
+      OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
+      /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateIdle);*/
+      OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
+      OMX_FreeBuffer(pHandle, 0, pInBuffers);
+      OMX_FreeBuffer(pHandle, 2, pInBuffers1);
+      OMX_FreeBuffer(pHandle, 1, pOutBuffers);
+      /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateLoaded);*/
+      OMX_Deinit();
+    }
+    pthread_mutex_unlock(&jpege_mutex);
 }
 
 

@@ -1322,7 +1322,8 @@ QualcommCameraHardware::QualcommCameraHardware()
       mPrevHeapDeallocRunning(false),
       mHdrMode(false ),
       mExpBracketMode(false),
-      mZslEnable(false)
+      mZslEnable(false),
+      mStoreMetaDataInFrame(0)
 {
     LOGI("QualcommCameraHardware constructor E");
     mMMCameraDLRef = MMCameraDL::getInstance();

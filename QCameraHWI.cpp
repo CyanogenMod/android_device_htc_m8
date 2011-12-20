@@ -1965,9 +1965,6 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
   enabled = atoi(value);
 
   LOGV(" newFrame =%p, frm_type = %d", newFrame, frm_type);
-  if(HAL_DUMP_FRM_PREVIEW == frm_type) {
-      enabled = HAL_DUMP_FRM_MASK_ALL | frm_type;
-  }
   if(enabled & HAL_DUMP_FRM_MASK_ALL) {
     if((enabled & frm_type) && newFrame) {
       frm_num = ((enabled & 0xffff0000) >> 16);
@@ -1979,32 +1976,29 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
       if( mDumpSkipCnt % skip_mode == 0) {
         if (mDumpFrmCnt >= 0 && mDumpFrmCnt <= frm_num) {
           int w, h;
-          cam_ctrl_dimension_t dim = mDimension;
-          status_t ret = cam_config_get_parm(mCameraId,
-            MM_CAMERA_PARM_DIMENSION, &dim);
           int file_fd;
           switch (frm_type) {
           case  HAL_DUMP_FRM_PREVIEW:
-            w = dim.display_width;
-            h = dim.display_height;
+            w = mDimension.display_width;
+            h = mDimension.display_height;
             snprintf(buf, sizeof(buf), "/data/%dp_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_VIDEO:
-            w = dim.video_width;
-            h = dim.video_height;
+            w = mDimension.video_width;
+            h = mDimension.video_height;
             snprintf(buf, sizeof(buf),"/data/%dv_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_MAIN:
-            w = dim.picture_width;
-            h = dim.picture_height;
+            w = mDimension.picture_width;
+            h = mDimension.picture_height;
             snprintf(buf, sizeof(buf), "/data/%dm_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_THUMBNAIL:
-            w = dim.ui_thumbnail_width;
-            h = dim.ui_thumbnail_height;
+            w = mDimension.ui_thumbnail_width;
+            h = mDimension.ui_thumbnail_height;
             snprintf(buf, sizeof(buf),"/data/%dt_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;

@@ -302,8 +302,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
   num_planes = 2;
   planes[0] = dim.display_frame_offset.mp[0].len;
   planes[1] = dim.display_frame_offset.mp[1].len;
-  this->mDisplayStreamBuf.frame_len = planes[0] + planes[1];
-  //this->mDisplayStreamBuf.frame_len = frame_len;
+  this->mDisplayStreamBuf.frame_len = dim.display_frame_offset.frame_len;
 
   mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[mDisplayStreamBuf.num];
   if (!mDisplayBuf.preview.buf.mp) {

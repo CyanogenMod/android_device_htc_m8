@@ -414,7 +414,7 @@ status_t QCameraStream_record::initEncodeBuffers()
   num_planes = 2;
   planes[0] = dim.video_frame_offset.mp[0].len;
   planes[1] = dim.video_frame_offset.mp[1].len;
-  frame_len = planes[0] + planes[1];
+  frame_len = dim.video_frame_offset.frame_len;
 
 #if 0
   if(mRecordHeap == NULL)

@@ -769,7 +769,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     num_planes = 2;
     planes[0] = dim->picture_frame_offset.mp[0].len;
     planes[1] = dim->picture_frame_offset.mp[1].len;
-    frame_len = planes[0] + planes[1];
+    frame_len = dim->picture_frame_offset.frame_len;
     y_off = dim->picture_frame_offset.mp[0].offset;
     cbcr_off = dim->picture_frame_offset.mp[1].offset;
     LOGE("%s: main image: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",

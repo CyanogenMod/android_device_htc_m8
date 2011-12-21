@@ -299,12 +299,10 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     /* Before leaving check the jpeg queue. If it's not empty give the available
        frame for encoding*/
     if (!mSnapshotQueue.isEmpty()) {
-        LOGD("%s: JPEG Queue not empty. Dequeue and encode.", __func__);
-#if 0 //mzhu
+        LOGI("%s: JPEG Queue not empty. Dequeue and encode.", __func__);
         mm_camera_ch_data_buf_t* buf =
             (mm_camera_ch_data_buf_t *)mSnapshotQueue.dequeue();
         encodeDisplayAndSave(buf, 1);
-#endif //mzhu
     }
     else
     {

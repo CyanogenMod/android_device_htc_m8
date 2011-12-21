@@ -2100,11 +2100,12 @@ status_t QCameraHardwareInterface::
 setNumOfSnapshot(const CameraParameters& params) {
     status_t rc = NO_ERROR;
 
-    int num_of_snapshot = params.getInt("num-snaps-per-shutter");
+    int num_of_snapshot = getNumOfSnapshots();
 
     if (num_of_snapshot <= 0) {
         num_of_snapshot = 1;
     }
+    LOGI("number of snapshots = %d", num_of_snapshot);
     mParameters.set("num-snaps-per-shutter", num_of_snapshot);
 
     bool result = native_set_parms(MM_CAMERA_PARM_SNAPSHOT_BURST_NUM,
@@ -2600,7 +2601,18 @@ int QCameraHardwareInterface::getJpegQuality() const
 
 int QCameraHardwareInterface::getNumOfSnapshots(void) const
 {
-   return mParameters.getInt("num-snaps-per-shutter");
+    char prop[PROPERTY_VALUE_MAX];
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.snapshot.number", prop, "0");
+    LOGI("%s: prop enable/disable = %d", __func__, atoi(prop));
+    if (atoi(prop)) {
+        LOGE("%s: Reading maximum no of snapshots = %d"
+             "from properties", __func__, atoi(prop));
+        return atoi(prop);
+    } else {
+        return mParameters.getInt("num-snaps-per-shutter");
+    }
+
 }
 
 int QCameraHardwareInterface::

@@ -105,9 +105,9 @@ public:
     virtual void *getLastQueuedFrame(void){return NULL;}
     virtual status_t takePictureZSL(void){return NO_ERROR;}
     virtual status_t takeLiveSnapshot(){return NO_ERROR;}
-    status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
+ /*   status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
                                  cam_ctrl_dimension_t *dim,
-                                 int frame_len){return NO_ERROR;}
+                                 int frame_len){LOGE("<DEBUG>: Wrong function");return NO_ERROR;}*/
 
     /* Set the ANativeWindow */
     virtual int setPreviewWindow(preview_stream_ops_t* window) {return NO_ERROR;}
@@ -122,56 +122,6 @@ private:
    StreamQueue mFreeQueue;
 };
 
-/*
-*   Record Class
-*/
-class QCameraStream_record : public QCameraStream {
-public:
-  status_t    init();
-  status_t    start() ;
-  void        stop()  ;
-  void        release() ;
-
-  static QCameraStream*  createInstance(int cameraId, camera_mode_t);
-  static void            deleteInstance(QCameraStream *p);
-
-  QCameraStream_record() {};
-  virtual             ~QCameraStream_record();
-
-  status_t processRecordFrame(void *data);
-  status_t initEncodeBuffers();
-  status_t getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize);
-  //sp<IMemoryHeap> getHeap() const;
-
-  void releaseRecordingFrame(const void *opaque);
-  void debugShowVideoFPS() const;
-
-  status_t takeLiveSnapshot();
-private:
-  QCameraStream_record(int, camera_mode_t);
-
-  int                              mCameraId;
-  camera_mode_t                    myMode;
-  cam_ctrl_dimension_t             dim;
-  bool mDebugFps;
-
-  mm_camera_reg_buf_t              mRecordBuf;
-  //int                              record_frame_len;
-  //static const int                 maxFrameCnt = 16;
-  //camera_memory_t                 *mCameraMemoryPtr[maxFrameCnt];
-  //int                              mNumRecordFrames;
-  //sp<PmemPool>                     mRecordHeap[maxFrameCnt];
-  struct msm_frame                *recordframes;
-  //uint32_t                         record_offset[VIDEO_BUFFER_COUNT];
-  mm_camera_ch_data_buf_t          mRecordedFrames[MM_CAMERA_MAX_NUM_FRAMES];
-  //Mutex                            mRecordFreeQueueLock;
-  //Vector<mm_camera_ch_data_buf_t>  mRecordFreeQueue;
-
-  int mJpegMaxSize;
-  bool snapshot_enabled;
-  QCameraStream *mStreamSnap;
-
-};
 
 class QCameraStream_preview : public QCameraStream {
 public:
@@ -235,6 +185,8 @@ public:
     int getSnapshotState();
     /*Temp: to be removed once event handling is enabled in mm-camera*/
     void runSnapshotThread(void *data);
+    status_t initSnapshotBuffers(cam_ctrl_dimension_t *dim,
+                                 int num_of_buf);
     bool isZSLMode();
 
     /* public members */
@@ -251,8 +203,6 @@ private:
     status_t cancelPicture();
     void notifyShutter(common_crop_t *crop,
                        bool play_shutter_sound);
-    status_t initSnapshotBuffers(cam_ctrl_dimension_t *dim,
-                                 int num_of_buf);
     status_t initRawSnapshotBuffers(cam_ctrl_dimension_t *dim,
                                     int num_of_buf);
     status_t deinitRawSnapshotBuffers(void);
@@ -322,6 +272,58 @@ private:
 	int                     dump_fd;
 	Mutex					snapshotLock;
 }; // QCameraStream_Snapshot
+
+
+/*
+*   Record Class
+*/
+class QCameraStream_record : public QCameraStream {
+public:
+  status_t    init();
+  status_t    start() ;
+  void        stop()  ;
+  void        release() ;
+
+  static QCameraStream*  createInstance(int cameraId, camera_mode_t);
+  static void            deleteInstance(QCameraStream *p);
+
+  QCameraStream_record() {};
+  virtual             ~QCameraStream_record();
+
+  status_t processRecordFrame(void *data);
+  status_t initEncodeBuffers();
+  status_t getBufferInfo(sp<IMemory>& Frame, size_t *alignedSize);
+  //sp<IMemoryHeap> getHeap() const;
+
+  void releaseRecordingFrame(const void *opaque);
+  void debugShowVideoFPS() const;
+
+  status_t takeLiveSnapshot();
+private:
+  QCameraStream_record(int, camera_mode_t);
+
+  int                              mCameraId;
+  camera_mode_t                    myMode;
+  cam_ctrl_dimension_t             dim;
+  bool mDebugFps;
+
+  mm_camera_reg_buf_t              mRecordBuf;
+  //int                              record_frame_len;
+  //static const int                 maxFrameCnt = 16;
+  //camera_memory_t                 *mCameraMemoryPtr[maxFrameCnt];
+  //int                              mNumRecordFrames;
+  //sp<PmemPool>                     mRecordHeap[maxFrameCnt];
+  struct msm_frame                *recordframes;
+  //uint32_t                         record_offset[VIDEO_BUFFER_COUNT];
+  mm_camera_ch_data_buf_t          mRecordedFrames[MM_CAMERA_MAX_NUM_FRAMES];
+  //Mutex                            mRecordFreeQueueLock;
+  //Vector<mm_camera_ch_data_buf_t>  mRecordFreeQueue;
+
+  int mJpegMaxSize;
+  bool snapshot_enabled;
+  QCameraStream_Snapshot *mStreamSnap;
+
+};
 
 
 }; // namespace android

@@ -1784,21 +1784,15 @@ void QCameraHardwareInterface::handleZoomEventForPreview(void)
              v4l2_crop.crop.top,
              v4l2_crop.crop.width,
              v4l2_crop.crop.height);
-#if 0 // mzhu
-        mOverlayLock.lock();
-        if(mOverlay != NULL){
-            LOGI("%s: Setting crop", __func__);
-            if ((v4l2_crop.crop.width != 0) && (v4l2_crop.crop.height != 0)) {
-                mOverlay->setCrop(v4l2_crop.crop.left, v4l2_crop.crop.top,
-                                  v4l2_crop.crop.width, v4l2_crop.crop.height);
-                LOGI("%s: Done setting crop", __func__);
-            } else {
-                LOGI("%s: Resetting crop", __func__);
-                mOverlay->setCrop(0, 0, previewWidth, previewHeight);
-            }
+
+        if ((v4l2_crop.crop.width != 0) && (v4l2_crop.crop.height != 0)) {
+             mPreviewWindow->set_crop(mPreviewWindow,
+                            v4l2_crop.crop.left,
+                            v4l2_crop.crop.top,
+                            v4l2_crop.crop.width,
+                            v4l2_crop.crop.height);
+             LOGI("%s: Done setting crop", __func__);
         }
-        mOverlayLock.unlock();
-#endif // mzhu
         LOGI("%s: Currrent zoom :%d",__func__, mCurrentZoom);
     }
 #if 0

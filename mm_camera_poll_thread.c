@@ -231,8 +231,7 @@ static void *mm_camera_poll_fn(mm_camera_poll_thread_t *poll_cb)
         if(rc > 0) {
             if((fds[0].revents & POLLIN) && (fds[0].revents & POLLRDNORM))
                 mm_camera_poll_proc_pipe(poll_cb);
-            else if((fds[1].revents & POLLPRI) || ((fds[1].revents & POLLIN) && (fds[1].revents & POLLRDNORM)))
-                /*should it be else/ else if((fds[1].revents & POLLIN) && (fds[1].revents & POLLRDNORM))*/
+            else
                 mm_camera_poll_proc_msm(poll_cb, &fds[1]);
         } else {
             /* in error case sleep 10 us and then continue. hard coded here */

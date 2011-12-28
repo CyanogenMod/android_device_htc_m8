@@ -523,6 +523,7 @@ private:
     status_t setOverlayFormats(const CameraParameters& params);
     status_t setHighFrameRate(const CameraParameters& params);
     status_t setRedeyeReduction(const CameraParameters& params);
+    status_t setAEBracket(const CameraParameters& params);
     status_t setFaceDetect(const CameraParameters& params);
     status_t setDenoise(const CameraParameters& params);
     status_t setHistogram(int histogram_en);
@@ -558,7 +559,7 @@ private:
     camera_notify_callback         mNotifyCb;
     camera_data_callback           mDataCb;
     camera_data_timestamp_callback mDataCbTimestamp;
-	camera_request_memory          mGetMemory;
+    camera_request_memory          mGetMemory;
     void                           *mCallbackCookie;
 
     //sp<MemoryHeapBase>  mPreviewHeap;  //@Guru : Need to remove
@@ -615,6 +616,8 @@ private:
     bool mSendMetaData;
     bool mFullLiveshotEnabled;
     bool mRecordingHint;
+    bool mHdrMode;
+    bool mExpBracketMode;
 
 /*for histogram*/
     int            mStatsOn;

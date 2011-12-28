@@ -80,6 +80,8 @@ extern "C" {
 #define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
 #define FOCUS_AREA_INIT "(-1000,-1000,1000,1000,1000)"
 
+#define HDR_HAL_FRAME 2
+
 //Default FPS
 #define MINIMUM_FPS 5
 #define MAXIMUM_FPS 31
@@ -392,6 +394,12 @@ static const str_map zsl_modes[] = {
     { CameraParameters::ZSL_ON, TRUE },
 };
 
+
+static const str_map hdr_bracket[] = {
+    { CameraParameters::AE_BRACKET_HDR_OFF,HDR_BRACKETING_OFF},
+    { CameraParameters::AE_BRACKET_HDR,HDR_MODE },
+    { CameraParameters::AE_BRACKET,EXP_BRACKETING_MODE }
+};
 /**************************************************************************/
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -1020,6 +1028,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     //Set Camera Mode
     mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
+    mParameters.set(CameraParameters::KEY_AE_BRACKET_HDR,"Off");
 
     //Set Antibanding
     mParameters.set(CameraParameters::KEY_ANTIBANDING,
@@ -1291,6 +1300,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setAntibanding(params)))                  final_rc = rc;
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
+    if ((rc = setAEBracket(params)))              final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
@@ -2570,6 +2580,55 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
     return BAD_VALUE;
 }
 
+status_t QCameraHardwareInterface::setAEBracket(const CameraParameters& params)
+{
+    if(!cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_HDR) && (myMode & CAMERA_ZSL_MODE)) {
+        LOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
+        return NO_ERROR;
+    }
+    const char *str = params.get(CameraParameters::KEY_AE_BRACKET_HDR);
+
+    if (str != NULL) {
+        int value = attr_lookup(hdr_bracket,
+                                    sizeof(hdr_bracket) / sizeof(str_map), str);
+        exp_bracketing_t temp;
+        if(value == HDR_MODE) {
+            mHdrMode = true;
+            temp.hdr_enable= true;
+            temp.mode = HDR_MODE;
+            temp.total_frames = 3;
+            temp.total_hal_frames = HDR_HAL_FRAME;
+            /*if(mHdrMode){
+                numCapture = temp.total_hal_frames;
+            } else
+                numCapture = 1;*/
+            native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+            return NO_ERROR;
+        }else if(value == EXP_BRACKETING_MODE){
+            char  exp_val[16];
+            mExpBracketMode = true;
+            temp.hdr_enable = true;
+            temp.mode = EXP_BRACKETING_MODE;
+
+            /* App sets values separated by comma.
+           Thus total number of snapshot to capture is strlen(str)/2
+           eg: "-1,1,2" */
+            strlcpy(exp_val, str, sizeof(exp_val));
+            temp.total_frames = (strlen(exp_val) >  MAX_SNAPSHOT_BUFFERS -2) ?
+                MAX_SNAPSHOT_BUFFERS -2 : strlen(exp_val);
+            temp.total_hal_frames = temp.total_frames;
+            temp.values = exp_val;
+            LOGI("%s: setting Exposure Bracketing value of %s", __FUNCTION__, temp.values);
+            mParameters.set("capture-burst-exposures", str);
+            /*if(!mZslEnable){
+                numCapture = temp.total_frames;
+            }*/
+            native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    return NO_ERROR;
+}
 status_t QCameraHardwareInterface::setRedeyeReduction(const CameraParameters& params)
 {
     if(supportsRedEyeReduction() == false) {

@@ -1540,12 +1540,12 @@ status_t  QCameraHardwareInterface::takePicture()
 			mCameraState = CAMERA_STATE_ERROR;
         mPreviewState = QCAMERA_HAL_TAKE_PICTURE;
 		break;
-	case QCAMERA_HAL_PREVIEW_STOPPED:
-	case QCAMERA_HAL_PREVIEW_START:
-    case QCAMERA_HAL_RECORDING_STARTED:
-        LOGE("<DEBUG> Got request for live snapshot");
+	case QCAMERA_HAL_RECORDING_STARTED:
+        LOGI("Got request for live snapshot");
         takeLiveSnapshot();
         break;
+	case QCAMERA_HAL_PREVIEW_STOPPED:
+	case QCAMERA_HAL_PREVIEW_START:
  	default:
 		ret = UNKNOWN_ERROR;
         break;

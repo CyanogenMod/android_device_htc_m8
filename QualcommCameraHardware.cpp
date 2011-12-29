@@ -4437,7 +4437,7 @@ void QualcommCameraHardware::deinitRaw()
         LOGE("deinitRaw , clearing/cancelling thumbnail buffers:");
         private_handle_t *handle;
         for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
-            if(mThumbnailBuffer[cnt]) {
+            if(mPreviewWindow != NULL && mThumbnailBuffer[cnt] != NULL) {
                 handle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
                 LOGE("%s:  Cancelling postview buffer %d ", __FUNCTION__, handle->fd);
                 LOGE("deinitraw : display lock");
@@ -4471,6 +4471,7 @@ void QualcommCameraHardware::deinitRaw()
                        LOGE("deinitraw : Error un-mmapping the thumbnail buffer %d", index);
                      }
                      mThumbnailBuffer[cnt] = NULL;
+                     mThumbnailMapped[cnt] = NULL;
                 }
                 LOGE("deinitraw : display unlock");
                 mDisplayLock.unlock();
@@ -5234,10 +5235,19 @@ void QualcommCameraHardware::stopPreview()
         if (mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME))
             return;
     }
+    // wait if snapshot is in progress
+    mSnapshotThreadWaitLock.lock();
+    while (mSnapshotThreadRunning) {
+        LOGV("stoppreview: waiting for old snapshot thread to complete.");
+        mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
+        LOGV("stoppreview: old snapshot thread completed. proceed stoppreview");
+    }
+    mSnapshotThreadWaitLock.unlock();
+
     if( mPreviewWindow != NULL ) {
         private_handle_t *handle;
         for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
-            if(mPreviewWindow != NULL && mThumbnailBuffer[cnt]) {
+            if(mPreviewWindow != NULL && mThumbnailBuffer[cnt] != NULL) {
                 handle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
                 LOGE("%s:  Cancelling postview buffer %d ", __FUNCTION__, handle->fd);
                 LOGE("stoppreview : display lock");
@@ -5273,6 +5283,7 @@ void QualcommCameraHardware::stopPreview()
                       LOGE("StopPreview : Error un-mmapping the thumbnail buffer %d", index);
                     }
                     mThumbnailBuffer[cnt] = NULL;
+                    mThumbnailMapped[cnt] = NULL;
                  }
                 LOGE("stoppreview : display unlock");
                 mDisplayLock.unlock();
@@ -7268,7 +7279,7 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
         int index = mapThumbnailBuffer(postviewframe);
         LOGE("receiveRawPicture : mapThumbnailBuffer returned %d", index);
         private_handle_t *handle;
-        if(mThumbnailBuffer[index] != NULL) {
+        if(mThumbnailBuffer[index] != NULL && mZslEnable == false) {
             handle = (private_handle_t *)(*mThumbnailBuffer[index]);
             LOGV("%s: Queueing postview buffer for display %d",
                                            __FUNCTION__,handle->fd);

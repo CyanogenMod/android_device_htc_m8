@@ -792,6 +792,9 @@ status_t QCameraHardwareInterface::startPreview()
         break;
     case QCAMERA_HAL_TAKE_PICTURE:
         LOGE("%s: cannot start preview in SNAPSHOT state", __func__);
+        retVal = UNKNOWN_ERROR;
+        break;
+        //TODO: Need to make a change in the app.
         //mStreamSnap->release( );
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
         mStreamSnap = NULL;

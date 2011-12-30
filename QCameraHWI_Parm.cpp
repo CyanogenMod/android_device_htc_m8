@@ -868,9 +868,6 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.set("video-zoom-support", "false");
     }
 
-    //Set Live Snapshot support
-    mParameters.set("video-snapshot-supported", "true");
-    
     //Set Camera Mode
     mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
 
@@ -964,10 +961,10 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mHfrSizeValues.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
                     mHfrValues);
-	LOGE(" HFR supported");
+	LOGE("<DEBUG> HFR supported");
     } else{
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
-	LOGE(" HFR not supported");
+	LOGE("<DEBUG> HFR not supported");
     }
 
     //Set Histogram
@@ -2235,10 +2232,10 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
 
     bool mCameraRunning;
 
-    LOGE(": Entering SetHFR");
+    LOGE("<DEBUG>: Entering SetHFR");
     int rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_HFR);
     if(!rc) {
-        LOGE("%s: MM_CAMERA_PARM_HFR not supported", __func__);
+        LOGE("%s:<DEBUG> MM_CAMERA_PARM_HFR not supported", __func__);
         return NO_ERROR;
     }
 
@@ -2247,11 +2244,11 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
         int value = attr_lookup(hfr, sizeof(hfr) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             int32_t temp = (int32_t)value;
-            LOGE("%s: setting HFR value of %s(%d)", __FUNCTION__, str, temp);
+            LOGE("%s: <DEBUG>setting HFR value of %s(%d)", __FUNCTION__, str, temp);
             //Check for change in HFR value
             const char *oldHfr = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
             if(strcmp(oldHfr, str)){
-                LOGE("%s: old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
+                LOGE("%s:<DEBUG> old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
                 mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE, str);
 //              mHFRMode = true;
 		mCameraRunning=isPreviewRunning();

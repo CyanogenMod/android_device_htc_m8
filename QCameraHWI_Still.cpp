@@ -242,19 +242,13 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     #endif
 
     LOGE("%s: Calling upperlayer callback to store JPEG image", __func__);
-  msg_type = isLiveSnapshot() ?
+    msg_type = isLiveSnapshot() ?
         (int)MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : (int)CAMERA_MSG_COMPRESSED_IMAGE;
 
-  LOGE("<DEBUG> Msg type:%d",msg_type);
-    msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
-    LOGE("<DEBUG> Msg type:%d",msg_type);
-
     mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
-    LOGE("<DEBUG> Done with dumping");
     if (mHalCamCtrl->mDataCb &&
         (mHalCamCtrl->mMsgEnabled & msg_type)) {
 
-        LOGE("<DEBUG> Callback is enabled");
         // Create camera_memory_t object backed by the same physical
         // memory but with actual bitstream size.
         camera_memory_t *encodedMem = mHalCamCtrl->mGetMemory(
@@ -265,14 +259,13 @@ receiveCompleteJpegPicture(jpeg_event_t event)
             return;
         }
 
-        LOGE("<DEBUG> Issue callback");
       mHalCamCtrl->mDataCb(msg_type,
                            encodedMem, 0, NULL,
                            mHalCamCtrl->mCallbackCookie);
-      LOGE("<DEBUG>Release Memory");
+
         encodedMem->release(encodedMem);
     } else {
-      LOGE("%s: JPEG callback was cancelled--not delivering image.", __func__);
+      LOGW("%s: JPEG callback was cancelled--not delivering image.", __func__);
     }
 
 
@@ -298,8 +291,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     LOGD("%s: After omxJpegClose", __func__);
     /* free the resource we allocated to maintain the structure */
     //mm_camera_do_munmap(main_fd, (void *)main_buffer_addr, mSnapshotStreamBuf.frame_len);
-    if (!isLiveSnapshot())
-        free(mCurrentFrameEncoded);
+    free(mCurrentFrameEncoded);
     setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODE_DONE);
 
     mNumOfRecievedJPEG++;
@@ -1214,14 +1206,14 @@ takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
     common_crop_t crop_info;
     uint32_t aspect_ratio;
 
-    LOGE("%s: E", __func__);
+    LOGD("%s: E", __func__);
 
     /* set flag to indicate we are doing livesnapshot */
     setModeLiveSnapshot(true);
 
-    LOGE("%s:Passed picture size: %d X %d", __func__,
+    LOGD("%s:Passed picture size: %d X %d", __func__,
          dim->picture_width, dim->picture_height);
-    LOGE("%s:Passed thumbnail size: %d X %d", __func__,
+    LOGD("%s:Passed thumbnail size: %d X %d", __func__,
          dim->ui_thumbnail_width, dim->ui_thumbnail_height);
 
     mPictureWidth = dim->picture_width;
@@ -1245,9 +1237,9 @@ takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
             /* get picture failed. Give jpeg callback with NULL data
              * to the application to restore to preview mode
              */
-#if 1 //mzhu, fix me in snapshot bring up
+#if 0 //mzhu, fix me in snapshot bring up
             mHalCamCtrl->mDataCb(MEDIA_RECORDER_MSG_COMPRESSED_IMAGE,
-                                       NULL, 0, NULL,
+                                       NULL,
                                        mHalCamCtrl->mCallbackCookie);
 #endif //mzhu
         }
@@ -1256,7 +1248,7 @@ takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
     }
 
 end:
-    LOGE("%s: X", __func__);
+    LOGD("%s: X", __func__);
     return ret;
 }
 

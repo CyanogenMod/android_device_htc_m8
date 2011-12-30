@@ -54,6 +54,7 @@ struct buffer_map {
     msm_frame *frame;
     buffer_handle_t * buffer;
     int size;
+    int lockState;
 };
 
 typedef enum {
@@ -76,6 +77,11 @@ typedef enum {
 struct target_map {
     const char *targetStr;
     targetType targetEnum;
+};
+
+enum {
+    BUFFER_UNLOCKED,
+    BUFFER_LOCKED
 };
 
 struct board_property{
@@ -539,6 +545,7 @@ private:
     int mSkinToneEnhancement;
     int mHJR;
     unsigned int mThumbnailMapped[MAX_SNAPSHOT_BUFFERS];
+    unsigned int mThumbnailLockState[MAX_SNAPSHOT_BUFFERS];
     int mRawfd[MAX_SNAPSHOT_BUFFERS];
     int mRawSnapshotfd;
     int mJpegfd[MAX_SNAPSHOT_BUFFERS];

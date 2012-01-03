@@ -5226,15 +5226,10 @@ void QualcommCameraHardware::stopPreview()
         if (mDataCallbackTimestamp && (mMsgEnabled & CAMERA_MSG_VIDEO_FRAME))
             return;
     }
-    // wait if snapshot is in progress
-    mSnapshotThreadWaitLock.lock();
-    while (mSnapshotThreadRunning) {
-        LOGV("stoppreview: waiting for old snapshot thread to complete.");
-        mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
-        LOGV("stoppreview: old snapshot thread completed. proceed stoppreview");
+    if( mSnapshotThreadRunning ) {
+        LOGV("In stopPreview during snapshot");
+        return;
     }
-    mSnapshotThreadWaitLock.unlock();
-
     if( mPreviewWindow != NULL ) {
         private_handle_t *handle;
         for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
@@ -5850,6 +5845,10 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
 
+    if(mSnapshotThreadRunning) {
+       LOGV(" setParameters: X");
+       return NO_ERROR;
+    }
     if ((rc = setCameraMode(params)))  final_rc = rc;
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;
@@ -5866,7 +5865,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     if ((rc = setOrientation(params)))  final_rc = rc;
     if ((rc = setLensshadeValue(params)))  final_rc = rc;
     if ((rc = setMCEValue(params)))  final_rc = rc;
-    if ((rc = setHDRImaging(params)))  final_rc = rc;
+    //if ((rc = setHDRImaging(params)))  final_rc = rc;
     if ((rc = setExpBracketing(params)))  final_rc = rc;
     if ((rc = setPictureFormat(params))) final_rc = rc;
     if ((rc = setSharpness(params)))    final_rc = rc;

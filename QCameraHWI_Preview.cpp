@@ -512,20 +512,23 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   LOGI("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
 
   if (pcb != NULL) {
-      LOGE("prepare buffer for face detection");
+      //Sending preview callback if corresponding Msgs are enabled
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-      LOGE("in preview case ");
           msgType |=  CAMERA_MSG_PREVIEW_FRAME;
           data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
       } else {
           data = NULL;
       }
-      if(mHalCamCtrl->mFaceDetectOn) {
-      LOGE("Buffer Callback to Service FD = %d msgType = 0x%x", mHalCamCtrl->mFaceDetectOn, msgType);
-      mStopCallbackLock.unlock();
-      pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+
+      if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_METADATA){
           msgType  |= CAMERA_MSG_PREVIEW_METADATA;
           metadata = &mHalCamCtrl->mMetadata;
+      } else {
+          metadata = NULL;
+      }
+      if(msgType) {
+          mStopCallbackLock.unlock();
+          pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
       }
 	  LOGE("end of cb");
   }

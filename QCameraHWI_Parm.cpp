@@ -221,7 +221,8 @@ static const str_map iso[] = {
 };
 
 static const str_map scenemode[] = {
-    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_OFF,            CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_AUTO },
     { CameraParameters::SCENE_MODE_ACTION,         CAMERA_BESTSHOT_ACTION },
     { CameraParameters::SCENE_MODE_PORTRAIT,       CAMERA_BESTSHOT_PORTRAIT },
     { CameraParameters::SCENE_MODE_LANDSCAPE,      CAMERA_BESTSHOT_LANDSCAPE },
@@ -985,7 +986,7 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     //Set Scene Mode
     mParameters.set(CameraParameters::KEY_SCENE_MODE,
-                    CameraParameters::SCENE_MODE_AUTO);
+                    CameraParameters::SCENE_MODE_OFF);
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,
                     mSceneModeValues);
 
@@ -1132,7 +1133,6 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setTouchAfAec(params)))                   final_rc = rc;
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
-    if ((rc = setSceneDetect(params)))                  final_rc = rc;
     if ((rc = setFaceDetect(params)))                   final_rc = rc;
     if ((rc = setStrTextures(params)))                  final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
@@ -1149,7 +1149,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
 
-    if((value != NOT_FOUND) && (value == CAMERA_BESTSHOT_OFF)) {
+    if((value != NOT_FOUND) && (value == CAMERA_BESTSHOT_OFF )) {
         if ((rc = setPreviewFrameRateMode(params)))     final_rc = rc;
         /* Fps mode has to be set before fps*/
         if ((rc = setPreviewFrameRate(params)))         final_rc = rc;

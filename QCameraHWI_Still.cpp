@@ -1537,15 +1537,14 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     }
     #endif
 
-    // send upperlayer callback
-     if (mHalCamCtrl->mDataCb &&
-         (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
-         buf_index = recvd_frame->snapshot.main.idx;
-         mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE,
-                                    mHalCamCtrl->mSnapshotMemory.camera_memory[0], 1, NULL,
-                                    mHalCamCtrl->mCallbackCookie);
-     }
-
+    // send upperlayer callback for raw image (data or notify, not both)
+    if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
+            mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
+                                 1, NULL, mHalCamCtrl->mCallbackCookie);
+    }
+    else if((mHalCamCtrl->mNotifyCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)){
+             mHalCamCtrl->mNotifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
+    }
 end:
     LOGD("%s: X", __func__);
     return ret;

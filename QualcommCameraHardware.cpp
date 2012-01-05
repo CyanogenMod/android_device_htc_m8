@@ -2907,7 +2907,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
            //Need to encapsulate this in IMemory object and send
 
           if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
-            pcb(CAMERA_MSG_PREVIEW_FRAME,(camera_memory_t *) mPreviewMapped[bufferIndex]->data,0,NULL,
+            pcb(CAMERA_MSG_PREVIEW_FRAME,(camera_memory_t *) mPreviewMapped[bufferIndex],0,NULL,
             pdata);
 
            // TODO : may have to reutn proper frame as pcb

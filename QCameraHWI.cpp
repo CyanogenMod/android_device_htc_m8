@@ -700,7 +700,8 @@ processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
                 snapshots larger than internal size of ZSL queue. So we'll need
                 process the remaining frames as they become available.
                 In such case, we'll get this event */
-                mStreamSnap->takePictureZSL();
+                if(NULL != mStreamSnap)
+                  mStreamSnap->takePictureZSL();
             }
             break;
         default:

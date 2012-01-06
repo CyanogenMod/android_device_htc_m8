@@ -392,6 +392,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
             CDBG("%s: VIDIOC_QBUF rc = %d\n", __func__, rc);
             goto end;
         }
+        stream->frame.ref_count[i] = 0;
         LOGE("%s: stream_fd = %d, frame_fd = %d, frame ID = %d, offset = %d\n",
                  __func__, stream->fd, stream->frame.frame[i].frame.fd,
                  i, stream->frame.frame_offset[i]);
@@ -416,6 +417,7 @@ static int mm_camera_stream_util_unreg_buf(mm_camera_obj_t * my_obj,
         return rc;
     }
     mm_stream_frame_flash_q(&stream->frame.readyq);
+    memset(stream->frame.ref_count,0,(stream->frame.num_frame * sizeof(int8_t)));
     stream->frame.qbuf = 0;
     CDBG("%s:fd=%d,type=%d,rc=%d\n",
              __func__, stream->fd, stream->stream_type, rc);
@@ -557,6 +559,10 @@ static int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
             CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
                  __func__, frame->idx, rc);
         pthread_mutex_unlock(&stream->frame.mutex);
+    }else{
+        CDBG("%s: Error Trying to free second time?(idx=%d) count=%d\n",
+                 __func__, frame->idx, stream->frame.ref_count[frame->idx]);
+        rc = -1;
     }
     return rc;
 }

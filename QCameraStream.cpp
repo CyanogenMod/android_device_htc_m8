@@ -102,7 +102,7 @@ void StreamQueue::flush(){
 status_t QCameraStream::initChannel(int cameraId,
                                     uint32_t ch_type_mask)
 {
-
+#if 0
     int rc = MM_CAMERA_OK;
     int i;
     status_t ret = NO_ERROR;
@@ -182,7 +182,43 @@ status_t QCameraStream::initChannel(int cameraId,
         }
 
   } /*MM_CAMERA_CH_VIDEO*/
+#endif
 
+    int rc = MM_CAMERA_OK;
+    status_t ret = NO_ERROR;
+    mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
+    int i;
+
+    LOGV("QCameraStream::initChannel : E");
+    if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask){
+        rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_PREVIEW);
+        LOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
+        if(MM_CAMERA_OK != rc) {
+                LOGE("%s: preview channel acquir error =%d\n", __func__, rc);
+                LOGE("%s: X", __func__);
+                return BAD_VALUE;
+        }
+        /*Callback register*/
+        /* register a notify into the mmmm_camera_t object*/
+       /* ret = cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
+                                                preview_notify_cb,
+                                                this);
+        LOGV("Buf notify MM_CAMERA_CH_PREVIEW, rc=%d\n",rc);*/
+    }else if(MM_CAMERA_CH_VIDEO_MASK & ch_type_mask){
+        rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_VIDEO);
+        LOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
+        if(MM_CAMERA_OK != rc) {
+                LOGE("%s: preview channel acquir error =%d\n", __func__, rc);
+                LOGE("%s: X", __func__);
+                return BAD_VALUE;
+        }
+        /*Callback register*/
+        /* register a notify into the mmmm_camera_t object*/
+        /*ret = cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                                record_notify_cb,
+                                                this);
+        LOGV("Buf notify MM_CAMERA_CH_VIDEO, rc=%d\n",rc);*/
+    }
 
     ret = (MM_CAMERA_OK==rc)? NO_ERROR : BAD_VALUE;
     LOGV("%s: X, ret = %d", __func__, ret);
@@ -208,10 +244,90 @@ status_t QCameraStream::deinitChannel(int cameraId,
     return NO_ERROR;
 }
 
+status_t QCameraStream::setMode(int enable) {
+  LOGE("%s :myMode %x ", __func__, myMode);
+  if (enable) {
+      myMode = (camera_mode_t)(myMode | CAMERA_ZSL_MODE);
+  } else {
+      myMode = (camera_mode_t)(myMode & ~CAMERA_ZSL_MODE);
+  }
+  return NO_ERROR;
+}
+
+status_t QCameraStream::setFormat(uint8_t ch_type_mask)
+{
+    int rc = MM_CAMERA_OK;
+    status_t ret = NO_ERROR;
+    int width = 0;  /* width of channel      */
+    int height = 0; /* height of channel */
+    cam_ctrl_dimension_t dim;
+    mm_camera_ch_image_fmt_parm_t fmt;
+
+    LOGE("%s: E",__func__);
+
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    rc = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+    if (MM_CAMERA_OK != rc) {
+      LOGE("%s: error - can't get camera dimension!", __func__);
+      LOGE("%s: X", __func__);
+      return BAD_VALUE;
+    }
+
+    memset(&fmt, 0, sizeof(mm_camera_ch_image_fmt_parm_t));
+    if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask){
+        fmt.ch_type = MM_CAMERA_CH_PREVIEW;
+        fmt.def.fmt = CAMERA_YUV_420_NV12; //dim.prev_format;
+        fmt.def.dim.width = dim.display_width;
+        fmt.def.dim.height =  dim.display_height;
+    }else if(MM_CAMERA_CH_VIDEO_MASK & ch_type_mask){
+        fmt.ch_type = MM_CAMERA_CH_VIDEO;
+        fmt.video.video.fmt = CAMERA_YUV_420_NV21; //dim.enc_format;
+        fmt.video.video.dim.width = dim.video_width;
+        fmt.video.video.dim.height = dim.video_height;
+    }/*else if(MM_CAMERA_CH_SNAPSHOT_MASK & ch_type_mask){
+        if(mHalCamCtrl->isRawSnapshot()) {
+            fmt.ch_type = MM_CAMERA_CH_RAW;
+            fmt.def.fmt = CAMERA_BAYER_SBGGR10;
+            fmt.def.dim.width = dim.raw_picture_width;
+            fmt.def.dim.height = dim.raw_picture_height;
+        }else{
+            //Jpeg???
+            fmt.ch_type = MM_CAMERA_CH_SNAPSHOT;
+            fmt.snapshot.main.fmt = dim.main_img_format;
+            fmt.snapshot.main.dim.width = dim.picture_width;
+            fmt.snapshot.main.dim.height = dim.picture_height;
+
+            fmt.snapshot.thumbnail.fmt = dim.thumb_format;
+            fmt.snapshot.thumbnail.dim.width = dim.ui_thumbnail_width;
+            fmt.snapshot.thumbnail.dim.height = dim.ui_thumbnail_height;
+        }
+    }*/
+
+    rc = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
+    LOGV("%s: Stream MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
+    if(MM_CAMERA_OK != rc) {
+        LOGE("%s:set stream channel format err=%d\n", __func__, ret);
+        LOGE("%s: X", __func__);
+        ret = BAD_VALUE;
+    }
+    LOGE("%s: X",__func__);
+    return ret;
+}
 
 QCameraStream::QCameraStream (){
     mInit = false;
     mActive = false;
+    /* memset*/
+    memset(&mCrop, 0, sizeof(mm_camera_ch_crop_t));
+}
+
+QCameraStream::QCameraStream (int cameraId, camera_mode_t mode)
+              :mCameraId(cameraId),
+               myMode(mode)
+{
+    mInit = false;
+    mActive = false;
+
     /* memset*/
     memset(&mCrop, 0, sizeof(mm_camera_ch_crop_t));
 }

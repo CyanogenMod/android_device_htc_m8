@@ -64,6 +64,31 @@ static int mm_camera_ch_search_frame_based_on_time(mm_camera_obj_t *my_obj,
 
 
 
+int mm_camera_ch_util_get_num_stream(mm_camera_obj_t * my_obj,mm_camera_channel_type_t ch_type)
+{
+    int num = 0;
+    switch(ch_type) {
+    case MM_CAMERA_CH_RAW:
+        num =  1;
+        break;
+    case MM_CAMERA_CH_PREVIEW:
+        num =  1;
+        break;
+    case MM_CAMERA_CH_VIDEO:
+        num =  1;
+        if(my_obj->ch[ch_type].video.has_main) {
+            num +=  1;
+        }
+        break;
+    case MM_CAMERA_CH_SNAPSHOT:
+        num =  2;
+        break;
+    default:
+        break;
+    }
+    return num;
+}
+
 void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
                                        mm_camera_channel_type_t ch_type,
                                        mm_camera_stream_t **stream1,
@@ -859,7 +884,7 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
         break;
     case MM_CAMERA_STATE_EVT_RELEASE:
       /* safe code in case no stream off before release. */
-        mm_camera_poll_thread_release(my_obj, ch_type);
+        //mm_camera_poll_thread_release(my_obj, ch_type);
         rc = mm_camera_ch_util_release(my_obj, ch_type, evt);
         break;
     case MM_CAMERA_STATE_EVT_ATTR:
@@ -889,15 +914,16 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
                 break;
             }
         }
-        mm_camera_poll_thread_launch(my_obj, ch_type);
+        mm_camera_poll_thread_add_ch(my_obj, ch_type);
         rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
         if(rc < 0) {
+          CDBG("Failed in STREAM ON");
           mm_camera_poll_thread_release(my_obj, ch_type);
         }
         break;
     }
     case MM_CAMERA_STATE_EVT_STREAM_OFF: {
-        mm_camera_poll_thread_release(my_obj, ch_type);
+        mm_camera_poll_thread_del_ch(my_obj, ch_type);
         rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
         break;
     }

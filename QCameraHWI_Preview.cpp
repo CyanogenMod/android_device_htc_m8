@@ -39,7 +39,6 @@ namespace android {
 // ---------------------------------------------------------------------------
 // Preview Callback
 // ---------------------------------------------------------------------------
-
 static void preview_notify_cb(mm_camera_ch_data_buf_t *frame,
                                 void *user_data)
 {
@@ -288,11 +287,11 @@ status_t QCameraStream_preview::initDisplayBuffers()
       height = dim.display_height;
     }
 
- ret = getBufferFromSurface();
- if(ret != NO_ERROR) {
-     LOGE("%s: cannot get memory from surface texture client, ret = %d", __func__, ret);
-     return ret;
- }
+	ret = getBufferFromSurface();
+	if(ret != NO_ERROR) {
+	 LOGE("%s: cannot get memory from surface texture client, ret = %d", __func__, ret);
+	 return ret;
+	}
 
   /* set 4 buffers for display */
   memset(&mDisplayStreamBuf, 0, sizeof(mDisplayStreamBuf));
@@ -401,32 +400,23 @@ void QCameraStream_preview::dumpFrameToFile(struct msm_frame* newFrame)
   unsigned long addr;
   unsigned long * tmp = (unsigned long *)newFrame->buffer;
   addr = *tmp;
-//#if 0 // mzhu
-//    addr = mmap(NULL,
-//    mPreviewBufferHandlePtr[0]->size,
-//    PROT_READ  | PROT_WRITE,
-//    MAP_SHARED,
- //   newFrame->fd,
-//    0);
-//#endif // mzhu
-    status_t ret = cam_config_get_parm(mHalCamCtrl->mCameraId,
-	                 MM_CAMERA_PARM_DIMENSION, &dim);
+  status_t ret = cam_config_get_parm(mHalCamCtrl->mCameraId,
+                 MM_CAMERA_PARM_DIMENSION, &dim);
 
-	w = dim.display_width;
-	h = dim.display_height;
-	len = (w * h)*3/2;
-	count++;
-	if(count < 100) {
-		snprintf(buf, sizeof(buf), "/data/mzhu%d.yuv", count);
-		file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+  w = dim.display_width;
+  h = dim.display_height;
+  len = (w * h)*3/2;
+  count++;
+  if(count < 100) {
+    snprintf(buf, sizeof(buf), "/data/mzhu%d.yuv", count);
+    file_fd = open(buf, O_RDWR | O_CREAT, 0777);
 
-		rc = write(file_fd, (const void *)addr, len);
-		LOGE("%s: file='%s', vaddr_old=0x%x, addr_map = 0x%p, len = %d, rc = %d",
-			__func__, buf, (uint32_t)newFrame->buffer, (void *)addr, len, rc);
-		close(file_fd);
-		//munmap(addr, mPreviewBufferHandlePtr[0]->size);
-		LOGE("%s: dump %s, rc = %d, len = %d", __func__, buf, rc, len);
-	}
+    rc = write(file_fd, (const void *)addr, len);
+    LOGE("%s: file='%s', vaddr_old=0x%x, addr_map = 0x%p, len = %d, rc = %d",
+          __func__, buf, (uint32_t)newFrame->buffer, (void *)addr, len, rc);
+    close(file_fd);
+    LOGE("%s: dump %s, rc = %d, len = %d", __func__, buf, rc, len);
+  }
 }
 
 status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *frame)
@@ -437,6 +427,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   camera_memory_t *data = NULL;
   camera_frame_metadata_t *metadata = NULL;
 
+  Mutex::Autolock lock(mStopCallbackLock);
+  if(!mActive) {
+    LOGE("Preview Stopped. Returning callback");
+    return NO_ERROR;
+  }
   if(mHalCamCtrl==NULL) {
     LOGE("%s: X: HAL control object not set",__func__);
     /*Call buf done*/
@@ -454,7 +449,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   // mzhu fix me, need to check meta data also.
 
   LOGI("Enqueue buf handle %p\n",
-	   mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
+  mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
   LOGD("%s: camera call genlock_unlock", __FUNCTION__);
     if (BUFFER_LOCKED == mHalCamCtrl->mPreviewMemory.local_flag[frame->def.idx]) {
         if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t*)
@@ -471,14 +466,14 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
         return -EINVAL;
     }
   err = this->mPreviewWindow->enqueue_buffer(this->mPreviewWindow,
-		    (buffer_handle_t *)mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
+    (buffer_handle_t *)mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
   if(err != 0) {
     LOGE("%s: enqueue_buffer failed, err = %d", __func__, err);
   }
   buffer_handle_t *buffer_handle = NULL;
   int tmp_stride = 0;
   err = this->mPreviewWindow->dequeue_buffer(this->mPreviewWindow,
-	              &buffer_handle, &tmp_stride);
+              &buffer_handle, &tmp_stride);
   if (err == NO_ERROR && buffer_handle != NULL) {
       err = this->mPreviewWindow->lock_buffer(this->mPreviewWindow, buffer_handle);
       LOGD("%s: camera call genlock_lock", __FUNCTION__);
@@ -495,13 +490,14 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
                   mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_LOCKED;
               if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {
                   LOGE("BUF DONE FAILED");
+                  mHalCamCtrl->mPreviewMemoryLock.unlock();
                   return BAD_VALUE;
               }
 			  break;
 		  }
 	  }
   } else
-	  LOGE("%s: error in dequeue_buffer, enqueue_buffer idx = %d, no free buffer now", __func__, frame->def.idx);
+      LOGE("%s: error in dequeue_buffer, enqueue_buffer idx = %d, no free buffer now", __func__, frame->def.idx);
   /* Save the last displayed frame. We'll be using it to fill the gap between
      when preview stops and postview start during snapshot.*/
   mLastQueuedFrame = &(mDisplayStreamBuf.frame[frame->def.idx]);
@@ -522,11 +518,13 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
           data = NULL;
       }
       if(mHalCamCtrl->mFaceDetectOn) {
-          LOGI("face detection is turned on");
+      LOGE("Buffer Callback to Service FD = %d msgType = 0x%x", mHalCamCtrl->mFaceDetectOn, msgType);
+      mStopCallbackLock.unlock();
+      pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
           msgType  |= CAMERA_MSG_PREVIEW_METADATA;
           metadata = &mHalCamCtrl->mMetadata;
-          pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
       }
+	  LOGE("end of cb");
   }
 
   /* Save the last displayed frame. We'll be using it to fill the gap between
@@ -548,9 +546,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
 
 QCameraStream_preview::
 QCameraStream_preview(int cameraId, camera_mode_t mode)
-  : QCameraStream(),
-    mCameraId(cameraId),
-    myMode (mode),
+  : QCameraStream(cameraId,mode),
     mLastQueuedFrame(NULL)
   {
     mHalCamCtrl = NULL;
@@ -563,6 +559,14 @@ QCameraStream_preview(int cameraId, camera_mode_t mode)
 
 QCameraStream_preview::~QCameraStream_preview() {
     LOGV("%s: E", __func__);
+	if(mActive) {
+		stop();
+	}
+	if(mInit) {
+		release();
+	}
+	mInit = false;
+	mActive = false;
     LOGV("%s: X", __func__);
 
 }
@@ -573,13 +577,7 @@ QCameraStream_preview::~QCameraStream_preview() {
 status_t QCameraStream_preview::init() {
 
   status_t ret = NO_ERROR;
-  mm_camera_reg_buf_t *reg_buf=&mDisplayBuf;
-
   LOGV("%s: E", __func__);
-
-  if(NO_ERROR!=initDisplayBuffers()){
-    return BAD_VALUE;
-  }
 
   ret = QCameraStream::initChannel (mCameraId, MM_CAMERA_CH_PREVIEW_MASK);
   if (NO_ERROR!=ret) {
@@ -587,14 +585,11 @@ status_t QCameraStream_preview::init() {
     return ret;
   }
 
-  ret = cam_config_prepare_buf(mCameraId, reg_buf);
-  if(ret != MM_CAMERA_OK) {
-    LOGV("%s:reg preview buf err=%d\n", __func__, ret);
-    ret = BAD_VALUE;
-  }
-  else
-    ret = NO_ERROR;
-
+  LOGE("Debug : %s : initChannel",__func__);
+  /* register a notify into the mmmm_camera_t object*/
+  (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
+                                     preview_notify_cb,this);
+  LOGE("Debug : %s : cam_evt_register_buf_notify",__func__);
   buffer_handle_t *buffer_handle = NULL;
   int tmp_stride = 0;
   mInit = true;
@@ -604,28 +599,37 @@ status_t QCameraStream_preview::init() {
 // QCameraStream_preview
 // ---------------------------------------------------------------------------
 
-status_t QCameraStream_preview::start() {
-
-    status_t ret = NO_ERROR;
-
+status_t QCameraStream_preview::start()
+{
     LOGV("%s: E", __func__);
+    status_t ret = NO_ERROR;
+    mm_camera_reg_buf_t *reg_buf=&mDisplayBuf;
+
+    Mutex::Autolock lock(mStopCallbackLock);
+
     /* call start() in parent class to start the monitor thread*/
-    QCameraStream::start ();
+    //QCameraStream::start ();
+    setFormat(MM_CAMERA_CH_PREVIEW_MASK);
 
-    /* register a notify into the mmmm_camera_t object*/
-    (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
-                                                preview_notify_cb,
-                                                this);
+    if(NO_ERROR!=initDisplayBuffers()){
+        return BAD_VALUE;
+    }
+    LOGE("Debug : %s : initDisplayBuffers",__func__);
+    ret = cam_config_prepare_buf(mCameraId, reg_buf);
+    LOGE("Debug : %s : cam_config_prepare_buf",__func__);
+    if(ret != MM_CAMERA_OK) {
+        LOGV("%s:reg preview buf err=%d\n", __func__, ret);
+        ret = BAD_VALUE;
+    }else
+        ret = NO_ERROR;
 
-
-
-    /* For preview, the OP_MODE we set is dependent upon whether we are
+	/* For preview, the OP_MODE we set is dependent upon whether we are
        starting camera or camcorder. For snapshot, anyway we disable preview.
        However, for ZSL we need to set OP_MODE to OP_MODE_ZSL and not
        OP_MODE_VIDEO. We'll set that for now in CamCtrl. So in case of
        ZSL we skip setting Mode here */
 
-    if (myMode != CAMERA_ZSL_MODE) {
+    if (!(myMode & CAMERA_ZSL_MODE)) {
         LOGE("Setting OP MODE to MM_CAMERA_OP_MODE_VIDEO");
         mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
         ret = cam_config_set_parm (mCameraId, MM_CAMERA_PARM_OP_MODE,
@@ -636,7 +640,16 @@ status_t QCameraStream_preview::start() {
           LOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
           return BAD_VALUE;
         }
-    }
+    }else {
+        LOGE("Setting OP MODE to MM_CAMERA_OP_MODE_ZSL");
+        mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_ZSL;
+        ret = cam_config_set_parm (mCameraId, MM_CAMERA_PARM_OP_MODE,
+                                        &op_mode);
+        if(MM_CAMERA_OK != ret) {
+          LOGE("%s: X :set mode MM_CAMERA_OP_MODE_ZSL err=%d\n", __func__, ret);
+          return BAD_VALUE;
+        }
+     }
 
     /* call mm_camera action start(...)  */
     LOGE("Starting Preview/Video Stream. ");
@@ -647,7 +660,7 @@ status_t QCameraStream_preview::start() {
       return BAD_VALUE;
     }
 
-    LOGE("%s : Preview streaming Started",__func__);
+    LOGE("Debug : %s : Preview streaming Started",__func__);
     ret = NO_ERROR;
 
     mActive =  true;
@@ -666,6 +679,8 @@ status_t QCameraStream_preview::start() {
     if(!mActive) {
       return;
     }
+    mActive =  false;
+    Mutex::Autolock lock(mStopCallbackLock);
     /* unregister the notify fn from the mmmm_camera_t object*/
 
     /* call stop() in parent class to stop the monitor thread*/
@@ -673,9 +688,20 @@ status_t QCameraStream_preview::start() {
     if(MM_CAMERA_OK != ret) {
       LOGE ("%s: camera preview stop err=%d\n", __func__, ret);
     }
+    LOGE("Debug : %s : Preview streaming Stopped",__func__);
+    ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_PREVIEW);
+    if(ret != MM_CAMERA_OK) {
+      LOGE("%s:Unreg preview buf err=%d\n", __func__, ret);
+      //ret = BAD_VALUE;
+    }
 
+    LOGE("Debug : %s : Buffer Unprepared",__func__);
+    if (mDisplayBuf.preview.buf.mp != NULL) {
+        delete[] mDisplayBuf.preview.buf.mp;
+    }
+	/*free camera_memory handles and return buffer back to surface*/
+    putBufferToSurface();
 
-    mActive =  false;
     LOGE("%s: X", __func__);
 
   }
@@ -697,28 +723,16 @@ status_t QCameraStream_preview::start() {
       this->stop();
     }
 
-    ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_PREVIEW);
-    if(ret != MM_CAMERA_OK) {
-      LOGE("%s:Unreg preview buf err=%d\n", __func__, ret);
-      //ret = BAD_VALUE;
-    }
-
     ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_PREVIEW);
+    LOGE("Debug : %s : De init Channel",__func__);
     if(ret != MM_CAMERA_OK) {
       LOGE("%s:Deinit preview channel failed=%d\n", __func__, ret);
       //ret = BAD_VALUE;
     }
 
-    //for(i=0;i<mDisplayStreamBuf.num;i++) {
-    //  mm_camera_do_munmap(mDisplayStreamBuf.frame[i].fd,(void *)mDisplayStreamBuf.frame[i].buffer,mDisplayStreamBuf.frame_len);
-    //}
-	if (mDisplayBuf.preview.buf.mp != NULL) {
-		delete[] mDisplayBuf.preview.buf.mp;
-	}
-	/*free camera_memory handles and return buffer back to surface*/
-    putBufferToSurface();
-    mInit = false;
-    /* yyan TODO: release all buffers ?? */
+    (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
+                                      NULL,NULL);
+	mInit = false;
     LOGE("%s: END", __func__);
 
   }
@@ -727,9 +741,7 @@ QCameraStream*
 QCameraStream_preview::createInstance(int cameraId,
                                       camera_mode_t mode)
 {
-
   QCameraStream* pme = new QCameraStream_preview(cameraId, mode);
-
   return pme;
 }
 // ---------------------------------------------------------------------------
@@ -753,8 +765,6 @@ void *QCameraStream_preview::getLastQueuedFrame(void)
 {
     return mLastQueuedFrame;
 }
-
-
 
 // ---------------------------------------------------------------------------
 // No code beyone this line

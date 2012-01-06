@@ -33,7 +33,7 @@ extern "C" {
 
 
 #define VIDEO_BUFFER_COUNT 8
-#define PREVIEW_BUFFER_COUNT 4
+#define PREVIEW_BUFFER_COUNT 3
 
 namespace android {
 

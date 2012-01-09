@@ -297,6 +297,12 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     LOGI("~QCameraHardwareInterface: X");
 }
 
+bool QCameraHardwareInterface::isCameraReady()
+{
+    LOGE("isCameraReady mCameraState %d", mCameraState);
+    return (mCameraState == CAMERA_STATE_READY);
+}
+
 void QCameraHardwareInterface::release()
 {
     LOGI("release: E");

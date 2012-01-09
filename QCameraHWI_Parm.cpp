@@ -253,7 +253,7 @@ static const str_map focus_modes[] = {
     { CameraParameters::FOCUS_MODE_NORMAL,   AF_MODE_NORMAL },
     { CameraParameters::FOCUS_MODE_MACRO,    AF_MODE_MACRO },
     { CameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE, AF_MODE_CAF},
-    { CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, DONT_CARE }
+    { CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, AF_MODE_CAF }
 };
 
 static const str_map selectable_zone_af[] = {
@@ -1437,6 +1437,30 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
     return BAD_VALUE;
 }
 
+status_t QCameraHardwareInterface::updateFocusDistances(const char *focusmode)
+{
+    LOGV("%s: IN", __FUNCTION__);
+    focus_distances_info_t focusDistances;
+    if(cam_config_get_parm(mCameraId, MM_CAMERA_PARM_FOCUS_DISTANCES,
+      &focusDistances) == MM_CAMERA_OK) {
+        String8 str;
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%f", focusDistances.focus_distance[0]);
+        str.append(buffer);
+        snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[1]);
+        str.append(buffer);
+        if(strcmp(focusmode, CameraParameters::FOCUS_MODE_INFINITY) == 0)
+            snprintf(buffer, sizeof(buffer), ",%s", "Infinity");
+        else
+            snprintf(buffer, sizeof(buffer), ",%f", focusDistances.focus_distance[2]);
+        str.append(buffer);
+        LOGE("%s: setting KEY_FOCUS_DISTANCES as %s", __FUNCTION__, str.string());
+        mParameters.set(CameraParameters::KEY_FOCUS_DISTANCES, str.string());
+        return NO_ERROR;
+    }
+    LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
+    return BAD_VALUE;
+}
 
 status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
 {
@@ -1450,12 +1474,10 @@ status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_FOCUS_MODE, str);
 
-#if 0
             if(mHasAutoFocusSupport && (updateFocusDistances(str) != NO_ERROR)) {
                 LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, str);
                 return UNKNOWN_ERROR;
             }
-#endif
 
             if(mHasAutoFocusSupport){
                 int cafSupport = FALSE;

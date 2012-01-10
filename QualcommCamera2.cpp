@@ -198,7 +198,7 @@ extern "C" int  camera_device_open(
             /* we have the camera_hardware obj malloced */
             memset(camHal, 0, sizeof (camera_hardware_t));
             camHal->hardware = new QCameraHardwareInterface(cameraId, mode); //HAL_openCameraHardware(cameraId);
-            if (camHal->hardware) {
+            if (camHal->hardware && camHal->hardware->isCameraReady()) {
 				camHal->cameraId = cameraId;
 		        device = &camHal->hw_dev;
                 device->common.close = close_camera_device;
@@ -213,7 +213,7 @@ extern "C" int  camera_device_open(
     }
 	/* pass actual hw_device ptr to framework. This amkes that we actally be use memberof() macro */
     *hw_device = (hw_device_t*)&device->common;
-    LOGE("%s:  end", __func__);
+    LOGE("%s:  end rc %d", __func__, rc);
     return rc;
 }
 

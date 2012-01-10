@@ -393,8 +393,7 @@ public:
     int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
     void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
     preview_format_info_t  getPreviewFormatInfo( );
-
-
+    bool isCameraReady();
 
 
 private:
@@ -402,6 +401,8 @@ private:
     bool mUseOverlay;
 
     void initDefaultParameters();
+
+    status_t updateFocusDistances(const char *focusmode);
 
     bool native_set_parms(mm_camera_parm_type_t type, uint16_t length, void *value);
     bool native_set_parms( mm_camera_parm_type_t type, uint16_t length, void *value, int *result);

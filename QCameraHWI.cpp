@@ -1603,8 +1603,8 @@ void QCameraHardwareInterface::handleZoomEventForPreview(void)
              mPreviewWindow->set_crop(mPreviewWindow,
                             v4l2_crop.crop.left,
                             v4l2_crop.crop.top,
-                            v4l2_crop.crop.width,
-                            v4l2_crop.crop.height);
+                            v4l2_crop.crop.left + v4l2_crop.crop.width,
+                            v4l2_crop.crop.top + v4l2_crop.crop.height);
              LOGI("%s: Done setting crop", __func__);
         }
         LOGI("%s: Currrent zoom :%d",__func__, mCurrentZoom);

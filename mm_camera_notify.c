@@ -230,6 +230,7 @@ static void mm_camera_read_zsl_main_frame(mm_camera_obj_t * my_obj)
             }
         }
     }
+    mm_camera_check_pending_zsl_frames(my_obj, MM_CAMERA_CH_SNAPSHOT);
 }
 
 static void mm_camera_read_zsl_postview_frame(mm_camera_obj_t * my_obj)
@@ -259,6 +260,7 @@ static void mm_camera_read_zsl_postview_frame(mm_camera_obj_t * my_obj)
             }
         }
     }
+    mm_camera_check_pending_zsl_frames(my_obj, MM_CAMERA_CH_SNAPSHOT);
 }
 
 void mm_camera_msm_data_notify(mm_camera_obj_t * my_obj, int fd,

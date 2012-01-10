@@ -129,6 +129,7 @@ typedef struct {
     mm_camera_stream_t thumbnail;
     mm_camera_stream_t main;
     int8_t num_shots;
+	int pending_cnt;
 } mm_camera_ch_snapshot_t;
 
 typedef struct {
@@ -318,5 +319,7 @@ extern void mm_camera_msm_proc_ch_event(mm_camera_obj_t *my_obj, mm_camera_event
 extern void mm_camera_dispatch_app_event(mm_camera_obj_t *my_obj, mm_camera_event_t *event);
 extern void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_type);
 extern void mm_camera_histo_mmap(mm_camera_obj_t * my_obj, mm_camera_event_t *evt);
+extern void mm_camera_check_pending_zsl_frames(mm_camera_obj_t *my_obj,
+                                        mm_camera_channel_type_t ch_type);
 #endif /* __MM_CAMERA_H__ */
 

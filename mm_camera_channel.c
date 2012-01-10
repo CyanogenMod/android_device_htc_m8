@@ -747,7 +747,6 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
 {
     int mcnt, i, rc = MM_CAMERA_E_GENERAL;
     int num_of_req_frame = 0;
-    int cb_sent = 0;
     mm_camera_ch_data_buf_t data;
     mm_camera_frame_t *mframe = NULL, *sframe = NULL;
     mm_camera_frame_t *qmframe = NULL, *qsframe = NULL;
@@ -802,11 +801,8 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
       CDBG("%s: Number of shots requested: %d Frames available: %d",
            __func__, num_of_req_frame, mcnt);
 
-      /* Limit number of callbacks to actual frames in the queue */
-      if (num_of_req_frame > mcnt) {
-          num_of_req_frame = mcnt;
-      }
-      for(i = 0; i < num_of_req_frame; i++) {
+      ch->snapshot.pending_cnt = num_of_req_frame;
+      for(i = 0; i < mcnt; i++) {
           if(mframe && sframe) {
               CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
               /* dispatch this pair of frames */
@@ -819,14 +815,13 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
               stream1->frame.ref_count[data.snapshot.main.idx]++;
               stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
               ch->buf_cb.cb(&data, ch->buf_cb.user_data);
-              cb_sent++;
+              ch->snapshot.pending_cnt--;
           } else {
               qmframe = mframe;
               qsframe = sframe;
               rc = -1;
               break;
           }
-
           mframe = mm_camera_stream_frame_deq(mq);
           sframe = mm_camera_stream_frame_deq(sq);
       }
@@ -839,30 +834,101 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
           qsframe = NULL;
       }
 
-      /* Save number of remaining snapshots */
-      ch->snapshot.num_shots -= cb_sent;
-    }
+     }
 
-    CDBG("%s: Number of remaining snapshots: %d", __func__,
-        ch->snapshot.num_shots);
+    CDBG("%s: Number of burst: %d, pending_count: %d", __func__,
+        ch->snapshot.num_shots, ch->snapshot.pending_cnt);
 end:
     pthread_mutex_unlock(&ch->mutex);
 
-    /* If there are still some more images left to be captured, we'll call this
-       function again. That time we don't need to find the right frame based
-       on time or frame count. We just need to start from top of the frame */
-    if(ch->snapshot.num_shots) {
-        ch->buffering_frame.give_top_of_queue = 1;
+    /* If we are done sending callbacks for all the requested number of snapshots
+       send data delivery done event*/
+    if((rc == MM_CAMERA_OK) && (!ch->snapshot.pending_cnt)) {
         mm_camera_event_t data;
         data.event_type = MM_CAMERA_EVT_TYPE_CH;
-        data.e.ch.evt = MM_CAMERA_CH_EVT_DATA_REQUEST_MORE;
+        data.e.ch.evt = MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE;
         data.e.ch.ch = ch_type;
         mm_camera_poll_send_ch_event(my_obj, &data);
     }
+}
+
+/*for ZSL mode to send the image pair to client*/
+void mm_camera_check_pending_zsl_frames(mm_camera_obj_t *my_obj,
+                                        mm_camera_channel_type_t ch_type)
+{
+    int mcnt, i, rc = MM_CAMERA_E_GENERAL;
+    mm_camera_ch_data_buf_t data;
+    mm_camera_frame_t *mframe = NULL, *sframe = NULL;
+    mm_camera_frame_t *qmframe = NULL, *qsframe = NULL;
+    mm_camera_ch_t *ch = &my_obj->ch[ch_type];
+    mm_camera_frame_queue_t *mq = NULL;
+    mm_camera_frame_queue_t *sq = NULL;
+    mm_camera_stream_t *stream1 = NULL;
+    mm_camera_stream_t *stream2 = NULL;
+
+    if(!ch->snapshot.pending_cnt)
+      return;
+    mm_camera_ch_util_get_stream_objs(my_obj, ch_type, &stream1, &stream2);
+    if(stream1) {
+      mq = &stream1->frame.readyq;
+    }
+    if(stream2) {
+      sq = &stream2->frame.readyq;
+    }
+
+    pthread_mutex_lock(&ch->mutex);
+
+    if (mq && sq && stream1 && stream2) {
+        /* Some requirements are such we'll first need to empty the buffered
+           queue - like for HDR. If we need to empty the buffered queue first,
+           let's empty it here.*/
+        if(ch->buffering_frame.empty_queue) {
+            CDBG("%s: Emptying the queue first before dispatching!", __func__);
+            mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+            mm_camera_channel_deq_x_frames(my_obj, mq, sq, stream1, stream2, mcnt);
+            ch->buffering_frame.empty_queue = 0;
+            goto end;
+        }
+        while(ch->snapshot.pending_cnt > 0) {
+            mframe = mm_camera_stream_frame_deq(mq);
+            sframe = mm_camera_stream_frame_deq(sq);
+            if(mframe && sframe) {
+                CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
+                /* dispatch this pair of frames */
+                memset(&data, 0, sizeof(data));
+                data.type = ch_type;
+                data.snapshot.main.frame = &mframe->frame;
+                data.snapshot.main.idx = mframe->idx;
+                data.snapshot.thumbnail.frame = &sframe->frame;
+                data.snapshot.thumbnail.idx = sframe->idx;
+                stream1->frame.ref_count[data.snapshot.main.idx]++;
+                stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
+                ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+                ch->snapshot.pending_cnt--;
+            } else {
+                qmframe = mframe;
+                qsframe = sframe;
+                rc = -1;
+                break;
+            }
+        }
+        if(qmframe) {
+            mm_camera_stream_frame_enq(mq, &stream1->frame.frame[qmframe->idx]);
+            qmframe = NULL;
+        }
+        if(qsframe) {
+            mm_camera_stream_frame_enq(sq, &stream2->frame.frame[qsframe->idx]);
+            qsframe = NULL;
+        }
+     }
+    CDBG("%s: Number of burst: %d, pending_count: %d", __func__,
+        ch->snapshot.num_shots, ch->snapshot.pending_cnt);
+end:
+    pthread_mutex_unlock(&ch->mutex);
 
     /* If we are done sending callbacks for all the requested number of snapshots
        send data delivery done event*/
-    if((rc == MM_CAMERA_OK) && (!ch->snapshot.num_shots)) {
+    if((rc == MM_CAMERA_OK) && (!ch->snapshot.pending_cnt)) {
         mm_camera_event_t data;
         data.event_type = MM_CAMERA_EVT_TYPE_CH;
         data.e.ch.evt = MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE;

@@ -1347,6 +1347,7 @@ QualcommCameraHardware::QualcommCameraHardware()
        mThumbnailMapped[i] = NULL;
 	}
     mRawSnapshotMapped = NULL;
+    mJpegCopyMapped = NULL;
 	for(int i=0; i< RECORD_BUFFERS; i++) {
         mRecordMapped[i] = NULL;
     }
@@ -3978,6 +3979,10 @@ bool QualcommCameraHardware::deinitZslBuffers()
 #endif
         }
     }
+    if(NULL != mJpegCopyMapped) {
+        mJpegCopyMapped->release(mJpegCopyMapped);
+        mJpegCopyMapped = NULL;
+    }
     LOGE("deinitZslBuffers X");
     return true;
 }
@@ -4427,6 +4432,10 @@ void QualcommCameraHardware::deinitRaw()
             deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
 #endif
         }
+    }
+    if(NULL != mJpegCopyMapped) {
+        mJpegCopyMapped->release(mJpegCopyMapped);
+        mJpegCopyMapped = NULL;
     }
     if( mPreviewWindow != NULL ) {
         LOGE("deinitRaw , clearing/cancelling thumbnail buffers:");
@@ -6654,7 +6663,6 @@ bool QualcommCameraHardware::initRecord()
 #endif
     LOGE("%s  Record fd is %d ", __func__, mRecordfd[cnt]);
         mRecordMapped[cnt]=mGetMemory(mRecordfd[cnt], mRecordFrameSize,1,mCallbackCookie);
-        LOGE("sravnak initrecord 14");
         if(mRecordMapped==NULL) {
             LOGE("Failed to get camera memory for mRecordMapped heap");
         }else{
@@ -7375,7 +7383,12 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
                 encodedMem->release(encodedMem);
                 LOGE("%s release memory",__FUNCTION__);
               } else{
-                 mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,mJpegMapped[index],data_counter,NULL,mCallbackCookie);
+                  mJpegCopyMapped = mGetMemory(-1, encoded_buffer->filled_size,1, mCallbackCookie);
+                  if(!mJpegCopyMapped){
+                    LOGE("%s: mGetMemory failed.\n", __func__);
+                  }
+                  memcpy(mJpegCopyMapped->data, mJpegMapped[index]->data, encoded_buffer->filled_size );
+                  mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,mJpegCopyMapped,data_counter,NULL,mCallbackCookie);
               }
             }
            // buffer = NULL;

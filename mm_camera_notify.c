@@ -52,7 +52,8 @@ static void mm_camera_read_raw_frame(mm_camera_obj_t * my_obj)
         return;
     }
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_RAW].mutex);
-    if(my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb) {
+    if((my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb) &&
+            (my_obj->poll_threads[MM_CAMERA_CH_RAW].data.used == 1)){
         mm_camera_ch_data_buf_t data;
         data.type = MM_CAMERA_CH_RAW;
         data.def.idx = idx;
@@ -61,10 +62,8 @@ static void mm_camera_read_raw_frame(mm_camera_obj_t * my_obj)
         CDBG("%s:calling data notify cb 0x%x, 0x%x\n", __func__,
                  (uint32_t)my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb,
                  (uint32_t)my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.user_data);
-        if(my_obj->poll_threads[MM_CAMERA_CH_RAW].data.used == 1){
-            my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb(&data,
+        my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.cb(&data,
                                     my_obj->ch[MM_CAMERA_CH_RAW].buf_cb.user_data);
-        }
     }
     pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_RAW].mutex);
 }
@@ -81,7 +80,8 @@ static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
         return;
     }
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
-    if(my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb) {
+    if((my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb) &&
+            (my_obj->poll_threads[MM_CAMERA_CH_PREVIEW].data.used == 1)) {
         mm_camera_ch_data_buf_t data;
         data.type = MM_CAMERA_CH_PREVIEW;
         data.def.idx = idx;
@@ -90,10 +90,8 @@ static void mm_camera_read_preview_frame(mm_camera_obj_t * my_obj)
         CDBG("%s:calling data notify cb 0x%x, 0x%x\n", __func__,
                  (uint32_t)my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb,
                  (uint32_t)my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.user_data);
-        if(my_obj->poll_threads[MM_CAMERA_CH_PREVIEW].data.used == 1) {
-            my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb(&data,
+        my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.cb(&data,
                                     my_obj->ch[MM_CAMERA_CH_PREVIEW].buf_cb.user_data);
-        }
     }
     pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
 }
@@ -106,7 +104,8 @@ static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
     s_q =   &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq;
     t_q =   &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.readyq;
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
-    if(s_q->cnt && t_q->cnt && my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb) {
+    if((s_q->cnt && t_q->cnt && my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb) &&
+            (my_obj->poll_threads[MM_CAMERA_CH_SNAPSHOT].data.used == 1)) {
         data.type = MM_CAMERA_CH_SNAPSHOT;
         frame = mm_camera_stream_frame_deq(s_q);
         data.snapshot.main.frame = &frame->frame;
@@ -116,10 +115,8 @@ static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
         data.snapshot.thumbnail.idx = frame->idx;
         my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.ref_count[data.snapshot.main.idx]++;
         my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.thumbnail.frame.ref_count[data.snapshot.thumbnail.idx]++;
-        if(my_obj->poll_threads[MM_CAMERA_CH_SNAPSHOT].data.used == 1){
-            my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb(&data,
-                                    my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.user_data);
-        }
+        my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.cb(&data,
+                                my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb.user_data);
         my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots -= 1;
         delivered = 1;
     }
@@ -175,7 +172,8 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
     if (idx < 0)
         return;
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
-    if(my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb) {
+    if((my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb) &&
+            (my_obj->poll_threads[MM_CAMERA_CH_VIDEO].data.used == 1)) {
         mm_camera_ch_data_buf_t data;
         data.type = MM_CAMERA_CH_VIDEO;
         data.video.main.frame = NULL;
@@ -184,10 +182,8 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
         data.video.video.frame = &my_obj->ch[MM_CAMERA_CH_VIDEO].video.video.
             frame.frame[idx].frame;
         my_obj->ch[MM_CAMERA_CH_VIDEO].video.video.frame.ref_count[idx]++;
-        if(my_obj->poll_threads[MM_CAMERA_CH_VIDEO].data.used == 1){
-            my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb(&data,
-                                    my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.user_data);
-        }
+        my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.cb(&data,
+                                my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb.user_data);
     }
     pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
 }

@@ -2059,6 +2059,22 @@ void QualcommCameraHardware::initDefaultParameters()
     if(mIs3DModeOn)
         mParameters.set("3d-frame-format", "left-right");
 
+    switch(mCurrentTarget){
+        case TARGET_MSM7627:
+        case TARGET_QSD8250:
+        case TARGET_MSM7630:
+           mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, "800x480");
+           break;
+        case TARGET_MSM7627A:
+            mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, "864x480");
+            break;
+        case TARGET_MSM8660:
+            mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, "1920x1088");
+            break;
+        default:
+            mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, "640x480");
+            break;
+    }
     if (setParameters(mParameters) != NO_ERROR) {
         LOGE("Failed to set default parameters?!");
     }

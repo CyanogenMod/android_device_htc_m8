@@ -2830,6 +2830,7 @@ status_t QCameraHardwareInterface::setPreviewSizeTable(void)
     struct camera_size_type* preview_size_table;
     int preview_table_size;
     int i = 0;
+    char str[10] = {0};
 
     /* Initialize table with default values */
     preview_size_table = default_preview_sizes;
@@ -2848,6 +2849,8 @@ status_t QCameraHardwareInterface::setPreviewSizeTable(void)
 
     LOGD("%s: Max Preview Sizes Supported: %d X %d", __func__,
          dim.width, dim.height);
+    sprintf(str, "%dx%d", dim.width, dim.height);
+    mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, str);
 
     for (i = 0; i < preview_table_size; i++) {
         if ((preview_size_table->width <= dim.width) &&

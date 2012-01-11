@@ -187,14 +187,14 @@ static int mm_camera_stream_util_proc_get_crop(mm_camera_obj_t *my_obj,
 int32_t mm_camera_util_s_ctrl( int32_t fd,  uint32_t id, int32_t value)
 {
     int rc = MM_CAMERA_OK;
-  struct v4l2_control control;
+    struct v4l2_control control;
 
     memset(&control, 0, sizeof(control));
     control.id = id;
     control.value = value;
     rc = ioctl (fd, VIDIOC_S_CTRL, &control);
-    if(rc) {
-        CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %d\n",
+    if(rc && rc!=-EAGAIN) {
+        CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %ld\n",
                  __func__, fd, id, (uint32_t)value, rc);
         rc = MM_CAMERA_E_GENERAL;
     }

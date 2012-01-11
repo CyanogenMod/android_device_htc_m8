@@ -487,12 +487,12 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
             return -EINVAL;
       }
       for(int i = 0; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
-		  LOGE("h1: %p h2: %p\n", mHalCamCtrl->mPreviewMemory.buffer_handle[i], buffer_handle);
+		  LOGD("h1: %p h2: %p\n", mHalCamCtrl->mPreviewMemory.buffer_handle[i], buffer_handle);
 		  if(mHalCamCtrl->mPreviewMemory.buffer_handle[i] == buffer_handle) {
 	          mm_camera_ch_data_buf_t tmp_frame;
                   mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_LOCKED;
               if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {
-                  LOGE("BUF DONE FAILED");
+                  LOGD("BUF DONE FAILED");
                   mHalCamCtrl->mPreviewMemoryLock.unlock();
                   return BAD_VALUE;
               }
@@ -509,7 +509,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   mHalCamCtrl->mCallbackLock.lock();
   camera_data_callback pcb = mHalCamCtrl->mDataCb;
   mHalCamCtrl->mCallbackLock.unlock();
-  LOGI("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
+  LOGD("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
 
   if (pcb != NULL) {
       //Sending preview callback if corresponding Msgs are enabled
@@ -519,7 +519,6 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
       } else {
           data = NULL;
       }
-
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_METADATA){
           msgType  |= CAMERA_MSG_PREVIEW_METADATA;
           metadata = &mHalCamCtrl->mMetadata;
@@ -530,7 +529,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
           mStopCallbackLock.unlock();
           pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
       }
-	  LOGE("end of cb");
+	  LOGD("end of cb");
   }
 
   /* Save the last displayed frame. We'll be using it to fill the gap between

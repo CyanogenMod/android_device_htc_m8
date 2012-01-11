@@ -223,8 +223,12 @@ receiveCompleteJpegPicture(jpeg_event_t event)
 {
     int msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
     LOGE("%s: E", __func__);
+    camera_memory_t *encodedMem = NULL;
+    camera_data_callback jpg_data_cb = NULL;
+    bool fail_cb_flag = false;
+
     //Mutex::Autolock l(&snapshotLock);
-    Mutex::Autolock lock(mStopCallbackLock);
+    mStopCallbackLock.lock( );
     if(!mActive) {
         LOGE("Cancel Picture");
         goto end;
@@ -242,6 +246,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     /* If for some reason jpeg heap is NULL we'll just return */
     #if 0
     if (mJpegHeap == NULL) {
+      mStopCallbackLock.unlock();
         return;
     }
     #endif
@@ -261,19 +266,25 @@ receiveCompleteJpegPicture(jpeg_event_t event)
             mHalCamCtrl);
         if (!encodedMem || !encodedMem->data) {
             LOGE("%s: mGetMemory failed.\n", __func__);
-            return;
+            goto end;
         }
-      mStopCallbackLock.unlock();
+      LOGE("%s: data Cb", __func__);
       if(mActive){
-          mHalCamCtrl->mDataCb(msg_type,
-                               encodedMem, 0, NULL,
-                               mHalCamCtrl->mCallbackCookie);
+          jpg_data_cb  = mHalCamCtrl->mDataCb;
       }
-      encodedMem->release(encodedMem);
+
+      mStopCallbackLock.unlock( );
+      if (jpg_data_cb != NULL) {
+        jpg_data_cb (msg_type,
+                             encodedMem, 0, NULL,
+                             mHalCamCtrl->mCallbackCookie);
+        encodedMem->release( encodedMem );
+        jpg_data_cb = NULL;
+      }
+      mStopCallbackLock.lock( );
     } else {
       LOGW("%s: JPEG callback was cancelled--not delivering image.", __func__);
     }
-
 
     //reset jpeg_offset
     mJpegOffset = 0;
@@ -312,7 +323,10 @@ end:
         LOGI("%s: JPEG Queue not empty. Dequeue and encode.", __func__);
         mm_camera_ch_data_buf_t* buf =
             (mm_camera_ch_data_buf_t *)mSnapshotQueue.dequeue();
-        encodeDisplayAndSave(buf, 1);
+        //encodeDisplayAndSave(buf, 1);
+        if ( NO_ERROR != encodeDisplayAndSave(buf, 1)){
+          fail_cb_flag = true;
+        }
     }
     else
     {
@@ -328,6 +342,20 @@ end:
                 setZSLChannelAttribute();
             }
         }
+    }
+
+    if(fail_cb_flag && mHalCamCtrl->mDataCb &&
+        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+        /* get picture failed. Give jpeg callback with NULL data
+         * to the application to restore to preview mode
+         */
+        jpg_data_cb  = mHalCamCtrl->mDataCb;
+    }
+    mStopCallbackLock.unlock( );
+    if(jpg_data_cb != NULL) {
+      jpg_data_cb (CAMERA_MSG_COMPRESSED_IMAGE,
+                   NULL, 0, NULL,
+                   mHalCamCtrl->mCallbackCookie);
     }
 
     LOGD("%s: X", __func__);
@@ -1010,7 +1038,7 @@ status_t QCameraStream_Snapshot::initRawSnapshot(int num_of_snapshots)
          dim.raw_picture_width,
          dim.raw_picture_height);
 
-   
+
     ret = initRawSnapshotChannel(&dim, num_of_snapshots);
     if (NO_ERROR != ret) {
         LOGE("%s: error - can't init nonZSL stream!", __func__);
@@ -1302,7 +1330,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     if((getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) ||
        (!mSnapshotQueue.isEmpty() && !enqueued)){
         /* encoding is going on. Just queue the frame for now.*/
-        LOGD("%s: JPEG encoding in progress."
+        LOGE("%s: JPEG encoding in progress."
              "Enqueuing frame id(%d) for later processing.", __func__,
              recvd_frame->snapshot.main.idx);
         mSnapshotQueue.enqueue((void *)recvd_frame);
@@ -1415,13 +1443,22 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
 {
     //image_rect_type size;
     int32_t ext1 = 0, ext2 = 0;
+    int32_t shutterMsg;
+
+    camera_notify_callback         notifyCb;
     LOGD("%s: E", __func__);
 
+    mStopCallbackLock.lock();
     ext2 = mPlayShutterSoundOnly;
     LOGD("%s: Calling callback to play shutter sound", __func__);
-    mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
+    notifyCb =  mHalCamCtrl->mNotifyCb;
+    shutterMsg = mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER;
+    mStopCallbackLock.unlock();
+
+    if( notifyCb ) {
+      notifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
                                  mHalCamCtrl->mCallbackCookie);
-    if(mPlayShutterSoundOnly) {
+      if(mPlayShutterSoundOnly) {
         /* At this point, invoke Notify Callback to play shutter sound only.
          * We want to call notify callback again when we have the
          * yuv picture ready. This is to reduce blanking at the time
@@ -1430,13 +1467,13 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
          */
          ext2 = mPlayShutterSoundOnly;
         LOGD("%s: Calling callback to play shutter sound", __func__);
-        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
-                                     mHalCamCtrl->mCallbackCookie);
+        notifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
+                   mHalCamCtrl->mCallbackCookie);
         return;
     }
 
-    if (mHalCamCtrl->mNotifyCb &&
-        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_SHUTTER)) {
+
+    if (shutterMsg ) {
         mDisplayHeap = mPostviewHeap;
         if (crop != NULL && (crop->in1_w != 0 && crop->in1_h != 0)) {
             LOGD("%s: Size from cropinfo: %dX%d", __func__,
@@ -1455,8 +1492,9 @@ void QCameraStream_Snapshot::notifyShutter(common_crop_t *crop,
          * as 0 to indicate not to play shutter sound.
          */
 
-        mHalCamCtrl->mNotifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
+        notifyCb(CAMERA_MSG_SHUTTER, ext1, ext2,
                                      mHalCamCtrl->mCallbackCookie);
+      }
     }
     LOGD("%s: X", __func__);
 }
@@ -1484,6 +1522,7 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     if (ret != NO_ERROR) {
         LOGE("%s: Failure configuring JPEG encoder", __func__);
 
+        #if 0
         /* Failure encoding this frame. Just notify upper layer
            about it.*/
         if(mHalCamCtrl->mDataCb &&
@@ -1495,6 +1534,7 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
                                        NULL, 0, NULL,
                                        mHalCamCtrl->mCallbackCookie);
         }
+        #endif
         goto end;
     }
 
@@ -1502,41 +1542,8 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     /* If it's burst mode, we won't be displaying postview of all the captured
        images - only the first one */
     LOGD("%s: Burst mode flag  %d", __func__, mBurstModeFlag);
+
     #if 0
-    if (!mBurstModeFlag) {
-        postview_frame = recvd_frame->snapshot.thumbnail.frame;
-        LOGD("%s: Displaying Postview Image", __func__);
-        offset_addr = (ssize_t)postview_frame->buffer -
-            (ssize_t)mPostviewHeap->mHeap->base();
-        if(mHalCamCtrl->mUseOverlay) {
-            mHalCamCtrl->mOverlayLock.lock();
-            if(mHalCamCtrl->mOverlay != NULL) {
-                mHalCamCtrl->mOverlay->setFd(postview_frame->fd);
-                    if (mCrop.snapshot.thumbnail_crop.height != 0 &&
-                        mCrop.snapshot.thumbnail_crop.width != 0) {
-                        mHalCamCtrl->mOverlay->setCrop(
-                            mCrop.snapshot.thumbnail_crop.left,
-                            mCrop.snapshot.thumbnail_crop.top,
-                            mCrop.snapshot.thumbnail_crop.width,
-                            mCrop.snapshot.thumbnail_crop.height);
-                    }else {
-                        mHalCamCtrl->mOverlay->setCrop(0, 0,
-                                                       mPostviewWidth,
-                                                       mPostviewHeight);
-                    }
-                LOGD("%s: Queueing Postview for display", __func__);
-                mHalCamCtrl->mOverlay->queueBuffer((void *)offset_addr);
-            }
-            mHalCamCtrl->mOverlayLock.unlock();
-        }
-
-        /* Set flag so that we won't display postview for all the captured
-           images in case of burst mode */
-        LOGD("%s: Setting burst mode flag to true - current: %d", __func__, mBurstModeFlag);
-        mBurstModeFlag = true;
-    }
-    #endif
-
     // send upperlayer callback for raw image (data or notify, not both)
     if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
             mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
@@ -1545,6 +1552,7 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     else if((mHalCamCtrl->mNotifyCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)){
              mHalCamCtrl->mNotifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
     }
+    #endif
 end:
     LOGD("%s: X", __func__);
     return ret;
@@ -1554,33 +1562,20 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
 {
     int buf_index = 0;
     common_crop_t crop;
+    int rc = NO_ERROR;
+
+    camera_notify_callback         notifyCb;
+    camera_data_callback           dataCb, jpgDataCb;
 
     LOGD("%s: E ", __func__);
-    Mutex::Autolock lock(mStopCallbackLock);
+
     if(!mActive) {
         return NO_ERROR;
     }
 
-
-/*    char buf[25];
-    static int loop = 0;
-    memset(buf, 0, sizeof(buf));
-    snprintf(buf, sizeof(buf), "/data/main_frame-%d.yuv",loop);
-    mm_app_dump_snapshot_frame(buf,
-                               (const void *)recvd_frame->snapshot.main.frame->buffer,
-                               mSnapshotStreamBuf.frame_len);
-
-    memset(buf, 0, sizeof(buf));
-    snprintf(buf, sizeof(buf), "/data/thumb_frame-%d.yuv",loop++);
-    mm_app_dump_snapshot_frame(buf,
-                               (const void *)recvd_frame->snapshot.thumbnail.frame->buffer,
-                               mPostviewStreamBuf.frame_len);
-*/
-
     mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
     mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame, HAL_DUMP_FRM_THUMBNAIL);
 
-    LOGE("%s: after dump", __func__);
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
         LOGD("%s: Call notifyShutter 2nd time", __func__);
@@ -1590,18 +1585,23 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
         notifyShutter(&crop, FALSE);
         mHalCamCtrl->mShutterSoundPlayed = FALSE;
 
+        mStopCallbackLock.lock( );
         LOGD("%s: Sending Raw Snapshot Callback to Upperlayer", __func__);
         buf_index = recvd_frame->def.idx;
 
-        if (mHalCamCtrl->mDataCb &&
+        if (mHalCamCtrl->mDataCb && mActive &&
             (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)){
-                mStopCallbackLock.unlock();
-                if(mActive) {
-                    mHalCamCtrl->mDataCb(
-                        CAMERA_MSG_COMPRESSED_IMAGE,
-                        mHalCamCtrl->mRawMemory.camera_memory[buf_index], 0, NULL,
-                        mHalCamCtrl->mCallbackCookie);
-                }
+          dataCb = mHalCamCtrl->mDataCb;
+        } else {
+          dataCb = NULL;
+        }
+        mStopCallbackLock.unlock();
+
+        if(dataCb) {
+            dataCb(
+                CAMERA_MSG_COMPRESSED_IMAGE,
+                mHalCamCtrl->mRawMemory.camera_memory[buf_index], 0, NULL,
+                mHalCamCtrl->mCallbackCookie);
         }
         /* TBD: Temp: To be removed once event handling is enabled */
         mm_app_snapshot_done();
@@ -1638,14 +1638,65 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
             return BAD_VALUE;
         }
         memcpy(frame, recvd_frame, sizeof(mm_camera_ch_data_buf_t));
-        mStopCallbackLock.unlock();
-        if ( NO_ERROR != encodeDisplayAndSave(frame, 0)){
+
+        mStopCallbackLock.lock();
+        rc = encodeDisplayAndSave(frame, 0);
+
+
+        // send upperlayer callback for raw image (data or notify, not both)
+        if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
+          dataCb = mHalCamCtrl->mDataCb;
+        } else {
+          dataCb = NULL;
+        }
+        if((mHalCamCtrl->mNotifyCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)){
+          notifyCb = mHalCamCtrl->mNotifyCb;
+        } else {
+          notifyCb = NULL;
+        }
+
+        if (rc != NO_ERROR)
+        {
             LOGE("%s: Error while encoding/displaying/saving image", __func__);
+            cam_evt_buf_done(mCameraId, recvd_frame);
+
+            if(mHalCamCtrl->mDataCb &&
+                (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+                /* get picture failed. Give jpeg callback with NULL data
+                 * to the application to restore to preview mode
+                 */
+                jpgDataCb = mHalCamCtrl->mDataCb;
+            }
+
+            LOGE("%s: encode err so data cb", __func__);
+            mStopCallbackLock.unlock();
+            if (dataCb) {
+              dataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
+                                   1, NULL, mHalCamCtrl->mCallbackCookie);
+            }
+            if (notifyCb) {
+              notifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
+            }
+            if (jpgDataCb) {
+              jpgDataCb(CAMERA_MSG_COMPRESSED_IMAGE,
+                                       NULL, 0, NULL,
+                                       mHalCamCtrl->mCallbackCookie);
+            }
+
             if (frame != NULL) {
                 free(frame);
             }
-        }
+        } else {
 
+          mStopCallbackLock.unlock();
+          if (dataCb) {
+            dataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
+                                 1, NULL, mHalCamCtrl->mCallbackCookie);
+          }
+          if (notifyCb) {
+            notifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
+          }
+        }
     }
 
     LOGD("%s: X", __func__);

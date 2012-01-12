@@ -219,7 +219,19 @@ int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
     return TRUE;
 }
 
-int8_t omxJpegInit()
+int8_t omxJpegOpen()
+{
+    OMX_DBG_INFO("%s", __func__);
+    pthread_mutex_lock(&jpege_mutex);
+    OMX_ERRORTYPE ret = OMX_GetHandle(&pHandle,
+      "OMX.qcom.image.jpeg.encoder",
+      NULL,
+      &callbacks);
+    pthread_mutex_unlock(&jpege_mutex);
+    return TRUE;
+}
+
+int8_t omxJpegStart()
 {
     LOGE("%s", __func__);
     pthread_mutex_lock(&jpege_mutex);
@@ -228,26 +240,56 @@ int8_t omxJpegInit()
     callbacks.EventHandler = eventHandler;
     pthread_mutex_init(&lock, NULL);
     pthread_cond_init(&cond, NULL);
-
+#if 0
     OMX_ERRORTYPE ret = OMX_GetHandle(&pHandle,
     "OMX.qcom.image.jpeg.encoder",
     NULL,
     &callbacks);
+#endif
     pthread_mutex_unlock(&jpege_mutex);
-    return 0;
+    return TRUE;
 }
 
-int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params) {
-
+int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
+{
+    pthread_mutex_lock(&jpege_mutex);
     encoding = 1;
-    inputPort = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    outputPort = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-    inputPort1 = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    /* Thumbnail buffer details */
+    pmem_info1.fd = encode_params->thumbnail_fd;
+    pmem_info1.offset = 0;
+    OMX_UseBuffer(pHandle, &pInBuffers1, 2, &pmem_info1, inputPort1->nBufferSize,
+      (void *) encode_params->thumbnail_buf);
+
+    /* main buffer details */
+    pmem_info.fd = encode_params->snapshot_fd;
+    pmem_info.offset = 0;
+    OMX_UseBuffer(pHandle, &pInBuffers, 0, &pmem_info, size,
+      (void *) encode_params->snapshot_buf);
+    OMX_UseBuffer(pHandle, &pOutBuffers, 1, NULL, size, (void *) out_buffer);
+    waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateIdle);
+    OMX_DBG_INFO("In LibCamera : State changed to OMX_StateIdle\n");
+    OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateExecuting, NULL);
+    waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateExecuting);
+
+    OMX_EmptyThisBuffer(pHandle, pInBuffers);
+    OMX_EmptyThisBuffer(pHandle, pInBuffers1);
+    OMX_FillThisBuffer(pHandle, pOutBuffers);
+    pthread_mutex_unlock(&jpege_mutex);
+    return TRUE;
+}
+
+int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
+{
     int size = 0;
     uint8_t num_planes;
     uint32_t planes[10];
 
+    inputPort = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    outputPort = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+    inputPort1 = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
+
     pthread_mutex_lock(&jpege_mutex);
+    encoding = 1;
     inputPort->nPortIndex = INPUT_PORT;
     outputPort->nPortIndex = OUTPUT_PORT;
     inputPort1->nPortIndex = INPUT_PORT1;
@@ -420,7 +462,6 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params) {
 
     OMX_UseBuffer(pHandle, &pOutBuffers, 1, NULL, size, (void *) out_buffer);
 
-
     waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateIdle);
     LOGE("In LibCamera : State changed to OMX_StateIdle\n");
     OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateExecuting, NULL);
@@ -433,29 +474,30 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params) {
     return 1;
 }
 
-void omxJpegJoin(){
+void omxJpegFinish(){
     pthread_mutex_lock(&jpege_mutex);
     if (encoding) {
         LOGE("%s", __func__);
         encoding = 0;
         OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
-        /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateIdle);*/
         OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
         OMX_FreeBuffer(pHandle, 0, pInBuffers);
         OMX_FreeBuffer(pHandle, 2, pInBuffers1);
         OMX_FreeBuffer(pHandle, 1, pOutBuffers);
-        /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateLoaded);*/
         OMX_Deinit();
-
     }
     pthread_mutex_unlock(&jpege_mutex);
 }
 
-void omxJpegClose(){
-    LOGE("%s", __func__);
+void omxJpegClose()
+{
+    OMX_DBG_INFO("%s:E", __func__);
+    OMX_Deinit();
+    OMX_FreeHandle(pHandle);
+    OMX_DBG_INFO("%s:X", __func__);
 }
 
-void omxJpegCancel()
+void omxJpegAbort()
 {
     pthread_mutex_lock(&jpegcb_mutex);
     mmcamera_jpegfragment_callback = NULL;

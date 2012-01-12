@@ -302,11 +302,14 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         cam_evt_buf_done(mCameraId, mCurrentFrameEncoded);
     }
 end:
-    LOGD("%s: Before omxJpegJoin", __func__);
-    omxJpegJoin();
-    LOGD("%s: After omxJpegJoin", __func__);
+    LOGD("%s: Before omxJpegFinish", __func__);
+    omxJpegFinish();
+    LOGD("%s: After omxJpegFinish", __func__);
+#if 0
     omxJpegClose();
     LOGD("%s: After omxJpegClose", __func__);
+#endif
+
     /* free the resource we allocated to maintain the structure */
     //mm_camera_do_munmap(main_fd, (void *)main_buffer_addr, mSnapshotStreamBuf.frame_len);
     if(mCurrentFrameEncoded) {
@@ -1365,7 +1368,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         LOGD(" Passing my obj: %x", (unsigned int) this);
         set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this,
              mHalCamCtrl->mJpegMemory.camera_memory[0]->data, &mJpegOffset);
-        omxJpegInit();
+        omxJpegStart();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
 
         LOGD("%s: Dimension to encode: main: %dx%d thumbnail: %dx%d", __func__,
@@ -2003,7 +2006,7 @@ void QCameraStream_Snapshot::stop(void)
 
             if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
                 LOGV("Destroy Jpeg Instance");
-                omxJpegCancel();
+                omxJpegAbort();
             }
 
             /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
@@ -2033,9 +2036,10 @@ void QCameraStream_Snapshot::stop(void)
        upper-layer during disconnect. So we need to deinit everything
        whatever state we are in */
     LOGV("Calling omxjpegjoin from release\n");
-    omxJpegJoin();
+    omxJpegFinish();
+#if 0
     omxJpegClose();
-
+#endif
     LOGV("%s: X", __func__);
 
 }

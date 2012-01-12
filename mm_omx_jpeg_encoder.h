@@ -31,8 +31,6 @@
 #include <linux/ion.h>
 #include "camera.h"
 
-int8_t  omxJpegInit();
-
 typedef struct omx_jpeg_encode_params_t {
     const cam_ctrl_dimension_t * dimension;
     const uint8_t * thumbnail_buf;
@@ -50,11 +48,13 @@ typedef struct omx_jpeg_encode_params_t {
 
 }omx_jpeg_encode_params;
 
+int8_t omxJpegOpen();
+int8_t omxJpegStart();
 int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params);
-
-void omxJpegJoin();
+void omxJpegFinish();
 void omxJpegClose();
-void omxJpegCancel();
+void omxJpegAbort();
+
 int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality);
 int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality);
 int8_t mm_jpeg_encoder_setRotation(int rotation);

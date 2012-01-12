@@ -2679,7 +2679,6 @@ void QualcommCameraHardware::runFrameThread(void *data)
     //ANativeWindow is a new one(camera-camcorder switch case) because the app passed a new
     //surface then buffers will be re-allocated and not returned from the old pool.
     relinquishBuffers();
-
     mPreviewBusyQueue.flush();
     /* Flush the Free Q */
     LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
@@ -5275,7 +5274,8 @@ void QualcommCameraHardware::stopPreview()
                 // unregister , unmap and release as well
                 int mBufferSize = previewWidth * previewHeight * 3/2;
                 int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
-                if(mThumbnailMapped[cnt] && (mSnapshotFormat == PICTURE_FORMAT_JPEG)) {
+                if(mThumbnailMapped[cnt]  && (mSnapshotFormat == PICTURE_FORMAT_JPEG)
+                          || mZslEnable) {
                     LOGE("%s:  Unregistering Thumbnail Buffer %d ", __FUNCTION__, handle->fd);
                     register_buf(mBufferSize,
                         mBufferSize, mCbCrOffset, 0,

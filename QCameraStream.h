@@ -321,6 +321,7 @@ private:
     int                     mThumbSize;
 	camera_memory_t        *mCameraMemoryPtrMain[mMaxSnapshotBufferCount];
 	camera_memory_t        *mCameraMemoryPtrThumb[mMaxSnapshotBufferCount];
+    int                     mJpegSessionId;
 	int                     dump_fd;
 }; // QCameraStream_Snapshot
 

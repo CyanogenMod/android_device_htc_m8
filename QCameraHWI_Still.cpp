@@ -234,30 +234,14 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         goto end;
     }
 
-    // Save jpeg for debugging
-/*  static int loop = 0;
-    char buf[25];
-    memset(buf, 0, sizeof(buf));
-    snprintf(buf,sizeof(buf), "/data/snapshot_%d.jpg",loop++);
-    mm_app_dump_snapshot_frame(buf,(const void *)mJpegHeap->mHeap->base(),
-                               mJpegOffset);
-*/
-
     /* If for some reason jpeg heap is NULL we'll just return */
-    #if 0
-    if (mJpegHeap == NULL) {
-      mStopCallbackLock.unlock();
-        return;
-    }
-    #endif
 
     LOGE("%s: Calling upperlayer callback to store JPEG image", __func__);
     msg_type = isLiveSnapshot() ?
         (int)MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : (int)CAMERA_MSG_COMPRESSED_IMAGE;
 
     mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
-    if (mHalCamCtrl->mDataCb &&
-        (mHalCamCtrl->mMsgEnabled & msg_type)) {
+    if (mHalCamCtrl->mDataCb && (mHalCamCtrl->mMsgEnabled & msg_type)) {
 
         // Create camera_memory_t object backed by the same physical
         // memory but with actual bitstream size.
@@ -302,13 +286,6 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         cam_evt_buf_done(mCameraId, mCurrentFrameEncoded);
     }
 end:
-    LOGD("%s: Before omxJpegFinish", __func__);
-    omxJpegFinish();
-    LOGD("%s: After omxJpegFinish", __func__);
-#if 0
-    omxJpegClose();
-    LOGD("%s: After omxJpegClose", __func__);
-#endif
 
     /* free the resource we allocated to maintain the structure */
     //mm_camera_do_munmap(main_fd, (void *)main_buffer_addr, mSnapshotStreamBuf.frame_len);
@@ -333,6 +310,10 @@ end:
     }
     else
     {
+
+      LOGD("%s: Before omxJpegFinish", __func__);
+      omxJpegFinish();
+      LOGD("%s: After omxJpegFinish", __func__);
         /* getRemainingSnapshots call will give us number of snapshots still
            remaining after flushing current zsl buffer once*/
         if (mNumOfRecievedJPEG == mNumOfSnapshot) {
@@ -1232,11 +1213,6 @@ takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
             /* get picture failed. Give jpeg callback with NULL data
              * to the application to restore to preview mode
              */
-#if 0 //mzhu, fix me in snapshot bring up
-            mHalCamCtrl->mDataCb(MEDIA_RECORDER_MSG_COMPRESSED_IMAGE,
-                                       NULL,
-                                       mHalCamCtrl->mCallbackCookie);
-#endif //mzhu
         }
         setModeLiveSnapshot(false);
         goto end;
@@ -1331,14 +1307,30 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
        one too till its turn comes (only if it's not already
        queued up there)*/
     if((getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) ||
-       (!mSnapshotQueue.isEmpty() && !enqueued)){
+       (!mSnapshotQueue.isEmpty() && !enqueued)){ /*busy and new buffer*/
         /* encoding is going on. Just queue the frame for now.*/
         LOGE("%s: JPEG encoding in progress."
              "Enqueuing frame id(%d) for later processing.", __func__,
              recvd_frame->snapshot.main.idx);
         mSnapshotQueue.enqueue((void *)recvd_frame);
-    }
-    else {
+    } else if (enqueued) { /*not busy and old buffer (continue job)*/
+
+      /*since this is the continue job, we only care about the input buffer*/
+      encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
+      encode_params.thumbnail_fd = postviewframe->fd;
+      encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
+      encode_params.snapshot_fd = mainframe->fd;
+
+      if (!omxJpegEncodeNext(&encode_params)){
+          LOGE("%s: Failure! JPEG encoder returned error.", __func__);
+          ret = FAILED_TRANSACTION;
+          goto end;
+      }
+      /* Save the pointer to the frame sent for encoding. we'll need it to
+         tell kernel that we are done with the frame.*/
+      mCurrentFrameEncoded = recvd_frame;
+      setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODING);
+    } else {  /*not busy and new buffer (first job)/
         postviewframe = recvd_frame->snapshot.thumbnail.frame;
         mainframe = recvd_frame->snapshot.main.frame;
 
@@ -1346,22 +1338,6 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         dimension.orig_picture_dy = mPictureHeight;
         dimension.thumbnail_width = mThumbnailWidth;
         dimension.thumbnail_height = mThumbnailHeight;
-
-        #if 1
-
-        #else
-        mJpegHeap = new AshmemPool(frame_len,
-                                   1,
-                                   0, // we do not know how big the picture will be
-                                   "jpeg");
-        if (!mJpegHeap->initialized()) {
-            mJpegHeap.clear();
-            mJpegHeap = NULL;
-            LOGE("%s: Error allocating JPEG memory", __func__);
-            ret = NO_MEMORY;
-            goto end;
-        }
-        #endif
 
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
@@ -1525,19 +1501,6 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     if (ret != NO_ERROR) {
         LOGE("%s: Failure configuring JPEG encoder", __func__);
 
-        #if 0
-        /* Failure encoding this frame. Just notify upper layer
-           about it.*/
-        if(mHalCamCtrl->mDataCb &&
-            (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-            /* get picture failed. Give jpeg callback with NULL data
-             * to the application to restore to preview mode
-             */
-            mHalCamCtrl->mDataCb(CAMERA_MSG_COMPRESSED_IMAGE,
-                                       NULL, 0, NULL,
-                                       mHalCamCtrl->mCallbackCookie);
-        }
-        #endif
         goto end;
     }
 
@@ -1546,16 +1509,6 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
        images - only the first one */
     LOGD("%s: Burst mode flag  %d", __func__, mBurstModeFlag);
 
-    #if 0
-    // send upperlayer callback for raw image (data or notify, not both)
-    if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
-            mHalCamCtrl->mDataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
-                                 1, NULL, mHalCamCtrl->mCallbackCookie);
-    }
-    else if((mHalCamCtrl->mNotifyCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)){
-             mHalCamCtrl->mNotifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
-    }
-    #endif
 end:
     LOGD("%s: X", __func__);
     return ret;
@@ -1608,8 +1561,7 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
         }
         /* TBD: Temp: To be removed once event handling is enabled */
         mm_app_snapshot_done();
-    }
-    else{
+    } else {
         /*TBD: v4l2 doesn't have support to provide cropinfo along with
           frame. We'll need to query.*/
         memset(&crop, 0, sizeof(common_crop_t));
@@ -1796,7 +1748,8 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
     mJpegHeap(NULL),
     mDisplayHeap(NULL),
     mPostviewHeap(NULL),
-    mCurrentFrameEncoded(NULL)
+    mCurrentFrameEncoded(NULL),
+    mJpegSessionId(0)
   {
     LOGV("%s: E", __func__);
 
@@ -1814,6 +1767,8 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
         mCameraMemoryPtrMain[i] = NULL;
         mCameraMemoryPtrThumb[i] = NULL;
     }
+    /*load the jpeg lib*/
+    mJpegSessionId = omxJpegOpen( );
     LOGV("%s: X", __func__);
   }
 
@@ -1833,6 +1788,10 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
     }
     mInit = false;
     mActive = false;
+    if (mJpegSessionId > 0) {
+      omxJpegClose( );
+      mJpegSessionId = 0;
+    }
     LOGV("%s: X", __func__);
 
 }

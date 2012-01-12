@@ -51,6 +51,7 @@ typedef struct omx_jpeg_encode_params_t {
 int8_t omxJpegOpen();
 int8_t omxJpegStart();
 int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params);
+int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params);
 void omxJpegFinish();
 void omxJpegClose();
 void omxJpegAbort();

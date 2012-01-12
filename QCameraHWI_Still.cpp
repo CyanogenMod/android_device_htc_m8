@@ -1314,13 +1314,14 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
              recvd_frame->snapshot.main.idx);
         mSnapshotQueue.enqueue((void *)recvd_frame);
     } else if (enqueued) { /*not busy and old buffer (continue job)*/
+      postviewframe = recvd_frame->snapshot.thumbnail.frame;
+      mainframe = recvd_frame->snapshot.main.frame;
 
       /*since this is the continue job, we only care about the input buffer*/
       encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
       encode_params.thumbnail_fd = postviewframe->fd;
       encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
       encode_params.snapshot_fd = mainframe->fd;
-
       if (!omxJpegEncodeNext(&encode_params)){
           LOGE("%s: Failure! JPEG encoder returned error.", __func__);
           ret = FAILED_TRANSACTION;
@@ -1330,7 +1331,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
          tell kernel that we are done with the frame.*/
       mCurrentFrameEncoded = recvd_frame;
       setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODING);
-    } else {  /*not busy and new buffer (first job)/
+    } else {  /*not busy and new buffer (first job)*/
         postviewframe = recvd_frame->snapshot.thumbnail.frame;
         mainframe = recvd_frame->snapshot.main.frame;
 
@@ -1621,8 +1622,9 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
                  * to the application to restore to preview mode
                  */
                 jpgDataCb = mHalCamCtrl->mDataCb;
-            }
-
+            } else {
+              jpgDataCb = NULL;
+           	}
             LOGE("%s: encode err so data cb", __func__);
             mStopCallbackLock.unlock();
             if (dataCb) {

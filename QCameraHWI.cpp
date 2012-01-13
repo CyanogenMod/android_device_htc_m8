@@ -644,7 +644,7 @@ void QCameraHardwareInterface::debugShowPreviewFPS() const
 }
 
 void QCameraHardwareInterface::
-processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
+processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent, app_notify_cb_t *app_cb) {
     LOGI("processPreviewChannelEvent: E");
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
@@ -663,7 +663,8 @@ processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     return;
 }
 
-void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type_t channelEvent) {
+void QCameraHardwareInterface::processRecordChannelEvent(
+  mm_camera_ch_event_type_t channelEvent, app_notify_cb_t *app_cb) {
     LOGI("processRecordChannelEvent: E");
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
@@ -682,7 +683,7 @@ void QCameraHardwareInterface::processRecordChannelEvent(mm_camera_ch_event_type
 }
 
 void QCameraHardwareInterface::
-processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
+processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent, app_notify_cb_t *app_cb) {
     LOGI("processSnapshotChannelEvent: E");
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
@@ -711,19 +712,20 @@ processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent) {
     return;
 }
 
-void QCameraHardwareInterface::processChannelEvent(mm_camera_ch_event_t *event)
+void QCameraHardwareInterface::processChannelEvent(
+  mm_camera_ch_event_t *event, app_notify_cb_t *app_cb)
 {
     LOGI("processChannelEvent: E");
     Mutex::Autolock lock(mLock);
     switch(event->ch) {
         case MM_CAMERA_CH_PREVIEW:
-            processPreviewChannelEvent(event->evt);
+            processPreviewChannelEvent(event->evt, app_cb);
             break;
         case MM_CAMERA_CH_VIDEO:
-            processRecordChannelEvent(event->evt);
+            processRecordChannelEvent(event->evt, app_cb);
             break;
         case MM_CAMERA_CH_SNAPSHOT:
-            processSnapshotChannelEvent(event->evt);
+            processSnapshotChannelEvent(event->evt, app_cb);
             break;
         default:
             break;
@@ -732,17 +734,17 @@ void QCameraHardwareInterface::processChannelEvent(mm_camera_ch_event_t *event)
     return;
 }
 
-void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
+void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event, app_notify_cb_t *app_cb)
 {
     LOGI("processCtrlEvent: %d, E",event->evt);
     Mutex::Autolock lock(mLock);
     switch(event->evt)
     {
         case MM_CAMERA_CTRL_EVT_ZOOM_DONE:
-            zoomEvent(&event->status);
+            zoomEvent(&event->status, app_cb);
             break;
         case MM_CAMERA_CTRL_EVT_AUTO_FOCUS_DONE:
-            autoFocusEvent(&event->status);
+            autoFocusEvent(&event->status, app_cb);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
             break;
@@ -753,7 +755,8 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event)
     return;
 }
 
-void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event)
+void  QCameraHardwareInterface::processStatsEvent(
+  mm_camera_stats_event_t *event, app_notify_cb_t *app_cb)
 {
     LOGI("processStatsEvent: E");
     if (!isPreviewRunning( )) {
@@ -779,7 +782,13 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
                 *(uint32_t *)((unsigned int)(mStatsMapped[mCurrentHisto]->data)) = hist_info->max_value;
                 memcpy((uint32_t *)((unsigned int)mStatsMapped[mCurrentHisto]->data + sizeof(int32_t)),
                                                     (uint32_t *)hist_info->buffer,(sizeof(int32_t) * 256));
-                mDataCb(CAMERA_MSG_STATS_DATA, mStatsMapped[mCurrentHisto], 0, NULL, (void*)mCallbackCookie);
+
+                app_cb->dataCb  = mDataCb;
+                app_cb->argm_data_cb.msg_type = CAMERA_MSG_STATS_DATA;
+                app_cb->argm_data_cb.data = mStatsMapped[mCurrentHisto];
+                app_cb->argm_data_cb.index = 0;
+                app_cb->argm_data_cb.metadata = NULL;
+                app_cb->argm_data_cb.cookie =  mCallbackCookie;
             }
             break;
         }
@@ -789,13 +798,14 @@ void  QCameraHardwareInterface::processStatsEvent(mm_camera_stats_event_t *event
   LOGV("receiveCameraStats X");
 }
 
-void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) {
+void  QCameraHardwareInterface::processInfoEvent(
+  mm_camera_info_event_t *event, app_notify_cb_t *app_cb) {
     LOGI("processInfoEvent: %d, E",event->event_id);
     //Mutex::Autolock lock(eventLock);
     switch(event->event_id)
     {
         case MM_CAMERA_INFO_EVT_ROI:
-            roiEvent(event->e.roi);
+            roiEvent(event->e.roi, app_cb);
             break;
         default:
             break;
@@ -806,27 +816,40 @@ void  QCameraHardwareInterface::processInfoEvent(mm_camera_info_event_t *event) 
 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
-    LOGI("processEvent: type :%d E",event->event_type);
+    app_notify_cb_t app_cb;
+    LOGE("processEvent: type :%d E",event->event_type);
     if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED){
 	LOGE("Stop recording issued. Return from process Event");
         return;
     }
+    memset(&app_cb, 0, sizeof(app_notify_cb_t));
     switch(event->event_type)
     {
         case MM_CAMERA_EVT_TYPE_CH:
-            processChannelEvent(&event->e.ch);
+            processChannelEvent(&event->e.ch, &app_cb);
             break;
         case MM_CAMERA_EVT_TYPE_CTRL:
-            processCtrlEvent(&event->e.ctrl);
+            processCtrlEvent(&event->e.ctrl, &app_cb);
             break;
         case MM_CAMERA_EVT_TYPE_STATS:
-            processStatsEvent(&event->e.stats);
+            processStatsEvent(&event->e.stats, &app_cb);
             break;
         case MM_CAMERA_EVT_TYPE_INFO:
-            processInfoEvent(&event->e.info);
+            processInfoEvent(&event->e.info, &app_cb);
             break;
         default:
             break;
+    }
+    LOGE(" App_cb Notify %p, datacb=%p", app_cb.notifyCb, app_cb.dataCb);
+    if (app_cb.notifyCb) {
+      app_cb.notifyCb(app_cb.argm_notify.msg_type,
+        app_cb.argm_notify.ext1, app_cb.argm_notify.ext2,
+        app_cb.argm_notify.cookie);
+    }
+    if (app_cb.dataCb) {
+      app_cb.dataCb(app_cb.argm_data_cb.msg_type,
+        app_cb.argm_data_cb.data, app_cb.argm_data_cb.index,
+        app_cb.argm_data_cb.metadata, app_cb.argm_data_cb.cookie);
     }
     LOGI("processEvent: X");
     return;
@@ -1198,7 +1221,7 @@ void QCameraHardwareInterface::releaseRecordingFrame(const void *opaque)
     return;
 }
 
-status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
+status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
 {
     LOGE("autoFocusEvent: E");
     int ret = NO_ERROR;
@@ -1239,13 +1262,21 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status)
       /* "Accepted" status is not appropriate it should be used for
         initial cmd, event reporting should only give use SUCCESS/FAIL
         */
+
+      app_cb->notifyCb  = mNotifyCb;
+      app_cb->argm_notify.msg_type = CAMERA_MSG_FOCUS;
+      app_cb->argm_notify.ext2 = 0;
+      app_cb->argm_notify.cookie =  mCallbackCookie;
+
+      LOGE("Auto foucs state =%d", *status);
       if(*status==CAM_CTRL_SUCCESS || *status==CAM_CTRL_ACCEPTED) {
-        mNotifyCb(CAMERA_MSG_FOCUS, true, 0, mCallbackCookie);
+        app_cb->argm_notify.ext1 = true;
       }
       else if(*status==CAM_CTRL_FAILED){
-        mNotifyCb(CAMERA_MSG_FOCUS, false, 0, mCallbackCookie);
+        app_cb->argm_notify.ext1 = false;
       }
       else{
+        app_cb->notifyCb  = NULL;
         LOGE("%s:Unknown AF status (%d) received",__func__,*status);
       }
 
@@ -1495,7 +1526,7 @@ void QCameraHardwareInterface::processprepareSnapshotEvent(cam_ctrl_status_t *st
     LOGI("processprepareSnapshotEvent: X");
 }
 
-void QCameraHardwareInterface::roiEvent(fd_roi_t roi)
+void QCameraHardwareInterface::roiEvent(fd_roi_t roi,app_notify_cb_t *app_cb)
 {
     LOGE("roiEvent: E");
 
@@ -1580,7 +1611,7 @@ void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
     LOGD("%s: X", __func__);
 }
 
-void QCameraHardwareInterface::handleZoomEventForPreview(void)
+void QCameraHardwareInterface::handleZoomEventForPreview(app_notify_cb_t *app_cb)
 {
     mm_camera_ch_crop_t v4l2_crop;
 
@@ -1614,8 +1645,11 @@ void QCameraHardwareInterface::handleZoomEventForPreview(void)
     else {
         if (mCurrentZoom == mTargetSmoothZoom) {
             mSmoothZoomRunning = false;
-            mNotifyCb(CAMERA_MSG_ZOOM,
-                      mCurrentZoom, 1, mCallbackCookie);
+            app_cb->notifyCb  = mNotifyCb;
+            app_cb->argm_notify.msg_type = CAMERA_MSG_ZOOM;
+            app_cb->argm_notify.ext1 = mCurrentZoom;
+            app_cb->argm_notify.ext2 = 1;
+            app_cb->argm_notify.cookie =  mCallbackCookie;
         } else {
             mCurrentZoom += mSmoothZoomStep;
             if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
@@ -1631,7 +1665,7 @@ void QCameraHardwareInterface::handleZoomEventForPreview(void)
     LOGI("%s: X", __func__);
 }
 
-void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
+void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
 {
     LOGE("zoomEvent: state:%d E",mCameraState);
     switch (mCameraState) {
@@ -1642,14 +1676,14 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status)
             /* In ZSL mode, we start preview and snapshot stream at
                the same time */
             handleZoomEventForSnapshot();
-            handleZoomEventForPreview();
+            handleZoomEventForPreview(app_cb);
             break;
 
         case CAMERA_STATE_PREVIEW:
         case CAMERA_STATE_RECORD_START_CMD_SENT:
         case CAMERA_STATE_RECORD:
         default:
-            handleZoomEventForPreview();
+            handleZoomEventForPreview(app_cb);
             break;
     }
     LOGI("zoomEvent: X");

@@ -3258,10 +3258,65 @@ void QualcommCameraHardware::runHFRThread(void *data)
     CAMERA_HAL_UNUSED(data);
     LOGI("%s: stopping Preview", __FUNCTION__);
     stopPreviewInternal();
-    LOGI("%s: setting parameters", __FUNCTION__);
+
+    // Release thumbnail Buffers
+    if( mPreviewWindow != NULL ) {
+        private_handle_t *handle;
+        for (int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
+            if(mPreviewWindow != NULL && mThumbnailBuffer[cnt] != NULL) {
+                handle = (private_handle_t *)(*mThumbnailBuffer[cnt]);
+                LOGV("%s:  Cancelling postview buffer %d ", __FUNCTION__, handle->fd);
+                LOGV("runHfrThread : display lock");
+                mDisplayLock.lock();
+                if (BUFFER_LOCKED == mThumbnailLockState[cnt]) {
+                    if (GENLOCK_FAILURE == genlock_unlock_buffer(handle)) {
+                       LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
+                       mDisplayLock.unlock();
+                       continue;
+                    } else {
+                       mThumbnailLockState[cnt] = BUFFER_UNLOCKED;
+                    }
+                }
+                status_t retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
+                                                              mThumbnailBuffer[cnt]);
+                if(retVal != NO_ERROR)
+                    LOGE("%s: cancelBuffer failed for postview buffer %d",
+                                                     __FUNCTION__, handle->fd);
+                // unregister , unmap and release as well
+                int mBufferSize = previewWidth * previewHeight * 3/2;
+                int mCbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+                if(mThumbnailMapped[cnt] && (mSnapshotFormat == PICTURE_FORMAT_JPEG)) {
+                    LOGE("%s:  Unregistering Thumbnail Buffer %d ", __FUNCTION__, handle->fd);
+                    register_buf(mBufferSize,
+                        mBufferSize, mCbCrOffset, 0,
+                        handle->fd,
+                        0,
+                        (uint8_t *)mThumbnailMapped[cnt],
+                        MSM_PMEM_THUMBNAIL,
+                        false, false);
+                    if (munmap((void *)(mThumbnailMapped[cnt]),handle->size ) == -1) {
+                      LOGE("StopPreview : Error un-mmapping the thumbnail buffer %d", index);
+                    }
+                    mThumbnailBuffer[cnt] = NULL;
+                    mThumbnailMapped[cnt] = NULL;
+                }
+                LOGV("runHfrThread : display unlock");
+                mDisplayLock.unlock();
+          }
+       }
+    }
+
+    LOGV("%s: setting parameters", __FUNCTION__);
     setParameters(mParameters);
-    LOGI("%s: starting Preview", __FUNCTION__);
-    startPreviewInternal();
+    LOGV("%s: starting Preview", __FUNCTION__);
+    if( mPreviewWindow == NULL)
+    {
+        startPreviewInternal();
+    }
+    else {
+        getBuffersAndStartPreview();
+    }
+
     mHFRMode = false;
     mInHFRThread = false;
 }

@@ -62,6 +62,20 @@ jpeg_callback_t mmcamera_jpeg_callback;
 #define INPUT_PORT1 2
 #define DEFAULT_COLOR_FORMAT YCRCBLP_H2V2
 
+typedef struct {
+  cam_format_t         isp_format;
+  jpeg_color_format_t  jpg_format;
+} color_format_map_t;
+
+
+static const color_format_map_t color_format_map[] = {
+  {CAMERA_YUV_420_NV21, YCRCBLP_H2V2}, /*default*/
+  {CAMERA_YUV_420_NV21_ADRENO, YCRCBLP_H2V2},
+  {CAMERA_YUV_420_NV12, YCBCRLP_H2V2},
+  {CAMERA_YUV_420_YV12, YCBCRLP_H2V2},
+  {CAMERA_YUV_422_NV61, YCRCBLP_H2V1},
+  {CAMERA_YUV_422_NV16, YCBCRLP_H2V1},
+};
 
 static OMX_HANDLETYPE pHandle;
 static OMX_CALLBACKTYPE callbacks;
@@ -96,6 +110,23 @@ static int * out_buffer_size;
 static OMX_INDEXTYPE buffer_offset;
 static omx_jpeg_buffer_offset bufferoffset;
 
+static jpeg_color_format_t get_jpeg_format_from_cam_format(
+  cam_format_t cam_format )
+{
+  jpeg_color_format_t jpg_format = DEFAULT_COLOR_FORMAT;
+  int i, j;
+  j = sizeof (color_format_map) / sizeof(color_format_map_t);
+  LOGV("%s: j =%d, cam_format =%d", __func__, j, cam_format);
+  for(i =0; i< j; i++) {
+    if (color_format_map[i].isp_format == cam_format){
+      jpg_format = color_format_map[i].jpg_format;
+      break;
+    }
+  }
+  LOGV("%s x: i =%d, jpg_format=%d", __func__, i, jpg_format);
+
+  return jpg_format;
+}
 void set_callbacks(
     jpegfragment_callback_t fragcallback,
     jpeg_callback_t eventcallback, void* userdata,
@@ -366,8 +397,11 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
       encode_params->dimension->thumbnail_width,
       encode_params->dimension->thumbnail_height);
 
-    userpreferences.color_format = DEFAULT_COLOR_FORMAT;
-    userpreferences.thumbnail_color_format = DEFAULT_COLOR_FORMAT;
+
+    userpreferences.color_format =
+      get_jpeg_format_from_cam_format(encode_params->main_format);
+    userpreferences.thumbnail_color_format =
+      get_jpeg_format_from_cam_format(encode_params->thumbnail_format);
     if (hw_encode)
         userpreferences.preference = OMX_ENCODER_PREF_HW_ACCELERATED_PREFERRED;
     else

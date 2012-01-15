@@ -46,6 +46,8 @@ typedef struct omx_jpeg_encode_params_t {
     cam_point_t* main_crop_offset;
     cam_point_t* thumb_crop_offset;
     int hasThumbnail;
+    cam_format_t main_format;
+    cam_format_t thumbnail_format;
 }omx_jpeg_encode_params;
 
 int8_t omxJpegOpen();

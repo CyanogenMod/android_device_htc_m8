@@ -130,6 +130,7 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
 {
     uint32_t size;
     *num_planes = 0;
+    int local_height;
 
     switch (fmt_type) {
     case CAMERA_YUV_420_NV12:
@@ -156,6 +157,18 @@ uint32_t mm_camera_get_msm_frame_len(cam_format_t fmt_type,
         *num_planes = 1;
         plane[0] = PAD_TO_WORD(width * height);
         size = plane[0];
+        break;
+    case CAMERA_YUV_422_NV16:
+    case CAMERA_YUV_422_NV61:
+      if( image_type == OUTPUT_TYPE_S || image_type == OUTPUT_TYPE_V) {
+        local_height = CEILING16(height);
+      } else {
+        local_height = height;
+      }
+        *num_planes = 2;
+        plane[0] = PAD_TO_WORD(width * height);
+        plane[1] = PAD_TO_WORD(width * height);
+        size = plane[0] + plane[1];
         break;
     default:
         CDBG("%s: format %d not supported.\n",

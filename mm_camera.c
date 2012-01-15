@@ -453,14 +453,15 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
       break;
     case MM_CAMERA_PARM_DIMENSION:
         memcpy(parm->p_value, &my_obj->dim, sizeof(my_obj->dim));
-        CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,ovx=%x,ovy=%d,opx=%d,opy=%d\n",
+        CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,ovx=%x,ovy=%d,opx=%d,opy=%d, m_fmt=%d, t_ftm=%d\n",
                  __func__,
                  my_obj->dim.display_width,my_obj->dim.display_height,
                  my_obj->dim.video_width,my_obj->dim.video_height,
                  my_obj->dim.picture_width,my_obj->dim.picture_height,
                  my_obj->dim.ui_thumbnail_width,my_obj->dim.ui_thumbnail_height,
                  my_obj->dim.orig_video_width,my_obj->dim.orig_video_height,
-                 my_obj->dim.orig_picture_width,my_obj->dim.orig_picture_height);
+                 my_obj->dim.orig_picture_width,my_obj->dim.orig_picture_height,
+                 my_obj->dim.main_img_format, my_obj->dim.thumb_format);
         break;
     case MM_CAMERA_PARM_MAX_PICTURE_SIZE: {
         mm_camera_dimension_t *dim =

@@ -749,6 +749,14 @@ void QCameraHardwareInterface::initDefaultParameters()
         maxDim.height = DEFAULT_LIVESHOT_HEIGHT;
     }
 
+    char prop[PROPERTY_VALUE_MAX];
+    int  snap_format;
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.snap.format", prop, "0");
+    snap_format = atoi(prop);
+    LOGV("%s: prop =(%s), snap_format=%d", __func__, prop, snap_format);
+
+    //cam_ctrl_dimension_t dim;
     memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
     memset(&mPreviewFormatInfo, 0, sizeof(preview_format_info_t));
     mDimension.video_width     = DEFAULT_STREAM_WIDTH;
@@ -768,8 +776,14 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     mDimension.prev_format     = CAMERA_YUV_420_NV21;
     mDimension.enc_format      = CAMERA_YUV_420_NV12;
-    mDimension.main_img_format = CAMERA_YUV_420_NV21;
+    if (snap_format == 1) {
+      mDimension.main_img_format = CAMERA_YUV_422_NV61;
+    } else {
+      mDimension.main_img_format = CAMERA_YUV_420_NV21;
+    }
     mDimension.thumb_format    = CAMERA_YUV_420_NV21;
+    LOGV("%s: main_img_format =%d, thumb_format=%d", __func__,
+         mDimension.main_img_format, mDimension.thumb_format);
     mDimension.prev_padding_format = CAMERA_PAD_TO_WORD;
 
     ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,

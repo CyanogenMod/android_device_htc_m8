@@ -280,6 +280,10 @@ static uint32_t mm_camera_util_get_v4l2_fmt(cam_format_t fmt,
         val= V4L2_PIX_FMT_SBGGR10;
         *num_planes = 1;
         break;
+    case CAMERA_YUV_422_NV61:
+        val= V4L2_PIX_FMT_NV61;
+        *num_planes = 2;
+        break;
     default:
         val = 0;
         *num_planes = 0;
@@ -376,7 +380,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
 
     if(vbuf->num > MM_CAMERA_MAX_NUM_FRAMES) {
         rc = -MM_CAMERA_E_GENERAL;
-        CDBG("%s: buf num %d > max limit %d\n",
+        CDBG_ERROR("%s: buf num %d > max limit %d\n",
                  __func__, vbuf->num, MM_CAMERA_MAX_NUM_FRAMES);
         goto end;
     }
@@ -402,7 +406,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
                               stream->fmt.fmt.pix.height,
                               image_type, &num_planes, planes);
     if(stream->frame.frame_len == 0) {
-        CDBG("%s:incorrect frame size = %d\n", __func__, stream->frame.frame_len);
+        CDBG_ERROR("%s:incorrect frame size = %d\n", __func__, stream->frame.frame_len);
         rc = -1;
         goto end;
     }
@@ -414,7 +418,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
              __func__,stream->fd, bufreq.count, bufreq.type, bufreq.memory);
     rc = ioctl(stream->fd, VIDIOC_REQBUFS, &bufreq);
     if (rc < 0) {
-      CDBG("%s: fd=%d, ioctl VIDIOC_REQBUFS failed: rc=%d\n",
+      CDBG_ERROR("%s: fd=%d, ioctl VIDIOC_REQBUFS failed: rc=%d\n",
         __func__, stream->fd, rc);
       goto end;
     }
@@ -439,7 +443,7 @@ static int mm_camera_stream_util_reg_buf(mm_camera_obj_t * my_obj,
 
         rc = mm_camera_stream_qbuf(my_obj, stream, stream->frame.frame[i].idx);
         if (rc < 0) {
-            CDBG("%s: VIDIOC_QBUF rc = %d\n", __func__, rc);
+            CDBG_ERROR("%s: VIDIOC_QBUF rc = %d\n", __func__, rc);
             goto end;
         }
         stream->frame.ref_count[i] = 0;
@@ -739,8 +743,8 @@ int32_t mm_camera_stream_fsm_fn_vtbl (mm_camera_obj_t * my_obj,
                    mm_camera_stream_t *stream,
                    mm_camera_state_evt_type_t evt, void *val)
 {
-    CDBG("%s: stream fd=%d, type = %d, state=%d\n",
-                 __func__, stream->fd, stream->stream_type, stream->state);
+    CDBG("%s: stream fd=%d, type = %d, state=%d, evt\n",
+                 __func__, stream->fd, stream->stream_type, stream->state, evt);
     return mm_camera_stream_fsm_fn[stream->state] (my_obj, stream, evt, val);
 }
 

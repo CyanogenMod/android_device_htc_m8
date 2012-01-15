@@ -393,6 +393,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
         dim->ui_thumbnail_height = mThumbnailHeight = mPostviewHeight;
         dim->ui_thumbnail_width = mThumbnailWidth = mPostviewWidth;
     }
+    #if 0
     img_format = mHalCamCtrl->getPreviewFormat();
     if (img_format) {
         matching &= (img_format == dim->main_img_format);
@@ -401,6 +402,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
             dim->thumb_format = img_format;
         }
     }
+    #endif
     if (!matching) {
          LOGD("%s: Image Sizes before set parm call: main: %dx%d thumbnail: %dx%d",
               __func__,
@@ -772,7 +774,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     cbcr_off = dim->picture_frame_offset.mp[1].offset;
     LOGE("%s: main image: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
          __func__, dim->rotation, y_off, cbcr_off, frame_len, dim->picture_width, dim->picture_height);
-	if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, 0,
+	if (mHalCamCtrl->initHeapMem (&mHalCamCtrl->mJpegMemory, 1, frame_len, 0, cbcr_off,
                                   MSM_PMEM_MAX, NULL, NULL, num_planes, planes) < 0) {
 		LOGE("%s: Error allocating JPEG memory", __func__);
 		ret = NO_MEMORY;
@@ -1382,6 +1384,8 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         if (!isFullSizeLiveshot())
             postviewframe = recvd_frame->snapshot.thumbnail.frame;
         mainframe = recvd_frame->snapshot.main.frame;
+        cam_config_get_parm(mHalCamCtrl->mCameraId, MM_CAMERA_PARM_DIMENSION, &dimension);
+        LOGV("%s: main_fmt =%d, tb_fmt =%d", __func__, dimension.main_img_format, dimension.thumb_format);
 
         dimension.orig_picture_dx = mPictureWidth;
         dimension.orig_picture_dy = mPictureHeight;
@@ -1483,6 +1487,9 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
             encode_params.hasThumbnail = 0;
         else
             encode_params.hasThumbnail = 1;
+        encode_params.thumb_crop_offset = &thumb_crop_offset;
+        encode_params.main_format = dimension.main_img_format;
+        encode_params.thumbnail_format = dimension.thumb_format;
 
         if (!omxJpegEncode(&encode_params)){
             LOGE("%s: Failure! JPEG encoder returned error.", __func__);

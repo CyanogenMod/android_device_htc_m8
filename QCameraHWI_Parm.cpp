@@ -93,9 +93,9 @@ extern "C" {
 #define DEFAULT_PREVIEW_HEIGHT 480
 
 #define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
-#define DEFAULT_THUMBNAIL_SETTING 2
-#define THUMBNAIL_WIDTH_STR "512"
-#define THUMBNAIL_HEIGHT_STR "384"
+#define DEFAULT_THUMBNAIL_SETTING 5
+#define THUMBNAIL_WIDTH_STR "640"
+#define THUMBNAIL_HEIGHT_STR "480"
 #define THUMBNAIL_SMALL_HEIGHT 144
 
 #define JPEG_THUMBNAIL_SIZE_COUNT (sizeof(jpeg_thumbnail_sizes)/sizeof(camera_size_type))
@@ -118,20 +118,35 @@ typedef struct {
 } thumbnail_size_type;
 
 static thumbnail_size_type thumbnail_sizes[] = {
-    { 7281, 512, 288 }, //1.777778
-    { 6826, 480, 288 }, //1.666667
-    { 6808, 256, 154 }, //1.662337
-    { 6144, 432, 288 }, //1.5
-    { 5461, 512, 384 }, //1.333333
-    { 5006, 352, 288 }, //1.222222
+    { 7228, 1920, 1088 },
+    { 7281, 1280, 720 },
+    { 6826, 800, 480 },
+    { 7281, 768, 432 },
+    { 6144, 720, 480 },
+    { 5461, 640, 480 },
+    { 5461, 576, 432 },
+    { 6144, 480, 320 },
+    { 5461, 384, 288 },
+    { 5006, 352, 288 },
+    { 5461, 320, 240 },
+    { 6144, 240, 160 },
+    { 5006, 176, 144 },
 };
 static camera_size_type jpeg_thumbnail_sizes[]  = {
-    { 512, 288 },
-    { 480, 288 },
-    { 432, 288 },
-    { 512, 384 },
-    { 352, 288 },
-    {0,0}
+  { 1920, 1088}, //1080p
+  { 1280, 720}, // 720P, reserved
+  { 800, 480}, // WVGA
+  { 768, 432},
+  { 720, 480},
+  { 640, 480}, // VGA
+  { 576, 432},
+  { 480, 320}, // HVGA
+  { 384, 288},
+  { 352, 288}, // CIF
+  { 320, 240}, // QVGA
+  { 240, 160}, // SQVGA
+  { 176, 144}, // QCIF
+  {0,0}
 };
 
 static camera_size_type default_preview_sizes[] = {
@@ -844,7 +859,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     String8 valuesStr = create_sizes_str(jpeg_thumbnail_sizes, JPEG_THUMBNAIL_SIZE_COUNT);
     mParameters.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES,
                 valuesStr.string());
-
     // Define CAMERA_SMOOTH_ZOOM in Android.mk file , to enable smoothzoom
 #ifdef CAMERA_SMOOTH_ZOOM
     mParameters.set(CameraParameters::KEY_SMOOTH_ZOOM_SUPPORTED, "true");
@@ -1118,7 +1132,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setRecordSize(params)))                   final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
-    //  if ((rc = setJpegThumbnailSize(params)))        final_rc = rc;
+    if ((rc = setJpegThumbnailSize(params)))            final_rc = rc;
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
     if ((rc = setEffect(params)))                       final_rc = rc;
     if ((rc = setGpsLocation(params)))                  final_rc = rc;
@@ -2047,6 +2061,13 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const CameraParameters& pa
 status_t QCameraHardwareInterface::setJpegThumbnailSize(const CameraParameters& params){
     int width = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
     int height = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    if(width == 0 && height == 0) {
+        width = 0;
+        height = 0;
+    } else {
+        params.getPreviewSize(&width, &height);
+    }
+
     LOGE("requested jpeg thumbnail size %d x %d", width, height);
 
     // Validate the picture size

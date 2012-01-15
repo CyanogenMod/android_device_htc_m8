@@ -1337,8 +1337,31 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
 
         dimension.orig_picture_dx = mPictureWidth;
         dimension.orig_picture_dy = mPictureHeight;
-        dimension.thumbnail_width = mThumbnailWidth;
-        dimension.thumbnail_height = mThumbnailHeight;
+
+        int width = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+        int height = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+        if((width != 0) && (height != 0)) {
+            dimension.thumbnail_width = mThumbnailWidth;
+            dimension.thumbnail_height = mThumbnailHeight;
+        } else {
+            dimension.thumbnail_width = 0;
+            dimension.thumbnail_height = 0;
+        }
+        #if 1
+
+        #else
+        mJpegHeap = new AshmemPool(frame_len,
+                                   1,
+                                   0, // we do not know how big the picture will be
+                                   "jpeg");
+        if (!mJpegHeap->initialized()) {
+            mJpegHeap.clear();
+            mJpegHeap = NULL;
+            LOGE("%s: Error allocating JPEG memory", __func__);
+            ret = NO_MEMORY;
+            goto end;
+        }
+        #endif
 
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
@@ -1379,8 +1402,13 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         /*Thumbnail image*/
         crop.in1_w=mCrop.snapshot.thumbnail_crop.width; //dimension.thumbnail_width;
         crop.in1_h=mCrop.snapshot.thumbnail_crop.height; // dimension.thumbnail_height;
-        crop.out1_w=mThumbnailWidth;
-        crop.out1_h=mThumbnailHeight;
+        if((width != 0) && (height != 0)) {
+            crop.out1_w=mThumbnailWidth;
+            crop.out1_h=mThumbnailHeight;
+        } else {
+            crop.out1_w = 0;
+            crop.out1_h = 0;
+        }
         thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
         thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
 

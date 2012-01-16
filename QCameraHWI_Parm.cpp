@@ -404,14 +404,18 @@ bool QCameraHardwareInterface::native_set_parms(
 bool QCameraHardwareInterface::native_set_parms(
     mm_camera_parm_type_t type, uint16_t length, void *value, int *result)
 {
-
     *result= cam_config_set_parm(mCameraId, type,value );
-    if(MM_CAMERA_OK!=*result) {
-        LOGE("native_set_parms failed: type %d length %d error %s",
-            type, length, strerror(errno));
-        return false;
+    if(MM_CAMERA_OK == *result || -EAGAIN == *result) {
+        LOGE("native_set_parms: was success or setParameter was not executed : %d", *result);
+        return true;
     }
-    return true;
+    if(errno == EAGAIN) {
+        LOGE("native_set_parms: was not set due to interdependent parameters");
+        return true;
+    }
+    LOGE("native_set_parms failed: type %d length %d error str %s error# %d",
+        type, length, strerror(errno), errno);
+    return false;
 }
 
 //Filter Picture sizes based on max width and height
@@ -903,6 +907,7 @@ void QCameraHardwareInterface::initDefaultParameters()
                    CameraParameters::FOCUS_MODE_INFINITY);
        mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
                    CameraParameters::FOCUS_MODE_INFINITY);
+      
     }
     //Set Flash
     if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_LED_MODE)) {
@@ -961,10 +966,8 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mHfrSizeValues.string());
         mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_HIGH_FRAME_RATE_MODES,
                     mHfrValues);
-	LOGE("<DEBUG> HFR supported");
     } else{
         mParameters.set(CameraParameters::KEY_SUPPORTED_HFR_SIZES,"");
-	LOGE("<DEBUG> HFR not supported");
     }
 
     //Set Histogram
@@ -1139,7 +1142,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
-    //    if ((rc = setPreviewFpsRange(params)))        final_rc = rc;
+    if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
 
@@ -1164,7 +1167,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
 
-    final_rc=NO_ERROR;
+   final_rc=NO_ERROR;
    LOGI("%s: X", __func__);
    return final_rc;
 }
@@ -1383,6 +1386,7 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
     if(zoom_level >= 0 && zoom_level <= mMaxZoom-1) {
         mParameters.set("zoom", zoom_level);
         int32_t zoom_value = ZOOM_STEP * zoom_level;
+        LOGE("<DEBUG> Calling setZoom set_parm");
         bool ret = native_set_parms(MM_CAMERA_PARM_ZOOM,
             sizeof(zoom_value), (void *)&zoom_value);
         if(ret) {
@@ -1474,9 +1478,9 @@ status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_FOCUS_MODE, str);
 
-            if(mHasAutoFocusSupport && (updateFocusDistances(str) != NO_ERROR)) {
-                LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, str);
-                return UNKNOWN_ERROR;
+            if(updateFocusDistances(str) != NO_ERROR) {
+               LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, str);
+               return UNKNOWN_ERROR;
             }
 
             if(mHasAutoFocusSupport){
@@ -1540,9 +1544,10 @@ status_t QCameraHardwareInterface::setSelectableZoneAf(const CameraParameters& p
             }
         }
         LOGE("Invalid selectable zone af value: %s", (str == NULL) ? "NULL" : str);
+        return BAD_VALUE;
 
     }
-    return BAD_VALUE;
+    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setEffect(const CameraParameters& params)
@@ -2025,12 +2030,12 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const CameraParameters& pa
     int minFps,maxFps;
 
     params.getPreviewFpsRange(&minFps,&maxFps);
-    LOGE("FPS Range Values: %dx%d", minFps, maxFps);
+    LOGE("FPS: Range Values: %dx%d", minFps, maxFps);
 
     for(size_t i=0;i<FPS_RANGES_SUPPORTED_COUNT;i++)
     {
         if(minFps==FpsRangesSupported[i].minFPS && maxFps == FpsRangesSupported[i].maxFPS){
-            LOGV("i=%d : minFps = %d, maxFps = %d ",i,FpsRangesSupported[i].minFPS,FpsRangesSupported[i].maxFPS );
+            LOGE("FPS: i=%d : minFps = %d, maxFps = %d ",i,FpsRangesSupported[i].minFPS,FpsRangesSupported[i].maxFPS );
             mParameters.setPreviewFpsRange(minFps,maxFps);
             return NO_ERROR;
         }
@@ -2547,7 +2552,6 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
       int32_t value = attr_lookup(recording_Hints,
                                   sizeof(recording_Hints) / sizeof(str_map), str);
       if(value != NOT_FOUND){
-
         native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
                                                (void *)&value);
         native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),

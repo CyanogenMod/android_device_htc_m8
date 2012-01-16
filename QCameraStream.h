@@ -35,8 +35,8 @@ extern "C" {
 
 #define DEFAULT_STREAM_WIDTH 320
 #define DEFAULT_STREAM_HEIGHT 240
-#define DEFAULT_LIVESHOT_WIDTH 1920
-#define DEFAULT_LIVESHOT_HEIGHT 1088
+#define DEFAULT_LIVESHOT_WIDTH 2592
+#define DEFAULT_LIVESHOT_HEIGHT 1944
 
 #define MM_CAMERA_CH_PREVIEW_MASK    (0x01 << MM_CAMERA_CH_PREVIEW)
 #define MM_CAMERA_CH_VIDEO_MASK      (0x01 << MM_CAMERA_CH_VIDEO)
@@ -113,6 +113,7 @@ public:
                                  cam_ctrl_dimension_t *dim,
                                  int frame_len){return NO_ERROR;}
 
+    virtual void setFullSizeLiveshot(bool){};
     /* Set the ANativeWindow */
     virtual int setPreviewWindow(preview_stream_ops_t* window) {return NO_ERROR;}
     virtual void notifyROIEvent(fd_roi_t roi) {;}
@@ -243,6 +244,7 @@ public:
     /*Temp: to be removed once event handling is enabled in mm-camera*/
     void runSnapshotThread(void *data);
     bool isZSLMode();
+    void setFullSizeLiveshot(bool);
 
 private:
     QCameraStream_Snapshot(int, camera_mode_t);
@@ -252,6 +254,7 @@ private:
     status_t initJPEGSnapshot(int num_of_snapshots);
     status_t initRawSnapshot(int num_of_snapshots);
     status_t initZSLSnapshot(void);
+    status_t initFullLiveshot(void);
     status_t cancelPicture();
     void notifyShutter(common_crop_t *crop,
                        bool play_shutter_sound);
@@ -281,7 +284,7 @@ private:
     void setModeLiveSnapshot(bool);
     bool isLiveSnapshot(void);
     void stopPolling(void);
-
+    bool isFullSizeLiveshot(void);
 
     /* Member variables */
 
@@ -324,6 +327,7 @@ private:
 	camera_memory_t        *mCameraMemoryPtrThumb[mMaxSnapshotBufferCount];
     int                     mJpegSessionId;
 	int                     dump_fd;
+    bool mFullLiveshot;
 }; // QCameraStream_Snapshot
 
 

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -37,6 +37,13 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <poll.h>
 #include "mm_camera_interface2.h"
 #include "mm_camera.h"
+
+#if 0
+#undef CDBG
+#undef LOG_TAG
+#define CDBG LOGE
+#define LOG_TAG "ChannelLogs"
+#endif
 
 /* static functions prototype declarations */
 static int mm_camera_channel_deq_x_frames(mm_camera_obj_t *my_obj,
@@ -112,7 +119,8 @@ void mm_camera_ch_util_get_stream_objs(mm_camera_obj_t * my_obj,
         break;
     case MM_CAMERA_CH_SNAPSHOT:
         *stream1 = &my_obj->ch[ch_type].snapshot.main;
-        *stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
+        if (!my_obj->full_liveshot)
+            *stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
         break;
     default:
         break;
@@ -150,8 +158,10 @@ static int32_t mm_camera_ch_util_set_fmt(mm_camera_obj_t * my_obj,
     case MM_CAMERA_CH_SNAPSHOT:
         stream1 = &my_obj->ch[ch_type].snapshot.main;
         fmt1 = &fmt->snapshot.main;
-        stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
-        fmt2 = &fmt->snapshot.thumbnail;
+        if (!my_obj->full_liveshot) {
+            stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
+            fmt2 = &fmt->snapshot.thumbnail;
+        }
         break;
     default:
         rc = -1;
@@ -200,8 +210,10 @@ static int32_t mm_camera_ch_util_acquire(mm_camera_obj_t * my_obj,
     case MM_CAMERA_CH_SNAPSHOT:
         stream1 = &my_obj->ch[ch_type].snapshot.main;
         type1 = MM_CAMERA_STREAM_SNAPSHOT;
-        stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
-        type2 = MM_CAMERA_STREAM_THUMBNAIL;
+        if (!my_obj->full_liveshot) {
+            stream2 = &my_obj->ch[ch_type].snapshot.thumbnail;
+            type2 = MM_CAMERA_STREAM_THUMBNAIL;
+        }
         break;
     default:
         return -1;
@@ -263,12 +275,13 @@ static int32_t mm_camera_ch_util_stream_null_val(mm_camera_obj_t * my_obj,
             rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                             &my_obj->ch[ch_type].snapshot.main, evt,
                             NULL);
-            if(!rc)
+            if(!rc && !my_obj->full_liveshot)
                 rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                 &my_obj->ch[ch_type].snapshot.thumbnail, evt,
                                 NULL);
             break;
         default:
+            CDBG_ERROR("%s: Invalid ch_type=%d", __func__, ch_type);
             return -1;
             break;
         }
@@ -310,7 +323,7 @@ static int32_t mm_camera_ch_util_reg_buf(mm_camera_obj_t * my_obj,
                 rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                 &my_obj->ch[ch_type].snapshot.main, evt,
                                 &buf->main);
-                if(!rc) {
+                if(!rc && !my_obj->full_liveshot) {
                     rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                     &my_obj->ch[ch_type].snapshot.thumbnail, evt,
                                     & buf->thumbnail);
@@ -333,7 +346,10 @@ static int32_t mm_camera_ch_util_attr(mm_camera_obj_t *my_obj,
         CDBG("%s: attr type %d not support for ch %d\n", __func__, val->type, ch_type);
         return rc;
     }*/
-    if(my_obj->ch[ch_type].acquired== 0) return -MM_CAMERA_E_INVALID_OPERATION;
+    if(my_obj->ch[ch_type].acquired== 0) {
+      CDBG_ERROR("%s Channel %d not yet acquired ", __func__, ch_type);
+      return -MM_CAMERA_E_INVALID_OPERATION;
+    }
     switch(val->type) {
     case MM_CAMERA_CH_ATTR_RAW_STREAMING_TYPE:
         if(val->raw_streaming_mode == MM_CAMERA_RAW_STREAMING_CAPTURE_SINGLE) {
@@ -367,6 +383,8 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
                                     mm_camera_ch_data_buf_t *val)
 {
     int32_t rc = -1;
+    mm_camera_stream_t *stream;
+
     switch(ch_type) {
     case MM_CAMERA_CH_RAW:
         rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
@@ -395,8 +413,12 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
                             &my_obj->ch[ch_type].snapshot.main, evt,
                             &val->snapshot.main);
             if(!rc) {
+                if (my_obj->op_mode == MM_CAMERA_OP_MODE_ZSL)
+                  stream = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
+                else
+                  stream = &my_obj->ch[ch_type].snapshot.thumbnail;
                 rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
-                                &my_obj->ch[ch_type].snapshot.thumbnail, evt,
+                                stream, evt,
                                 &val->snapshot.thumbnail);
             }
         }
@@ -435,8 +457,9 @@ static int mm_camera_ch_util_get_crop(mm_camera_obj_t *my_obj,
             rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                           &my_obj->ch[ch_type].snapshot.main, evt,
                           &crop->snapshot.main_crop);
-            if(!rc) {
-                rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
+            if(!rc && !my_obj->full_liveshot) {
+              LOGE("%s: should not come here for Live Shot", __func__);
+              rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                               &my_obj->ch[ch_type].snapshot.thumbnail, evt,
                               &crop->snapshot.thumbnail_crop);
             }
@@ -472,15 +495,32 @@ static int mm_camera_channel_deq_x_frames(mm_camera_obj_t *my_obj,
     int rc = MM_CAMERA_OK;
     int i = 0;
     mm_camera_frame_t *mframe, *sframe;
+    mm_camera_notify_frame_t notify_frame;
+
     CDBG("%s: Dequeue %d frames from the queue", __func__, count);
     for(i=0; i < count; i++) {
         mframe = mm_camera_stream_frame_deq(mq);
         if(mframe) {
-            mm_camera_stream_qbuf(my_obj, mstream, mframe->idx);
+            notify_frame.frame = &mframe->frame;
+            notify_frame.idx = mframe->idx;
+            mm_camera_stream_util_buf_done(my_obj, mstream, &notify_frame);
         }
         sframe = mm_camera_stream_frame_deq(sq);
         if(sframe) {
-            mm_camera_stream_qbuf(my_obj, sstream, sframe->idx);
+            notify_frame.frame = &sframe->frame;
+            notify_frame.idx = sframe->idx;
+            mm_camera_stream_util_buf_done(my_obj, sstream, &notify_frame);
+        }
+        if (mframe && sframe) {
+            if (mframe->frame.frame_id == sframe->frame.frame_id) {
+                mq->match_cnt--;
+                sq->match_cnt--;
+                CDBG("%s Dequeued frame_id %d from both the queue,"
+                     "match_cnt now is mq %d sq %d", __func__,
+                     mframe->frame.frame_id, mq->match_cnt, sq->match_cnt);
+            } else {
+                CDBG_ERROR("%s Frame_id mismatch!! ", __func__);
+            }
         }
     }
 
@@ -671,11 +711,12 @@ static int mm_camera_channel_get_starting_frame(mm_camera_obj_t *my_obj,
                                                 mm_camera_frame_t **mframe,
                                                 mm_camera_frame_t **sframe)
 {
-    int mcnt = 0;
+    int mcnt = 0, scnt = 0, deq_cnt = 0;
     int rc = MM_CAMERA_OK;
 
     *mframe = *sframe = NULL;
     mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+    scnt = mm_camera_stream_frame_get_q_cnt(sq);
 
     CDBG("%s: Total frames in the queue: %d", __func__, mcnt);
 
@@ -692,11 +733,14 @@ static int mm_camera_channel_get_starting_frame(mm_camera_obj_t *my_obj,
     /* If look_back value is 0, we'll just return the most recent frame in
        the queue */
     if(ch->buffering_frame.look_back == 0) {
+        CDBG("%s mcnt = %d scnt = %d ", __func__, mcnt, scnt);
+        deq_cnt = (mcnt < scnt) ? mcnt : scnt;
+        CDBG("%s Dequeue %d frames ", __func__, deq_cnt);
         CDBG("%s: Look-back value is 0. Dequeue all the frames except last", __func__);
         mm_camera_channel_deq_x_frames(my_obj,
                                        mq, sq,
                                        mstream, sstream,
-                                       mcnt-1);
+                                       deq_cnt-1);
         /* We have now right frame at top of the queue. We'll dequeue it
            now*/
         goto dequeue_frame;
@@ -737,7 +781,23 @@ dequeue_frame:
     *mframe = mm_camera_stream_frame_deq(mq);
     *sframe = mm_camera_stream_frame_deq(sq);
 
-    CDBG("%s: Finally: frame id of: main - %d  thumbnail - %d", __func__, (*mframe)->idx, (*sframe)->idx);
+    if (*mframe && *sframe) {
+      if ((*mframe)->frame.frame_id == (*sframe)->frame.frame_id) {
+	mq->match_cnt--;
+	sq->match_cnt--;
+	CDBG("%s Dequeued frame_id %d from both the queue,"
+	    "match_cnt now is mq %d sq %d", __func__,
+	    (*mframe)->frame.frame_id, mq->match_cnt, sq->match_cnt);
+      } else {
+	CDBG_ERROR("%s Frame_id mismatch!! Something wrong", __func__);
+      }
+    }
+    if (*mframe)
+        CDBG("%s: Finally: frame id of: main - %d Frame_id %d", __func__,
+             (*mframe)->idx, (*mframe)->frame.frame_id);
+    if (*sframe)
+        CDBG("%s: Finally: frame id of: thumb - %d Frame_id %d", __func__,
+             (*sframe)->idx, (*sframe)->frame.frame_id);
 end:
     return rc;
 }
@@ -745,7 +805,7 @@ end:
 void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
                                         mm_camera_channel_type_t ch_type)
 {
-    int mcnt, i, rc = MM_CAMERA_E_GENERAL;
+    int mcnt, i, rc = MM_CAMERA_E_GENERAL, scnt;
     int num_of_req_frame = 0;
     mm_camera_ch_data_buf_t data;
     mm_camera_frame_t *mframe = NULL, *sframe = NULL;
@@ -757,6 +817,7 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
     mm_camera_stream_t *stream2 = NULL;
 
     mm_camera_ch_util_get_stream_objs(my_obj, ch_type, &stream1, &stream2);
+    stream2 = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
     if(stream1) {
       mq = &stream1->frame.readyq;
     }
@@ -767,12 +828,15 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
     pthread_mutex_lock(&ch->mutex);
 
     if (mq && sq && stream1 && stream2) {
+      CDBG("%s Both qs and streams valid  have %d and %d items", __func__,
+        mm_camera_stream_frame_get_q_cnt(mq), mm_camera_stream_frame_get_q_cnt(sq));
       /* Some requirements are such we'll first need to empty the buffered
          queue - like for HDR. If we need to empty the buffered queue first,
          let's empty it here.*/
       if(ch->buffering_frame.empty_queue) {
           CDBG("%s: Emptying the queue first before dispatching!", __func__);
           mcnt = mm_camera_stream_frame_get_q_cnt(mq);
+          scnt = mm_camera_stream_frame_get_q_cnt(sq);
           mm_camera_channel_deq_x_frames(my_obj, mq, sq, stream1, stream2, mcnt);
           ch->buffering_frame.empty_queue = 0;
           goto end;
@@ -794,7 +858,8 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
       CDBG("%s: Received frame id of: main - %d  thumbnail - %d",
            __func__, mframe->idx, sframe->idx);
 
-      /* So total number of frames available - total in the queue plus already dequeud one*/
+      /* So total number of frames available -
+       * total in the queue plus already dequeud one*/
       mcnt = mm_camera_stream_frame_get_q_cnt(mq) + 1;
       num_of_req_frame = ch->snapshot.num_shots;
 
@@ -802,9 +867,11 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
            __func__, num_of_req_frame, mcnt);
 
       ch->snapshot.pending_cnt = num_of_req_frame;
-      for(i = 0; i < mcnt; i++) {
+      for(i = 0; i < num_of_req_frame; i++) {
           if(mframe && sframe) {
-              CDBG("%s: Dequeued frame: main frame-id: %d thumbnail frame-id: %d", __func__, mframe->idx, sframe->idx);
+              CDBG("%s: Dequeued frame: main frame idx: %d "
+                   "thumbnail frame idx: %d", __func__,
+                   mframe->idx, sframe->idx);
               /* dispatch this pair of frames */
               memset(&data, 0, sizeof(data));
               data.type = ch_type;
@@ -812,18 +879,33 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
               data.snapshot.main.idx = mframe->idx;
               data.snapshot.thumbnail.frame = &sframe->frame;
               data.snapshot.thumbnail.idx = sframe->idx;
-              stream1->frame.ref_count[data.snapshot.main.idx]++;
-              stream2->frame.ref_count[data.snapshot.thumbnail.idx]++;
-              ch->buf_cb.cb(&data, ch->buf_cb.user_data);
               ch->snapshot.pending_cnt--;
+              ch->buf_cb.cb(&data, ch->buf_cb.user_data);
           } else {
               qmframe = mframe;
               qsframe = sframe;
               rc = -1;
               break;
           }
-          mframe = mm_camera_stream_frame_deq(mq);
-          sframe = mm_camera_stream_frame_deq(sq);
+
+	  if (i != (num_of_req_frame - 1)) {
+              /* Dequeue again from main and sec queue only
+               * if we still have frames to be sent to the app
+               * Otherwise let the frames stay in the queue */
+	      mframe = mm_camera_stream_frame_deq(mq);
+	      sframe = mm_camera_stream_frame_deq(sq);
+	      if (mframe && sframe) {
+		  if (mframe->frame.frame_id == sframe->frame.frame_id) {
+		      mq->match_cnt--;
+		      sq->match_cnt--;
+		      CDBG("%s Dequeued frame_id %d from both the queue,"
+			      "match_cnt now is mq %d sq %d", __func__,
+			      mframe->frame.frame_id, mq->match_cnt, sq->match_cnt);
+		  } else {
+		      CDBG_ERROR("%s Frame_id mismatch!! Should not happen", __func__);
+		  }
+	      }
+	  }
       }
       if(qmframe) {
           mm_camera_stream_frame_enq(mq, &stream1->frame.frame[qmframe->idx]);
@@ -983,7 +1065,7 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
         mm_camera_poll_thread_add_ch(my_obj, ch_type);
         rc = mm_camera_ch_util_stream_null_val(my_obj, ch_type, evt, NULL);
         if(rc < 0) {
-          CDBG("Failed in STREAM ON");
+          CDBG_ERROR("%s: Failed in STREAM ON", __func__);
           mm_camera_poll_thread_release(my_obj, ch_type);
         }
         break;

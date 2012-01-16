@@ -374,7 +374,7 @@ int recording_enabled(struct camera_device * device)
 void release_recording_frame(struct camera_device * device,
                 const void *opaque)
 {
-    LOGE("Q%s: E", __func__);
+    LOGV("Q%s: E", __func__);
     QCameraHardwareInterface *hardware = util_get_Hal_obj(device);
     if(hardware != NULL){
         hardware->releaseRecordingFrame(opaque);

@@ -181,7 +181,7 @@ static camera_size_type default_picture_sizes[] = {
   { 3200, 2400}, // 8MP
   { 2592, 1944}, // 5MP
   { 2048, 1536}, // 3MP QXGA
-  { 1920, 1080}, //HD1080
+  { 1920, 1088}, //HD1080
   { 1600, 1200}, // 2MP UXGA
   { 1280, 768}, //WXGA
   { 1280, 720}, //HD720
@@ -706,18 +706,57 @@ static String8 create_str(int16_t *arr, int length){
     return str;
 }
 
+bool QCameraHardwareInterface::getMaxPictureDimension(mm_camera_dimension_t *maxDim)
+{
+    bool ret = NO_ERROR;
+    mm_camera_dimension_t dim;
+
+    ret = cam_config_get_parm(mCameraId,
+                              MM_CAMERA_PARM_MAX_PICTURE_SIZE, &dim);
+    if (ret != NO_ERROR)
+        return ret;
+
+    /* Find the first dimension in the mPictureSizes
+     * array which is smaller than the max dimension.
+     * This will be the valid max picture resolution */
+    for (int i = 0; i < mPictureSizeCount; i++) {
+        if ((mPictureSizes[i].width <= dim.width) &&
+            (mPictureSizes[i].height <= dim.height)) {
+            maxDim->height = mPictureSizes[i].height;
+            maxDim->width  = mPictureSizes[i].width;
+            break;
+        }
+    }
+    LOGD("%s: Found Max Picture dimension: %d x %d", __func__,
+          maxDim->width, maxDim->height);
+    return ret;
+}
 void QCameraHardwareInterface::initDefaultParameters()
 {
     bool ret;
+    mm_camera_dimension_t maxDim;
     LOGI("%s: E", __func__);
 
-    //cam_ctrl_dimension_t dim;
+    memset(&maxDim, 0, sizeof(mm_camera_dimension_t));
+    ret = getMaxPictureDimension(&maxDim);
+
+    if (ret != NO_ERROR) {
+        LOGE("%s: Cannot get Max picture size supported", __func__);
+        return;
+    }
+    if (!maxDim.width || !maxDim.height) {
+        maxDim.width = DEFAULT_LIVESHOT_WIDTH;
+        maxDim.height = DEFAULT_LIVESHOT_HEIGHT;
+    }
+
     memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
     memset(&mPreviewFormatInfo, 0, sizeof(preview_format_info_t));
     mDimension.video_width     = DEFAULT_STREAM_WIDTH;
     mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
-    mDimension.picture_width   = DEFAULT_LIVESHOT_WIDTH;
-    mDimension.picture_height  = DEFAULT_LIVESHOT_HEIGHT;
+    // mzhu mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
+    // mzhu mDimension.picture_height  = DEFAULT_STREAM_HEIGHT;
+    mDimension.picture_width   = maxDim.width;
+    mDimension.picture_height  = maxDim.height;
     mDimension.display_width   = DEFAULT_STREAM_WIDTH;
     mDimension.display_height  = DEFAULT_STREAM_HEIGHT;
     mDimension.orig_picture_dx = mDimension.picture_width;
@@ -741,18 +780,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
 
     hasAutoFocusSupport();
-
-    //Disable DIS for Web Camera
-    #if 0
-        if( !mCfgControl.mm_camera_is_supported(MM_CAMERA_PARM_VIDEO_DIS)){
-            LOGV("DISABLE DIS");
-            mDisEnabled = 0;
-        }else {
-            LOGV("Enable DIS");
-        }
-    #else
-        mDisEnabled = 0;
-    #endif
 
     // Initialize constant parameter strings. This will happen only once in the
     // lifetime of the mediaserver process.
@@ -969,6 +996,11 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.set("video-zoom-support", "true");
     } else {
         mParameters.set("video-zoom-support", "false");
+    }
+
+    if (mFullLiveshotEnabled) {
+        //Set Live Snapshot support
+        mParameters.set("video-snapshot-supported", "true");
     }
 
     //Set Camera Mode
@@ -1344,6 +1376,7 @@ status_t QCameraHardwareInterface::runFaceDetection()
         cam_ctrl_dimension_t dim;
         cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
         preview_parm_config (&dim, mParameters);
+        LOGE("%s: why set_dimension everytime?", __func__);
         ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
         ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
         return ret ? NO_ERROR : UNKNOWN_ERROR;
@@ -2490,9 +2523,9 @@ status_t QCameraHardwareInterface::setFaceDetect(const CameraParameters& params)
         mFaceDetectOn = value;
         LOGE("%s Face detection value = %d",__func__, value);
         cam_ctrl_dimension_t dim;
-        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
-        preview_parm_config (&dim, mParameters);
-        cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+//        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+//        preview_parm_config (&dim, mParameters);
+//        cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
         native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
         mParameters.set(CameraParameters::KEY_FACE_DETECTION, str);
         return NO_ERROR;
@@ -2705,6 +2738,7 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
       int32_t value = attr_lookup(recording_Hints,
                                   sizeof(recording_Hints) / sizeof(str_map), str);
       if(value != NOT_FOUND){
+        mRecordingHint = value;
         native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
                                                (void *)&value);
         native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),
@@ -2712,11 +2746,37 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
         mParameters.set(CameraParameters::KEY_RECORDING_HINT, str);
       } else {
           LOGE("Invalid Picture Format value: %s", str);
+          setDISMode();
+          setFullLiveshot();
           return BAD_VALUE;
       }
   }
+  setDISMode();
+  setFullLiveshot();
   return NO_ERROR;
 }
+
+status_t QCameraHardwareInterface::setDISMode() {
+  uint32_t value = mRecordingHint && mDisEnabled;
+
+  LOGI("%s DIS is %s value = %d", __func__,
+          value ? "Enabled" : "Disabled", value);
+  native_set_parms(MM_CAMERA_PARM_DIS_ENABLE, sizeof(value),
+                                               (void *)&value);
+  return NO_ERROR;
+}
+
+status_t QCameraHardwareInterface::setFullLiveshot()
+{
+  uint32_t value = mRecordingHint && mFullLiveshotEnabled;
+
+  LOGI("%s Full size liveshot %s value = %d", __func__,
+          value ? "Enabled" : "Disabled", value);
+  native_set_parms(MM_CAMERA_PARM_FULL_LIVESHOT, sizeof(value),
+                                               (void *)&value);
+  return NO_ERROR;
+}
+
 
 isp3a_af_mode_t QCameraHardwareInterface::getAutoFocusMode(
   const CameraParameters& params)

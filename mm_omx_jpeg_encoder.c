@@ -471,9 +471,12 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
       userpreferences.preference);
     OMX_SetParameter(pHandle,user_preferences,&userpreferences);
 
-    OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.thumbnail", &type);
-    OMX_SetParameter(pHandle, type, &thumbnail);
-
+    OMX_DBG_INFO("%s Thumbnail present? : %d ", __func__,
+                 encode_params->hasThumbnail);
+    if (encode_params->hasThumbnail) {
+	OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.thumbnail", &type);
+	OMX_SetParameter(pHandle, type, &thumbnail);
+    }
     qFactor.nPortIndex = INPUT_PORT;
     OMX_GetParameter(pHandle, OMX_IndexParamQFactor, &qFactor);
     qFactor.nQFactor = jpegMainimageQuality;

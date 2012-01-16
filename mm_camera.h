@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -84,12 +84,15 @@ struct mm_camera_frame_t{
     struct v4l2_plane planes[VIDEO_MAX_PLANES];
     uint8_t num_planes;
     int idx;
+    int match;
+    int valid_entry;
     mm_camera_frame_t *next;
 };
 
 typedef struct {
     pthread_mutex_t mutex;
     int cnt;
+	int match_cnt;
     mm_camera_frame_t *head;
     mm_camera_frame_t *tail;
 } mm_camera_frame_queue_t;
@@ -129,7 +132,7 @@ typedef struct {
     mm_camera_stream_t thumbnail;
     mm_camera_stream_t main;
     int8_t num_shots;
-	int pending_cnt;
+    int8_t pending_cnt;
 } mm_camera_ch_snapshot_t;
 
 typedef struct {
@@ -236,6 +239,7 @@ typedef struct {
     uint32_t evt_type_mask;
     mm_camera_poll_thread_t poll_threads[MM_CAMERA_POLL_THRAED_MAX];
     mm_camera_mem_map_t hist_mem_map;
+    int full_liveshot;
 } mm_camera_obj_t;
 
 #define MM_CAMERA_DEV_NAME_LEN 32
@@ -306,9 +310,14 @@ extern int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj,
                                                             int idx);
 extern int mm_camera_stream_frame_get_q_cnt(mm_camera_frame_queue_t *q);
 extern mm_camera_frame_t *mm_camera_stream_frame_deq(mm_camera_frame_queue_t *q);
+extern mm_camera_frame_t *mm_camera_stream_frame_deq_no_lock(mm_camera_frame_queue_t *q);
 extern void mm_camera_stream_frame_enq(mm_camera_frame_queue_t *q, mm_camera_frame_t *node);
+extern void mm_camera_stream_frame_enq_no_lock(mm_camera_frame_queue_t *q, mm_camera_frame_t *node);
 extern void mm_camera_stream_frame_refill_q(mm_camera_frame_queue_t *q, mm_camera_frame_t *node, int num);
 extern int mm_camera_stream_is_active(mm_camera_stream_t *stream);
+extern int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
+                    mm_camera_stream_t *stream,
+                    mm_camera_notify_frame_t *frame);
 //extern int mm_camera_poll_add_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream);
 //extern int mm_camera_poll_del_stream(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream);
 extern int mm_camera_dev_open(int *fd, char *dev_name);
@@ -321,5 +330,5 @@ extern void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj, mm_camer
 extern void mm_camera_histo_mmap(mm_camera_obj_t * my_obj, mm_camera_event_t *evt);
 extern void mm_camera_check_pending_zsl_frames(mm_camera_obj_t *my_obj,
                                         mm_camera_channel_type_t ch_type);
+extern int mm_camera_ch_util_get_num_stream(mm_camera_obj_t * my_obj,mm_camera_channel_type_t ch_type);
 #endif /* __MM_CAMERA_H__ */
-

@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -239,6 +239,8 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     LOGE("%s: Calling upperlayer callback to store JPEG image", __func__);
     msg_type = isLiveSnapshot() ?
         (int)MEDIA_RECORDER_MSG_COMPRESSED_IMAGE : (int)CAMERA_MSG_COMPRESSED_IMAGE;
+
+    msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
 
     mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
     if (mHalCamCtrl->mDataCb && (mHalCamCtrl->mMsgEnabled & msg_type)) {
@@ -740,18 +742,19 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
           LOGE("%s Error allocating memory for mplanar struct ", __func__);
           ret = NO_MEMORY;
           goto end;
-        }
+    }
     memset(reg_buf.snapshot.main.buf.mp, 0,
-               num_of_buf * sizeof(mm_camera_mp_buf_t));
-    reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
-    if (!reg_buf.snapshot.thumbnail.buf.mp) {
-          LOGE("%s Error allocating memory for mplanar struct ", __func__);
-          ret = NO_MEMORY;
-          goto end;
-        }
-    memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
-               num_of_buf * sizeof(mm_camera_mp_buf_t));
-
+      num_of_buf * sizeof(mm_camera_mp_buf_t));
+    if (!isFullSizeLiveshot()) {
+      reg_buf.snapshot.thumbnail.buf.mp = new mm_camera_mp_buf_t[num_of_buf];
+      if (!reg_buf.snapshot.thumbnail.buf.mp) {
+        LOGE("%s Error allocating memory for mplanar struct ", __func__);
+        ret = NO_MEMORY;
+        goto end;
+      }
+      memset(reg_buf.snapshot.thumbnail.buf.mp, 0,
+        num_of_buf * sizeof(mm_camera_mp_buf_t));
+    }
     /* Number of buffers to be set*/
     /* Set the JPEG Rotation here since get_buffer_offset needs
      * the value of rotation.*/
@@ -786,24 +789,29 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     planes[0] = dim->thumb_frame_offset.mp[0].len;
     planes[1] = dim->thumb_frame_offset.mp[1].len;
     frame_len = planes[0] + planes[1];
-    y_off = dim->thumb_frame_offset.mp[0].offset;
-    cbcr_off = dim->thumb_frame_offset.mp[1].offset;
-    LOGE("%s: thumbnail: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
-         __func__, dim->rotation, y_off, cbcr_off, frame_len,
-         dim->thumbnail_width, dim->thumbnail_height);
+    if (!isFullSizeLiveshot()) {
+	y_off = dim->thumb_frame_offset.mp[0].offset;
+	cbcr_off = dim->thumb_frame_offset.mp[1].offset;
+	LOGE("%s: thumbnail: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
+		__func__, dim->rotation, y_off, cbcr_off, frame_len,
+		dim->thumbnail_width, dim->thumbnail_height);
 
-    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
-    frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf,
-        &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
-        ret = NO_MEMORY;
-        goto end;
-    };
-
+	if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mThumbnailMemory, num_of_buf,
+		    frame_len, y_off, cbcr_off, MSM_PMEM_THUMBNAIL, &mPostviewStreamBuf,
+		    &reg_buf.snapshot.thumbnail, num_planes, planes) < 0) {
+	    ret = NO_MEMORY;
+	    goto end;
+	};
+    }
 
     /* register the streaming buffers for the channel*/
     reg_buf.ch_type = MM_CAMERA_CH_SNAPSHOT;
     reg_buf.snapshot.main.num = mSnapshotStreamBuf.num;
-    reg_buf.snapshot.thumbnail.num = mPostviewStreamBuf.num;
+
+    if (!isFullSizeLiveshot())
+        reg_buf.snapshot.thumbnail.num = mPostviewStreamBuf.num;
+    else
+        reg_buf.snapshot.thumbnail.num = 0;
 
     ret = cam_config_prepare_buf(mCameraId, &reg_buf);
     if(ret != NO_ERROR) {
@@ -847,7 +855,8 @@ deinitSnapshotBuffers(void)
 
         /* Clear main and thumbnail heap*/
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
-        mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
+        if (!isFullSizeLiveshot())
+          mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mJpegMemory);
     }
 end:
@@ -935,6 +944,9 @@ status_t QCameraStream_Snapshot::initJPEGSnapshot(int num_of_snapshots)
     mm_camera_op_mode_type_t op_mode;
 
     LOGV("%s: E", __func__);
+
+    if (isFullSizeLiveshot())
+      goto end;
 
     LOGD("%s: Get current dimension", __func__);
     /* Query mm_camera to get current dimension */
@@ -1042,6 +1054,38 @@ end:
         handleError();
     }
     LOGV("%s: X", __func__);
+    return ret;
+}
+
+status_t QCameraStream_Snapshot::initFullLiveshot(void)
+{
+    status_t ret = NO_ERROR;
+    cam_ctrl_dimension_t dim;
+
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+    if (MM_CAMERA_OK != ret) {
+      LOGE("%s: error - can't get dimension!", __func__);
+      return ret;
+    }
+    /* Initialize stream - set format, acquire channel */
+    ret = initSnapshotFormat(&dim);
+    if (NO_ERROR != ret) {
+        LOGE("%s: error - can't init nonZSL stream!", __func__);
+        return ret;
+    }
+    ret = cam_config_get_parm(mCameraId,
+                              MM_CAMERA_PARM_DIMENSION, &dim);
+    ret = initSnapshotBuffers(&dim, 1);
+    if ( NO_ERROR != ret ){
+        LOGE("%s: Failure allocating memory for Snapshot buffers", __func__);
+        return ret;
+    }
+    mPictureWidth = dim.picture_width;
+    mPictureHeight = dim.picture_height;
+    mThumbnailWidth = dim.display_width;
+    mThumbnailHeight = dim.display_height;
+
     return ret;
 }
 
@@ -1333,6 +1377,9 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
       setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODING);
     } else {  /*not busy and new buffer (first job)*/
         postviewframe = recvd_frame->snapshot.thumbnail.frame;
+        /* No thumbnail for full size liveshot */
+        if (!isFullSizeLiveshot())
+            postviewframe = recvd_frame->snapshot.thumbnail.frame;
         mainframe = recvd_frame->snapshot.main.frame;
 
         dimension.orig_picture_dx = mPictureWidth;
@@ -1400,23 +1447,28 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         main_crop_offset.x=mCrop.snapshot.main_crop.left;
         main_crop_offset.y=mCrop.snapshot.main_crop.top;
         /*Thumbnail image*/
-        crop.in1_w=mCrop.snapshot.thumbnail_crop.width; //dimension.thumbnail_width;
-        crop.in1_h=mCrop.snapshot.thumbnail_crop.height; // dimension.thumbnail_height;
-        if((width != 0) && (height != 0)) {
-            crop.out1_w=mThumbnailWidth;
-            crop.out1_h=mThumbnailHeight;
-        } else {
-            crop.out1_w = 0;
-            crop.out1_h = 0;
+        if (!isFullSizeLiveshot()) {
+          crop.in1_w=mCrop.snapshot.thumbnail_crop.width; //dimension.thumbnail_width;
+          crop.in1_h=mCrop.snapshot.thumbnail_crop.height; // dimension.thumbnail_height;
+          if((width != 0) && (height != 0)) {
+              crop.out1_w=mThumbnailWidth;
+              crop.out1_h=mThumbnailHeight;
+          } else {
+              crop.out1_w = 0;
+              crop.out1_h = 0;
+          }
+          thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
+          thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
         }
-        thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
-        thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
 
         /*Fill in the encode parameters*/
         encode_params.dimension = (const cam_ctrl_dimension_t *)&dimension;
-        encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
-        encode_params.thumbnail_fd = postviewframe->fd;
-        encode_params.thumbnail_offset = postviewframe->phy_offset;
+        if (!isFullSizeLiveshot()) {
+            encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
+            encode_params.thumbnail_fd = postviewframe->fd;
+            encode_params.thumbnail_offset = postviewframe->phy_offset;
+            encode_params.thumb_crop_offset = &thumb_crop_offset;
+        }
         encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
         encode_params.snapshot_fd = mainframe->fd;
         encode_params.snapshot_offset = mainframe->phy_offset;
@@ -1425,7 +1477,11 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         encode_params.exif_numEntries = 0;
         encode_params.a_cbcroffset = -1;
         encode_params.main_crop_offset = &main_crop_offset;
-        encode_params.thumb_crop_offset = &thumb_crop_offset;
+
+	if (isFullSizeLiveshot())
+            encode_params.hasThumbnail = 0;
+        else
+            encode_params.hasThumbnail = 1;
 
         if (!omxJpegEncode(&encode_params)){
             LOGE("%s: Failure! JPEG encoder returned error.", __func__);
@@ -1565,7 +1621,9 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
     }
 
     mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
-    mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame, HAL_DUMP_FRM_THUMBNAIL);
+    if (!isFullSizeLiveshot())
+        mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame,
+                                     HAL_DUMP_FRM_THUMBNAIL);
 
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
@@ -1765,6 +1823,16 @@ bool QCameraStream_Snapshot::isZSLMode()
     return (myMode & CAMERA_ZSL_MODE);
 }
 
+void QCameraStream_Snapshot::setFullSizeLiveshot(bool value)
+{
+    mFullLiveshot = value;
+}
+
+bool QCameraStream_Snapshot::isFullSizeLiveshot()
+{
+    return mFullLiveshot;
+}
+
 //------------------------------------------------------------------
 // Constructor and Destructor
 //------------------------------------------------------------------
@@ -1787,7 +1855,8 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
     mDisplayHeap(NULL),
     mPostviewHeap(NULL),
     mCurrentFrameEncoded(NULL),
-    mJpegSessionId(0)
+    mJpegSessionId(0),
+    mFullLiveshot(false)
   {
     LOGV("%s: E", __func__);
 
@@ -1930,6 +1999,9 @@ status_t QCameraStream_Snapshot::start(void) {
         goto end;
     }
 
+    if (isFullSizeLiveshot())
+      ret = initFullLiveshot();
+
     /* Check if it's a raw snapshot or JPEG*/
     if(mHalCamCtrl->isRawSnapshot()) {
         mSnapshotFormat = PICTURE_FORMAT_RAW;
@@ -1986,29 +2058,22 @@ void QCameraStream_Snapshot::stop(void)
     //Mutex::Autolock l(&snapshotLock);
 
     if(!mActive) {
+      LOGV("%s: Not Active return now", __func__);
       return;
     }
     mActive = false;
     Mutex::Autolock lock(mStopCallbackLock);
-    /* if it's live snapshot, we don't need to deinit anything
-       as recording object will handle everything. We just set
-       the state to UNINIT and return */
-    if (isLiveSnapshot()) {
-        setSnapshotState(SNAPSHOT_STATE_UNINIT);
-    }
-    else {
-        if (getSnapshotState() != SNAPSHOT_STATE_UNINIT) {
-            /* Stop polling for further frames */
-            stopPolling();
+    if (getSnapshotState() != SNAPSHOT_STATE_UNINIT) {
+        /* Stop polling for further frames */
+        stopPolling();
 
-            if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
-                LOGV("Destroy Jpeg Instance");
-                omxJpegAbort();
-            }
-
-            /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
-            deInitBuffer();
+        if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
+            LOGV("Destroy Jpeg Instance");
+            omxJpegAbort();
         }
+
+        /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
+        deInitBuffer();
     }
 
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
@@ -2019,7 +2084,7 @@ void QCameraStream_Snapshot::stop(void)
         (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_RAW,
                                             NULL,
                                             NULL);
-    }else{
+    } else {
         ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_SNAPSHOT);
         if(ret != MM_CAMERA_OK) {
           LOGE("%s:Deinit Snapshot channel failed=%d\n", __func__, ret);
@@ -2037,6 +2102,7 @@ void QCameraStream_Snapshot::stop(void)
 #if 0
     omxJpegClose();
 #endif
+    mFullLiveshot = false;
     LOGV("%s: X", __func__);
 
 }

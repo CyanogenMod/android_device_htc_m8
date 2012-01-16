@@ -16,7 +16,7 @@
 
 /*#error uncomment this for compiler test!*/
 
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 #define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Record"
 #include <utils/Log.h>
@@ -299,7 +299,7 @@ void QCameraStream_record::release()
 
 status_t QCameraStream_record::processRecordFrame(void *data)
 {
-    LOGE("%s : BEGIN",__func__);
+    LOGV("%s : BEGIN",__func__);
     mm_camera_ch_data_buf_t* frame = (mm_camera_ch_data_buf_t*) data;
 
     Mutex::Autolock lock(mStopCallbackLock);
@@ -311,7 +311,6 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     if (UNLIKELY(mDebugFps)) {
         debugShowVideoFPS();
     }
-
 
     mHalCamCtrl->dumpFrameToFile(frame->video.video.frame, HAL_DUMP_FRM_VIDEO);
     mHalCamCtrl->mCallbackLock.lock();
@@ -356,7 +355,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     snapshot_enabled = false;
   }
 
-  LOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
+  LOGV("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
   mRecordedFrames[frame->video.video.idx] = *frame;
 #if 1
   if (mHalCamCtrl->mStoreMetaDataInFrame) {
@@ -399,7 +398,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
     if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId, frame))
       LOGE("%s : BUF DONE FAILED",__func__);
 #endif
-  LOGE("%s : END",__func__);
+  LOGV("%s : END",__func__);
   return NO_ERROR;
 }
 
@@ -624,7 +623,7 @@ status_t QCameraStream_record::initEncodeBuffers()
 
 void QCameraStream_record::releaseRecordingFrame(const void *opaque)
 {
-    LOGE("%s : BEGIN, opaque = 0x%p",__func__, opaque);
+    LOGV("%s : BEGIN, opaque = 0x%p",__func__, opaque);
     if(!mActive)
     {
         LOGE("%s : Recording already stopped!!! Leak???",__func__);
@@ -637,7 +636,7 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
             /* found the match */
             if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mRecordedFrames[cnt]))
                 LOGE("%s : Buf Done Failed",__func__);
-            LOGE("%s : END",__func__);
+            LOGV("%s : END",__func__);
             return;
         }
       } else {
@@ -646,7 +645,7 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
             /* found the match */
             if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mRecordedFrames[cnt]))
                 LOGE("%s : Buf Done Failed",__func__);
-            LOGE("%s : END",__func__);
+            LOGV("%s : END",__func__);
             return;
         }
       }

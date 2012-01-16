@@ -16,6 +16,7 @@
 
 /*#error uncomment this for compiler test!*/
 
+#define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -212,15 +213,18 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mIs3DModeOn(0),
                     mSmoothZoomRunning(false),
                     mParamStringInitialized(false),
+                    mFaceDetectOn(0),
+                    mDisEnabled(0),
                     mZoomSupported(false),
+                    mFullLiveshotEnabled(1),
+                    mRecordingHint(0),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
                     mZslLookBackMode(ZSL_LOOK_BACK_MODE_TIME),
                     mZslLookBackValue(0),
                     mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
-                    mPostPreviewHeap(NULL),
-                    mFaceDetectOn(0)
+                    mPostPreviewHeap(NULL)
 
 {
     LOGI("QCameraHardwareInterface: E");
@@ -237,10 +241,16 @@ QCameraHardwareInterface(int cameraId, int mode)
     property_get("camera.hal.fps", value, "0");
     mFps = atoi(value);
 
-	LOGI("Init mPreviewState = %d", mPreviewState);
+    LOGI("Init mPreviewState = %d", mPreviewState);
 
     property_get("persist.camera.hal.multitouchaf", value, "0");
     mMultiTouch = atoi(value);
+
+    property_get("persist.camera.full.liveshot", value, "0");
+    mFullLiveshotEnabled = atoi(value); 
+
+    property_get("persist.camera.hal.dis", value, "0");
+    mDisEnabled = atoi(value);
 
     /* Open camera stack! */
     result=cam_ops_open(mCameraId, MM_CAMERA_OP_MODE_NOTUSED);
@@ -749,15 +759,20 @@ void QCameraHardwareInterface::processRecordChannelEvent(
 
 void QCameraHardwareInterface::
 processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent, app_notify_cb_t *app_cb) {
-    LOGI("processSnapshotChannelEvent: E");
+    LOGI("processSnapshotChannelEvent: E evt=%d state=%d", channelEvent,
+      mCameraState);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
+          if (!mFullLiveshotEnabled) {
             mCameraState =
-                isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
-            break;
+              isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
+          }
+          break;
         case MM_CAMERA_CH_EVT_STREAMING_OFF:
+          if (!mFullLiveshotEnabled) {
             mCameraState = CAMERA_STATE_READY;
-            break;
+          }
+          break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
             break;
         case MM_CAMERA_CH_EVT_DATA_REQUEST_MORE:
@@ -1017,6 +1032,7 @@ status_t QCameraHardwareInterface::startPreview2()
     status_t ret = NO_ERROR;
 
     cam_ctrl_dimension_t dim;
+    mm_camera_dimension_t maxDim;
     bool initPreview = false;
 
     if (mPreviewState == QCAMERA_HAL_PREVIEW_STARTED) { //isPreviewRunning()){
@@ -1041,6 +1057,26 @@ status_t QCameraHardwareInterface::startPreview2()
 
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
+    if (mRecordingHint && mFullLiveshotEnabled) {
+      /* Camcorder mode and Full resolution liveshot enabled 
+       * TBD lookup table for correct aspect ratio matching size */
+      memset(&maxDim, 0, sizeof(mm_camera_dimension_t));
+      getMaxPictureDimension(&maxDim);
+      if (!maxDim.width || !maxDim.height) {
+        maxDim.width  = DEFAULT_LIVESHOT_WIDTH;
+        maxDim.height = DEFAULT_LIVESHOT_HEIGHT;
+      }
+      /* TODO Remove this hack after adding code to get live shot dimension */
+      if (!mCameraId) {
+        maxDim.width = DEFAULT_LIVESHOT_WIDTH;
+        maxDim.height = DEFAULT_LIVESHOT_HEIGHT;
+      }
+      dim.picture_width = maxDim.width;
+      dim.picture_height = maxDim.height;
+      mParameters.setPictureSize(dim.picture_width, dim.picture_height);
+      LOGI("%s Setting Liveshot dimension as %d x %d", __func__,
+           maxDim.width, maxDim.height);
+    }
     ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s X: error - can't config preview parms!", __func__);
@@ -1278,13 +1314,13 @@ int QCameraHardwareInterface::recordingEnabled()
 */
 void QCameraHardwareInterface::releaseRecordingFrame(const void *opaque)
 {
-    LOGE("%s : BEGIN",__func__);
+    LOGV("%s : BEGIN",__func__);
     if(mStreamRecord == NULL) {
         LOGE("Record stream Not Initialized");
         return;
     }
     mStreamRecord->releaseRecordingFrame(opaque);
-    LOGE("%s : END",__func__);
+    LOGV("%s : END",__func__);
     return;
 }
 
@@ -1453,13 +1489,20 @@ status_t  QCameraHardwareInterface::takePicture()
             mCameraState = CAMERA_STATE_ERROR;
         mPreviewState = QCAMERA_HAL_TAKE_PICTURE;
         break;
+      case QCAMERA_HAL_TAKE_PICTURE:
+          break;
     case QCAMERA_HAL_PREVIEW_STOPPED:
     case QCAMERA_HAL_PREVIEW_START:
+      ret = UNKNOWN_ERROR;
+      break;
     case QCAMERA_HAL_RECORDING_STARTED:
+      if (mFullLiveshotEnabled) {
+        LOGE("%s Taking FULL size liveshot ", __func__);
+        takeFullSizeLiveshot();
+      }
+      break;
     default:
         ret = UNKNOWN_ERROR;
-        break;
-    case QCAMERA_HAL_TAKE_PICTURE:
         break;
     }
     LOGI("takePicture: X");
@@ -1470,6 +1513,44 @@ void  QCameraHardwareInterface::encodeData()
 {
     LOGI("encodeData: E");
     LOGI("encodeData: X");
+}
+
+status_t QCameraHardwareInterface::takeFullSizeLiveshot()
+{
+    status_t ret = NO_ERROR;
+    if (mStreamSnap){
+	LOGE("%s:Deleting old Snapshot stream instance",__func__);
+	QCameraStream_Snapshot::deleteInstance (mStreamSnap);
+	mStreamSnap = NULL;
+    }
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId, myMode);
+
+    if (!mStreamSnap) {
+	LOGE("%s: error - can't creat snapshot stream!", __func__);
+	/* mzhu: fix me, restore preview */
+	return BAD_VALUE;
+    }
+
+    /* Store HAL object in snapshot stream Object */
+    mStreamSnap->setHALCameraControl(this);
+
+    mStreamSnap->setFullSizeLiveshot(true);
+
+    /* Call snapshot init*/
+    ret =  mStreamSnap->init();
+    if (MM_CAMERA_OK != ret){
+	LOGE("%s: error - can't init Snapshot stream!", __func__);
+	return BAD_VALUE;
+    }
+
+    /* call Snapshot start() :*/
+    ret =  mStreamSnap->start();
+    if (MM_CAMERA_OK != ret){
+	/* mzhu: fix me, restore preview */
+	LOGE("%s: error - can't start Snapshot stream!", __func__);
+	return BAD_VALUE;
+    }
+    return ret;
 }
 
 status_t  QCameraHardwareInterface::takeLiveSnapshot()
@@ -1651,7 +1732,7 @@ void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
     mm_camera_ch_crop_t v4l2_crop;
 
 
-    LOGD("%s: E", __func__);
+    LOGI("%s: E", __func__);
 
     memset(&v4l2_crop,0,sizeof(v4l2_crop));
     v4l2_crop.ch_type=MM_CAMERA_CH_SNAPSHOT;
@@ -1664,7 +1745,7 @@ void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
          v4l2_crop.snapshot.main_crop.top,
          v4l2_crop.snapshot.main_crop.width,
          v4l2_crop.snapshot.main_crop.height);
-    LOGI("%s: Crop info received for main: %d, %d, %d, %d ",__func__,
+    LOGI("%s: Crop info received for thumbnail: %d, %d, %d, %d ",__func__,
          v4l2_crop.snapshot.thumbnail_crop.left,
          v4l2_crop.snapshot.thumbnail_crop.top,
          v4l2_crop.snapshot.thumbnail_crop.width,
@@ -1692,7 +1773,7 @@ void QCameraHardwareInterface::handleZoomEventForPreview(app_notify_cb_t *app_cb
         LOGI("%s: Fetching crop info", __func__);
         cam_config_get_parm(mCameraId,MM_CAMERA_PARM_CROP,&v4l2_crop);
 
-        LOGE("%s: Crop info received: %d, %d, %d, %d ", __func__,
+        LOGI("%s: Crop info received: %d, %d, %d, %d ", __func__,
              v4l2_crop.crop.left,
              v4l2_crop.crop.top,
              v4l2_crop.crop.width,
@@ -1706,33 +1787,13 @@ void QCameraHardwareInterface::handleZoomEventForPreview(app_notify_cb_t *app_cb
         LOGI("%s: Done setting crop", __func__);
         LOGI("%s: Currrent zoom :%d",__func__, mCurrentZoom);
     }
-#if 0
-    else {
-        if (mCurrentZoom == mTargetSmoothZoom) {
-            mSmoothZoomRunning = false;
-            app_cb->notifyCb  = mNotifyCb;
-            app_cb->argm_notify.msg_type = CAMERA_MSG_ZOOM;
-            app_cb->argm_notify.ext1 = mCurrentZoom;
-            app_cb->argm_notify.ext2 = 1;
-            app_cb->argm_notify.cookie =  mCallbackCookie;
-        } else {
-            mCurrentZoom += mSmoothZoomStep;
-            if ((mSmoothZoomStep < 0 && mCurrentZoom < mTargetSmoothZoom)||
-                (mSmoothZoomStep > 0 && mCurrentZoom > mTargetSmoothZoom )) {
-                mCurrentZoom = mTargetSmoothZoom;
-        }
-            mParameters.set("zoom", mCurrentZoom);
-            setZoom(mParameters);
-        }
-    }
-#endif
 
     LOGI("%s: X", __func__);
 }
 
 void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
 {
-    LOGE("zoomEvent: state:%d E",mCameraState);
+    LOGI("zoomEvent: state:%d E",mCameraState);
     switch (mCameraState) {
         case CAMERA_STATE_SNAP_CMD_ACKED:
             handleZoomEventForSnapshot();
@@ -1747,6 +1808,11 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status, app_notify_c
         case CAMERA_STATE_PREVIEW:
         case CAMERA_STATE_RECORD_START_CMD_SENT:
         case CAMERA_STATE_RECORD:
+          if (!mFullLiveshotEnabled)
+            handleZoomEventForPreview(app_cb);
+          else
+            handleZoomEventForSnapshot();
+          break;
         default:
             handleZoomEventForPreview(app_cb);
             break;

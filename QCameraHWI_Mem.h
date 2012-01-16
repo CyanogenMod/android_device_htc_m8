@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ extern "C" {
 }
 
 
-#define VIDEO_BUFFER_COUNT 8
-#define PREVIEW_BUFFER_COUNT 3
+#define VIDEO_BUFFER_COUNT 5
+#define PREVIEW_BUFFER_COUNT 5
 
 namespace android {
 

@@ -59,8 +59,8 @@ typedef unsigned short int sa_family_t;
 //Error codes
 #define  NOT_FOUND -1
 
-#define VIDEO_BUFFER_COUNT 8
-#define PREVIEW_BUFFER_COUNT 3
+#define VIDEO_BUFFER_COUNT 5
+#define PREVIEW_BUFFER_COUNT 5
 #define MAX_ZOOM_RATIOS 62
 
 #ifdef Q12
@@ -382,6 +382,7 @@ public:
 
 
     status_t    takeLiveSnapshot();
+    status_t    takeFullSizeLiveshot();
 
     //virtual status_t          getBufferInfo( sp<IMemory>& Frame,
     //size_t *alignedSize);
@@ -440,6 +441,7 @@ private:
     bool mUseOverlay;
 
     void initDefaultParameters();
+    bool getMaxPictureDimension(mm_camera_dimension_t *dim);
 
     status_t updateFocusDistances(const char *focusmode);
 
@@ -542,6 +544,8 @@ private:
     status_t setRecordingHint(const CameraParameters& params);
     status_t setFocusAreas(const CameraParameters& params);
     status_t setMeteringAreas(const CameraParameters& params);
+    status_t setFullLiveshot(void);
+    status_t setDISMode(void);
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);
@@ -622,6 +626,8 @@ private:
     bool mParamStringInitialized;
     bool mZoomSupported;
     bool mSendMetaData;
+    bool mFullLiveshotEnabled;
+    bool mRecordingHint;
 
 /*for histogram*/
     int            mStatsOn;

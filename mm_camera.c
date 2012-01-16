@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -354,6 +354,15 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
 
+    case MM_CAMERA_PARM_DIS_ENABLE:
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_DIS_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
+
+    case MM_CAMERA_PARM_FULL_LIVESHOT: {
+      my_obj->full_liveshot = *((int *)(parm->p_value));
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_FULL_LIVESHOT, sizeof(uint32_t), (void *)parm->p_value);
+    }
     default:
         CDBG("%s: default: parm %d not supported\n", __func__, parm->parm_type);
         break;
@@ -673,6 +682,7 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
         switch(opcode) {
         case MM_CAMERA_OPS_PREVIEW:
         case MM_CAMERA_OPS_VIDEO:
+        case MM_CAMERA_OPS_SNAPSHOT:
             rc = mm_camera_ch_fn(my_obj,    ch_type,
                     MM_CAMERA_STATE_EVT_STREAM_ON, NULL);
             CDBG("%s: op_mode=%d, ch %d, rc=%d\n",
@@ -680,8 +690,8 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
             break;
         case MM_CAMERA_OPS_PREPARE_SNAPSHOT:
             send_on_off_evt = 0;
-        rc = mm_camera_send_native_ctrl_cmd(my_obj,CAMERA_PREPARE_SNAPSHOT, 0, NULL);
-        CDBG("%s: prepare snapshot done opcode = %d, rc= %d\n", __func__, opcode, rc);
+            rc = mm_camera_send_native_ctrl_cmd(my_obj,CAMERA_PREPARE_SNAPSHOT, 0, NULL);
+            CDBG("%s: prepare snapshot done opcode = %d, rc= %d\n", __func__, opcode, rc);
             break;
         default:
             break;
@@ -690,8 +700,10 @@ int32_t mm_camera_action_start(mm_camera_obj_t *my_obj,
     default:
         break;
     }
+    CDBG("%s: ch=%d,op_mode=%d,opcode=%d\n", __func__, ch_type,
+      my_obj->op_mode, opcode);
     if(send_on_off_evt)
-      mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_ON);
+      rc = mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_ON);
     return rc;
 }
 
@@ -727,6 +739,7 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
         switch(opcode) {
         case MM_CAMERA_OPS_PREVIEW:
         case MM_CAMERA_OPS_VIDEO:
+        case MM_CAMERA_OPS_SNAPSHOT:
             rc = mm_camera_ch_fn(my_obj , ch_type,
                             MM_CAMERA_STATE_EVT_STREAM_OFF, NULL);
             CDBG("%s:VIDEO mode STREAMOFF rc=%d\n",__func__, rc);
@@ -739,7 +752,7 @@ int32_t mm_camera_action_stop(mm_camera_obj_t *my_obj,
         break;
     }
     CDBG("%s:ch=%d\n",__func__, ch_type);
-    mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_OFF);
+    rc = mm_camera_send_ch_on_off_event(my_obj,ch_type,MM_CAMERA_CH_EVT_STREAMING_OFF);
     return rc;
 }
 
@@ -892,4 +905,3 @@ void mm_camera_ch_release(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_t
 {
     mm_camera_ch_fn(my_obj,ch_type, MM_CAMERA_STATE_EVT_RELEASE, 0);
 }
-

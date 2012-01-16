@@ -9512,11 +9512,22 @@ void QualcommCameraHardware::enableMsgType(int32_t msgType)
 {
     Mutex::Autolock lock(mLock);
     mMsgEnabled |= msgType;
+    if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250) && (mCurrentTarget != TARGET_MSM8660)) {
+      if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME){
+        native_start_ops(CAMERA_OPS_VIDEO_RECORDING, NULL);
+      }
+    }
 }
 
 void QualcommCameraHardware::disableMsgType(int32_t msgType)
 {
     Mutex::Autolock lock(mLock);
+
+    if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250) && (mCurrentTarget != TARGET_MSM8660)) {
+      if(mMsgEnabled & CAMERA_MSG_VIDEO_FRAME){
+        native_stop_ops(CAMERA_OPS_VIDEO_RECORDING, NULL);
+      }
+    }
     mMsgEnabled &= ~msgType;
 }
 

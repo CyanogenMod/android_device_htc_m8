@@ -2910,9 +2910,23 @@ void QualcommCameraHardware::runPreviewThread(void *data)
          if(bufferIndex >= 0) {
            //Need to encapsulate this in IMemory object and send
 
-          if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME))
-            pcb(CAMERA_MSG_PREVIEW_FRAME,(camera_memory_t *) mPreviewMapped[bufferIndex],0,NULL,
-            pdata);
+         if (pcb != NULL && (msgEnabled & CAMERA_MSG_PREVIEW_FRAME)) {
+             int previewBufSize;
+             /* for CTS : Forcing preview memory buffer lenth to be
+                          'previewWidth * previewHeight * 3/2'. Needed when gralloc allocated extra memory.*/
+             if( mPreviewFormat == CAMERA_YUV_420_NV21) {
+               previewBufSize = previewWidth * previewHeight * 3/2;
+               camera_memory_t *previewMem = mGetMemory(frames[bufferIndex].fd, previewBufSize,
+                                                        1, mCallbackCookie);
+               if (!previewMem || !previewMem->data) {
+                 LOGE("%s: mGetMemory failed.\n", __func__);
+               } else {
+                   pcb(CAMERA_MSG_PREVIEW_FRAME,previewMem,0,NULL,pdata);
+                   previewMem->release(previewMem);
+               }
+             } else
+                 pcb(CAMERA_MSG_PREVIEW_FRAME,(camera_memory_t *) mPreviewMapped[bufferIndex],0,NULL,pdata);
+         }
 
            // TODO : may have to reutn proper frame as pcb
            mDisplayLock.lock();

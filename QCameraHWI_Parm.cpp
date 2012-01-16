@@ -1199,7 +1199,7 @@ void QCameraHardwareInterface::putParameters(char *rc)
     free(rc);
 }
 
-CameraParameters QCameraHardwareInterface::getParameters() const
+CameraParameters& QCameraHardwareInterface::getParameters() 
 {
     Mutex::Autolock lock(mLock);
     return mParameters;

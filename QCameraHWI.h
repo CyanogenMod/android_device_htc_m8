@@ -344,8 +344,6 @@ public:
 
     status_t    takeLiveSnapshot();
 
-    status_t          setParameters(const CameraParameters& params);
-    CameraParameters  getParameters() const;
     //virtual status_t          getBufferInfo( sp<IMemory>& Frame,
     //size_t *alignedSize);
     void         getPictureSize(int *picture_width, int *picture_height) const;
@@ -447,7 +445,11 @@ private:
 	status_t resumePreviewAfterSnapshot();
 
     status_t runFaceDetection();
-    status_t setCameraMode(const CameraParameters& params);
+
+	status_t          setParameters(const CameraParameters& params);
+	CameraParameters&  getParameters() ;
+
+	status_t setCameraMode(const CameraParameters& params);
     status_t setPictureSizeTable(void);
     status_t setPreviewSizeTable(void);
     status_t setPreviewSize(const CameraParameters& params);

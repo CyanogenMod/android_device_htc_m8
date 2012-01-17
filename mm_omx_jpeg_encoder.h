@@ -58,7 +58,7 @@ void omxJpegAbort();
 
 int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality);
 int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality);
-int8_t mm_jpeg_encoder_setRotation(int rotation);
+int8_t mm_jpeg_encoder_setRotation(int rotation,int isZSL);
 void jpege_set_phy_offset(uint32_t a_phy_offset);
 int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
     uint32_t* p_y_offset, uint32_t* p_cbcr_offset,

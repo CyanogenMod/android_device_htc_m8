@@ -43,6 +43,7 @@ static uint8_t hw_encode = false;
 #endif
 
 static int jpegRotation = 0;
+static int isZSLMode = 0;
 static int jpegThumbnailQuality = 75;
 static int jpegMainimageQuality = 85;
 static uint32_t phy_offset;
@@ -65,7 +66,6 @@ jpeg_callback_t mmcamera_jpeg_callback;
 static OMX_HANDLETYPE pHandle;
 static OMX_CALLBACKTYPE callbacks;
 static OMX_INDEXTYPE type;
-static omx_jpeg_exif_info_tag tag;
 static OMX_CONFIG_ROTATIONTYPE rotType;
 static omx_jpeg_thumbnail thumbnail;
 static OMX_CONFIG_RECTTYPE recttype;
@@ -77,6 +77,8 @@ static OMX_BUFFERHEADERTYPE* pOutBuffers;
 static OMX_BUFFERHEADERTYPE* pInBuffers1;
 OMX_INDEXTYPE user_preferences;
 omx_jpeg_user_preferences userpreferences;
+OMX_INDEXTYPE exif;
+static omx_jpeg_exif_info_tag tag;
 
 
 static pthread_mutex_t lock;
@@ -194,15 +196,17 @@ int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
         return FALSE;
     }
     *num_planes = 2;
-    if (hw_encode) {
+    if (hw_encode ) {
         int cbcr_offset = 0;
         uint32_t actual_size = width*height;
         uint32_t padded_size = width * CEILING16(height);
         *p_y_offset = 0;
         *p_cbcr_offset = 0;
+        if(!isZSLMode){
         if ((jpegRotation == 90) || (jpegRotation == 180)) {
             *p_y_offset = padded_size - actual_size;
             *p_cbcr_offset = ((padded_size - actual_size) >> 1);
+          }
         }
         *p_buf_size = padded_size * 3/2;
         planes[0] = width * CEILING16(height);
@@ -303,6 +307,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     int size = 0;
     uint8_t num_planes;
     uint32_t planes[10];
+    int orientation;
     OMX_DBG_INFO("%s:E", __func__);
 
     inputPort = malloc(sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
@@ -483,11 +488,44 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     thumbnailQuality.nQFactor = jpegThumbnailQuality;
     OMX_SetParameter(pHandle, thumbnailQualityType, &thumbnailQuality);
 
+    LOGE("isZSLMode is %d\n",isZSLMode);
+    if(!isZSLMode){
+    //Pass rotation if not ZSL mode
     rotType.nPortIndex = OUTPUT_PORT;
     rotType.nRotation = jpegRotation;
     OMX_SetConfig(pHandle, OMX_IndexConfigCommonRotate, &rotType);
-    OMX_DBG_INFO("%s: Set rotation to %d\n",__func__, jpegRotation);
+    LOGE("Set rotation to %d\n",jpegRotation);
+    }
 
+    /*temporarily set rotation in EXIF data. This is done to avoid image corruption
+      issues in ZSL mode since roation is known before hand. The orientation is set in the
+      exif tag and decoder will decode it will the right orientation. need to add double
+      padding to fix the issue */
+    if(isZSLMode){
+
+      //Get the orientation tag values depending on rotation
+      switch(jpegRotation){
+        case 0: orientation =1; //Normal
+                break;
+        case 90: orientation =6; //Rotated 90 CCW
+                 break;
+        case 180: orientation =3; //Rotated 180
+                  break;
+        case 270: orientation =8; //Rotated 90 CW
+                  break;
+        default: orientation =1;
+                 break;
+     }
+
+      OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.exif", &exif);
+      tag.tag_id = EXIFTAGID_ORIENTATION;
+      tag.tag_entry.type = EXIFTAGTYPE_ORIENTATION;
+      tag.tag_entry.count =1;
+      tag.tag_entry.copy = 1;
+      tag.tag_entry.data._short = orientation;
+      LOGE("%s jpegRotation = %d , orientation value =%d\n",__func__,jpegRotation,orientation);
+      OMX_SetParameter(pHandle, exif, &tag);
+      }
     pmem_info.fd = encode_params->snapshot_fd;
     pmem_info.offset = 0;
     OMX_UseBuffer(pHandle, &pInBuffers, 0, &pmem_info, size,
@@ -583,9 +621,13 @@ int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality)
     return TRUE;
 }
 
-int8_t mm_jpeg_encoder_setRotation(int rotation)
+int8_t mm_jpeg_encoder_setRotation(int rotation, int isZSL)
 {
     pthread_mutex_lock(&jpege_mutex);
+
+    /*Set ZSL Mode*/
+    isZSLMode = isZSL;
+    LOGE("%s: Setting ZSL Mode to %d Rotation = %d\n",__func__,isZSLMode,rotation);
     /* Set rotation configuration */
     switch (rotation) {
     case 0:

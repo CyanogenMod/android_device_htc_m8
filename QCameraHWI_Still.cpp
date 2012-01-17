@@ -755,7 +755,7 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     /* Number of buffers to be set*/
     /* Set the JPEG Rotation here since get_buffer_offset needs
      * the value of rotation.*/
-    mHalCamCtrl->setJpegRotation();
+    mHalCamCtrl->setJpegRotation(isZSLMode());
     rotation = mHalCamCtrl->getJpegRotation();
     if(rotation != dim->rotation) {
         dim->rotation = rotation;
@@ -1496,6 +1496,11 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
         LOGE("Cancel Picture.. Stop is called");
         return NO_ERROR;
     }
+    if(isZSLMode()){
+      LOGE("%s: set JPEG rotation in ZSL mode", __func__);
+      mHalCamCtrl->setJpegRotation(isZSLMode());
+    }
+
     memset(&dummy_crop,0,sizeof(common_crop_t));
     ret = encodeData(recvd_frame, &dummy_crop, mSnapshotStreamBuf.frame_len,
                      enqueued);

@@ -214,6 +214,7 @@ end:
 int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *parm)
 {
     int rc = -MM_CAMERA_E_NOT_SUPPORTED;
+    int isZSL =0;
 
     switch(parm->parm_type)  {
     case MM_CAMERA_PARM_EXPOSURE:
@@ -335,7 +336,10 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_HISTOGRAM, sizeof(int8_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_JPEG_ROTATION:
-        mm_jpeg_encoder_setRotation(*((int *)parm->p_value));
+        if(my_obj->op_mode == MM_CAMERA_OP_MODE_ZSL){
+           isZSL =1;
+        }
+        mm_jpeg_encoder_setRotation(*((int *)parm->p_value),isZSL);
         return MM_CAMERA_OK;
 
     case MM_CAMERA_PARM_ASD_ENABLE:

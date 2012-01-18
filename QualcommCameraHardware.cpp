@@ -676,7 +676,8 @@ static camera_antibanding_type camera_get_location(void) {
 #endif
 
 static const str_map scenemode[] = {
-    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_OFF,           CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_AUTO },
     { CameraParameters::SCENE_MODE_ACTION,         CAMERA_BESTSHOT_ACTION },
     { CameraParameters::SCENE_MODE_PORTRAIT,       CAMERA_BESTSHOT_PORTRAIT },
     { CameraParameters::SCENE_MODE_LANDSCAPE,      CAMERA_BESTSHOT_LANDSCAPE },
@@ -1983,7 +1984,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES,
                     skinToneEnhancement_values);
     mParameters.set(CameraParameters::KEY_SCENE_MODE,
-                    CameraParameters::SCENE_MODE_AUTO);
+                    CameraParameters::SCENE_MODE_OFF);
     mParameters.set("strtextures", "OFF");
 
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,
@@ -8581,10 +8582,27 @@ status_t QualcommCameraHardware::setSceneMode(const CameraParameters& params)
 
     if (str != NULL) {
         int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
+        int32_t asd_val;
         if (value != NOT_FOUND) {
             mParameters.set(CameraParameters::KEY_SCENE_MODE, str);
             bool ret = native_set_parms(CAMERA_PARM_BESTSHOT_MODE, sizeof(value),
                                        (void *)&value);
+
+            if (ret == NO_ERROR) {
+              int retParm1,  retParm2;
+              /*if value is auto, set ASD on, else set ASD off*/
+              if (value == CAMERA_BESTSHOT_AUTO ) {
+                asd_val = TRUE;
+              } else {
+                asd_val = FALSE;
+              }
+
+              /*note: we need to simplify this logic by using a single ctrl as in 8960*/
+              retParm1 = native_set_parms(CAMERA_PARM_BL_DETECTION, sizeof(value),
+                                         (void *)&asd_val);
+              retParm2 = native_set_parms(CAMERA_PARM_SNOW_DETECTION, sizeof(value),
+                                         (void *)&asd_val);
+            }
             return ret ? NO_ERROR : UNKNOWN_ERROR;
         }
     }

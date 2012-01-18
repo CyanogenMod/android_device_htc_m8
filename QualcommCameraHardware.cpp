@@ -1661,6 +1661,7 @@ void QualcommCameraHardware::initDefaultParameters()
         mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
 
         mParameters.set(CameraParameters::KEY_FOCUS_AREAS, FOCUS_AREA_INIT);
+        mParameters.set(CameraParameters::KEY_METERING_AREAS, FOCUS_AREA_INIT);
 
         if(!mIs3DModeOn){
         hfr_size_values = create_sizes_str(
@@ -6043,6 +6044,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
         if ((rc = setBrightness(params)))   final_rc = rc;
         if ((rc = setISOValue(params)))  final_rc = rc;
         if ((rc = setFocusAreas(params)))  final_rc = rc;
+        if ((rc = setMeteringAreas(params)))  final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))   final_rc = rc;
@@ -8758,6 +8760,29 @@ status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
     LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
     return BAD_VALUE;
 }
+
+status_t QualcommCameraHardware::setMeteringAreas(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_METERING_AREAS);
+    if (str == NULL || (strcmp(str, "0") == 0)) {
+        LOGE("%s: Parameter string is null", __FUNCTION__);
+    }
+    else {
+        // handling default string
+        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+          mParameters.set(CameraParameters::KEY_METERING_AREAS, NULL);
+          return NO_ERROR;
+        }
+        if(checkAreaParameters(str) != 0) {
+          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
+          return BAD_VALUE;
+        }
+        mParameters.set(CameraParameters::KEY_METERING_AREAS, str);
+    }
+
+    return NO_ERROR;
+}
+
 status_t QualcommCameraHardware::setFocusAreas(const CameraParameters& params)
 {
     const char *str = params.get(CameraParameters::KEY_FOCUS_AREAS);

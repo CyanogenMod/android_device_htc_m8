@@ -5140,7 +5140,7 @@ void QualcommCameraHardware::stopPreviewInternal()
 {
     LOGI("stopPreviewInternal E: %d", mCameraRunning);
     mPreviewStopping = true;
-    if (mCameraRunning) {
+    if (mCameraRunning && mPreviewWindow!=NULL) {
         /* For 3D mode, we need to exit the video thread.*/
         if(mIs3DModeOn) {
             recordingState = 0;
@@ -5301,9 +5301,9 @@ void QualcommCameraHardware::stopPreview()
                     if (munmap((void *)(mThumbnailMapped[cnt]),handle->size ) == -1) {
                       LOGE("StopPreview : Error un-mmapping the thumbnail buffer %d", index);
                     }
-                    mThumbnailBuffer[cnt] = NULL;
                     mThumbnailMapped[cnt] = NULL;
                  }
+                mThumbnailBuffer[cnt] = NULL;
                 LOGE("stoppreview : display unlock");
                 mDisplayLock.unlock();
           }

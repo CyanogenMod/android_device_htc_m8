@@ -111,7 +111,7 @@ extern "C" {
 int (*LINK_yuv_convert_ycrcb420sp_to_yv12_inplace) (yuv_image_type* yuvStructPtr);
 int (*LINK_yuv_convert_ycrcb420sp_to_yv12) (yuv_image_type* yuvStructPtrin, yuv_image_type* yuvStructPtrout);
 #define NUM_YV12_FRAMES 1
-
+#define FOCUS_AREA_INIT "(-1000,-1000,1000,1000,1000)"
 
 void *libmmcamera;
 void* (*LINK_cam_conf)(void *data);
@@ -1033,6 +1033,93 @@ static struct msm_frame * cam_frame_get_video()
     return p;
 }
 
+// Parse string like "(1, 2, 3, 4, ..., N)"
+// num is pointer to an allocated array of size N
+static int parseNDimVector_HAL(const char *str, int *num, int N, char delim = ',')
+{
+    char *start, *end;
+    if(num == NULL) {
+        LOGE("Invalid output array (num == NULL)");
+        return -1;
+    }
+    //check if string starts and ends with parantheses
+    if(str[0] != '(' || str[strlen(str)-1] != ')') {
+        LOGE("Invalid format of string %s, valid format is (n1, n2, n3, n4 ...)", str);
+        return -1;
+    }
+    start = (char*) str;
+    start++;
+    for(int i=0; i<N; i++) {
+        *(num+i) = (int) strtol(start, &end, 10);
+        if(*end != delim && i < N-1) {
+            LOGE("Cannot find delimeter '%c' in string \"%s\". end = %c", delim, str, *end);
+            return -1;
+        }
+        start = end+1;
+    }
+    return 0;
+}
+static int countChar(const char *str , char ch )
+{
+    int noOfChar = 0;
+
+    for ( int i = 0; str[i] != '\0'; i++) {
+        if ( str[i] == ch )
+          noOfChar = noOfChar + 1;
+    }
+
+    return noOfChar;
+}
+int checkAreaParameters(const char *str)
+{
+    int areaValues[6];
+    int left, right, top, bottom, weight;
+
+    if(countChar(str, ',') > 4) {
+        LOGE("%s: No of area parameters exceeding the expected number %s", __FUNCTION__, str);
+        return -1;
+    }
+
+    if(parseNDimVector_HAL(str, areaValues, 5) !=0) {
+        LOGE("%s: Failed to parse the input string %s", __FUNCTION__, str);
+        return -1;
+    }
+
+    LOGV("%s: Area values are %d,%d,%d,%d,%d", __FUNCTION__,
+          areaValues[0], areaValues[1], areaValues[2], areaValues[3], areaValues[4]);
+
+    left = areaValues[0];
+    top = areaValues[1];
+    right = areaValues[2];
+    bottom = areaValues[3];
+    weight = areaValues[4];
+
+    // left should >= -1000
+    if (!(left >= -1000))
+        return -1;
+    // top should >= -1000
+    if(!(top >= -1000))
+        return -1;
+    // right should <= 1000
+    if(!(right <= 1000))
+        return -1;
+    // bottom should <= 1000
+    if(!(bottom <= 1000))
+        return -1;
+    // weight should >= 1
+    // weight should <= 1000
+    if(!((1 <= weight) && (weight <= 1000)))
+        return -1;
+    // left should < right
+    if(!(left < right))
+        return -1;
+    // top should < bottom
+    if(!(top < bottom))
+        return -1;
+
+    return 0;
+}
+
 static void cam_frame_post_video (struct msm_frame *p)
 {
     if (!p)
@@ -1572,6 +1659,8 @@ void QualcommCameraHardware::initDefaultParameters()
         mParameters.set(CameraParameters::KEY_FOCUS_MODE,
 	               CameraParameters::FOCUS_MODE_INFINITY);
         mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
+
+        mParameters.set(CameraParameters::KEY_FOCUS_AREAS, FOCUS_AREA_INIT);
 
         if(!mIs3DModeOn){
         hfr_size_values = create_sizes_str(
@@ -5953,6 +6042,7 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
         if ((rc = setFocusMode(params)))    final_rc = rc;
         if ((rc = setBrightness(params)))   final_rc = rc;
         if ((rc = setISOValue(params)))  final_rc = rc;
+        if ((rc = setFocusAreas(params)))  final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))   final_rc = rc;
@@ -8668,7 +8758,30 @@ status_t QualcommCameraHardware::updateFocusDistances(const char *focusmode)
     LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
     return BAD_VALUE;
 }
+status_t QualcommCameraHardware::setFocusAreas(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_FOCUS_AREAS);
 
+    if (str == NULL || (strcmp(str, "0") == 0)) {
+        LOGE("%s: Parameter string is null", __FUNCTION__);
+    }
+    else {
+        // handling default string
+        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+          mParameters.set(CameraParameters::KEY_FOCUS_AREAS, NULL);
+          return NO_ERROR;
+        }
+
+        if(checkAreaParameters(str) != 0) {
+          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
+          return BAD_VALUE;
+        }
+
+        mParameters.set(CameraParameters::KEY_FOCUS_AREAS, str);
+    }
+
+    return NO_ERROR;
+}
 status_t QualcommCameraHardware::setFocusMode(const CameraParameters& params)
 {
     const char *str = params.get(CameraParameters::KEY_FOCUS_MODE);

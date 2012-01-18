@@ -463,6 +463,7 @@ private:
     status_t setRotation(const CameraParameters& params);
     status_t setZoom(const CameraParameters& params);
     status_t setFocusMode(const CameraParameters& params);
+    status_t setFocusAreas(const CameraParameters& params);
     status_t setBrightness(const CameraParameters& params);
     status_t setSkinToneEnhancement(const CameraParameters& params);
     status_t setOrientation(const CameraParameters& params);

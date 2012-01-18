@@ -7509,9 +7509,17 @@ void QualcommCameraHardware::receiveRawPicture(status_t status,struct msm_frame 
             mDataCallback(CAMERA_MSG_RAW_IMAGE, mRawMapped[index],data_counter,
                           NULL, mCallbackCookie);
         else if (mNotifyCallback && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY))
-
             mNotifyCallback(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0,
                             mCallbackCookie);
+
+        if(strTexturesOn == true) {
+            LOGI("Raw Data given to app for processing...will wait for jpeg encode call");
+            mEncodePending = true;
+            mEncodePendingWaitLock.unlock();
+            mJpegThreadWaitLock.lock();
+            mJpegThreadWait.signal();
+            mJpegThreadWaitLock.unlock();
+        }
     } else {  // Not Jpeg snapshot, it is Raw Snapshot , handle later
             LOGV("ReceiveRawPicture : raw snapshot not Jpeg, sending callback up");
              if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE))
@@ -8066,7 +8074,6 @@ status_t QualcommCameraHardware::setStrTextures(const CameraParameters& params) 
         LOGV("strtextures = %s", str);
         mParameters.set("strtextures", str);
         if(!strncmp(str, "on", 2) || !strncmp(str, "ON", 2)) {
-            LOGI("Resetting mUseOverlay to false");
             strTexturesOn = true;
         } else if (!strncmp(str, "off", 3) || !strncmp(str, "OFF", 3)) {
             strTexturesOn = false;

@@ -98,6 +98,7 @@ typedef enum {
 } HAL_camera_state_type_t;
 
 enum {
+  BUFFER_NOT_OWNED,
   BUFFER_UNLOCKED,
   BUFFER_LOCKED,
 };

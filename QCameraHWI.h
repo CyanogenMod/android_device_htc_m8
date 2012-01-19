@@ -522,6 +522,8 @@ private:
     status_t setDenoise(const CameraParameters& params);
     status_t setHistogram(int histogram_en);
     status_t setRecordingHint(const CameraParameters& params);
+    status_t setFocusAreas(const CameraParameters& params);
+    status_t setMeteringAreas(const CameraParameters& params);
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);
     bool isValidDimension(int w, int h);

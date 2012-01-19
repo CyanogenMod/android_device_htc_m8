@@ -78,6 +78,7 @@ extern "C" {
 #define EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR 0
 #define EXPOSURE_COMPENSATION_DENOMINATOR 6
 #define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
+#define FOCUS_AREA_INIT "(-1000,-1000,1000,1000,1000)"
 
 //Default FPS
 #define MINIMUM_FPS 5
@@ -421,14 +422,11 @@ bool QCameraHardwareInterface::native_set_parms(
     mm_camera_parm_type_t type, uint16_t length, void *value, int *result)
 {
     *result= cam_config_set_parm(mCameraId, type,value );
-    if(MM_CAMERA_OK == *result || -EAGAIN == *result) {
-        LOGE("native_set_parms: was success or setParameter was not executed : %d", *result);
+    if(MM_CAMERA_OK == *result) {
+        LOGE("native_set_parms: succeeded : %d", *result);
         return true;
     }
-    if(errno == EAGAIN) {
-        LOGE("native_set_parms: was not set due to interdependent parameters");
-        return true;
-    }
+
     LOGE("native_set_parms failed: type %d length %d error str %s error# %d",
         type, length, strerror(errno), errno);
     return false;
@@ -533,6 +531,92 @@ static int parse_size(const char *str, int &width, int &height)
 
     width = w;
     height = h;
+
+    return 0;
+}
+// Parse string like "(1, 2, 3, 4, ..., N)"
+// num is pointer to an allocated array of size N
+static int parseNDimVector_HAL(const char *str, int *num, int N, char delim = ',')
+{
+    char *start, *end;
+    if(num == NULL) {
+        LOGE("Invalid output array (num == NULL)");
+        return -1;
+    }
+    //check if string starts and ends with parantheses
+    if(str[0] != '(' || str[strlen(str)-1] != ')') {
+        LOGE("Invalid format of string %s, valid format is (n1, n2, n3, n4 ...)", str);
+        return -1;
+    }
+    start = (char*) str;
+    start++;
+    for(int i=0; i<N; i++) {
+        *(num+i) = (int) strtol(start, &end, 10);
+        if(*end != delim && i < N-1) {
+            LOGE("Cannot find delimeter '%c' in string \"%s\". end = %c", delim, str, *end);
+            return -1;
+        }
+        start = end+1;
+    }
+    return 0;
+}
+static int countChar(const char *str , char ch )
+{
+    int noOfChar = 0;
+
+    for ( int i = 0; str[i] != '\0'; i++) {
+        if ( str[i] == ch )
+          noOfChar = noOfChar + 1;
+    }
+
+    return noOfChar;
+}
+int checkAreaParameters(const char *str)
+{
+    int areaValues[6];
+    int left, right, top, bottom, weight;
+
+    if(countChar(str, ',') > 4) {
+        LOGE("%s: No of area parameters exceeding the expected number %s", __FUNCTION__, str);
+        return -1;
+    }
+
+    if(parseNDimVector_HAL(str, areaValues, 5) !=0) {
+        LOGE("%s: Failed to parse the input string %s", __FUNCTION__, str);
+        return -1;
+    }
+
+    LOGV("%s: Area values are %d,%d,%d,%d,%d", __FUNCTION__,
+          areaValues[0], areaValues[1], areaValues[2], areaValues[3], areaValues[4]);
+
+    left = areaValues[0];
+    top = areaValues[1];
+    right = areaValues[2];
+    bottom = areaValues[3];
+    weight = areaValues[4];
+
+    // left should >= -1000
+    if (!(left >= -1000))
+        return -1;
+    // top should >= -1000
+    if(!(top >= -1000))
+        return -1;
+    // right should <= 1000
+    if(!(right <= 1000))
+        return -1;
+    // bottom should <= 1000
+    if(!(bottom <= 1000))
+        return -1;
+    // weight should >= 1
+    // weight should <= 1000
+    if(!((1 <= weight) && (weight <= 1000)))
+        return -1;
+    // left should < right
+    if(!(left < right))
+        return -1;
+    // top should < bottom
+    if(!(top < bottom))
+        return -1;
 
     return 0;
 }
@@ -924,6 +1008,10 @@ void QCameraHardwareInterface::initDefaultParameters()
                    CameraParameters::FOCUS_MODE_INFINITY);
       
     }
+
+    mParameters.set(CameraParameters::KEY_FOCUS_AREAS, FOCUS_AREA_INIT);
+    mParameters.set(CameraParameters::KEY_METERING_AREAS, FOCUS_AREA_INIT);
+
     //Set Flash
     if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_LED_MODE)) {
         mParameters.set(CameraParameters::KEY_FLASH_MODE,
@@ -1092,7 +1180,7 @@ void QCameraHardwareInterface::initDefaultParameters()
         LOGE("Failed to set default parameters?!");
     }
     //mUseOverlay = useOverlay();
-
+    mParameters.set("zoom", 0);
     mInitialized = true;
     strTexturesOn = false;
 
@@ -1174,6 +1262,8 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
         if ((rc = setFocusMode(params)))                final_rc = rc;
         if ((rc = setBrightness(params)))               final_rc = rc;
         if ((rc = setISOValue(params)))                 final_rc = rc;
+        if ((rc = setFocusAreas(params)))  final_rc = rc;
+        if ((rc = setMeteringAreas(params)))  final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))             final_rc = rc;   //@Guru : Need support from Lower level
@@ -1181,7 +1271,6 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
 
-   final_rc=NO_ERROR;
    LOGI("%s: X", __func__);
    return final_rc;
 }
@@ -1400,7 +1489,6 @@ status_t QCameraHardwareInterface::setZoom(const CameraParameters& params)
     if(zoom_level >= 0 && zoom_level <= mMaxZoom-1) {
         mParameters.set("zoom", zoom_level);
         int32_t zoom_value = ZOOM_STEP * zoom_level;
-        LOGE("<DEBUG> Calling setZoom set_parm");
         bool ret = native_set_parms(MM_CAMERA_PARM_ZOOM,
             sizeof(zoom_value), (void *)&zoom_value);
         if(ret) {
@@ -1478,6 +1566,53 @@ status_t QCameraHardwareInterface::updateFocusDistances(const char *focusmode)
     }
     LOGE("%s: get CAMERA_PARM_FOCUS_DISTANCES failed!!!", __FUNCTION__);
     return BAD_VALUE;
+}
+
+status_t QCameraHardwareInterface::setFocusAreas(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_FOCUS_AREAS);
+
+    if (str == NULL || (strcmp(str, "0") == 0)) {
+        LOGE("%s: Parameter string is null", __FUNCTION__);
+    }
+    else {
+        // handling default string
+        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+          mParameters.set(CameraParameters::KEY_FOCUS_AREAS, NULL);
+          return NO_ERROR;
+        }
+
+        if(checkAreaParameters(str) != 0) {
+          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
+          return BAD_VALUE;
+        }
+
+        mParameters.set(CameraParameters::KEY_FOCUS_AREAS, str);
+    }
+
+    return NO_ERROR;
+}
+
+status_t QCameraHardwareInterface::setMeteringAreas(const CameraParameters& params)
+{
+    const char *str = params.get(CameraParameters::KEY_METERING_AREAS);
+    if (str == NULL || (strcmp(str, "0") == 0)) {
+        LOGE("%s: Parameter string is null", __FUNCTION__);
+    }
+    else {
+        // handling default string
+        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+          mParameters.set(CameraParameters::KEY_METERING_AREAS, NULL);
+          return NO_ERROR;
+        }
+        if(checkAreaParameters(str) != 0) {
+          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
+          return BAD_VALUE;
+        }
+        mParameters.set(CameraParameters::KEY_METERING_AREAS, str);
+    }
+
+    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
@@ -2280,10 +2415,9 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
 
     bool mCameraRunning;
 
-    LOGE("<DEBUG>: Entering SetHFR");
     int rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_HFR);
     if(!rc) {
-        LOGE("%s:<DEBUG> MM_CAMERA_PARM_HFR not supported", __func__);
+        LOGE("%s: MM_CAMERA_PARM_HFR not supported", __func__);
         return NO_ERROR;
     }
 
@@ -2292,11 +2426,9 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
         int value = attr_lookup(hfr, sizeof(hfr) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             int32_t temp = (int32_t)value;
-            LOGE("%s: <DEBUG>setting HFR value of %s(%d)", __FUNCTION__, str, temp);
             //Check for change in HFR value
             const char *oldHfr = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
             if(strcmp(oldHfr, str)){
-                LOGE("%s:<DEBUG> old HFR: %s, new HFR %s", __FUNCTION__, oldHfr, str);
                 mParameters.set(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE, str);
 //              mHFRMode = true;
 		mCameraRunning=isPreviewRunning();

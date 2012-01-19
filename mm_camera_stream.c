@@ -193,7 +193,8 @@ int32_t mm_camera_util_s_ctrl( int32_t fd,  uint32_t id, int32_t value)
     control.id = id;
     control.value = value;
     rc = ioctl (fd, VIDIOC_S_CTRL, &control);
-    if(rc && rc!=-EAGAIN) {
+
+    if(rc) {
         CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %ld\n",
                  __func__, fd, id, (uint32_t)value, rc);
         rc = MM_CAMERA_E_GENERAL;

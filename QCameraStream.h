@@ -1,6 +1,5 @@
 /*
-** Copyright 2008, Google Inc.
-** Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -36,6 +35,8 @@ extern "C" {
 
 #define DEFAULT_STREAM_WIDTH 320
 #define DEFAULT_STREAM_HEIGHT 240
+#define DEFAULT_LIVESHOT_WIDTH 1920
+#define DEFAULT_LIVESHOT_HEIGHT 1088
 
 #define MM_CAMERA_CH_PREVIEW_MASK    (0x01 << MM_CAMERA_CH_PREVIEW)
 #define MM_CAMERA_CH_VIDEO_MASK      (0x01 << MM_CAMERA_CH_VIDEO)

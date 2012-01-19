@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 /*#error uncomment this for compiler test!*/
 
-#define LOG_NDEBUG 0
-#define LOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Preview"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -76,35 +74,35 @@ status_t QCameraStream_preview::setPreviewWindow(preview_stream_ops_t* window)
 status_t QCameraStream_preview::getBufferFromSurface() {
     int err = 0;
     int numMinUndequeuedBufs = 0;
-	int format = 0;
-	status_t ret = NO_ERROR;
+  int format = 0;
+  status_t ret = NO_ERROR;
 
     LOGI(" %s : E ", __FUNCTION__);
 
     if( mPreviewWindow == NULL) {
-		LOGE("%s: mPreviewWindow = NULL", __func__);
+    LOGE("%s: mPreviewWindow = NULL", __func__);
         return INVALID_OPERATION;
-	}
+  }
     cam_ctrl_dimension_t dim;
 
-	//mDisplayLock.lock();
+  //mDisplayLock.lock();
     cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 
 	format = mHalCamCtrl->getPreviewFormatInfo().Hal_format;
 	if(ret != NO_ERROR) {
         LOGE("%s: display format %d is not supported", __func__, dim.prev_format);
-		goto end;
-	}
-	numMinUndequeuedBufs = 0;
-	if(mPreviewWindow->get_min_undequeued_buffer_count) {
+    goto end;
+  }
+  numMinUndequeuedBufs = 0;
+  if(mPreviewWindow->get_min_undequeued_buffer_count) {
     err = mPreviewWindow->get_min_undequeued_buffer_count(mPreviewWindow, &numMinUndequeuedBufs);
-		if (err != 0) {
-			 LOGE("get_min_undequeued_buffer_count  failed: %s (%d)",
-						strerror(-err), -err);
-			 ret = UNKNOWN_ERROR;
-			 goto end;
-		}
-	}
+    if (err != 0) {
+       LOGE("get_min_undequeued_buffer_count  failed: %s (%d)",
+            strerror(-err), -err);
+       ret = UNKNOWN_ERROR;
+       goto end;
+    }
+  }
     mHalCamCtrl->mPreviewMemoryLock.lock();
     mHalCamCtrl->mPreviewMemory.buffer_count = kPreviewBufferCount + numMinUndequeuedBufs;;
     err = mPreviewWindow->set_buffer_count(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_count );
@@ -112,7 +110,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          LOGE("set_buffer_count failed: %s (%d)",
                     strerror(-err), -err);
          ret = UNKNOWN_ERROR;
-		 goto end;
+     goto end;
     }
     err = mPreviewWindow->set_buffers_geometry(mPreviewWindow,
                 dim.display_width, dim.display_height, format);
@@ -120,7 +118,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          LOGE("set_buffers_geometry failed: %s (%d)",
                     strerror(-err), -err);
          ret = UNKNOWN_ERROR;
-		 goto end;
+     goto end;
     }
     err = mPreviewWindow->set_usage(mPreviewWindow,
         GRALLOC_USAGE_PRIVATE_MM_HEAP |
@@ -141,7 +139,6 @@ status_t QCameraStream_preview::getBufferFromSurface() {
           LOGE("%s: dequeue buf hdl =%p", __func__, *mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
                     err = mPreviewWindow->lock_buffer(this->mPreviewWindow,
                                        mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
-
                     // lock the buffer using genlock
                     LOGE("%s: camera call genlock_lock, hdl=%p", __FUNCTION__, (*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]));
                     if (GENLOCK_NO_ERROR != genlock_lock_buffer((native_handle_t *)(*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]),
@@ -194,31 +191,53 @@ status_t QCameraStream_preview::getBufferFromSurface() {
 			mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->size, 1, (void *)this);
 		LOGE("%s: idx = %d, fd = %d, size = %d, offset = %d", __func__,
             cnt, mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->fd,
-			mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->size,
-			mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->offset);
-	}
+      mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->size,
+      mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->offset);
+  }
 
 
-	memset(&mHalCamCtrl->mMetadata, 0, sizeof(mHalCamCtrl->mMetadata));
-	memset(mHalCamCtrl->mFace, 0, sizeof(mHalCamCtrl->mFace));
+  memset(&mHalCamCtrl->mMetadata, 0, sizeof(mHalCamCtrl->mMetadata));
+  memset(mHalCamCtrl->mFace, 0, sizeof(mHalCamCtrl->mFace));
 
     LOGI(" %s : X ",__FUNCTION__);
 end:
-	//mDisplayLock.unlock();
-	mHalCamCtrl->mPreviewMemoryLock.unlock();
+  //mDisplayLock.unlock();
+  mHalCamCtrl->mPreviewMemoryLock.unlock();
 
     return NO_ERROR;
 }
 
 status_t QCameraStream_preview::putBufferToSurface() {
     int err = 0;
-	status_t ret = NO_ERROR;
+  status_t ret = NO_ERROR;
 
     LOGI(" %s : E ", __FUNCTION__);
 
     //mDisplayLock.lock();
     mHalCamCtrl->mPreviewMemoryLock.lock();
 	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
+        /* ToDo: Match the reg/unreg logic for socket packets */
+        if (cnt < mHalCamCtrl->mPreviewMemory.buffer_count) {
+            cam_buf_packet_t buf_packet;
+            memset(&buf_packet, 0, sizeof(buf_packet));
+            buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
+            buf_packet.is_unreg = TRUE;
+            buf_packet.is_data = TRUE;
+            buf_packet.payload.data.idx = cnt;
+            buf_packet.payload.data.fd = mDisplayStreamBuf.frame[cnt].fd;
+            buf_packet.payload.data.size =
+            mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->size;
+
+            LOGI("%s: buf_type=%d is_unreg=%d is_data=%d idx=%d fd=%d size=%d",
+                __func__, buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
+            buf_packet.payload.data.idx, buf_packet.payload.data.fd,
+            buf_packet.payload.data.size);
+
+           if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet,
+             sizeof(buf_packet), NULL, 0))
+             LOGE("%s: sending data Msg Failed", __func__);
+        }
+
         mHalCamCtrl->mPreviewMemory.camera_memory[cnt]->release(mHalCamCtrl->mPreviewMemory.camera_memory[cnt]);
             if (BUFFER_LOCKED == mHalCamCtrl->mPreviewMemory.local_flag[cnt]) {
                 LOGD("%s: camera call genlock_unlock", __FUNCTION__);
@@ -274,44 +293,44 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
 
 status_t QCameraStream_preview::initDisplayBuffers()
 {
-    status_t ret = NO_ERROR;
-    int width = 0;  /* width of channel  */
-    int height = 0; /* height of channel */
-    uint32_t frame_len = 0; /* frame planner length */
-    int buffer_num = 4; /* number of buffers for display */
-    const char *pmem_region;
-    uint8_t num_planes = 0;
-    uint32_t planes[VIDEO_MAX_PLANES];
+  status_t ret = NO_ERROR;
+  int width = 0;  /* width of channel  */
+  int height = 0; /* height of channel */
+  uint32_t frame_len = 0; /* frame planner length */
+  int buffer_num = 4; /* number of buffers for display */
+  const char *pmem_region;
+  uint8_t num_planes = 0;
+  uint32_t planes[VIDEO_MAX_PLANES];
 
-    cam_ctrl_dimension_t dim;
+  cam_ctrl_dimension_t dim;
 
-    LOGE("%s:BEGIN",__func__);
-	memset(&mHalCamCtrl->mMetadata, 0, sizeof(camera_frame_metadata_t));
-	mHalCamCtrl->mPreviewMemoryLock.lock();
-	memset(&mHalCamCtrl->mPreviewMemory, 0, sizeof(mHalCamCtrl->mPreviewMemory));
-	mHalCamCtrl->mPreviewMemoryLock.unlock();
-	memset(&mNotifyBuffer, 0, sizeof(mNotifyBuffer));
+  LOGE("%s:BEGIN",__func__);
+  memset(&mHalCamCtrl->mMetadata, 0, sizeof(camera_frame_metadata_t));
+  mHalCamCtrl->mPreviewMemoryLock.lock();
+  memset(&mHalCamCtrl->mPreviewMemory, 0, sizeof(mHalCamCtrl->mPreviewMemory));
+  mHalCamCtrl->mPreviewMemoryLock.unlock();
+  memset(&mNotifyBuffer, 0, sizeof(mNotifyBuffer));
 
-  /* get preview size, by qury mm_camera*/
-    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+/* get preview size, by qury mm_camera*/
+  memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
 
-    memset(&(this->mDisplayStreamBuf),0, sizeof(this->mDisplayStreamBuf));
+  memset(&(this->mDisplayStreamBuf),0, sizeof(this->mDisplayStreamBuf));
 
-    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
-    if (MM_CAMERA_OK != ret) {
-      LOGE("%s: error - can't get camera dimension!", __func__);
-      LOGE("%s: X", __func__);
-      return BAD_VALUE;
-    }else {
-      width =  dim.display_width,
-      height = dim.display_height;
-    }
+  ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+  if (MM_CAMERA_OK != ret) {
+    LOGE("%s: error - can't get camera dimension!", __func__);
+    LOGE("%s: X", __func__);
+    return BAD_VALUE;
+  }else {
+    width =  dim.display_width,
+    height = dim.display_height;
+  }
 
-	ret = getBufferFromSurface();
-	if(ret != NO_ERROR) {
-	 LOGE("%s: cannot get memory from surface texture client, ret = %d", __func__, ret);
-	 return ret;
-	}
+  ret = getBufferFromSurface();
+  if(ret != NO_ERROR) {
+    LOGE("%s: cannot get memory from surface texture client, ret = %d", __func__, ret);
+    return ret;
+  }
 
   /* set 4 buffers for display */
   memset(&mDisplayStreamBuf, 0, sizeof(mDisplayStreamBuf));
@@ -325,10 +344,25 @@ status_t QCameraStream_preview::initDisplayBuffers()
 
   mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[mDisplayStreamBuf.num];
   if (!mDisplayBuf.preview.buf.mp) {
-	  LOGE("%s Error allocating memory for mplanar struct ", __func__);
+    LOGE("%s Error allocating memory for mplanar struct ", __func__);
   }
   memset(mDisplayBuf.preview.buf.mp, 0,
     mDisplayStreamBuf.num * sizeof(mm_camera_mp_buf_t));
+
+  cam_buf_packet_t buf_packet;
+
+  memset(&buf_packet, 0, sizeof(buf_packet));
+  buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
+  buf_packet.is_unreg = FALSE;
+  buf_packet.is_data = FALSE;
+  buf_packet.payload.header.count = mDisplayStreamBuf.num;
+  LOGI("%s: buf_type=%d is_unreg=%d is_data=%d buf_count=%d ", __func__,
+    buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
+    buf_packet.payload.header.count);
+
+  if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet, sizeof(buf_packet),
+    NULL, 0))
+    LOGE("%s: sending Header Msg Failed", __func__);
 
   /*allocate memory for the buffers*/
   void *vaddr = NULL;
@@ -344,44 +378,57 @@ status_t QCameraStream_preview::initDisplayBuffers()
       mDisplayStreamBuf.frame[i].buffer =
           (long unsigned int)mHalCamCtrl->mPreviewMemory.camera_memory[i]->data;
 
-	  LOGE("%s: idx = %d, fd = %d, size = %d, cbcr_offset = %d, y_offset = %d, offset = %d, vaddr = 0x%x",
-		  __func__, i,
-		  mDisplayStreamBuf.frame[i].fd,
-		  mHalCamCtrl->mPreviewMemory.private_buffer_handle[i]->size,
-		  mDisplayStreamBuf.frame[i].cbcr_off,
-		  mDisplayStreamBuf.frame[i].y_off,
-		  mHalCamCtrl->mPreviewMemory.addr_offset[i],
-		  (uint32_t)mDisplayStreamBuf.frame[i].buffer);
+    LOGE("%s: idx = %d, fd = %d, size = %d, cbcr_offset = %d, y_offset = %d, "
+      "offset = %d, vaddr = 0x%x", __func__, i, mDisplayStreamBuf.frame[i].fd,
+      mHalCamCtrl->mPreviewMemory.private_buffer_handle[i]->size,
+      mDisplayStreamBuf.frame[i].cbcr_off, mDisplayStreamBuf.frame[i].y_off,
+      mHalCamCtrl->mPreviewMemory.addr_offset[i],
+      (uint32_t)mDisplayStreamBuf.frame[i].buffer);
 
+    memset(&buf_packet, 0, sizeof(buf_packet));
+    buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
+    buf_packet.is_unreg = FALSE;
+    buf_packet.is_data = TRUE;
+    buf_packet.payload.data.idx = i;
+    buf_packet.payload.data.fd = mDisplayStreamBuf.frame[i].fd;
+    buf_packet.payload.data.size =
+      mHalCamCtrl->mPreviewMemory.private_buffer_handle[i]->size;
 
-        mDisplayBuf.preview.buf.mp[i].frame = mDisplayStreamBuf.frame[i];
-        mDisplayBuf.preview.buf.mp[i].frame_offset = mHalCamCtrl->mPreviewMemory.addr_offset[i];
-        mDisplayBuf.preview.buf.mp[i].num_planes = num_planes;
+    LOGI("%s: buf_type=%d is_unreg=%d is_data=%d idx=%d fd=%d size=%d",
+      __func__, buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
+      buf_packet.payload.data.idx, buf_packet.payload.data.fd,
+      buf_packet.payload.data.size);
 
-		/* Plane 0 needs to be set seperately. Set other planes
-         * in a loop. */
-        mDisplayBuf.preview.buf.mp[i].planes[0].length = planes[0];
-        mDisplayBuf.preview.buf.mp[i].planes[0].m.userptr = mDisplayStreamBuf.frame[i].fd;
-        mDisplayBuf.preview.buf.mp[i].planes[0].data_offset = 0;
-        mDisplayBuf.preview.buf.mp[i].planes[0].reserved[0] =
-          mDisplayBuf.preview.buf.mp[i].frame_offset;
-        for (int j = 1; j < num_planes; j++) {
-          mDisplayBuf.preview.buf.mp[i].planes[j].length = planes[j];
-          mDisplayBuf.preview.buf.mp[i].planes[j].m.userptr =
-            mDisplayStreamBuf.frame[i].fd;
-		  mDisplayBuf.preview.buf.mp[i].planes[j].data_offset = 0;
-          mDisplayBuf.preview.buf.mp[i].planes[j].reserved[0] =
-            mDisplayBuf.preview.buf.mp[i].planes[j-1].reserved[0] +
-            mDisplayBuf.preview.buf.mp[i].planes[j-1].length;
-        }
+    if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet, sizeof(buf_packet),
+      (void *)&buf_packet.payload.data.fd, sizeof(buf_packet.payload.data.fd)))
+      LOGE("%s: sending data Msg Failed", __func__);
 
-		for (int j = 0; j < num_planes; j++) {
-			LOGE("Planes: %d length: %d userptr: %lu offset: %d\n",
-				 j, mDisplayBuf.preview.buf.mp[i].planes[j].length,
-				 mDisplayBuf.preview.buf.mp[i].planes[j].m.userptr,
-				 mDisplayBuf.preview.buf.mp[i].planes[j].reserved[0]);
-		}
+    mDisplayBuf.preview.buf.mp[i].frame = mDisplayStreamBuf.frame[i];
+    mDisplayBuf.preview.buf.mp[i].frame_offset = mHalCamCtrl->mPreviewMemory.addr_offset[i];
+    mDisplayBuf.preview.buf.mp[i].num_planes = num_planes;
 
+    /* Plane 0 needs to be set seperately. Set other planes
+     * in a loop. */
+    mDisplayBuf.preview.buf.mp[i].planes[0].length = planes[0];
+    mDisplayBuf.preview.buf.mp[i].planes[0].m.userptr = mDisplayStreamBuf.frame[i].fd;
+    mDisplayBuf.preview.buf.mp[i].planes[0].data_offset = 0;
+    mDisplayBuf.preview.buf.mp[i].planes[0].reserved[0] =
+      mDisplayBuf.preview.buf.mp[i].frame_offset;
+    for (int j = 1; j < num_planes; j++) {
+      mDisplayBuf.preview.buf.mp[i].planes[j].length = planes[j];
+      mDisplayBuf.preview.buf.mp[i].planes[j].m.userptr =
+        mDisplayStreamBuf.frame[i].fd;
+      mDisplayBuf.preview.buf.mp[i].planes[j].data_offset = 0;
+      mDisplayBuf.preview.buf.mp[i].planes[j].reserved[0] =
+        mDisplayBuf.preview.buf.mp[i].planes[j-1].reserved[0] +
+        mDisplayBuf.preview.buf.mp[i].planes[j-1].length;
+    }
+
+    for (int j = 0; j < num_planes; j++)
+      LOGE("Planes: %d length: %d userptr: %lu offset: %d\n", j,
+        mDisplayBuf.preview.buf.mp[i].planes[j].length,
+        mDisplayBuf.preview.buf.mp[i].planes[j].m.userptr,
+        mDisplayBuf.preview.buf.mp[i].planes[j].reserved[0]);
   }/*end of for loop*/
 
  /* register the streaming buffers for the channel*/
@@ -488,7 +535,7 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
         //return -EINVAL;
     }
   err = this->mPreviewWindow->enqueue_buffer(this->mPreviewWindow,
-    (buffer_handle_t *)mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
+        (buffer_handle_t *)mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
   if(err != 0) {
     LOGE("%s: enqueue_buffer failed, err = %d", __func__, err);
   } else {

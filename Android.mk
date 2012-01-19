@@ -30,6 +30,9 @@ endif
 
 LOCAL_CFLAGS+= -DHW_ENCODE
 
+LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+
 ifeq ($(call is-board-platform,msm8960),true)
 LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
                    QCameraHWI.cpp QCameraHWI_Preview.cpp \
@@ -93,6 +96,13 @@ LOCAL_SHARED_LIBRARIES+= liboemcamera
 else
 LOCAL_SHARED_LIBRARIES+= libdl
 endif
+
+LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/posix_types.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/byteorder.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/posix_types.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/types.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/socket.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/in.h
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)

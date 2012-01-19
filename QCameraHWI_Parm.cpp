@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -716,8 +716,8 @@ void QCameraHardwareInterface::initDefaultParameters()
     memset(&mPreviewFormatInfo, 0, sizeof(preview_format_info_t));
     mDimension.video_width     = DEFAULT_STREAM_WIDTH;
     mDimension.video_height    = DEFAULT_STREAM_HEIGHT;
-    mDimension.picture_width   = DEFAULT_STREAM_WIDTH;
-    mDimension.picture_height  = DEFAULT_STREAM_HEIGHT;
+    mDimension.picture_width   = DEFAULT_LIVESHOT_WIDTH;
+    mDimension.picture_height  = DEFAULT_LIVESHOT_HEIGHT;
     mDimension.display_width   = DEFAULT_STREAM_WIDTH;
     mDimension.display_height  = DEFAULT_STREAM_HEIGHT;
     mDimension.orig_picture_dx = mDimension.picture_width;

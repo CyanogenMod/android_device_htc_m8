@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -47,6 +47,14 @@ extern "C" {
 
 #include "QCameraStream.h"
 #include "QCameraHWI_Mem.h"
+
+typedef unsigned short int sa_family_t;
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <string.h>
 
 //Error codes
 #define  NOT_FOUND -1
@@ -168,6 +176,14 @@ typedef struct {
   argm_notify_t argm_notify;
   argm_data_cb_t        argm_data_cb;
 } app_notify_cb_t;
+
+typedef struct {
+  int socket_fd;
+  struct msghdr msgh;
+  struct iovec iov;
+  char cmsgspace[CMSG_SPACE(sizeof(int))];
+  struct cmsghdr *cmsghp;
+} QCameraSocket_t;
 
 namespace android {
 
@@ -416,6 +432,8 @@ public:
     preview_format_info_t  getPreviewFormatInfo( );
     bool isCameraReady();
 
+    int sendQCameraHWISocketMsg(void *iov_base, uint32_t iov_len,
+      void *cmsg_base, uint32_t cmsg_len);
 
 private:
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
@@ -668,6 +686,7 @@ private:
 	 preview_stream_ops_t *mPreviewWindow;
      Mutex                mStateLock;
 	 int                  mPreviewState;
+     QCameraSocket_t      mSocketInfo;
      QCameraHalMemory_t   mPreviewMemory;
      QCameraHalHeap_t     mSnapshotMemory;
      QCameraHalHeap_t     mThumbnailMemory;
@@ -682,5 +701,3 @@ private:
 }; // namespace android
 
 #endif
-
-

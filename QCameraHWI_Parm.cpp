@@ -199,6 +199,10 @@ static camera_size_type hfr_sizes[] = {
   { 640, 480} // VGA
 };
 
+static int iso_speed_values[] = {
+    0, 1, 100, 200, 400, 800, 1600
+};
+
 
 extern int HAL_numOfCameras;
 extern camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
@@ -2444,6 +2448,15 @@ int QCameraHardwareInterface::getJpegRotation(void) {
     return rotation;
 }
 
+int QCameraHardwareInterface::getISOSpeedValue()
+{
+    const char *iso_str = mParameters.get(CameraParameters::KEY_ISO_MODE);
+    int iso_index = attr_lookup(iso, sizeof(iso) / sizeof(str_map), iso_str);
+    int iso_value = iso_speed_values[iso_index];
+    return iso_value;
+}
+
+
 status_t QCameraHardwareInterface::setJpegQuality(const CameraParameters& params) {
     status_t rc = NO_ERROR;
     int quality = params.getInt(CameraParameters::KEY_JPEG_QUALITY);
@@ -3423,6 +3436,7 @@ void QCameraHardwareInterface::getZSLEmptyQueueFlag(bool *flag)
 
     LOGI("%s: ZSL Empty Queue Flag is set to %d", __func__, mZslEmptyQueueFlag);
 }
+
 int QCameraHardwareInterface::getZSLQueueDepth(void) const
 {
     char prop[PROPERTY_VALUE_MAX];
@@ -3431,6 +3445,7 @@ int QCameraHardwareInterface::getZSLQueueDepth(void) const
     LOGI("%s: prop = %d", __func__, atoi(prop));
     return atoi(prop);
 }
+
 int QCameraHardwareInterface::getZSLBackLookCount(void) const
 {
     char prop[PROPERTY_VALUE_MAX];
@@ -3440,5 +3455,204 @@ int QCameraHardwareInterface::getZSLBackLookCount(void) const
     return atoi(prop);
 }
 
+//EXIF functions
 
+void QCameraHardwareInterface::resetExifData()
+{
+    LOGD("Clearing EXIF data");
+    for(int i=0; i<MAX_EXIF_TABLE_ENTRIES; i++)
+    {
+        //clear all data
+        memset(&mExifData[i], 0x00, sizeof(exif_tags_info_t));
+    }
+    mExifTableNumEntries = 0;
+}
+
+void QCameraHardwareInterface::addExifTag(exif_tag_id_t tagid, exif_tag_type_t type,
+                        uint32_t count, uint8_t copy, void *data) {
+
+    if(mExifTableNumEntries >= MAX_EXIF_TABLE_ENTRIES) {
+        LOGE("%s: Number of entries exceeded limit", __func__);
+        return;
+    }
+    int index = mExifTableNumEntries;
+    mExifData[index].tag_id = tagid;
+    mExifData[index].tag_entry.type = type;
+    mExifData[index].tag_entry.count = count;
+    mExifData[index].tag_entry.copy = copy;
+    if((type == EXIF_RATIONAL) && (count > 1))
+        mExifData[index].tag_entry.data._rats = (rat_t *)data;
+    if((type == EXIF_RATIONAL) && (count == 1))
+        mExifData[index].tag_entry.data._rat = *(rat_t *)data;
+    else if(type == EXIF_ASCII)
+        mExifData[index].tag_entry.data._ascii = (char *)data;
+    else if(type == EXIF_BYTE)
+        mExifData[index].tag_entry.data._byte = *(uint8_t *)data;
+    else if((type == EXIF_SHORT) && (count > 1))
+        mExifData[index].tag_entry.data._shorts = (uint16_t *)data;
+    else if((type == EXIF_SHORT) && (count == 1))
+        mExifData[index].tag_entry.data._short = *(uint16_t *)data;
+    // Increase number of entries
+    mExifTableNumEntries++;
+}
+
+rat_t getRational(int num, int denom)
+{
+    rat_t temp = {num, denom};
+    return temp;
+}
+
+//Add all exif tags in this function
+void QCameraHardwareInterface::setExifTags()
+{
+    const char *str;
+
+    //set TimeStamp
+    str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
+    if(str != NULL) {
+      strncpy(mExifValues.dateTime, str, 19);
+      mExifValues.dateTime[19] = '\0';
+      addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
+                  20, 1, (void *)mExifValues.dateTime);
+    }
+
+    //Set focal length
+    int focalLengthValue = (int) (mParameters.getFloat(
+                CameraParameters::KEY_FOCAL_LENGTH) * FOCAL_LENGTH_DECIMAL_PRECISION);
+
+    mExifValues.focalLength = getRational(focalLengthValue, FOCAL_LENGTH_DECIMAL_PRECISION);
+
+    addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1, 1, (void *)&(mExifValues.focalLength));
+
+    //Set ISO Speed
+    mExifValues.isoSpeed = getISOSpeedValue();
+    addExifTag(EXIFTAGID_ISO_SPEED_RATING,EXIF_SHORT,1,1,(void *)&(mExifValues.isoSpeed));
+
+    //set gps tags
+    setExifTagsGPS();
+}
+
+void QCameraHardwareInterface::setExifTagsGPS()
+{
+    const char *str = NULL;
+
+    //Set GPS processing method
+    str = mParameters.get(CameraParameters::KEY_GPS_PROCESSING_METHOD);
+    if(str != NULL) {
+       memcpy(mExifValues.gpsProcessingMethod, ExifAsciiPrefix, EXIF_ASCII_PREFIX_SIZE);
+       strncpy(mExifValues.gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE, str,
+           GPS_PROCESSING_METHOD_SIZE - 1);
+       mExifValues.gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE-1] = '\0';
+       addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
+           EXIF_ASCII_PREFIX_SIZE + strlen(mExifValues.gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE) + 1,
+           1, (void *)mExifValues.gpsProcessingMethod);
+       LOGE("EXIFTAGID_GPS_PROCESSINGMETHOD = %s %s", mExifValues.gpsProcessingMethod,
+                                                    mExifValues.gpsProcessingMethod+8);
+    }
+    str = NULL;
+
+    //Set Latitude
+    str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE);
+    if(str != NULL) {
+        parseGPSCoordinate(str, mExifValues.latitude);
+        addExifTag(EXIFTAGID_GPS_LATITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.latitude);
+        LOGE("EXIFTAGID_GPS_LATITUDE = %s", str);
+
+        //set Latitude Ref
+        float latitudeValue = mParameters.getFloat(CameraParameters::KEY_GPS_LATITUDE);
+        if(latitudeValue < 0.0f) {
+            mExifValues.latRef[0] = 'S';
+        } else {
+            mExifValues.latRef[0] = 'N';
+        }
+        mExifValues.latRef[1] = '\0';
+        mParameters.set(CameraParameters::KEY_GPS_LATITUDE_REF,mExifValues.latRef);
+        addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
+                                1, (void *)mExifValues.latRef);
+        LOGE("EXIFTAGID_GPS_LATITUDE_REF = %s", mExifValues.latRef);
+    }
+
+    //set Longitude
+    str = NULL;
+    str = mParameters.get(CameraParameters::KEY_GPS_LONGITUDE);
+    if(str != NULL) {
+        parseGPSCoordinate(str, mExifValues.longitude);
+        addExifTag(EXIFTAGID_GPS_LONGITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.longitude);
+        LOGE("EXIFTAGID_GPS_LONGITUDE = %s", str);
+
+        //set Longitude Ref
+        float longitudeValue = mParameters.getFloat(CameraParameters::KEY_GPS_LONGITUDE);
+        if(longitudeValue < 0.0f) {
+            mExifValues.lonRef[0] = 'W';
+        } else {
+            mExifValues.lonRef[0] = 'E';
+        }
+        mExifValues.lonRef[1] = '\0';
+        LOGE("EXIFTAGID_GPS_LONGITUDE_REF = %s", mExifValues.lonRef);
+        mParameters.set(CameraParameters::KEY_GPS_LONGITUDE_REF, mExifValues.lonRef);
+        addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
+                                1, (void *)mExifValues.lonRef);
+    }
+
+    //set Altitude
+    str = mParameters.get(CameraParameters::KEY_GPS_ALTITUDE);
+
+    if(str != NULL) {
+        double value = atof(str);
+        int ref = 0;
+        if(value < 0){
+            ref = 1;
+            value = -value;
+        }
+        mExifValues.altitude = getRational(value*1000, 1000);
+
+        addExifTag(EXIFTAGID_GPS_ALTITUDE, EXIF_RATIONAL, 1,
+                    1, (void *)&(mExifValues.altitude));
+        //set AltitudeRef
+        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, ref);
+        addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1, 1, (void *)&ref);
+        LOGE("EXIFTAGID_GPS_ALTITUDE = %f", value);
+    }
+
+    //set Gps TimeStamp
+    str = NULL;
+    str = mParameters.get(CameraParameters::KEY_GPS_TIMESTAMP);
+    if(str != NULL) {
+      long value = atol(str);
+      time_t unixTime;
+      struct tm *UTCTimestamp;
+
+      unixTime = (time_t)value;
+      UTCTimestamp = gmtime(&unixTime);
+
+      strftime(mExifValues.gpsDateStamp, sizeof(mExifValues.gpsDateStamp), "%Y:%m:%d", UTCTimestamp);
+      addExifTag(EXIFTAGID_GPS_DATESTAMP, EXIF_ASCII,
+                          strlen(mExifValues.gpsDateStamp)+1 , 1, (void *)mExifValues.gpsDateStamp);
+
+      mExifValues.gpsTimeStamp[0] = getRational(UTCTimestamp->tm_hour, 1);
+      mExifValues.gpsTimeStamp[1] = getRational(UTCTimestamp->tm_min, 1);
+      mExifValues.gpsTimeStamp[2] = getRational(UTCTimestamp->tm_sec, 1);
+
+      addExifTag(EXIFTAGID_GPS_TIMESTAMP, EXIF_RATIONAL,
+                  3, 1, (void *)mExifValues.gpsTimeStamp);
+      LOGE("EXIFTAGID_GPS_TIMESTAMP set");
+    }
+}
+
+//latlonString is string formatted coordinate
+//coord is rat_t[3]
+void QCameraHardwareInterface::parseGPSCoordinate(const char *latlonString, rat_t* coord)
+{
+    if(coord == NULL) {
+        LOGE("%s: error, invalid argument coord == NULL", __func__);
+        return;
+    }
+    float degF = fabs(atof(latlonString));
+    float minF = (degF- (int) degF) * 60;
+    float secF = (minF - (int) minF) * 60;
+
+    coord[0] = getRational((int) degF, 1);
+    coord[1] = getRational((int) minF, 1);
+    coord[2] = getRational((int) (secF * 10000), 10000);
+}
 }; /*namespace android */

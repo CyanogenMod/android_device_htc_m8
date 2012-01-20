@@ -24,10 +24,8 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
-
 
 /* QCameraHardwareInterface class implementation goes here*/
 /* following code implement the contol logic of this class*/
@@ -167,7 +165,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mCameraState(CAMERA_STATE_UNINITED),
                     mPostPreviewHeap(NULL),
                     mHdrMode(HDR_BRACKETING_OFF),
-                    mStreamLiveSnap(NULL)
+                    mStreamLiveSnap(NULL),
+                    mExifTableNumEntries(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;

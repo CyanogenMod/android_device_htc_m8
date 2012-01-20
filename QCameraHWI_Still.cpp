@@ -25,6 +25,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <media/mediarecorder.h>
+#include <math.h>
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
@@ -62,6 +63,8 @@ static const int POSTVIEW_SMALL_HEIGHT = 144;
 // ---------------------------------------------------------------------------
 /* static functions*/
 // ---------------------------------------------------------------------------
+
+
 
 /* TBD: Temp: to be removed*/
 static pthread_mutex_t g_s_mutex;
@@ -304,6 +307,7 @@ end:
     setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODE_DONE);
 
     mNumOfRecievedJPEG++;
+    mHalCamCtrl->resetExifData();
 
     /* Before leaving check the jpeg queue. If it's not empty give the available
        frame for encoding*/
@@ -1472,6 +1476,9 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
           thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
         }
 
+        //update exif parameters in HAL
+        mHalCamCtrl->setExifTags();
+
         /*Fill in the encode parameters*/
         encode_params.dimension = (const cam_ctrl_dimension_t *)&dimension;
         if (!isFullSizeLiveshot()) {
@@ -1484,8 +1491,9 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         encode_params.snapshot_fd = mainframe->fd;
         encode_params.snapshot_offset = mainframe->phy_offset;
         encode_params.scaling_params = &crop;
-        encode_params.exif_data = NULL;
-        encode_params.exif_numEntries = 0;
+        encode_params.exif_data = mHalCamCtrl->getExifData();
+        encode_params.exif_numEntries = mHalCamCtrl->getExifTableNumEntries();
+
         if (isLiveSnapshot())
             encode_params.a_cbcroffset = mainframe->cbcr_off;
         else

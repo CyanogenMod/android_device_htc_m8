@@ -530,7 +530,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     OMX_GetExtensionIndex(pHandle,"omx.qcom.jpeg.exttype.user_preferences",
       &user_preferences);
     OMX_DBG_INFO("%s:User Preferences: color_format %d"
-      "thumbnail_color_format = %d encoder preference =%d\n",__func__,
+      "thumbnail_color_format = %d encoder preference =%d\n", __func__,
       userpreferences.color_format,userpreferences.thumbnail_color_format,
       userpreferences.preference);
     OMX_SetParameter(pHandle,user_preferences,&userpreferences);
@@ -564,6 +564,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     LOGE("Set rotation to %d\n",jpegRotation);
     }
 
+    OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.exif", &exif);
     /*temporarily set rotation in EXIF data. This is done to avoid image corruption
       issues in ZSL mode since roation is known before hand. The orientation is set in the
       exif tag and decoder will decode it will the right orientation. need to add double
@@ -583,8 +584,6 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
         default: orientation =1;
                  break;
      }
-
-      OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.exif", &exif);
       tag.tag_id = EXIFTAGID_ORIENTATION;
       tag.tag_entry.type = EXIFTAGTYPE_ORIENTATION;
       tag.tag_entry.count =1;
@@ -593,6 +592,14 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
       LOGE("%s jpegRotation = %d , orientation value =%d\n",__func__,jpegRotation,orientation);
       OMX_SetParameter(pHandle, exif, &tag);
       }
+
+    //Set omx parameter for all exif tags
+    int i;
+    for(i=0; i<encode_params->exif_numEntries; i++) {
+        memcpy(&tag, encode_params->exif_data + i, sizeof(omx_jpeg_exif_info_tag));
+        OMX_SetParameter(pHandle, exif, &tag);
+    }
+
     pmem_info.fd = encode_params->snapshot_fd;
     pmem_info.offset = 0;
 

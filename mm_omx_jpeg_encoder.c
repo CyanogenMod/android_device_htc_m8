@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -330,9 +330,9 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
     userpreferences.thumbnail_color_format =
         format_cam2jpeg(encode_params->dimension->thumb_format);
     if (hw_encode)
-        userpreferences.preference = OMX_ENCODER_PREF_HW_ACCELERATED_PREFERRED;
+        userpreferences.preference = OMX_JPEG_PREF_HW_ACCELERATED_PREFERRED;
     else
-        userpreferences.preference = OMX_ENCODER_PREF_SOFTWARE_ONLY;
+        userpreferences.preference = OMX_JPEG_PREF_SOFTWARE_ONLY;
 
     pmem_info.fd = encode_params->snapshot_fd;
     pmem_info.offset = 0;
@@ -433,9 +433,9 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
       get_jpeg_format_from_cam_format(encode_params->thumbnail_format);
 
     if (hw_encode)
-        userpreferences.preference = OMX_ENCODER_PREF_HW_ACCELERATED_PREFERRED;
+        userpreferences.preference = OMX_JPEG_PREF_HW_ACCELERATED_PREFERRED;
     else
-        userpreferences.preference = OMX_ENCODER_PREF_SOFTWARE_ONLY;
+        userpreferences.preference = OMX_JPEG_PREF_SOFTWARE_ONLY;
 
 
       OMX_DBG_ERROR("%s:Scaling params in1_w %d in1_h %d out1_w %d out1_h %d"
@@ -455,7 +455,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     if (encode_params->scaling_params->in2_w &&
         encode_params->scaling_params->in2_h) {
         if (jpegRotation) {
-            userpreferences.preference = OMX_ENCODER_PREF_SOFTWARE_ONLY;
+            userpreferences.preference = OMX_JPEG_PREF_SOFTWARE_ONLY;
             OMX_DBG_INFO("%s:Scaling and roation true: setting pref to sw\n",
               __func__);
         }

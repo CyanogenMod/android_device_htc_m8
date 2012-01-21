@@ -1633,14 +1633,12 @@ void QCameraHardwareInterface::handleZoomEventForPreview(app_notify_cb_t *app_cb
              v4l2_crop.crop.width,
              v4l2_crop.crop.height);
 
-        if ((v4l2_crop.crop.width != 0) && (v4l2_crop.crop.height != 0)) {
-             mPreviewWindow->set_crop(mPreviewWindow,
-                            v4l2_crop.crop.left,
-                            v4l2_crop.crop.top,
-                            v4l2_crop.crop.left + v4l2_crop.crop.width,
-                            v4l2_crop.crop.top + v4l2_crop.crop.height);
-             LOGI("%s: Done setting crop", __func__);
-        }
+        mPreviewWindow->set_crop(mPreviewWindow,
+                        v4l2_crop.crop.left,
+                        v4l2_crop.crop.top,
+                        v4l2_crop.crop.left + v4l2_crop.crop.width,
+                        v4l2_crop.crop.top + v4l2_crop.crop.height);
+        LOGI("%s: Done setting crop", __func__);
         LOGI("%s: Currrent zoom :%d",__func__, mCurrentZoom);
     }
 #if 0

@@ -6766,7 +6766,7 @@ bool QualcommCameraHardware::initRecord()
      * We need to pass the actual framesize with video heap, as the same
      * is used at camera MIO when negotiating with encoder.
      */
-    mRecordFrameSize = recordBufferSize;
+    mRecordFrameSize = PAD_TO_4K(recordBufferSize);
     bool dis_disable = 0;
     const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
     if((str != NULL) && (strcmp(str, CameraParameters::VIDEO_HFR_OFF))) {
@@ -6776,8 +6776,8 @@ bool QualcommCameraHardware::initRecord()
     if((mVpeEnabled && mDisEnabled && (!dis_disable))|| mIs3DModeOn){
         mRecordFrameSize = videoWidth * videoHeight * 3 / 2;
         if(mCurrentTarget == TARGET_MSM8660){
-            mRecordFrameSize = PAD_TO_2K(videoWidth * videoHeight)
-                                + PAD_TO_2K((videoWidth * videoHeight)/2);
+            mRecordFrameSize = PAD_TO_4K(PAD_TO_2K(videoWidth * videoHeight)
+                                + PAD_TO_2K((videoWidth * videoHeight)/2));
         }
     }
     LOGV("mRecordFrameSize = %d", mRecordFrameSize);

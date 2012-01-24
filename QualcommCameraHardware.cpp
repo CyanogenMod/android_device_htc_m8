@@ -2972,15 +2972,23 @@ void QualcommCameraHardware::runPreviewThread(void *data)
 
         // If output  is NOT enabled (targets otherthan 7x30 , 8x50 and 8x60 currently..)
         if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250) && (mCurrentTarget != TARGET_MSM8660)) {
+            int flagwait = 1;
             if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-                rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewMapped[bufferIndex], 0, rdata);
-                Mutex::Autolock rLock(&mRecordFrameLock);
-                if (mReleasedRecordingFrame != true) {
-                    LOGV("block waiting for frame release");
-                    mRecordWait.wait(mRecordFrameLock);
-                    LOGV("frame released, continuing");
+                if(mStoreMetaDataInFrame){
+                    flagwait = 1;
+                    if(metadata_memory[bufferIndex]!= NULL)
+                        rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, metadata_memory[bufferIndex],0,rdata);
+                    else flagwait = 0;
+                } else {
+                    rcb(systemTime(), CAMERA_MSG_VIDEO_FRAME, mPreviewMapped[bufferIndex],0, rdata);
                 }
-                mReleasedRecordingFrame = false;
+                if(flagwait){
+                    Mutex::Autolock rLock(&mRecordFrameLock);
+                        if (mReleasedRecordingFrame != true) {
+                            mRecordWait.wait(mRecordFrameLock);
+                        }
+                        mReleasedRecordingFrame = false;
+                }
             }
         }
 
@@ -4476,6 +4484,13 @@ void QualcommCameraHardware::deinitRaw()
                 if(retVal != NO_ERROR)
                     LOGE("%s: cancelBuffer failed for postview buffer %d",
                                                      __FUNCTION__, handle->fd);
+                   if(mStoreMetaDataInFrame && (metadata_memory[cnt] != NULL)){
+                       struct encoder_media_buffer_type * packet =
+                               (struct encoder_media_buffer_type  *)metadata_memory[cnt]->data;
+                       native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle));
+                       metadata_memory[cnt]->release(metadata_memory[cnt]);
+                       metadata_memory[cnt] = NULL;
+                   }
                 // unregister , unmap and release as well
 
                 int mBufferSize = previewWidth * previewHeight * 3/2;
@@ -4522,6 +4537,13 @@ void QualcommCameraHardware::relinquishBuffers()
          retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
 	                         frame_buffer[cnt].buffer);
          mPreviewMapped[cnt]->release(mPreviewMapped[cnt]);
+         if(mStoreMetaDataInFrame && (metadata_memory[cnt] != NULL)){
+             struct encoder_media_buffer_type * packet =
+                  (struct encoder_media_buffer_type  *)metadata_memory[cnt]->data;
+             native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle));
+             metadata_memory[cnt]->release(metadata_memory[cnt]);
+             metadata_memory[cnt] = NULL;
+         }
          LOGE("release preview buffers");
          if(retVal != NO_ERROR)
            LOGE("%s: cancelBuffer failed for preview buffer %d ",
@@ -6866,6 +6888,23 @@ status_t QualcommCameraHardware::startRecording()
                 video_thread,
                 NULL);
           mVideoThreadWaitLock.unlock();
+      } else if ( mCurrentTarget == TARGET_MSM7627A ) {
+        for (int cnt = 0; cnt < mTotalPreviewBufferCount; cnt++) {
+            if(mStoreMetaDataInFrame)
+            {
+                LOGE("startRecording : meta data mode enabled filling metadata memory ");
+                metadata_memory[cnt] = mGetMemory(-1,  sizeof(struct encoder_media_buffer_type), 1, mCallbackCookie);
+                struct encoder_media_buffer_type * packet =
+                                  (struct encoder_media_buffer_type  *)metadata_memory[cnt]->data;
+                packet->meta_handle = native_handle_create(1, 3); //1 fd, 1 offset and 1 size
+                packet->buffer_type = kMetadataBufferTypeCameraSource;
+                native_handle_t * nh = const_cast<native_handle_t *>(packet->meta_handle);
+                nh->data[0] = frames[cnt].fd;
+                nh->data[1] = 0;
+                nh->data[2] = previewWidth * previewHeight * 3/2;
+                nh->data[3] = (unsigned int)mPreviewMapped[cnt]->data;
+            }
+        }
       }
     }
     return ret;
@@ -9235,8 +9274,9 @@ static void receive_camframe_video_callback(struct msm_frame *frame)
 int QualcommCameraHardware::storeMetaDataInBuffers(int enable)
 {
         /* this is a dummy func now. fix me later */
+    LOGI("in storeMetaDataInBuffers : enable %d", enable);
     mStoreMetaDataInFrame = enable;
-        return 0;
+    return 0;
 }
 
 void QualcommCameraHardware::setCallbacks(camera_notify_callback notify_cb,

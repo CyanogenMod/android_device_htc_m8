@@ -511,14 +511,37 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   mHalCamCtrl->mCallbackLock.unlock();
   LOGD("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
 
+  camera_memory_t *previewMem = NULL;
+  int previewWidth, previewHeight;
+  mHalCamCtrl->mParameters.getPreviewSize(&previewWidth, &previewHeight);
+
   if (pcb != NULL) {
       //Sending preview callback if corresponding Msgs are enabled
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
           msgType |=  CAMERA_MSG_PREVIEW_FRAME;
-          data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
+          int previewBufSize;
+          /* For CTS : Forcing preview memory buffer lenth to be
+             'previewWidth * previewHeight * 3/2'.
+              Needed when gralloc allocated extra memory.*/
+          //Can add this check for other formats as well.
+          if( mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) {
+              previewBufSize = previewWidth * previewHeight * 3/2;
+              if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->size) {
+                  previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->fd,
+                  previewBufSize, 1, mHalCamCtrl->mCallbackCookie);
+                  if (!previewMem || !previewMem->data) {
+                      LOGE("%s: mGetMemory failed.\n", __func__);
+                  } else {
+                      data = previewMem;
+                  }
+              } else
+                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
+          } else
+                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
       } else {
           data = NULL;
       }
+
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_METADATA){
           msgType  |= CAMERA_MSG_PREVIEW_METADATA;
           metadata = &mHalCamCtrl->mMetadata;
@@ -528,6 +551,8 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
       if(msgType) {
           mStopCallbackLock.unlock();
           pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+          if (previewMem)
+              previewMem->release(previewMem);
       }
 	  LOGD("end of cb");
   }

@@ -33,65 +33,6 @@
 /* following code implement the contol logic of this class*/
 
 namespace android {
-
-static int initQCameraHWISocket(void)
-{
-   int socket_fd;
-   struct sockaddr_un sock_addr;
-   socket_fd = socket(1, SOCK_DGRAM, 0);
-
-   memset(&sock_addr, 0, sizeof(sock_addr));
-   sock_addr.sun_family = 1;
-   snprintf(sock_addr.sun_path, UNIX_PATH_MAX, "/data/cam_socket");
-   if(connect(socket_fd, (struct sockaddr *) &sock_addr,
-     sizeof(sock_addr)) != 0)
-     socket_fd = -1;
-
-   LOGI("%s: socket_fd=%d", __func__, socket_fd);
-   return socket_fd;
-}
-
-int QCameraHardwareInterface::sendQCameraHWISocketMsg(void *iov_base,
-  uint32_t iov_len, void *cmsg_base, uint32_t cmsg_len)
-{
-  memset(&mSocketInfo.msgh, 0, sizeof(mSocketInfo.msgh));
-  mSocketInfo.msgh.msg_name = NULL;
-  mSocketInfo.msgh.msg_namelen = 0;
-
-  mSocketInfo.msgh.msg_iov = &mSocketInfo.iov;
-  mSocketInfo.msgh.msg_iovlen = 1;
-  mSocketInfo.iov.iov_base = iov_base;
-  mSocketInfo.iov.iov_len = iov_len;
-  LOGI("%s: iov_len=%d", __func__, mSocketInfo.iov.iov_len);
-
-  mSocketInfo.msgh.msg_control = NULL;
-  mSocketInfo.msgh.msg_controllen = 0;
-
-  if(cmsg_base != NULL) {
-    mSocketInfo.msgh.msg_control = mSocketInfo.cmsgspace;
-    mSocketInfo.msgh.msg_controllen = sizeof(mSocketInfo.cmsgspace);
-    mSocketInfo.cmsghp = CMSG_FIRSTHDR(&mSocketInfo.msgh);
-    if (mSocketInfo.cmsghp != NULL) {
-      LOGI("%s: Got ctrl msg pointer", __func__);
-      mSocketInfo.cmsghp->cmsg_level = SOL_SOCKET;
-      mSocketInfo.cmsghp->cmsg_type = SCM_RIGHTS;
-      mSocketInfo.cmsghp->cmsg_len = CMSG_LEN(cmsg_len);
-      *((int *) CMSG_DATA(mSocketInfo.cmsghp)) = *(int *)cmsg_base;
-      LOGI("%s: cmsg data=%d", __func__,
-        *((int *) CMSG_DATA(mSocketInfo.cmsghp)));
-    } else {
-      LOGE("%s: ctrl msg NULL", __func__);
-    }
-  }
-
-  if (sendmsg(mSocketInfo.socket_fd, &(mSocketInfo.msgh), 0) < 0) {
-      LOGE("%s: sendmsg failed %d: %s\n", __func__, errno,strerror(errno));
-      return FALSE;
-  }
-
-  return TRUE;
-} /* QCameraHardwareInterface::sendQCameraHWISocketMsg */
-
 static void HAL_event_cb(mm_camera_event_t *evt, void *user_data)
 {
   QCameraHardwareInterface *obj = (QCameraHardwareInterface *)user_data;
@@ -314,10 +255,6 @@ QCameraHardwareInterface(int cameraId, int mode)
     }
     mCameraState = CAMERA_STATE_READY;
 
-    mSocketInfo.socket_fd = initQCameraHWISocket();
-    if(mSocketInfo.socket_fd < 0)
-      LOGE("%s: initQCameraHWISocket failed", __func__);
-
     LOGI("QCameraHardwareInterface: X");
 }
 
@@ -364,9 +301,6 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
         mStreamSnap = NULL;
     }
-
-    if(mSocketInfo.socket_fd != -1)
-      close(mSocketInfo.socket_fd);
 
     cam_ops_close(mCameraId);
     LOGI("~QCameraHardwareInterface: X");
@@ -828,7 +762,10 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event, a
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
             break;
-        default:
+        case MM_CAMERA_CTRL_EVT_WDN_DONE:
+            wdenoiseEvent(event->status, (void *)(event->cookie));
+            break;
+       default:
             break;
     }
     LOGI("processCtrlEvent: X");
@@ -2266,6 +2203,20 @@ int QCameraHardwareInterface::releaseHeapMem( QCameraHalHeap_t *heap)
 preview_format_info_t  QCameraHardwareInterface::getPreviewFormatInfo( )
 {
   return mPreviewFormatInfo;
+}
+
+void QCameraHardwareInterface::wdenoiseEvent(cam_ctrl_status_t status, void *cookie)
+{
+    LOGI("wdnEvent: preview state:%d E",mPreviewState);
+    if (mStreamSnap != NULL) {
+        LOGI("notifyWDNEvent to snapshot stream");
+        mStreamSnap->notifyWDenoiseEvent(status, cookie);
+    }
+}
+
+bool QCameraHardwareInterface::isWDenoiseEnabled()
+{
+    return mDenoiseValue;
 }
 
 }; // namespace android

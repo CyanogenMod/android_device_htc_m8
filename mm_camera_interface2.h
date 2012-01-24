@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -394,6 +394,7 @@ typedef struct {
     void (*ch_release)(mm_camera_t * camera, mm_camera_channel_type_t ch_type);
     int32_t (*ch_set_attr)(mm_camera_t * camera, mm_camera_channel_type_t ch_type,
                                                  mm_camera_channel_attr_t *attr);
+    int32_t (*sendmsg)(mm_camera_t * camera, void *msg, uint32_t buf_size, int sendfd);
 } mm_camera_ops_t;
 
 typedef struct {
@@ -554,6 +555,7 @@ int32_t cam_ops_ch_acquire(int cam_id, mm_camera_channel_type_t ch_type);
 void cam_ops_ch_release(int cam_id, mm_camera_channel_type_t ch_type);
 int32_t cam_ops_ch_set_attr(int cam_id, mm_camera_channel_type_t ch_type,
   mm_camera_channel_attr_t *attr);
+int32_t cam_ops_sendmsg(int cam_id, void *msg, uint32_t buf_size, int sendfd);
 
 /*call-back notify methods*/
 uint8_t cam_evt_is_event_supported(int cam_id, mm_camera_event_type_t evt_type);

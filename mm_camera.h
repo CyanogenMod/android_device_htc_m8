@@ -231,6 +231,7 @@ typedef struct {
     int ref_count;
     uint32_t ch_streaming_mask;
     int32_t ctrl_fd;
+    int32_t ds_fd; // domain socket fd
     cam_ctrl_dimension_t dim;
     cam_prop_t properties;
     pthread_mutex_t mutex;
@@ -331,4 +332,5 @@ extern void mm_camera_histo_mmap(mm_camera_obj_t * my_obj, mm_camera_event_t *ev
 extern void mm_camera_check_pending_zsl_frames(mm_camera_obj_t *my_obj,
                                         mm_camera_channel_type_t ch_type);
 extern int mm_camera_ch_util_get_num_stream(mm_camera_obj_t * my_obj,mm_camera_channel_type_t ch_type);
+extern int32_t mm_camera_sendmsg(mm_camera_obj_t *my_obj, void *msg, uint32_t buf_size, int sendfd);
 #endif /* __MM_CAMERA_H__ */

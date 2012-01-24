@@ -893,6 +893,7 @@ void QCameraStream_Snapshot::deInitBuffer(void)
     memset(&mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
     memset(&mPostviewStreamBuf, 0, sizeof(mPostviewStreamBuf));
     mSnapshotQueue.flush();
+    mWDNQueue.flush();
 
     mNumOfSnapshot = 0;
     mNumOfRecievedJPEG = 0;
@@ -1690,8 +1691,28 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
         memcpy(frame, recvd_frame, sizeof(mm_camera_ch_data_buf_t));
 
         mStopCallbackLock.lock();
-        rc = encodeDisplayAndSave(frame, 0);
 
+        // only in ZSL mode and Wavelet Denoise is enabled, we will send frame to deamon to do WDN
+        if (isZSLMode() && mHalCamCtrl->isWDenoiseEnabled()) {
+            if(mIsDoingWDN){
+                mWDNQueue.enqueue((void *)frame);
+                LOGD("%s: Wavelet denoise is going on, queue frame", __func__);
+                rc = NO_ERROR;
+            } else {
+                LOGD("%s: Start Wavelet denoise", __func__);
+                mIsDoingWDN = TRUE; // set the falg to TRUE because we are going to do WDN
+
+                // No WDN is going on so far, we will start it here
+                rc = doWaveletDenoise(frame);
+                if ( NO_ERROR != rc ) {
+                    LOGE("%s: Error while doing wavelet denoise", __func__);
+                    mIsDoingWDN = FALSE;
+                }
+            }
+        }
+        else {
+            rc = encodeDisplayAndSave(frame, 0);
+        }
 
         // send upperlayer callback for raw image (data or notify, not both)
         if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
@@ -1863,6 +1884,10 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
     /*initialize snapshot queue*/
     mSnapshotQueue.init();
 
+    /*initialize WDN queue*/
+    mWDNQueue.init();
+    mIsDoingWDN = FALSE;
+
     memset(&mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
     memset(&mPostviewStreamBuf, 0, sizeof(mPostviewStreamBuf));
     mSnapshotBufferNum = 0;
@@ -1887,6 +1912,11 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
     if (mSnapshotQueue.isInitialized()) {
         mSnapshotQueue.deinit();
     }
+    /* deinit snapshot queue */
+    if (mWDNQueue.isInitialized()) {
+        mWDNQueue.deinit();
+    }
+
     if(mActive) {
         stop();
     }
@@ -2168,5 +2198,227 @@ void QCameraStream_Snapshot::deleteInstance(QCameraStream *p)
     p = NULL;
   }
 }
+
+void QCameraStream_Snapshot::notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie)
+{
+    camera_notify_callback         notifyCb;
+    camera_data_callback           dataCb, jpgDataCb;
+    int rc = NO_ERROR;
+    mm_camera_ch_data_buf_t *frame = (mm_camera_ch_data_buf_t *)cookie;
+
+    LOGI("%s: WDN Done status (%d) received",__func__,status);
+    Mutex::Autolock lock(mStopCallbackLock);
+    if (frame == NULL) {
+        LOGE("%s: cookie is returned NULL", __func__);
+    } else {
+        // first unmapping the fds
+        sendWDenoiseUnMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_MAIN, frame->snapshot.main.idx);
+        sendWDenoiseUnMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL, frame->snapshot.thumbnail.idx);
+
+        // then do JPEG encoding
+        rc = encodeDisplayAndSave(frame, 0);
+    }
+
+    // send upperlayer callback for raw image (data or notify, not both)
+    if((mHalCamCtrl->mDataCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE)){
+      dataCb = mHalCamCtrl->mDataCb;
+    } else {
+      dataCb = NULL;
+    }
+    if((mHalCamCtrl->mNotifyCb) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)){
+      notifyCb = mHalCamCtrl->mNotifyCb;
+    } else {
+      notifyCb = NULL;
+    }
+    if(mHalCamCtrl->mDataCb &&
+        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
+        /* get picture failed. Give jpeg callback with NULL data
+         * to the application to restore to preview mode
+         */
+        jpgDataCb = mHalCamCtrl->mDataCb;
+    } else {
+      jpgDataCb = NULL;
+    }
+
+    // launch next WDN if there is more in WDN Queue
+    lauchNextWDenoiseFromQueue();
+
+    mStopCallbackLock.unlock();
+
+    if (rc != NO_ERROR)
+    {
+        LOGE("%s: Error while encoding/displaying/saving image", __func__);
+        if (frame) {
+            cam_evt_buf_done(mCameraId, frame);
+        }
+
+        if (dataCb) {
+          dataCb(CAMERA_MSG_RAW_IMAGE, mHalCamCtrl->mSnapshotMemory.camera_memory[0],
+                               1, NULL, mHalCamCtrl->mCallbackCookie);
+        }
+        if (notifyCb) {
+          notifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mHalCamCtrl->mCallbackCookie);
+        }
+        if (jpgDataCb) {
+          jpgDataCb(CAMERA_MSG_COMPRESSED_IMAGE,
+                                   NULL, 0, NULL,
+                                   mHalCamCtrl->mCallbackCookie);
+        }
+
+        if (frame != NULL) {
+            free(frame);
+        }
+    }
+}
+
+void QCameraStream_Snapshot::lauchNextWDenoiseFromQueue()
+{
+    do {
+        mm_camera_ch_data_buf_t *frame = NULL;
+        if ( mWDNQueue.isEmpty() ||
+             (NULL == (frame = (mm_camera_ch_data_buf_t *)mWDNQueue.dequeue())) ) {
+            // set the flag back to FALSE when no WDN going on
+            mIsDoingWDN = FALSE;
+            break;
+        }
+
+        if ( NO_ERROR != doWaveletDenoise(frame) ) {
+            LOGE("%s: Error while doing wavelet denoise", __func__);
+            if (frame != NULL) {
+                free(frame);
+            }
+        } else {
+            // we sent out req for WDN, so we can break here
+            LOGD("%s: Send out req for doing wavelet denoise, return here", __func__);
+            break;
+        }
+    } while (TRUE);
+}
+
+uint32_t QCameraStream_Snapshot::fillFrameInfo
+(
+    int                         ext_mode,
+    mm_camera_frame_map_type *  frame_info,
+    mm_camera_ch_data_buf_t *   rcvd_frame,
+    cam_ctrl_dimension_t *      dim
+)
+{
+    uint32_t rc = NO_ERROR;
+    frame_info->ext_mode = ext_mode;
+    switch (ext_mode) {
+    case MSM_V4L2_EXT_CAPTURE_MODE_MAIN:
+        frame_info->frame_idx = rcvd_frame->snapshot.main.idx;
+        frame_info->fd = rcvd_frame->snapshot.main.frame->fd;
+        frame_info->size = dim->picture_frame_offset.frame_len;
+        break;
+    case MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL:
+        frame_info->frame_idx = rcvd_frame->snapshot.thumbnail.idx;
+        frame_info->fd = rcvd_frame->snapshot.thumbnail.frame->fd;
+        frame_info->size = dim->thumb_frame_offset.frame_len;
+        break;
+    default:
+        LOGE("%s: error - wrong ext_mode (%d)!", __func__, ext_mode);
+        rc = BAD_VALUE;
+        break;
+    }
+
+    return rc;
+}
+
+status_t QCameraStream_Snapshot::doWaveletDenoise(mm_camera_ch_data_buf_t* frame)
+{
+    status_t ret = NO_ERROR;
+    cam_sock_packet_t packet;
+    cam_ctrl_dimension_t dim;
+
+    LOGD("%s: E", __func__);
+
+    // get dim on the fly
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+    if (NO_ERROR != ret) {
+        LOGE("%s: error - can't get dimension!", __func__);
+        return FAILED_TRANSACTION;
+    }
+
+    // send main frame mapping through domain socket
+    if (NO_ERROR != sendWDenoiseMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_MAIN, frame, &dim)) {
+        LOGE("%s: sending main frame mapping buf msg Failed", __func__);
+        ret = FAILED_TRANSACTION;
+        goto end;
+    }
+
+    // send thumbnail frame mapping through domain socket
+    if (NO_ERROR != sendWDenoiseMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL, frame, &dim)) {
+        LOGE("%s: sending thumbnail frame mapping buf msg Failed", __func__);
+        ret = FAILED_TRANSACTION;
+        goto end;
+    }
+
+    // ask deamon to start wdn operation
+    if (NO_ERROR != sendWDenoiseStartMsg(frame)) {
+        LOGE("%s: sending thumbnail frame mapping buf msg Failed", __func__);
+        ret = FAILED_TRANSACTION;
+        goto end;
+    }
+
+end:
+    LOGD("%s: X", __func__);
+    return ret;
+}
+
+status_t QCameraStream_Snapshot::sendWDenoiseStartMsg(mm_camera_ch_data_buf_t * frame)
+{
+    cam_sock_packet_t packet;
+    memset(&packet, 0, sizeof(cam_sock_packet_t));
+    packet.msg_type = CAM_SOCK_MSG_TYPE_WDN_START;
+    packet.payload.wdn_start.cookie = (unsigned long)frame;
+    packet.payload.wdn_start.num_frames = MM_MAX_WDN_NUM;
+    packet.payload.wdn_start.ext_mode[0] = MSM_V4L2_EXT_CAPTURE_MODE_MAIN;
+    packet.payload.wdn_start.ext_mode[1] = MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL;
+    packet.payload.wdn_start.frame_idx[0] = frame->snapshot.main.idx;
+    packet.payload.wdn_start.frame_idx[1] = frame->snapshot.thumbnail.idx;
+    if ( cam_ops_sendmsg(mCameraId, &packet, sizeof(packet), 0) <= 0 ) {
+        LOGE("%s: sending start wavelet denoise msg failed", __func__);
+        return FAILED_TRANSACTION;
+    }
+    return NO_ERROR;
+}
+
+status_t QCameraStream_Snapshot::sendWDenoiseMappingBuf
+(
+    int                         ext_mode,
+    mm_camera_ch_data_buf_t *   rcvd_frame,
+    cam_ctrl_dimension_t *      dim
+)
+{
+    cam_sock_packet_t packet;
+    memset(&packet, 0, sizeof(cam_sock_packet_t));
+    packet.msg_type = CAM_SOCK_MSG_TYPE_FD_MAPPING;
+    if (NO_ERROR != fillFrameInfo(ext_mode, &(packet.payload.frame_fd_map), rcvd_frame, dim)) {
+        LOGE("%s: Failure filling wdn frame info", __func__);
+        return FAILED_TRANSACTION;
+    }
+    if ( cam_ops_sendmsg(mCameraId, &packet, sizeof(cam_sock_packet_t), packet.payload.frame_fd_map.fd) <= 0 ) {
+        LOGE("%s: sending frame mapping buf msg Failed", __func__);
+        return FAILED_TRANSACTION;
+    }
+    return NO_ERROR;
+}
+
+status_t QCameraStream_Snapshot::sendWDenoiseUnMappingBuf(int ext_mode, int idx)
+{
+    cam_sock_packet_t packet;
+    memset(&packet, 0, sizeof(cam_sock_packet_t));
+    packet.msg_type = CAM_SOCK_MSG_TYPE_FD_UNMAPPING;
+    packet.payload.frame_fd_unmap.ext_mode = ext_mode;
+    packet.payload.frame_fd_unmap.frame_idx = idx;
+    if ( cam_ops_sendmsg(mCameraId, &packet, sizeof(cam_sock_packet_t), 0) <= 0 ) {
+        LOGE("%s: sending frame unmapping buf msg Failed", __func__);
+        return FAILED_TRANSACTION;
+    }
+    return NO_ERROR;
+}
+
 }; // namespace android
 

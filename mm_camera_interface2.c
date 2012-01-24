@@ -419,6 +419,24 @@ static int32_t mm_camera_ops_ch_attr(mm_camera_t * camera,
     return rc;
 }
 
+static int32_t mm_camera_ops_sendmsg(mm_camera_t * camera,
+                                     void *msg,
+                                     uint32_t buf_size,
+                                     int sendfd)
+{
+    int32_t rc = -MM_CAMERA_E_GENERAL;
+    mm_camera_obj_t * my_obj = NULL;
+    pthread_mutex_lock(&g_mutex);
+    my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
+    pthread_mutex_unlock(&g_mutex);
+    if(my_obj) {
+        pthread_mutex_lock(&my_obj->mutex);
+        rc = mm_camera_sendmsg(my_obj, msg, buf_size, sendfd);
+        pthread_mutex_unlock(&my_obj->mutex);
+    }
+    return rc;
+}
+
 static mm_camera_ops_t mm_camera_ops = {
   .is_op_supported = mm_camera_ops_is_op_supported,
     .action = mm_camera_ops_action,
@@ -426,7 +444,8 @@ static mm_camera_ops_t mm_camera_ops = {
     .close = mm_camera_ops_close,
     .ch_acquire = mm_camera_ops_ch_acquire,
     .ch_release = mm_camera_ops_ch_release,
-    .ch_set_attr = mm_camera_ops_ch_attr
+    .ch_set_attr = mm_camera_ops_ch_attr,
+    .sendmsg = mm_camera_ops_sendmsg
 };
 
 static uint8_t mm_camera_notify_is_event_supported(mm_camera_t * camera,
@@ -767,6 +786,16 @@ int32_t cam_ops_ch_set_attr(int cam_id, mm_camera_channel_type_t ch_type,
     rc = mm_cam->ops->ch_set_attr(mm_cam, ch_type, attr);
   }
   return rc;
+}
+
+int32_t cam_ops_sendmsg(int cam_id, void *msg, uint32_t buf_size, int sendfd)
+{
+    int32_t rc = -1;
+    mm_camera_t * mm_cam = get_camera_by_id(cam_id);
+    if (mm_cam) {
+      rc = mm_cam->ops->sendmsg(mm_cam, msg, buf_size, sendfd);
+    }
+    return rc;
 }
 
 /*call-back notify methods*/

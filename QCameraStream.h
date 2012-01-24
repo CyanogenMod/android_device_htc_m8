@@ -1,5 +1,6 @@
 /*
-** Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+** Copyright 2008, Google Inc.
+** Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -117,6 +118,7 @@ public:
     /* Set the ANativeWindow */
     virtual int setPreviewWindow(preview_stream_ops_t* window) {return NO_ERROR;}
     virtual void notifyROIEvent(fd_roi_t roi) {;}
+    virtual void notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie) {;}
 
     QCameraStream();
     QCameraStream(int, camera_mode_t);
@@ -203,6 +205,9 @@ public:
     friend class QCameraHardwareInterface;
 
 private:
+    status_t sendMappingBuf(int ext_mode, int idx, int fd, uint32_t size);
+    status_t sendUnMappingBuf(int ext_mode, int idx);
+
     QCameraStream_preview(int cameraId, camera_mode_t);
     status_t                 getBufferFromSurface();
     status_t                 putBufferToSurface();
@@ -245,6 +250,7 @@ public:
     void runSnapshotThread(void *data);
     bool isZSLMode();
     void setFullSizeLiveshot(bool);
+    void notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie);
 
 private:
     QCameraStream_Snapshot(int, camera_mode_t);
@@ -285,6 +291,12 @@ private:
     bool isLiveSnapshot(void);
     void stopPolling(void);
     bool isFullSizeLiveshot(void);
+    status_t doWaveletDenoise(mm_camera_ch_data_buf_t* frame);
+    status_t sendWDenoiseMappingBuf(int ext_mode, mm_camera_ch_data_buf_t* rcvd_frame, cam_ctrl_dimension_t* dim);
+    status_t sendWDenoiseUnMappingBuf(int ext_mode, int idx);
+    status_t sendWDenoiseStartMsg(mm_camera_ch_data_buf_t * frame);
+    void lauchNextWDenoiseFromQueue();
+    uint32_t fillFrameInfo(int ext_mode, mm_camera_frame_map_type* frame_info, mm_camera_ch_data_buf_t* rcvd_frame, cam_ctrl_dimension_t* dim);
 
     /* Member variables */
 
@@ -328,6 +340,8 @@ private:
     int                     mJpegSessionId;
 	int                     dump_fd;
     bool mFullLiveshot;
+    StreamQueue             mWDNQueue; // queue to hold frames while one frame is sent out for WDN
+    bool                    mIsDoingWDN; // flag to indicate if WDN is going on (one frame is sent out for WDN)
 }; // QCameraStream_Snapshot
 
 

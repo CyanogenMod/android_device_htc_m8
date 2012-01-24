@@ -216,26 +216,10 @@ status_t QCameraStream_preview::putBufferToSurface() {
     //mDisplayLock.lock();
     mHalCamCtrl->mPreviewMemoryLock.lock();
 	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
-        /* ToDo: Match the reg/unreg logic for socket packets */
         if (cnt < mHalCamCtrl->mPreviewMemory.buffer_count) {
-            cam_buf_packet_t buf_packet;
-            memset(&buf_packet, 0, sizeof(buf_packet));
-            buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
-            buf_packet.is_unreg = TRUE;
-            buf_packet.is_data = TRUE;
-            buf_packet.payload.data.idx = cnt;
-            buf_packet.payload.data.fd = mDisplayStreamBuf.frame[cnt].fd;
-            buf_packet.payload.data.size =
-            mHalCamCtrl->mPreviewMemory.private_buffer_handle[cnt]->size;
-
-            LOGI("%s: buf_type=%d is_unreg=%d is_data=%d idx=%d fd=%d size=%d",
-                __func__, buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
-            buf_packet.payload.data.idx, buf_packet.payload.data.fd,
-            buf_packet.payload.data.size);
-
-           if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet,
-             sizeof(buf_packet), NULL, 0))
-             LOGE("%s: sending data Msg Failed", __func__);
+            if (NO_ERROR != sendUnMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW, cnt)) {
+                LOGE("%s: sending data Msg Failed", __func__);
+            }
         }
 
         mHalCamCtrl->mPreviewMemory.camera_memory[cnt]->release(mHalCamCtrl->mPreviewMemory.camera_memory[cnt]);
@@ -349,21 +333,6 @@ status_t QCameraStream_preview::initDisplayBuffers()
   memset(mDisplayBuf.preview.buf.mp, 0,
     mDisplayStreamBuf.num * sizeof(mm_camera_mp_buf_t));
 
-  cam_buf_packet_t buf_packet;
-
-  memset(&buf_packet, 0, sizeof(buf_packet));
-  buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
-  buf_packet.is_unreg = FALSE;
-  buf_packet.is_data = FALSE;
-  buf_packet.payload.header.count = mDisplayStreamBuf.num;
-  LOGI("%s: buf_type=%d is_unreg=%d is_data=%d buf_count=%d ", __func__,
-    buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
-    buf_packet.payload.header.count);
-
-  if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet, sizeof(buf_packet),
-    NULL, 0))
-    LOGE("%s: sending Header Msg Failed", __func__);
-
   /*allocate memory for the buffers*/
   void *vaddr = NULL;
   for(int i = 0; i < mDisplayStreamBuf.num; i++){
@@ -385,23 +354,13 @@ status_t QCameraStream_preview::initDisplayBuffers()
       mHalCamCtrl->mPreviewMemory.addr_offset[i],
       (uint32_t)mDisplayStreamBuf.frame[i].buffer);
 
-    memset(&buf_packet, 0, sizeof(buf_packet));
-    buf_packet.buf_type = MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW;
-    buf_packet.is_unreg = FALSE;
-    buf_packet.is_data = TRUE;
-    buf_packet.payload.data.idx = i;
-    buf_packet.payload.data.fd = mDisplayStreamBuf.frame[i].fd;
-    buf_packet.payload.data.size =
-      mHalCamCtrl->mPreviewMemory.private_buffer_handle[i]->size;
-
-    LOGI("%s: buf_type=%d is_unreg=%d is_data=%d idx=%d fd=%d size=%d",
-      __func__, buf_packet.buf_type, buf_packet.is_unreg, buf_packet.is_data,
-      buf_packet.payload.data.idx, buf_packet.payload.data.fd,
-      buf_packet.payload.data.size);
-
-    if (!mHalCamCtrl->sendQCameraHWISocketMsg(&buf_packet, sizeof(buf_packet),
-      (void *)&buf_packet.payload.data.fd, sizeof(buf_packet.payload.data.fd)))
-      LOGE("%s: sending data Msg Failed", __func__);
+    if (NO_ERROR != sendMappingBuf(
+                        MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW,
+                        i,
+                        mDisplayStreamBuf.frame[i].fd,
+                        mHalCamCtrl->mPreviewMemory.private_buffer_handle[i]->size)) {
+      LOGE("%s: sending mapping data Msg Failed", __func__);
+    }
 
     mDisplayBuf.preview.buf.mp[i].frame = mDisplayStreamBuf.frame[i];
     mDisplayBuf.preview.buf.mp[i].frame_offset = mHalCamCtrl->mPreviewMemory.addr_offset[i];
@@ -868,6 +827,37 @@ void QCameraStream_preview::deleteInstance(QCameraStream *p)
 void *QCameraStream_preview::getLastQueuedFrame(void)
 {
     return mLastQueuedFrame;
+}
+
+status_t QCameraStream_preview::sendMappingBuf(int ext_mode, int idx, int fd, uint32_t size)
+{
+    cam_sock_packet_t packet;
+    memset(&packet, 0, sizeof(cam_sock_packet_t));
+    packet.msg_type = CAM_SOCK_MSG_TYPE_FD_MAPPING;
+    packet.payload.frame_fd_map.ext_mode = ext_mode;
+    packet.payload.frame_fd_map.frame_idx = idx;
+    packet.payload.frame_fd_map.fd = fd;
+    packet.payload.frame_fd_map.size = size;
+
+    if ( cam_ops_sendmsg(mCameraId, &packet, sizeof(cam_sock_packet_t), packet.payload.frame_fd_map.fd) <= 0 ) {
+        LOGE("%s: sending frame mapping buf msg Failed", __func__);
+        return FAILED_TRANSACTION;
+    }
+    return NO_ERROR;
+}
+
+status_t QCameraStream_preview::sendUnMappingBuf(int ext_mode, int idx)
+{
+    cam_sock_packet_t packet;
+    memset(&packet, 0, sizeof(cam_sock_packet_t));
+    packet.msg_type = CAM_SOCK_MSG_TYPE_FD_UNMAPPING;
+    packet.payload.frame_fd_unmap.ext_mode = ext_mode;
+    packet.payload.frame_fd_unmap.frame_idx = idx;
+    if ( cam_ops_sendmsg(mCameraId, &packet, sizeof(cam_sock_packet_t), 0) <= 0 ) {
+        LOGE("%s: sending frame unmapping buf msg Failed", __func__);
+        return FAILED_TRANSACTION;
+    }
+    return NO_ERROR;
 }
 
 // ---------------------------------------------------------------------------

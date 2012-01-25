@@ -3043,14 +3043,12 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                            (native_handle_t*)(*(frame_buffer[bufferIndex].buffer)))) {
                        LOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
                        mDisplayLock.unlock();
-                       return;
                     } else {
                        frame_buffer[bufferIndex].lockState = BUFFER_UNLOCKED;
                     }
                 } else {
                     LOGE("%s: buffer to be enqueued is unlocked", __FUNCTION__);
                     mDisplayLock.unlock();
-                    return;
                 }
              retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
                                         frame_buffer[bufferIndex].buffer);

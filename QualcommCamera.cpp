@@ -626,7 +626,6 @@ int set_parameters(struct camera_device * device, const char *parms)
 
    g_param.unflatten(g_str);
    rc = hardware->setParameters( g_param );
-    rc = 0;
   }
   return rc;
 }

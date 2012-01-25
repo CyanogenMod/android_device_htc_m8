@@ -378,7 +378,7 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     /* picture size currently set do not match with the one wanted
        by user.*/
     if (!matching) {
-        if (mPictureHeight < mPostviewHeight) {
+        if (mPictureWidth < mPostviewWidth || mPictureHeight < mPostviewHeight) {
             //Changes to Handle VFE limitation.
             mActualPictureWidth = mPictureWidth;
             mActualPictureHeight = mPictureHeight;

@@ -165,8 +165,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
-                    mPostPreviewHeap(NULL)
-
+                    mPostPreviewHeap(NULL),
+                    mHdrMode(HDR_BRACKETING_OFF)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -638,6 +638,11 @@ bool QCameraHardwareInterface::isLowPowerCamcorder() {
     else
       return false;
 }
+
+int QCameraHardwareInterface::getHDRMode() {
+    return mHdrMode;
+}
+
 void QCameraHardwareInterface::debugShowPreviewFPS() const
 {
     static int mFrameCount;
@@ -1051,7 +1056,7 @@ status_t QCameraHardwareInterface::startPreview2()
 
     /*call QCameraStream_noneZSL::start() */
     if (MM_CAMERA_OK != ret){
-      LOGE("%s: X error - can't start nonZSL stream!", __func__);
+      LOGE("%s: X error - can't start stream!", __func__);
       return BAD_VALUE;
     }
     if(MM_CAMERA_OK == ret)

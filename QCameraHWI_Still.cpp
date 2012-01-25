@@ -327,6 +327,8 @@ end:
                 LOGD("%s: Resetting the ZSL attributes", __func__);
                 setZSLChannelAttribute();
             }
+        }else {
+            LOGD("%s: mNumOfRecievedJPEG(%d), mNumOfSnapshot(%d)", __func__, mNumOfRecievedJPEG, mNumOfSnapshot);
         }
     }
 

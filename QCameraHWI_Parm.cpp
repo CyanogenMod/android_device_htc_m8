@@ -1300,6 +1300,18 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setAntibanding(params)))                  final_rc = rc;
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
+
+    const char *str_val = mParameters.get("capture-burst-exposures");
+    if ( str_val == NULL || strlen(str_val)==0 ) {
+        char burst_exp[PROPERTY_VALUE_MAX];
+        memset(burst_exp, 0, sizeof(burst_exp));
+        property_get("persist.capture.burst.exposures", burst_exp, "");
+        if ( strlen(burst_exp)>0 ) {
+            mParameters.set("capture-burst-exposures", burst_exp);
+        }
+    }
+    mParameters.set("num-snaps-per-shutter", params.get("num-snaps-per-shutter"));
+
     if ((rc = setAEBracket(params)))              final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
@@ -2582,8 +2594,18 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
 
 status_t QCameraHardwareInterface::setAEBracket(const CameraParameters& params)
 {
-    if(!cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_HDR) && (myMode & CAMERA_ZSL_MODE)) {
+    if(!cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_HDR) || (myMode & CAMERA_ZSL_MODE)) {
         LOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
+
+        if (myMode & CAMERA_ZSL_MODE) {
+            LOGE("In ZSL mode, reset AEBBracket to HDR_OFF mode");
+            exp_bracketing_t temp;
+            memset(&temp, 0, sizeof(temp));
+            mHdrMode = HDR_BRACKETING_OFF;
+            temp.hdr_enable= FALSE;
+            temp.mode = HDR_BRACKETING_OFF;
+            native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+        }
         return NO_ERROR;
     }
     const char *str = params.get(CameraParameters::KEY_AE_BRACKET_HDR);
@@ -2592,40 +2614,58 @@ status_t QCameraHardwareInterface::setAEBracket(const CameraParameters& params)
         int value = attr_lookup(hdr_bracket,
                                     sizeof(hdr_bracket) / sizeof(str_map), str);
         exp_bracketing_t temp;
-        if(value == HDR_MODE) {
-            mHdrMode = true;
-            temp.hdr_enable= true;
-            temp.mode = HDR_MODE;
-            temp.total_frames = 3;
-            temp.total_hal_frames = HDR_HAL_FRAME;
-            /*if(mHdrMode){
-                numCapture = temp.total_hal_frames;
-            } else
-                numCapture = 1;*/
-            native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
-            return NO_ERROR;
-        }else if(value == EXP_BRACKETING_MODE){
-            char  exp_val[16];
-            mExpBracketMode = true;
-            temp.hdr_enable = true;
-            temp.mode = EXP_BRACKETING_MODE;
+        memset(&temp, 0, sizeof(temp));
+        switch (value) {
+            case HDR_MODE:
+                {
+                    mHdrMode = HDR_MODE;
+                    temp.hdr_enable= TRUE;
+                    temp.mode = HDR_MODE;
+                    temp.total_frames = 3;
+                    temp.total_hal_frames = getNumOfSnapshots();
+                    LOGI("%s: setting HDR frames (%d)", __FUNCTION__, temp.total_hal_frames);
+                    native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+                }
+                break;
+            case EXP_BRACKETING_MODE:
+                {
+                    int numFrames = getNumOfSnapshots();
+                    const char *str_val = params.get("capture-burst-exposures");
+                    if ((str_val != NULL) && (strlen(str_val)>0)) {
+                        LOGI("%s: capture-burst-exposures %s", __FUNCTION__, str_val);
 
-            /* App sets values separated by comma.
-           Thus total number of snapshot to capture is strlen(str)/2
-           eg: "-1,1,2" */
-            strlcpy(exp_val, str, sizeof(exp_val));
-            temp.total_frames = (strlen(exp_val) >  MAX_SNAPSHOT_BUFFERS -2) ?
-                MAX_SNAPSHOT_BUFFERS -2 : strlen(exp_val);
-            temp.total_hal_frames = temp.total_frames;
-            temp.values = exp_val;
-            LOGI("%s: setting Exposure Bracketing value of %s", __FUNCTION__, temp.values);
-            mParameters.set("capture-burst-exposures", str);
-            /*if(!mZslEnable){
-                numCapture = temp.total_frames;
-            }*/
-            native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
-            return NO_ERROR;
+                        mHdrMode = EXP_BRACKETING_MODE;
+                        temp.hdr_enable = FALSE;
+                        temp.mode = EXP_BRACKETING_MODE;
+                        temp.total_frames = (numFrames >  MAX_SNAPSHOT_BUFFERS -2) ? MAX_SNAPSHOT_BUFFERS -2 : numFrames;
+                        temp.total_hal_frames = temp.total_frames;
+                        strlcpy(temp.values, str_val, MAX_EXP_BRACKETING_LENGTH);
+                        LOGI("%s: setting Exposure Bracketing value of %s, frame (%d)", __FUNCTION__, temp.values, temp.total_hal_frames);
+                        native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+                    }
+                    else {
+                        /* Apps not set capture-burst-exposures, error case fall into bracketing off mode */
+                        LOGI("%s: capture-burst-exposures not set, back to HDR OFF mode", __FUNCTION__);
+                        mHdrMode = HDR_BRACKETING_OFF;
+                        temp.hdr_enable= FALSE;
+                        temp.mode = HDR_BRACKETING_OFF;
+                        native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+                    }
+                }
+                break;
+            case HDR_BRACKETING_OFF:
+            default:
+                {
+                    mHdrMode = HDR_BRACKETING_OFF;
+                    temp.hdr_enable= FALSE;
+                    temp.mode = HDR_BRACKETING_OFF;
+                    native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
+                }
+                break;
         }
+
+        /* save the value*/
+        mParameters.set(CameraParameters::KEY_AE_BRACKET_HDR, str);
     }
     return NO_ERROR;
 }

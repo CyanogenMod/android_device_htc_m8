@@ -8264,6 +8264,7 @@ status_t QualcommCameraHardware::setHDRImaging(const CameraParameters& params)
         int value = attr_lookup(hdr, sizeof(hdr) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             exp_bracketing_t temp;
+            memset(&temp, 0, sizeof(temp));
             temp.hdr_enable= (int32_t)value;
             temp.mode = HDR_MODE;
             temp.total_frames = 3;
@@ -8291,8 +8292,10 @@ status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params
     }
     const char *str = params.get("capture-burst-exposures");
     if ((str != NULL) && (!mHdrMode)) {
-        char  exp_val[16];
+        char  exp_val[MAX_EXP_BRACKETING_LENGTH];
         exp_bracketing_t temp;
+        memset(&temp, 0, sizeof(temp));
+
         mExpBracketMode = true;
         temp.mode = EXP_BRACKETING_MODE;
         temp.hdr_enable = true;
@@ -8303,7 +8306,7 @@ status_t QualcommCameraHardware::setExpBracketing(const CameraParameters& params
         temp.total_frames = (strlen(exp_val) >  MAX_SNAPSHOT_BUFFERS -2) ?
             MAX_SNAPSHOT_BUFFERS -2 : strlen(exp_val);
         temp.total_hal_frames = temp.total_frames;
-        temp.values = exp_val;
+        strlcpy(temp.values, exp_val, MAX_EXP_BRACKETING_LENGTH);
         LOGI("%s: setting Exposure Bracketing value of %s", __FUNCTION__, temp.values);
         mParameters.set("capture-burst-exposures", str);
         if(!mZslEnable){

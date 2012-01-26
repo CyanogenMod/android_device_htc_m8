@@ -407,12 +407,20 @@ typedef struct {
 
 typedef struct {
     mm_camera_channel_type_t type;
-    union {
+//    union {
         mm_camera_notify_snapshot_buf_t snapshot;
         mm_camera_notify_video_buf_t video;
         mm_camera_notify_frame_t def;
-    };
+//    };
 } mm_camera_ch_data_buf_t;
+
+
+typedef enum {
+    MM_CAMERA_REG_BUF_CB_ONCE,
+    MM_CAMERA_REG_BUF_CB_COUNT,
+    MM_CAMERA_REG_BUF_CB_INFINITE
+} mm_camera_register_buf_cb_type_t;
+
 
 typedef void (*mm_camera_event_notify_t)(mm_camera_event_t *evt,
     void *user_data);
@@ -430,6 +438,8 @@ typedef struct {
     int32_t (*register_buf_notify)(mm_camera_t * camera,
                                 mm_camera_channel_type_t ch_type,
                                 mm_camera_buf_notify_t buf_cb,
+                                mm_camera_register_buf_cb_type_t cb_type,
+                                uint32_t cb_count,
                                 void * user_data);
     int32_t (*buf_done)(mm_camera_t * camera, mm_camera_ch_data_buf_t *bufs);
 } mm_camera_notify_t;
@@ -555,7 +565,10 @@ int32_t cam_evt_register_event_notify(int cam_id,
 int32_t cam_evt_register_buf_notify(int cam_id,
   mm_camera_channel_type_t ch_type,
   mm_camera_buf_notify_t buf_cb,
+  mm_camera_register_buf_cb_type_t cb_type,
+  uint32_t cb_count,
   void * user_data);
+
 int32_t cam_evt_buf_done(int cam_id, mm_camera_ch_data_buf_t *bufs);
 
 /*camera JPEG methods*/

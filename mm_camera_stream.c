@@ -686,26 +686,51 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
                     mm_camera_notify_frame_t *frame)
 {
     int32_t rc = MM_CAMERA_OK;
+    
+    pthread_mutex_lock(&stream->frame.mutex);
 
+    if(stream->frame.ref_count[frame->idx] == 0) {
+        rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
+        CDBG_ERROR("%s: Error Trying to free second time?(idx=%d) count=%d\n",
+                   __func__, frame->idx, stream->frame.ref_count[frame->idx]);
+        rc = -1;
+    }else{
+        stream->frame.ref_count[frame->idx]--;
+        if(0 == stream->frame.ref_count[frame->idx]) {
+            CDBG("<DEBUG> : Buf done for buffer:%p:%d",stream,frame->idx);
+            rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
+            if(rc < 0)
+                CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
+                     __func__, frame->idx, rc);
+        }else{
+            CDBG_ERROR("<DEBUG> : Still ref count pending count :%d",stream->frame.ref_count[frame->idx]);
+            CDBG_ERROR("<DEBUG> : for buffer:%p:%d",stream,frame->idx);
+        }
+    }
+
+#if 0
     stream->frame.ref_count[frame->idx]--;
     if(stream->frame.ref_count[frame->idx] == 0) {
         CDBG("%s: Queue the buffer (idx=%d) count=%d frame id = %d\n",
                  __func__, frame->idx, stream->frame.ref_count[frame->idx],
                  frame->frame->frame_id);
-        pthread_mutex_lock(&stream->frame.mutex);
         rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
         if(rc < 0)
           CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__,
             frame->idx, rc);
-        pthread_mutex_unlock(&stream->frame.mutex);
     } else if(stream->frame.ref_count[frame->idx] == 1) {
-        CDBG("%s: Ref count is 1. Will be freed later (idx=%d) count=%d\n",
-                 __func__, frame->idx, stream->frame.ref_count[frame->idx]);
+        LOGE("<DEBUG> : Buf done for buffer:%p:%d",stream,frame->idx);
+        rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
+        if(rc < 0)
+            CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
+                 __func__, frame->idx, rc);
     } else {
         CDBG_ERROR("%s: Error Trying to free second time?(idx=%d) count=%d\n",
           __func__, frame->idx, stream->frame.ref_count[frame->idx]);
         rc = -1;
-    }
+    } 
+#endif
+    pthread_mutex_unlock(&stream->frame.mutex);
     return rc;
 }
 

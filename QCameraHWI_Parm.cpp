@@ -944,6 +944,9 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.set("video-snapshot-supported", "false");
     }
 
+    //Set Live shot support
+    mParameters.set("video-snapshot-supported", "true");
+
     //Set Camera Mode
     mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
     mParameters.set(CameraParameters::KEY_AE_BRACKET_HDR,"Off");

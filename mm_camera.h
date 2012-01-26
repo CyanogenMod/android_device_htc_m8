@@ -64,8 +64,16 @@ typedef struct {
     void * user_data;
 } mm_camera_notify_cb_t;
 
+typedef enum {
+    MM_CAMERA_BUF_CB_ONCE,
+    MM_CAMERA_BUF_CB_COUNT,
+    MM_CAMERA_BUF_CB_INFINITE
+} mm_camera_buf_cb_type_t;
+
 typedef struct {
     mm_camera_buf_notify_t cb;
+    mm_camera_buf_cb_type_t cb_type;
+    uint32_t cb_count;
     void *user_data;
 } mm_camera_buf_cb_t;
 
@@ -151,11 +159,12 @@ typedef struct {
     uint8_t has_main;
 } mm_camera_ch_video_t;
 
+#define MM_CAMERA_BUF_CB_MAX 4
 typedef struct {
     mm_camera_channel_type_t type;
     pthread_mutex_t mutex;
     uint8_t acquired;
-    mm_camera_buf_cb_t buf_cb;
+    mm_camera_buf_cb_t buf_cb[MM_CAMERA_BUF_CB_MAX];
     mm_camera_channel_attr_buffering_frame_t buffering_frame;
     union {
         mm_camera_ch_raw_t raw;

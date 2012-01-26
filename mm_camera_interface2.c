@@ -526,6 +526,8 @@ static int32_t mm_camera_register_buf_notify (
           mm_camera_t * camera,
           mm_camera_channel_type_t ch_type,
           mm_camera_buf_notify_t  buf_cb,
+          mm_camera_register_buf_cb_type_t cb_type,
+          uint32_t cb_count,
           void * user_data)
 {
     mm_camera_obj_t * my_obj = NULL;
@@ -534,6 +536,8 @@ static int32_t mm_camera_register_buf_notify (
 
     reg.cb = buf_cb;
     reg.user_data = user_data;
+    reg.cb_type=cb_type;
+    reg.cb_count=cb_count;
     pthread_mutex_lock(&g_mutex);
     my_obj = g_cam_ctrl.cam_obj[camera->camera_info.camera_id];
     pthread_mutex_unlock(&g_mutex);
@@ -887,13 +891,16 @@ int32_t cam_evt_register_event_notify(int cam_id,
 int32_t cam_evt_register_buf_notify(int cam_id,
   mm_camera_channel_type_t ch_type,
   mm_camera_buf_notify_t buf_cb,
+  mm_camera_register_buf_cb_type_t cb_type,
+  uint32_t cb_count,
   void * user_data)
 {
   int32_t rc = -1;
   mm_camera_t * mm_cam = get_camera_by_id(cam_id);
   if (mm_cam) {
     rc = mm_cam->evt->register_buf_notify(
-      mm_cam, ch_type, buf_cb, user_data);
+      mm_cam, ch_type, buf_cb, cb_type, 
+      cb_count, user_data);
   }
   return rc;
 }

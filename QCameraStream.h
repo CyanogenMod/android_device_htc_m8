@@ -110,9 +110,12 @@ public:
     virtual void *getLastQueuedFrame(void){return NULL;}
     virtual status_t takePictureZSL(void){return NO_ERROR;}
     virtual status_t takeLiveSnapshot(){return NO_ERROR;}
-    status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
+    virtual status_t takePictureLiveshot(mm_camera_ch_data_buf_t* recvd_frame,
                                  cam_ctrl_dimension_t *dim,
                                  int frame_len){return NO_ERROR;}
+	virtual void setModeLiveSnapshot(bool){;}
+    virtual status_t initSnapshotBuffers(cam_ctrl_dimension_t *dim,
+                                 int num_of_buf){return NO_ERROR;}
 
     virtual void setFullSizeLiveshot(bool){};
     /* Set the ANativeWindow */
@@ -138,6 +141,8 @@ public:
 private:
    StreamQueue mBusyQueue;
    StreamQueue mFreeQueue;
+public:
+     friend void liveshot_callback(mm_camera_ch_data_buf_t *frame,void *user_data);
 };
 
 /*
@@ -184,7 +189,6 @@ private:
   //Vector<mm_camera_ch_data_buf_t>  mRecordFreeQueue;
 
   int mJpegMaxSize;
-  bool snapshot_enabled;
   QCameraStream *mStreamSnap;
 
 };
@@ -258,6 +262,7 @@ public:
     bool isZSLMode();
     void setFullSizeLiveshot(bool);
     void notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie);
+    friend void liveshot_callback(mm_camera_ch_data_buf_t *frame,void *user_data);
 
 private:
     QCameraStream_Snapshot(int, camera_mode_t);
@@ -310,10 +315,12 @@ private:
     int mSnapshotFormat;
     int mPictureWidth;
     int mPictureHeight;
+    cam_format_t mPictureFormat;
     int mPostviewWidth;
     int mPostviewHeight;
     int mThumbnailWidth;
     int mThumbnailHeight;
+    cam_format_t mThumbnailFormat;
 	int mJpegOffset;
     int mSnapshotState;
     int mNumOfSnapshot;

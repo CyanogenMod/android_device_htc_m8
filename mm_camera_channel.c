@@ -221,8 +221,9 @@ static int32_t mm_camera_ch_util_acquire(mm_camera_obj_t * my_obj,
     if(stream2 && !rc) rc = mm_camera_stream_fsm_fn_vtbl(my_obj, stream2,
                                             MM_CAMERA_STATE_EVT_ACQUIRE, &type2);
     if(rc == MM_CAMERA_OK) {
-        if(!my_obj->ch[ch_type].acquired)   my_obj->ch[ch_type].acquired = TRUE;
+        if(!my_obj->ch[ch_type].acquired)    my_obj->ch[ch_type].acquired = TRUE;
     }
+
 end:
     return rc;
 }
@@ -368,9 +369,21 @@ static int32_t mm_camera_ch_util_reg_buf_cb(mm_camera_obj_t *my_obj,
                                             mm_camera_channel_type_t ch_type,
                                             mm_camera_buf_cb_t *val)
 {
-    pthread_mutex_lock(&my_obj->ch[ch_type].mutex);
-    memcpy(&my_obj->ch[ch_type].buf_cb, val, sizeof(my_obj->ch[ch_type].buf_cb));
-    pthread_mutex_unlock(&my_obj->ch[ch_type].mutex);
+    /* TODOhere: Need to return failure in case of MAX Cb registered
+     * but in order to return fail case need to set up rc.
+     * but the rc value needs to be thread safe
+     */
+    int i;
+    LOGE("%s: Trying to register",__func__);
+//    pthread_mutex_lock(&my_obj->ch[ch_type].mutex);
+    for( i=0 ;i < MM_CAMERA_BUF_CB_MAX; i++ ) {
+        if(my_obj->ch[ch_type].buf_cb[i].cb==NULL) {
+            memcpy(&my_obj->ch[ch_type].buf_cb[i],val,sizeof(mm_camera_buf_cb_t));
+            break;
+        }
+    }
+//    pthread_mutex_unlock(&my_obj->ch[ch_type].mutex);
+    LOGE("%s: Done register",__func__);
     return MM_CAMERA_OK;
 }
 
@@ -382,6 +395,7 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
     int32_t rc = -1;
     mm_camera_stream_t *stream;
 
+    LOGE("<DEBUG>: %s:ch_type:%d",__func__,ch_type);
     switch(ch_type) {
     case MM_CAMERA_CH_RAW:
         rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
@@ -526,6 +540,7 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
 {
     int mcnt, i, rc = MM_CAMERA_E_GENERAL, scnt;
     int num_of_req_frame = 0;
+    int j;
     mm_camera_ch_data_buf_t data;
     mm_camera_frame_t *mframe = NULL, *sframe = NULL;
     mm_camera_frame_t *qmframe = NULL, *qsframe = NULL;
@@ -571,7 +586,10 @@ LOGE("%s: mzhu, E", __func__);
                 ch->snapshot.pending_cnt--;
                 mq->match_cnt--;
                 sq->match_cnt--;
-                ch->buf_cb.cb(&data, ch->buf_cb.user_data);
+                for(j=0;j<MM_CAMERA_BUF_CB_MAX;j++) {
+                    if( ch->buf_cb[j].cb!=NULL )
+                        ch->buf_cb[j].cb(&data, ch->buf_cb[j].user_data);
+                }
             } else {
                 qmframe = mframe;
                 qsframe = sframe;

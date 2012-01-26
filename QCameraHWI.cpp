@@ -166,7 +166,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
                     mPostPreviewHeap(NULL),
-                    mHdrMode(HDR_BRACKETING_OFF)
+                    mHdrMode(HDR_BRACKETING_OFF),
+                    mStreamLiveSnap(NULL)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -300,6 +301,11 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
     if(mStreamSnap) {
         QCameraStream_Snapshot::deleteInstance (mStreamSnap);
         mStreamSnap = NULL;
+    }
+
+    if (mStreamLiveSnap){
+        QCameraStream_Snapshot::deleteInstance (mStreamLiveSnap);
+        mStreamLiveSnap = NULL;
     }
 
     cam_ops_close(mCameraId);
@@ -606,7 +612,7 @@ bool QCameraHardwareInterface::isRecordingRunning() {
 }
 
 bool QCameraHardwareInterface::isSnapshotRunning() {
-    LOGI("isSnapshotRunning: E");
+    LOGE("isSnapshotRunning: E");
     bool ret = false;
     //if((mCameraState == CAMERA_STATE_SNAP_CMD_ACKED) ||
     //   (mCameraState == CAMERA_STATE_SNAP_START_CMD_SENT)) {
@@ -1424,6 +1430,84 @@ status_t QCameraHardwareInterface::resumePreviewAfterSnapshot()
     return ret;
 }
 
+void liveshot_callback(mm_camera_ch_data_buf_t *recvd_frame,
+                                void *user_data)
+{
+    QCameraHardwareInterface *pme = (QCameraHardwareInterface *)user_data;
+    cam_ctrl_dimension_t dim;
+    int mJpegMaxSize;
+    status_t ret;
+    LOGE("%s: E", __func__);
+
+
+    mm_camera_ch_data_buf_t* frame =
+         (mm_camera_ch_data_buf_t *)malloc(sizeof(mm_camera_ch_data_buf_t));
+    if (frame == NULL) {
+        LOGE("%s: Error allocating memory to save received_frame structure.", __func__);
+        cam_evt_buf_done(pme->mCameraId, recvd_frame);
+        return ;
+    }
+    memcpy(frame, recvd_frame, sizeof(mm_camera_ch_data_buf_t));
+
+
+
+    LOGE("<DEBUG> Liveshot buffer idx:%d",frame->video.video.idx);
+    memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
+    ret = cam_config_get_parm(pme->mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
+    if (MM_CAMERA_OK != ret) {
+        LOGE("%s: error - can't get dimension!", __func__);
+        LOGE("%s: X", __func__);
+    }
+
+#if 1 
+    LOGE("Live Snapshot Enabled");
+    frame->snapshot.main.frame = frame->video.video.frame;
+    frame->snapshot.main.idx = frame->video.video.idx;
+    frame->snapshot.thumbnail.frame = frame->video.video.frame;
+    frame->snapshot.thumbnail.idx = frame->video.video.idx;
+
+    dim.picture_width = pme->mDimension.video_width;
+    dim.picture_height = pme->mDimension.video_height;
+    dim.ui_thumbnail_width = pme->mDimension.video_width;
+    dim.ui_thumbnail_height = pme->mDimension.video_height;
+    dim.main_img_format = pme->mDimension.enc_format;
+    dim.thumb_format = pme->mDimension.enc_format;
+
+    mJpegMaxSize = pme->mDimension.video_width * pme->mDimension.video_width * 1.5;
+
+    LOGE("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
+     if (pme->mStreamLiveSnap){
+        LOGE("%s:Deleting old Snapshot stream instance",__func__);
+        QCameraStream_Snapshot::deleteInstance (pme->mStreamLiveSnap);
+        pme->mStreamLiveSnap = NULL;
+    }
+
+    pme->mStreamLiveSnap = (QCameraStream_Snapshot*)QCameraStream_Snapshot::createInstance(pme->mCameraId,
+                                                       pme->myMode);
+
+    if (!pme->mStreamLiveSnap) {
+        LOGE("%s: error - can't creat snapshot stream!", __func__);
+        return ;
+    }
+    pme->mStreamLiveSnap->setModeLiveSnapshot(true);
+    pme->mStreamLiveSnap->setHALCameraControl(pme);
+    pme->mStreamLiveSnap->initSnapshotBuffers(&dim,1);
+    LOGE("Calling live shot");
+    ((QCameraStream_Snapshot*)(pme->mStreamLiveSnap))->takePictureLiveshot(frame,&dim,mJpegMaxSize);
+
+#else
+
+
+
+
+  if(MM_CAMERA_OK != cam_evt_buf_done(pme->mCameraId,frame )) {
+    LOGE(" BUF DONE FAILED");
+  }
+#endif
+  LOGE("%s: X", __func__);
+
+}
+
 status_t  QCameraHardwareInterface::takePicture()
 {
     LOGI("takePicture: E");
@@ -1485,7 +1569,15 @@ status_t  QCameraHardwareInterface::takePicture()
       if (mFullLiveshotEnabled) {
         LOGE("%s Taking FULL size liveshot ", __func__);
         takeFullSizeLiveshot();
+      }else{
+          LOGV(" Calling register for Live snapshot");
+          (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
+                                                    liveshot_callback,
+                                                    MM_CAMERA_REG_BUF_CB_COUNT,
+                                                    1,
+                                                    this);
       }
+
       break;
     default:
         ret = UNKNOWN_ERROR;
@@ -1504,37 +1596,37 @@ void  QCameraHardwareInterface::encodeData()
 status_t QCameraHardwareInterface::takeFullSizeLiveshot()
 {
     status_t ret = NO_ERROR;
-    if (mStreamSnap){
-	LOGE("%s:Deleting old Snapshot stream instance",__func__);
-	QCameraStream_Snapshot::deleteInstance (mStreamSnap);
-	mStreamSnap = NULL;
+    if (mStreamLiveSnap){
+        LOGE("%s:Deleting old Snapshot stream instance",__func__);
+        QCameraStream_Snapshot::deleteInstance (mStreamLiveSnap);
+        mStreamLiveSnap = NULL;
     }
-    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId, myMode);
+    mStreamLiveSnap = QCameraStream_Snapshot::createInstance(mCameraId, myMode);
 
-    if (!mStreamSnap) {
-	LOGE("%s: error - can't creat snapshot stream!", __func__);
-	/* mzhu: fix me, restore preview */
-	return BAD_VALUE;
+    if (!mStreamLiveSnap) {
+        LOGE("%s: error - can't creat snapshot stream!", __func__);
+        /* mzhu: fix me, restore preview */
+        return BAD_VALUE;
     }
 
     /* Store HAL object in snapshot stream Object */
-    mStreamSnap->setHALCameraControl(this);
+    mStreamLiveSnap->setHALCameraControl(this);
 
-    mStreamSnap->setFullSizeLiveshot(true);
+    mStreamLiveSnap->setFullSizeLiveshot(true);
 
     /* Call snapshot init*/
-    ret =  mStreamSnap->init();
+    ret =  mStreamLiveSnap->init();
     if (MM_CAMERA_OK != ret){
-	LOGE("%s: error - can't init Snapshot stream!", __func__);
-	return BAD_VALUE;
+        LOGE("%s: error - can't init Snapshot stream!", __func__);
+        return BAD_VALUE;
     }
 
     /* call Snapshot start() :*/
-    ret =  mStreamSnap->start();
+    ret =  mStreamLiveSnap->start();
     if (MM_CAMERA_OK != ret){
-	/* mzhu: fix me, restore preview */
-	LOGE("%s: error - can't start Snapshot stream!", __func__);
-	return BAD_VALUE;
+        /* mzhu: fix me, restore preview */
+        LOGE("%s: error - can't start Snapshot stream!", __func__);
+        return BAD_VALUE;
     }
     return ret;
 }

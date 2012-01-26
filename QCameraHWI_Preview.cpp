@@ -725,7 +725,9 @@ status_t QCameraStream_preview::init() {
   LOGE("Debug : %s : initChannel",__func__);
   /* register a notify into the mmmm_camera_t object*/
   (void) cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
-                                     preview_notify_cb,this);
+                                     preview_notify_cb,
+                                     MM_CAMERA_REG_BUF_CB_INFINITE,
+                                     0,this);
   LOGE("Debug : %s : cam_evt_register_buf_notify",__func__);
   buffer_handle_t *buffer_handle = NULL;
   int tmp_stride = 0;
@@ -929,8 +931,11 @@ status_t QCameraStream_preview::start()
     }
 
     (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
-                                      NULL,NULL);
-	mInit = false;
+                                      NULL,
+                                      (mm_camera_register_buf_cb_type_t)NULL,
+                                      NULL,
+                                      NULL);
+    mInit = false;
     LOGE("%s: END", __func__);
 
   }

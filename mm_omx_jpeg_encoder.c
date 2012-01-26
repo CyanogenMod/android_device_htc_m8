@@ -212,10 +212,18 @@ OMX_ERRORTYPE eventHandler( OMX_IN OMX_HANDLETYPE hComponent,
 
 void waitForEvent(int event, int value1, int value2 ){
     pthread_mutex_lock(&lock);
+    OMX_DBG_INFO("%s:Waiting for:event=%d, value1=%d, value2=%d",
+      __func__, event, value1, value2);
     while (! (expectedEvent == event &&
     expectedValue1 == value1 && expectedValue2 == value2)) {
         pthread_cond_wait(&cond, &lock);
+        OMX_DBG_INFO("%s:After cond_wait:expectedEvent=%d, expectedValue1=%d, expectedValue2=%d",
+          __func__, expectedEvent, expectedValue1, expectedValue2);
+        OMX_DBG_INFO("%s:After cond_wait:event=%d, value1=%d, value2=%d",
+          __func__, event, value1, value2);
     }
+    OMX_DBG_INFO("%s:done:expectedEvent=%d, expectedValue1=%d, expectedValue2=%d",
+      __func__, expectedEvent, expectedValue1, expectedValue2);
     pthread_mutex_unlock(&lock);
 }
 
@@ -659,17 +667,18 @@ void omxJpegAbort()
     user_data = NULL;
     pthread_mutex_unlock(&jpegcb_mutex);
     pthread_mutex_lock(&jpege_mutex);
+    OMX_DBG_INFO("%s: encoding=%d", __func__, encoding);
     if (encoding) {
-      LOGE("%s", __func__);
       encoding = 0;
       OMX_SendCommand(pHandle, OMX_CommandFlush, NULL, NULL);
+      OMX_DBG_INFO("%s:waitForEvent: OMX_CommandFlush", __func__);
+      waitForEvent(OMX_EVENT_JPEG_ABORT, 0, 0);
+      OMX_DBG_INFO("%s:waitForEvent: OMX_CommandFlush: DONE", __func__);
       OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateIdle, NULL);
-      /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateIdle);*/
       OMX_SendCommand(pHandle, OMX_CommandStateSet, OMX_StateLoaded, NULL);
       OMX_FreeBuffer(pHandle, 0, pInBuffers);
       OMX_FreeBuffer(pHandle, 2, pInBuffers1);
       OMX_FreeBuffer(pHandle, 1, pOutBuffers);
-      /*waitForEvent(OMX_EventCmdComplete, OMX_CommandStateSet, OMX_StateLoaded);*/
       OMX_Deinit();
     }
     pthread_mutex_unlock(&jpege_mutex);

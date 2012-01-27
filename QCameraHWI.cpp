@@ -889,6 +889,8 @@ bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
         //Setting to default Format.
         dim->prev_format = CAMERA_YUV_420_NV21;
     }
+    mPreviewFormat = dim->prev_format;
+
     dim->prev_padding_format =  getPreviewPadding( );
 
     dim->enc_format = CAMERA_YUV_420_NV12;

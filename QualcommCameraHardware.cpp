@@ -4218,25 +4218,19 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
                   LOGE("do_mmap: Open device %s failed!\n",pmem_region);
                   return NULL;
                 }
-            #else
-                mJpegfd[cnt] = open(pmem_region, O_RDWR|O_SYNC);
-                if (mJpegfd[cnt] <= 0) {
-                    LOGE("%s: Open device for jpeg mem %s failed!\n",__func__, pmem_region);
-                    return false;
-                }
+            }
             #endif
-                LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
-                    mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
-
-                if(mJpegMapped[cnt] == NULL) {
-                    LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
-                    return false;
-                }else{
-                   LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
-                   mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
-                }
+            LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
+            mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
+            if(mJpegMapped[cnt] == NULL) {
+                LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
+                return false;
+            }else{
+               LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
+               mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
             }
         }
+    }
         // Lock Thumbnail buffers, and register them
         LOGE("Locking and registering Thumbnail buffer(s)");
         for(int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {
@@ -4595,8 +4589,6 @@ void QualcommCameraHardware::deinitRaw()
         if(NULL != mJpegMapped[cnt]) {
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
-            if(mCurrentTarget == TARGET_MSM8660)
-              close(mJpegfd[cnt]);
 #ifdef USE_ION
             deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
 #endif
@@ -6042,11 +6034,15 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     Mutex::Autolock l(&mLock);
     Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
-    mSnapshotThreadWaitLock.lock();
-    while (mSnapshotThreadRunning) {
-      mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
+    if (mSnapshotThreadRunning) {
+        if ((rc = setCameraMode(params)))  final_rc = rc;
+        if ((rc = setPreviewSize(params)))  final_rc = rc;
+        if ((rc = setRecordSize(params)))  final_rc = rc;
+        if ((rc = setPictureSize(params)))  final_rc = rc;
+        if ((rc = setJpegThumbnailSize(params))) final_rc = rc;
+        if ((rc = setJpegQuality(params)))  final_rc = rc;
+        return final_rc;
     }
-     mSnapshotThreadWaitLock.unlock();
     if ((rc = setCameraMode(params)))  final_rc = rc;
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;

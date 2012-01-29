@@ -1353,6 +1353,12 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app
       return BAD_VALUE;
     }
 
+    /* update focus distances after autofocus is done */
+    const char * focusMode = mParameters.get(CameraParameters::KEY_FOCUS_MODE);
+    if(updateFocusDistances(focusMode) != NO_ERROR) {
+       LOGE("%s: updateFocusDistances failed for %s", __FUNCTION__, focusMode);
+    }
+
     /*(Do?) we need to make sure that the call back is the
       last possible step in the execution flow since the same
       context might be used if a fail triggers another round

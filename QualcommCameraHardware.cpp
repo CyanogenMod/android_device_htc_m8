@@ -4933,7 +4933,11 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
                       LOGE("%s: Couldnt map preview buffers", __FUNCTION__);
                       return UNKNOWN_ERROR;
                   }
+
                   if(mPreviewFormat == CAMERA_YUV_420_YV12 && mCurrentTarget != TARGET_MSM7627A) {
+                    myv12_params.CbOffset = PAD_TO_WORD(previewWidth * previewHeight);
+                    myv12_params.CrOffset = myv12_params.CbOffset + PAD_TO_WORD((previewWidth * previewHeight)/4);
+                    LOGE("CbOffset = 0x%x CrOffset = 0x%x \n",myv12_params.CbOffset, myv12_params.CrOffset);
                     frames[cnt].planar0_off = 0;
                     frames[cnt].planar1_off = myv12_params.CbOffset;
                     frames[cnt].planar2_off = myv12_params.CrOffset;

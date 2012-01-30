@@ -4170,9 +4170,6 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
                 }
             #endif
                 LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
-                if(mCurrentTarget == TARGET_MSM8660)
-                    mJpegMapped[cnt]=mGetMemory(mJpegfd[cnt], mJpegMaxSize,1,mCallbackCookie);
-                else
                     mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
 
                 if(mJpegMapped[cnt] == NULL) {
@@ -5989,11 +5986,11 @@ status_t QualcommCameraHardware::setParameters(const CameraParameters& params)
     Mutex::Autolock l(&mLock);
     Mutex::Autolock pl(&mParametersLock);
     status_t rc, final_rc = NO_ERROR;
-
-    if(mSnapshotThreadRunning) {
-       LOGV(" setParameters: X");
-       return NO_ERROR;
+    mSnapshotThreadWaitLock.lock();
+    while (mSnapshotThreadRunning) {
+      mSnapshotThreadWait.wait(mSnapshotThreadWaitLock);
     }
+     mSnapshotThreadWaitLock.unlock();
     if ((rc = setCameraMode(params)))  final_rc = rc;
     if ((rc = setPreviewSize(params)))  final_rc = rc;
     if ((rc = setRecordSize(params)))  final_rc = rc;
@@ -7518,31 +7515,15 @@ void QualcommCameraHardware::receiveJpegPicture(status_t status, mm_camera_buffe
       LOGV("receiveJpegPicture: Index of Jpeg is %d",index);
 
       if (mDataCallback && (mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-
-            if(status == NO_ERROR) {
-            //  mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, buffer, mCallbackCookie);
-              LOGE("receiveJpegPicture : giving jpeg image callback to services");
-              if(mCurrentTarget == TARGET_MSM8660){
-                camera_memory_t *encodedMem = mGetMemory(mJpegfd[index], encoded_buffer->filled_size,
-                                             1, mCallbackCookie);
-                if (!encodedMem || !encodedMem->data) {
-                  LOGE("%s: mGetMemory failed.\n", __func__);
-                  return;
-                }
-                mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE, encodedMem, data_counter,
-                              NULL, mCallbackCookie);
-                encodedMem->release(encodedMem);
-                LOGE("%s release memory",__FUNCTION__);
-              } else{
-                  mJpegCopyMapped = mGetMemory(-1, encoded_buffer->filled_size,1, mCallbackCookie);
-                  if(!mJpegCopyMapped){
-                    LOGE("%s: mGetMemory failed.\n", __func__);
-                  }
-                  memcpy(mJpegCopyMapped->data, mJpegMapped[index]->data, encoded_buffer->filled_size );
-                  mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,mJpegCopyMapped,data_counter,NULL,mCallbackCookie);
-              }
+          if(status == NO_ERROR) {
+            LOGE("receiveJpegPicture : giving jpeg image callback to services");
+            mJpegCopyMapped = mGetMemory(-1, encoded_buffer->filled_size,1, mCallbackCookie);
+            if(!mJpegCopyMapped){
+              LOGE("%s: mGetMemory failed.\n", __func__);
             }
-           // buffer = NULL;
+            memcpy(mJpegCopyMapped->data, mJpegMapped[index]->data, encoded_buffer->filled_size );
+            mDataCallback(CAMERA_MSG_COMPRESSED_IMAGE,mJpegCopyMapped,data_counter,NULL,mCallbackCookie);
+          }
       } else {
         LOGE("JPEG callback was cancelled--not delivering image.");
       }
@@ -7768,12 +7749,26 @@ bool QualcommCameraHardware::updatePictureDimension(const CameraParameters& para
     LOGV("updatePictureDimension: %dx%d <- %dx%d", width, height,
       previewWidth, previewHeight);
     if ((width < previewWidth) && (height < previewHeight)) {
-        mUseJpegDownScaling = true;
-        mActualPictWidth = width;
+    /*As we donot support jpeg downscaling for picture dimension < previewdimesnion/8 ,
+     Adding support for the same for cts testcases*/
+      mActualPictWidth = width;
+      mActualPictHeight = height;
+      if((previewWidth /8) > width ) {
+        int ratio = previewWidth/width;
+        int i;
+        for(i =0 ; i < ratio ; i++) {
+          if((ratio >> i) < 8)
+            break;
+          }
+          width = width *i*2;
+          height = height *i*2;
+        }
+      else {
         width = previewWidth;
-        mActualPictHeight = height;
         height = previewHeight;
-        retval = true;
+      }
+     mUseJpegDownScaling = true;
+     retval = true;
     } else
         mUseJpegDownScaling = false;
     return retval;

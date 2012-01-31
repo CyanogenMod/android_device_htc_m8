@@ -1558,8 +1558,9 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
     camera_data_callback           dataCb, jpgDataCb;
 
     LOGD("%s: E ", __func__);
-
+    mStopCallbackLock.lock( );
     if(!mActive) {
+        LOGD("%s: Stop receiving raw pic ", __func__);
         return NO_ERROR;
     }
 
@@ -1568,7 +1569,8 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
 
     /* If it's raw snapshot, we just want to tell upperlayer to save the image*/
     if(mSnapshotFormat == PICTURE_FORMAT_RAW) {
-        LOGD("%s: Call notifyShutter 2nd time", __func__);
+        LOGD("%s: Call notifyShutter 2nd time in case of RAW", __func__);
+        mStopCallbackLock.unlock();
         if(!mHalCamCtrl->mShutterSoundPlayed) {
             notifyShutter(&crop, TRUE);
         }
@@ -1609,6 +1611,7 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
         #endif
 
         LOGD("%s: Call notifyShutter 2nd time", __func__);
+        mStopCallbackLock.unlock();
         if(!mHalCamCtrl->mShutterSoundPlayed) {
             notifyShutter(&crop, TRUE);
         }

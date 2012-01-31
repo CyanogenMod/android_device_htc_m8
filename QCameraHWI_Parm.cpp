@@ -2453,7 +2453,7 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
         }
     }
     LOGE("Invalid HFR value: %s", (str == NULL) ? "NULL" : str);
-    return BAD_VALUE;
+    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& params)

@@ -122,6 +122,7 @@ public:
     virtual status_t cancelAutoFocus();
     virtual status_t takePicture();
     virtual status_t takeLiveSnapshot();
+    virtual status_t takeLiveSnapshotInternal();
     void set_liveshot_exifinfo();
     virtual status_t cancelPicture();
     virtual status_t setParameters(const CameraParameters& params);
@@ -560,6 +561,7 @@ private:
     camera_memory_t *mRecordMapped[9];
     camera_memory_t *mJpegCopyMapped;
     camera_memory_t* metadata_memory[9];
+    camera_memory_t *mJpegLiveSnapMapped;
     int raw_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
     int raw_snapshot_main_ion_fd;
     int Jpeg_main_ion_fd[MAX_SNAPSHOT_BUFFERS];
@@ -632,6 +634,8 @@ private:
     bool mExpBracketMode;
 
     bool mMultiTouch;
+
+    int mRecordingState;
 };
 
 extern "C" int HAL_getNumberOfCameras();

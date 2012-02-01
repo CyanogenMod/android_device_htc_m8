@@ -1,7 +1,7 @@
 
 /*
 ** Copyright 2008, Google Inc.
-** Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+** Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -4228,25 +4228,24 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
         {
             for(int cnt = 0; cnt < numberOfJpegBuffers; cnt++)
             {
-            #ifdef USE_ION
+#ifdef USE_ION
                 if (allocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_alloc[cnt], &Jpeg_ion_info_fd[cnt],
                                         ion_heap, mJpegMaxSize, &mJpegfd[cnt]) < 0){
                   LOGE("do_mmap: Open device %s failed!\n",pmem_region);
                   return NULL;
                 }
-            }
-            #endif
-            LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
-            mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
-            if(mJpegMapped[cnt] == NULL) {
-                LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
-                return false;
-            }else{
-               LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
-               mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
+#endif
+                LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
+                mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
+                if(mJpegMapped[cnt] == NULL) {
+                    LOGE("Failed to get camera memory for mJpegMapped heap index: %d", cnt);
+                    return false;
+                }else{
+                   LOGE("Received following info for jpeg mapped data:%p,handle:%p, size:%d,release:%p",
+                   mJpegMapped[cnt]->data ,mJpegMapped[cnt]->handle, mJpegMapped[cnt]->size, mJpegMapped[cnt]->release);
+                }
             }
         }
-    }
         // Lock Thumbnail buffers, and register them
         LOGE("Locking and registering Thumbnail buffer(s)");
         for(int cnt = 0; cnt < (mZslEnable? (MAX_SNAPSHOT_BUFFERS-2) : numCapture); cnt++) {

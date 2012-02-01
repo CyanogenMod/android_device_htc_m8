@@ -75,7 +75,7 @@ extern "C" {
 #include <camera.h>
 #include <cam_fifo.h>
 #include <liveshot.h>
-#include <mm-still/jpeg/jpege.h>
+#include <jpege.h>
 #include <jpeg_encoder.h>
 
 #define DUMP_LIVESHOT_JPEG_FILE 0

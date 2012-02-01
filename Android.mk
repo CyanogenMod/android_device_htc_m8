@@ -64,6 +64,7 @@ LOCAL_CFLAGS+= -DUSE_NEON_CONVERSION
 LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
     $(TARGET_OUT_HEADERS)/mm-camera/common \
+    $(TARGET_OUT_HEADERS)/mm-still \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
 ifeq ($(call is-board-platform,msm8960),true)

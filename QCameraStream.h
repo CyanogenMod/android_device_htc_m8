@@ -120,6 +120,11 @@ public:
     virtual void notifyROIEvent(fd_roi_t roi) {;}
     virtual void notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie) {;}
 
+    /* If preview is stopped due to snapshot, flag will be TRUE;
+     * If preview is stopped normally, flag will be FALSE.
+     */
+    virtual void setPreviewPauseFlag(bool bPaused) {;}
+
     QCameraStream();
     QCameraStream(int, camera_mode_t);
     virtual             ~QCameraStream();
@@ -201,7 +206,8 @@ public:
     status_t processPreviewFrame(mm_camera_ch_data_buf_t *frame);
     int setPreviewWindow(preview_stream_ops_t* window);
     void notifyROIEvent(fd_roi_t roi);
-
+    void setPreviewPauseFlag(bool bPaused);
+    status_t reinitDisplayBuffers(); /* re-initialize display buffers when resume preview stream after snapshot*/
     friend class QCameraHardwareInterface;
 
 private:
@@ -223,6 +229,7 @@ private:
     preview_stream_ops_t   *mPreviewWindow;
     static const int        kPreviewBufferCount = PREVIEW_BUFFER_COUNT;
     mm_camera_ch_data_buf_t mNotifyBuffer[16];
+    bool                    mbPausedBySnapshot; /*TRUE: paused due to snapshot; FALSE: stopped normally*/
 };
 
 /* Snapshot Class - handle data flow*/

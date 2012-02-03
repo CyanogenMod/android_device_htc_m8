@@ -1042,19 +1042,22 @@ void QCameraHardwareInterface::initDefaultParameters()
                     CameraParameters::WHITE_BALANCE_AUTO);
     mParameters.set(CameraParameters::KEY_SUPPORTED_WHITE_BALANCE,mWhitebalanceValues);
 
-    //Set Focus Mode
-    if(mHasAutoFocusSupport){
+   if(mHasAutoFocusSupport){
        mParameters.set(CameraParameters::KEY_FOCUS_MODE,
-                    CameraParameters::FOCUS_MODE_AUTO);
+                          CameraParameters::FOCUS_MODE_AUTO);
        mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
-                    mFocusModeValues);
-    } else {
+                          mFocusModeValues);
+       mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
+       mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "1");
+   } else {
        mParameters.set(CameraParameters::KEY_FOCUS_MODE,
-                   CameraParameters::FOCUS_MODE_INFINITY);
+       CameraParameters::FOCUS_MODE_INFINITY);
        mParameters.set(CameraParameters::KEY_SUPPORTED_FOCUS_MODES,
-                   CameraParameters::FOCUS_MODE_INFINITY);
-      
-    }
+       CameraParameters::FOCUS_MODE_INFINITY);
+       mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "0");
+       mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "0");
+   }
+
 
     mParameters.set(CameraParameters::KEY_FOCUS_AREAS, FOCUS_AREA_INIT);
     mParameters.set(CameraParameters::KEY_METERING_AREAS, FOCUS_AREA_INIT);
@@ -1154,8 +1157,6 @@ void QCameraHardwareInterface::initDefaultParameters()
                     mTouchAfAecValues);
     mParameters.set("touchAfAec-dx","100");
     mParameters.set("touchAfAec-dy","100");
-    mParameters.set(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
-    mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "1");
 
     //Set Scene Detection
     mParameters.set(CameraParameters::KEY_SCENE_DETECT,

@@ -501,50 +501,21 @@ setZSLChannelAttribute(void)
 {
     status_t ret = NO_ERROR;
     mm_camera_channel_attr_t ch_attr;
-    mm_camera_channel_attr_buffering_frame_t attr_val;
-    int mode = ZSL_LOOK_BACK_MODE_TIME;
-    int value = 0;
-    bool empty_queue_flag = FALSE;
-
     LOGD("%s: E", __func__);
 
-    mHalCamCtrl->getZSLLookBack(&mode, &value);
-    mHalCamCtrl->getZSLEmptyQueueFlag(&empty_queue_flag);
-    LOGD("%s: ZSL dispatch_mode: %d value: %d empty_queue: %d",
-         __func__, mode, value, empty_queue_flag);
-    memset(&attr_val, 0, sizeof(attr_val));
-    attr_val.water_mark = ZSL_INTERNAL_QUEUE_SIZE;
-    attr_val.dispatch_type = mode;
-    attr_val.look_back = value;
-    attr_val.give_top_of_queue = 0;
-    /* Sometime, for example HDR, we need to empty the ZSL queue first and then
-       get new frames for processing */
-    attr_val.empty_queue = empty_queue_flag;
-
-    LOGD("%s: ZSL attribute value to set: water_mark: %d empty_queue: %d"
-         "dispatch_type: %d look_back_value: %d", __func__, attr_val.water_mark,
-         attr_val.empty_queue, attr_val.dispatch_type, attr_val.look_back);
-
     memset(&ch_attr, 0, sizeof(mm_camera_channel_attr_t));
-
-    if ((attr_val.dispatch_type == ZSL_LOOK_BACK_MODE_COUNT) &&
-        (attr_val.look_back > attr_val.water_mark)) {
-        LOGE("%s: Cannot have look_back frame count greather than water mark!",
-             __func__);
-        ret = BAD_VALUE;
-        goto end;
-    }
-
-    LOGD("%s: Set ZSL Snapshot Channel attribute", __func__);
     ch_attr.type = MM_CAMERA_CH_ATTR_BUFFERING_FRAME;
-    ch_attr.buffering_frame = attr_val;
+    ch_attr.buffering_frame.look_back = mHalCamCtrl->getZSLBackLookCount();
+    ch_attr.buffering_frame.water_mark = mHalCamCtrl->getZSLQueueDepth();
+    LOGE("%s: ZSL queue_depth = %d, back_look_count = %d", __func__,
+         ch_attr.buffering_frame.water_mark,
+         ch_attr.buffering_frame.look_back);
     if( NO_ERROR !=
         cam_ops_ch_set_attr(mCameraId, MM_CAMERA_CH_SNAPSHOT, &ch_attr)) {
         LOGD("%s: Failure setting ZSL channel attribute.", __func__);
         ret = FAILED_TRANSACTION;
         goto end;
     }
-
 end:
     LOGD("%s: X", __func__);
     return ret;
@@ -1132,7 +1103,7 @@ status_t QCameraStream_Snapshot::initZSLSnapshot(void)
        maintained by mm-camera lib plus around 3 buffers used for
        data handling by lower layer.*/
 
-    ret = initSnapshotBuffers(&dim, ZSL_INTERNAL_QUEUE_SIZE + 3);
+    ret = initSnapshotBuffers(&dim, mHalCamCtrl->getZSLQueueDepth() + 3);
     if ( NO_ERROR != ret ){
         LOGE("%s: Failure allocating memory for Snapshot buffers", __func__);
         goto end;
@@ -1278,13 +1249,13 @@ takePictureZSL(void)
     status_t ret = NO_ERROR;
     mm_camera_ops_parm_get_buffered_frame_t param;
 
-    LOGD("%s: E", __func__);
+    LOGE("%s: E", __func__);
 
     memset(&param, 0, sizeof(param));
     param.ch_type = MM_CAMERA_CH_SNAPSHOT;
 
     /* Take snapshot */
-    LOGD("%s: Call MM_CAMERA_OPS_GET_BUFFERED_FRAME", __func__);
+    LOGE("%s: Call MM_CAMERA_OPS_GET_BUFFERED_FRAME", __func__);
     if (NO_ERROR != cam_ops_action(mCameraId,
                                           TRUE,
                                           MM_CAMERA_OPS_GET_BUFFERED_FRAME,

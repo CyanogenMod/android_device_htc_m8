@@ -45,14 +45,11 @@ extern "C" {
 
 } //extern C
 
-#include "QCameraStream.h"
 #include "QCameraHWI_Mem.h"
+#include "QCameraStream.h"
 
 //Error codes
 #define  NOT_FOUND -1
-
-#define VIDEO_BUFFER_COUNT 5
-#define PREVIEW_BUFFER_COUNT 5
 #define MAX_ZOOM_RATIOS 62
 #define QCIF_WIDTH      176
 #define QCIF_HEIGHT     144
@@ -401,6 +398,8 @@ public:
     void getZSLLookBack(int *mode, int *value);
     void setZSLEmptyQueueFlag(bool flag);
     void getZSLEmptyQueueFlag(bool *flag);
+	int getZSLQueueDepth(void) const;
+	int getZSLBackLookCount(void) const;
     //QCameraHardwareInterface(int  cameraId, int mode);
     ~QCameraHardwareInterface();
    int initHeapMem(QCameraHalHeap_t *heap,

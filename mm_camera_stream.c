@@ -351,7 +351,7 @@ int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream,
   buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
   buffer.memory = V4L2_MEMORY_USERPTR;
   buffer.index = idx;
-  buffer.m.planes = &(stream->frame.frame[idx].planes);
+  buffer.m.planes = &(stream->frame.frame[idx].planes[0]);
   buffer.length = stream->frame.frame[idx].num_planes;
 
   CDBG("%s Ref : PREVIEW=%d VIDEO=%d SNAPSHOT=%d THUMB=%d ", __func__,

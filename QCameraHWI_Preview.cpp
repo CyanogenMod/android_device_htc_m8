@@ -104,7 +104,12 @@ status_t QCameraStream_preview::getBufferFromSurface() {
     }
   }
     mHalCamCtrl->mPreviewMemoryLock.lock();
-    mHalCamCtrl->mPreviewMemory.buffer_count = kPreviewBufferCount + numMinUndequeuedBufs;;
+    mHalCamCtrl->mPreviewMemory.buffer_count = kPreviewBufferCount + numMinUndequeuedBufs;
+    if(mHalCamCtrl->isZSLMode()) {
+      if(mHalCamCtrl->getZSLQueueDepth() > numMinUndequeuedBufs)
+        mHalCamCtrl->mPreviewMemory.buffer_count +=
+            mHalCamCtrl->getZSLQueueDepth() - numMinUndequeuedBufs;
+    }
     err = mPreviewWindow->set_buffer_count(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_count );
     if (err != 0) {
          LOGE("set_buffer_count failed: %s (%d)",

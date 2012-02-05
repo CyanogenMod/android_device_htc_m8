@@ -727,7 +727,7 @@ bool QCameraHardwareInterface::getMaxPictureDimension(mm_camera_dimension_t *max
     /* Find the first dimension in the mPictureSizes
      * array which is smaller than the max dimension.
      * This will be the valid max picture resolution */
-    for (int i = 0; i < mPictureSizeCount; i++) {
+    for (unsigned int i = 0; i < mPictureSizeCount; i++) {
         if ((mPictureSizes[i].width <= dim.width) &&
             (mPictureSizes[i].height <= dim.height)) {
             maxDim->height = mPictureSizes[i].height;
@@ -1067,7 +1067,6 @@ void QCameraHardwareInterface::initDefaultParameters()
        mParameters.set(CameraParameters::KEY_MAX_NUM_METERING_AREAS, "0");
    }
 
-
     mParameters.set(CameraParameters::KEY_FOCUS_AREAS, FOCUS_AREA_INIT);
     mParameters.set(CameraParameters::KEY_METERING_AREAS, FOCUS_AREA_INIT);
 
@@ -1372,7 +1371,7 @@ void QCameraHardwareInterface::putParameters(char *rc)
     free(rc);
 }
 
-CameraParameters& QCameraHardwareInterface::getParameters() 
+CameraParameters& QCameraHardwareInterface::getParameters()
 {
     Mutex::Autolock lock(mLock);
     return mParameters;
@@ -3184,10 +3183,6 @@ status_t QCameraHardwareInterface::setZSLLookBack(int mode, int value)
         return BAD_VALUE;
     }
 
-    if (mode >= ZSL_LOOK_BACK_MODE_UNDEFINED) {
-        LOGE("%s: Undefined look back mode!!!", __func__);
-        return BAD_VALUE;
-    }
     mZslLookBackMode = mode;
     mZslLookBackValue = value;
 
@@ -3213,16 +3208,8 @@ void QCameraHardwareInterface::getZSLLookBack(int *mode, int *value)
         property_get("persist.camera.zsl.lb_value", prop, "0");
         mZslLookBackValue = atoi(prop);
     }
-
-    if (mZslLookBackMode >= ZSL_LOOK_BACK_MODE_UNDEFINED)
-    {
-        LOGE("%s: Undefined look-back value. Resetting to default!", __func__);
-        mZslLookBackMode = ZSL_LOOK_BACK_MODE_COUNT;
-    }
-
     *mode = mZslLookBackMode;
     *value = mZslLookBackValue;
-
     LOGI("%s: ZSL Lookback mode: %d value: %d", __func__, *mode, *value);
 }
 
@@ -3252,4 +3239,22 @@ void QCameraHardwareInterface::getZSLEmptyQueueFlag(bool *flag)
 
     LOGI("%s: ZSL Empty Queue Flag is set to %d", __func__, mZslEmptyQueueFlag);
 }
+int QCameraHardwareInterface::getZSLQueueDepth(void) const
+{
+    char prop[PROPERTY_VALUE_MAX];
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.zsl.queuedepth", prop, "2");
+    LOGI("%s: prop = %d", __func__, atoi(prop));
+    return atoi(prop);
+}
+int QCameraHardwareInterface::getZSLBackLookCount(void) const
+{
+    char prop[PROPERTY_VALUE_MAX];
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.zsl.backlookcount", prop, "0");
+    LOGI("%s: prop = %d", __func__, atoi(prop));
+    return atoi(prop);
+}
+
+
 }; /*namespace android */

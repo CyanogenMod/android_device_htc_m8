@@ -160,7 +160,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mFullLiveshotEnabled(1),
                     mRecordingHint(0),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
-                    mZslLookBackMode(ZSL_LOOK_BACK_MODE_TIME),
+                    mZslLookBackMode(0),
                     mZslLookBackValue(0),
                     mZslEmptyQueueFlag(FALSE),
                     mPictureSizes(NULL),
@@ -188,7 +188,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     mMultiTouch = atoi(value);
 
     property_get("persist.camera.full.liveshot", value, "0");
-    mFullLiveshotEnabled = atoi(value); 
+    mFullLiveshotEnabled = atoi(value);
 
     property_get("persist.camera.hal.dis", value, "0");
     mDisEnabled = atoi(value);
@@ -1003,7 +1003,7 @@ status_t QCameraHardwareInterface::startPreview2()
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
     if (mRecordingHint && mFullLiveshotEnabled) {
-      /* Camcorder mode and Full resolution liveshot enabled 
+      /* Camcorder mode and Full resolution liveshot enabled
        * TBD lookup table for correct aspect ratio matching size */
       memset(&maxDim, 0, sizeof(mm_camera_dimension_t));
       getMaxPictureDimension(&maxDim);

@@ -1582,22 +1582,26 @@ status_t QCameraHardwareInterface::autoFocus()
       return UNKNOWN_ERROR;
     }
 
-    // Skip autofocus if focus mode is infinity.
-    if (afMode == AF_MODE_MAX ) {
-      LOGE("%s:Invalid AF mode (%d)",__func__,afMode);
-
-      /*Issue a call back to service that AF failed
-      or the upper layer app might hang waiting for a callback msg*/
-      if (mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS)){
-          mNotifyCb(CAMERA_MSG_FOCUS, false, 0, mCallbackCookie);
-      }
-      return UNKNOWN_ERROR;
+    if (afMode == AF_MODE_MAX) {
+      /* This should never happen. We cannot send a
+       * callback notifying error from this place because
+       * the CameraService has called this function after
+       * acquiring the lock. So if we try to issue a callback
+       * from this place, the callback will try to acquire
+       * the same lock in CameraService and it will result
+       * in deadlock. So, let the call go in to the lower
+       * layer. The lower layer will anyway return error if
+       * the autofocus is not supported or if the focus
+       * value is invalid.
+       * Just print out the error. */
+      LOGE("%s:Invalid AF mode (%d)", __func__, afMode);
     }
 
-
-    LOGI("%s:AF start (mode %d)",__func__,afMode);
-    if(MM_CAMERA_OK!=cam_ops_action(mCameraId,TRUE,MM_CAMERA_OPS_FOCUS,&afMode )) {
-      LOGE("%s: AF command failed err:%d error %s",__func__, errno,strerror(errno));
+    LOGI("%s:AF start (mode %d)", __func__, afMode);
+    if(MM_CAMERA_OK != cam_ops_action(mCameraId, TRUE,
+                                    MM_CAMERA_OPS_FOCUS, &afMode)) {
+      LOGE("%s: AF command failed err:%d error %s",
+           __func__, errno, strerror(errno));
       return UNKNOWN_ERROR;
     }
 

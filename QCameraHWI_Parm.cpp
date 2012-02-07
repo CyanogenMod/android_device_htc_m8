@@ -734,6 +734,8 @@ bool QCameraHardwareInterface::getMaxPictureDimension(mm_camera_dimension_t *max
 void QCameraHardwareInterface::initDefaultParameters()
 {
     bool ret;
+    char prop[PROPERTY_VALUE_MAX];
+    int  snap_format;
     mm_camera_dimension_t maxDim;
     LOGI("%s: E", __func__);
 
@@ -749,14 +751,13 @@ void QCameraHardwareInterface::initDefaultParameters()
         maxDim.height = DEFAULT_LIVESHOT_HEIGHT;
     }
 
-    char prop[PROPERTY_VALUE_MAX];
-    int  snap_format;
     memset(prop, 0, sizeof(prop));
     property_get("persist.camera.snap.format", prop, "0");
     snap_format = atoi(prop);
     LOGV("%s: prop =(%s), snap_format=%d", __func__, prop, snap_format);
 
     //cam_ctrl_dimension_t dim;
+    mHFRLevel = 0;
     memset(&mDimension, 0, sizeof(cam_ctrl_dimension_t));
     memset(&mPreviewFormatInfo, 0, sizeof(preview_format_info_t));
     mDimension.video_width     = DEFAULT_STREAM_WIDTH;
@@ -2472,7 +2473,7 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
     if (str != NULL) {
         int value = attr_lookup(hfr, sizeof(hfr) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-            int32_t temp = (int32_t)value;
+            mHFRLevel = (int32_t)value;
             //Check for change in HFR value
             const char *oldHfr = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
             if(strcmp(oldHfr, str)){
@@ -2490,12 +2491,12 @@ status_t QCameraHardwareInterface::setHighFrameRate(const CameraParameters& para
 //                                      (void*)NULL);
 //                    mHFRThreadWaitLock.unlock();
  		    stopPreview();
-                    native_set_parms(MM_CAMERA_PARM_HFR, sizeof(int32_t), (void *)&temp);
+                    native_set_parms(MM_CAMERA_PARM_HFR, sizeof(int32_t), (void *)&mHFRLevel);
                     startPreview();
                     return NO_ERROR;
                 }
             }
-            native_set_parms(MM_CAMERA_PARM_HFR, sizeof(int32_t), (void *)&temp);
+            native_set_parms(MM_CAMERA_PARM_HFR, sizeof(int32_t), (void *)&mHFRLevel);
             return NO_ERROR;
         }
     }

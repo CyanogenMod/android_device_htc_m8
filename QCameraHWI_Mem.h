@@ -33,6 +33,8 @@ extern "C" {
 
 
 #define VIDEO_BUFFER_COUNT 5
+#define VIDEO_BUFFER_COUNT_LOW_POWER_CAMCORDER 9
+
 #define PREVIEW_BUFFER_COUNT 5
 
 namespace android {

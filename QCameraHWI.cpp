@@ -628,13 +628,16 @@ bool QCameraHardwareInterface::isSnapshotRunning() {
 }
 
 bool QCameraHardwareInterface::isZSLMode() {
-#if 1
     return (myMode & CAMERA_ZSL_MODE);
-#else
-    return 1;
-#endif
 }
-
+bool QCameraHardwareInterface::isLowPowerCamcorder() {
+    if(mHFRLevel > 1) /* hard code the value now. Need to move tgtcommon to camear.h */
+      return true;
+    if(mDimension.display_width == QCIF_WIDTH || mDimension.display_width == D1_WIDTH)
+      return true;
+    else
+      return false;
+}
 void QCameraHardwareInterface::debugShowPreviewFPS() const
 {
     static int mFrameCount;

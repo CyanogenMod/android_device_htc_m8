@@ -54,6 +54,10 @@ extern "C" {
 #define VIDEO_BUFFER_COUNT 5
 #define PREVIEW_BUFFER_COUNT 5
 #define MAX_ZOOM_RATIOS 62
+#define QCIF_WIDTH      176
+#define QCIF_HEIGHT     144
+#define D1_WIDTH        720
+#define D1_HEIGHT       480
 
 #ifdef Q12
 #undef Q12
@@ -535,10 +539,9 @@ private:
 
     void setMyMode(int mode);
     bool isZSLMode();
-
     bool isWDenoiseEnabled();
     void wdenoiseEvent(cam_ctrl_status_t status, void *cookie);
-
+    bool isLowPowerCamcorder();
     void freePictureTable(void);
 
     int32_t createPreview();
@@ -623,6 +626,7 @@ private:
 
     bool mZslLookBackMode;
     int mZslLookBackValue;
+	int mHFRLevel;
     bool mZslEmptyQueueFlag;
     String8 mEffectValues;
     String8 mIsoValues;

@@ -135,6 +135,7 @@ void mm_stream_frame_flash_q(mm_camera_frame_queue_t *q)
 {
     pthread_mutex_lock(&q->mutex);
     q->cnt = 0;
+    q->match_cnt = 0;
     q->head = NULL;
     q->tail = NULL;
     pthread_mutex_unlock(&q->mutex);

@@ -243,10 +243,10 @@ void QCameraStream_record::stop()
 
   for(int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
     if (mHalCamCtrl->mStoreMetaDataInFrame) {
-      struct encoder_media_buffer_type * packet = 
+      struct encoder_media_buffer_type * packet =
           (struct encoder_media_buffer_type  *)
           mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data;
-      native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle)); 
+      native_handle_delete(const_cast<native_handle_t *>(packet->meta_handle));
       mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->release(
 		    mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]);
 
@@ -414,7 +414,7 @@ status_t QCameraStream_record::initEncodeBuffers()
   //cam_ctrl_dimension_t dim;
   int width = 0;  /* width of channel  */
   int height = 0; /* height of channel */
-
+  int buf_cnt;
   pmem_region = "/dev/pmem_adsp";
 
 
@@ -434,115 +434,25 @@ status_t QCameraStream_record::initEncodeBuffers()
   planes[1] = dim.video_frame_offset.mp[1].len;
   frame_len = dim.video_frame_offset.frame_len;
 
-#if 0
-  if(mRecordHeap == NULL)
-  {
-#ifdef USE_ION
-    mRecordHeap = new IonPool(
-                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                        frame_len,
-                        VIDEO_BUFFER_COUNT,
-                        frame_len,
-                        planes[0],
-                        0,
-                        "record");
-#else
-    mRecordHeap = new PmemPool(pmem_region,
-                        MemoryHeapBase::READ_ONLY | MemoryHeapBase::NO_CACHING,
-                        MSM_PMEM_VIDEO,
-                        frame_len,
-                        VIDEO_BUFFER_COUNT,
-                        frame_len,
-                        planes[0],
-                        0,
-                        "record");
-#endif
-    if (!mRecordHeap->initialized()) {
-      mRecordHeap.clear();
-      mRecordHeap = NULL;
-      LOGE("%s: ERROR : could not initialize record heap.",__func__);
-      return BAD_VALUE;
-    }
-   } else {
-    /*if(mHFRMode == true) {
-    LOGI("%s: register record buffers with camera driver", __FUNCTION__);
-    register_record_buffers(true);
-    mHFRMode = false;
-    }*/
+  buf_cnt = VIDEO_BUFFER_COUNT;
+  if(mHalCamCtrl->isLowPowerCamcorder()) {
+    LOGE("%s: lower power camcorder selected", __func__);
+    buf_cnt = VIDEO_BUFFER_COUNT_LOW_POWER_CAMCORDER;
   }
-	LOGE("PMEM Buffer Allocation Successfull");
-#endif
+    recordframes = new msm_frame[buf_cnt];
+    memset(recordframes,0,sizeof(struct msm_frame) * buf_cnt);
 
-#if 0
-  memset(&mRecordBuf, 0, sizeof(mRecordBuf));
-  /* allocate memory for mplanar frame struct. */
-  mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
-                                  sizeof(mm_camera_mp_buf_t)];
-  if (!mRecordBuf.video.video.buf.mp) {
-    LOGE("%s Error allocating memory for mplanar struct ", __func__);
-    mRecordHeap.clear();
-    mRecordHeap = NULL;
-    return BAD_VALUE;
-  }
-  memset(mRecordBuf.video.video.buf.mp, 0,
-         VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
-  mRecordBuf.ch_type = MM_CAMERA_CH_VIDEO;
-  mRecordBuf.video.video.num = VIDEO_BUFFER_COUNT;//kRecordBufferCount;
-  recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
-  if(recordframes != NULL) {
-    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
-    for (int cnt = 0; cnt < VIDEO_BUFFER_COUNT; cnt++) {
-      recordframes[cnt].fd = mRecordHeap->mHeap->getHeapID();
-      recordframes[cnt].buffer =
-          (uint32_t)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-      recordframes[cnt].y_off = 0;
-      recordframes[cnt].cbcr_off = planes[0];
-      recordframes[cnt].path = OUTPUT_TYPE_V;
-      //record_buffers_tracking_flag[cnt] = false;
-      record_offset[cnt] =  mRecordHeap->mAlignedBufferSize * cnt;
-      LOGE ("initRecord :  record heap , video buffers  buffer=%lu fd=%d offset = %d \n",
-        (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, record_offset[cnt]);
-      mRecordBuf.video.video.buf.mp[cnt].frame = recordframes[cnt];
-      mRecordBuf.video.video.buf.mp[cnt].frame_offset = record_offset[cnt];
-      mRecordBuf.video.video.buf.mp[cnt].num_planes = num_planes;
-      /* Plane 0 needs to be set seperately. Set other planes
-       * in a loop. */
-      mRecordBuf.video.video.buf.mp[cnt].planes[0].reserved[0] =
-        mRecordBuf.video.video.buf.mp[cnt].frame_offset;
-      mRecordBuf.video.video.buf.mp[cnt].planes[0].length = planes[0];
-      mRecordBuf.video.video.buf.mp[cnt].planes[0].m.userptr =
-        recordframes[cnt].fd;
-      for (int j = 1; j < num_planes; j++) {
-        mRecordBuf.video.video.buf.mp[cnt].planes[j].length = planes[j];
-        mRecordBuf.video.video.buf.mp[cnt].planes[j].m.userptr =
-          recordframes[cnt].fd;
-        mRecordBuf.video.video.buf.mp[cnt].planes[j].reserved[0] =
-          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].reserved[0] +
-          mRecordBuf.video.video.buf.mp[cnt].planes[j-1].length;
-      }
-    }
-    LOGE("Record buf type =%d, offset[1] =%d, buffer[1] =%lx", mRecordBuf.ch_type, record_offset[1], recordframes[1].buffer);
-    LOGE("%s : END",__func__);
-  } else {
-    ret = NO_MEMORY;
-  }
-  return ret;
-#endif
-
-    recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
-    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
-
-		mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
+		mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[buf_cnt *
                                   sizeof(mm_camera_mp_buf_t)];
 		if (!mRecordBuf.video.video.buf.mp) {
 			LOGE("%s Error allocating memory for mplanar struct ", __func__);
 			return BAD_VALUE;
 		}
 		memset(mRecordBuf.video.video.buf.mp, 0,
-					 VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+					 buf_cnt * sizeof(mm_camera_mp_buf_t));
 
     memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
-    mHalCamCtrl->mRecordingMemory.buffer_count = VIDEO_BUFFER_COUNT;
+    mHalCamCtrl->mRecordingMemory.buffer_count = buf_cnt;
 
 		mHalCamCtrl->mRecordingMemory.size = frame_len;
 		mHalCamCtrl->mRecordingMemory.cbcr_offset = planes[0];
@@ -567,15 +477,15 @@ status_t QCameraStream_record::initEncodeBuffers()
       if (mHalCamCtrl->mStoreMetaDataInFrame) {
         mHalCamCtrl->mRecordingMemory.metadata_memory[cnt] =
           mHalCamCtrl->mGetMemory(-1,
-          sizeof(struct encoder_media_buffer_type), 1, (void *)this); 
-        struct encoder_media_buffer_type * packet = 
+          sizeof(struct encoder_media_buffer_type), 1, (void *)this);
+        struct encoder_media_buffer_type * packet =
           (struct encoder_media_buffer_type  *)
           mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data;
         packet->meta_handle = native_handle_create(1, 2); //1 fd, 1 offset and 1 size
         packet->buffer_type = kMetadataBufferTypeCameraSource;
         native_handle_t * nh = const_cast<native_handle_t *>(packet->meta_handle);
         nh->data[0] = mHalCamCtrl->mRecordingMemory.fd[cnt];
-        nh->data[1] = 0; 
+        nh->data[1] = 0;
         nh->data[2] = mHalCamCtrl->mRecordingMemory.size;
       }
     	recordframes[cnt].fd = mHalCamCtrl->mRecordingMemory.fd[cnt];

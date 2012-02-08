@@ -656,7 +656,8 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
       }
       if(msgType) {
           mStopCallbackLock.unlock();
-          pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+          if(mActive)
+            pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
           if (previewMem)
               previewMem->release(previewMem);
       }
@@ -875,16 +876,16 @@ status_t QCameraStream_preview::start()
     if(!mActive) {
       return;
     }
-    mActive =  false;
     Mutex::Autolock lock(mStopCallbackLock);
+    mActive =  false;
     /* unregister the notify fn from the mmmm_camera_t object*/
 
+    LOGI("%s: Stop the thread \n", __func__);
     /* call stop() in parent class to stop the monitor thread*/
     ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_PREVIEW, 0);
     if(MM_CAMERA_OK != ret) {
       LOGE ("%s: camera preview stop err=%d\n", __func__, ret);
     }
-    LOGE("Debug : %s : Preview streaming Stopped",__func__);
     ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_PREVIEW);
     if(ret != MM_CAMERA_OK) {
       LOGE("%s:Unreg preview buf err=%d\n", __func__, ret);

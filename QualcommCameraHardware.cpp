@@ -5893,6 +5893,15 @@ status_t QualcommCameraHardware::takePicture()
     }
 #endif
 
+    mFrameThreadWaitLock.lock();
+    while (mFrameThreadRunning) {
+        LOGV("release: waiting for old frame thread to complete.");
+        mFrameThreadWait.wait(mFrameThreadWaitLock);
+        LOGV("release: old frame thread completed.");
+    }
+
+    mFrameThreadWaitLock.unlock();
+
     mm_camera_ops_type_t current_ops_type = (mSnapshotFormat == PICTURE_FORMAT_JPEG) ?
                                              CAMERA_OPS_CAPTURE_AND_ENCODE :
                                               CAMERA_OPS_RAW_CAPTURE;

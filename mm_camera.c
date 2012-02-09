@@ -280,6 +280,14 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
     case MM_CAMERA_PARM_AF_ROI:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_AF_ROI, sizeof(roi_info_t), (void *)parm->p_value);
+#if 0 //to be enabled later: @punits
+    case MM_CAMERA_PARM_AF_MTR_AREA:
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_PARM_AF_MTR_AREA, sizeof(af_mtr_area_t), (void *)parm->p_value);*/
+    case MM_CAMERA_PARM_AEC_MTR_AREA:
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_AEC_MTR_AREA, sizeof(aec_mtr_area_t), (void *)parm->p_value);
+#endif
     case MM_CAMERA_PARM_CAF_ENABLE:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_CAF, sizeof(uint32_t), (void *)parm->p_value);

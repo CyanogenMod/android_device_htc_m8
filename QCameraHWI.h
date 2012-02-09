@@ -170,6 +170,16 @@ typedef struct {
   argm_data_cb_t        argm_data_cb;
 } app_notify_cb_t;
 
+/* camera_area_t
+ * rectangle with weight to store the focus and metering areas.
+ * x1, y1, x2, y2: from -1000 to 1000
+ * weight: 0 to 1000
+ */
+typedef struct {
+    int x1, y1, x2, y2;
+    int weight;
+} camera_area_t;
+
 namespace android {
 
 class QCameraStream;
@@ -513,7 +523,6 @@ private:
     status_t setWaveletDenoise(const CameraParameters& params);
     status_t setSceneMode(const CameraParameters& params);
     status_t setContinuousAf(const CameraParameters& params);
-    status_t setTouchAfAec(const CameraParameters& params);
     status_t setFaceDetection(const char *str);
     status_t setSceneDetect(const CameraParameters& params);
     status_t setStrTextures(const CameraParameters& params);

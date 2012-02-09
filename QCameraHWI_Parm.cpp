@@ -542,92 +542,6 @@ static int parse_size(const char *str, int &width, int &height)
 
     return 0;
 }
-// Parse string like "(1, 2, 3, 4, ..., N)"
-// num is pointer to an allocated array of size N
-static int parseNDimVector_HAL(const char *str, int *num, int N, char delim = ',')
-{
-    char *start, *end;
-    if(num == NULL) {
-        LOGE("Invalid output array (num == NULL)");
-        return -1;
-    }
-    //check if string starts and ends with parantheses
-    if(str[0] != '(' || str[strlen(str)-1] != ')') {
-        LOGE("Invalid format of string %s, valid format is (n1, n2, n3, n4 ...)", str);
-        return -1;
-    }
-    start = (char*) str;
-    start++;
-    for(int i=0; i<N; i++) {
-        *(num+i) = (int) strtol(start, &end, 10);
-        if(*end != delim && i < N-1) {
-            LOGE("Cannot find delimeter '%c' in string \"%s\". end = %c", delim, str, *end);
-            return -1;
-        }
-        start = end+1;
-    }
-    return 0;
-}
-static int countChar(const char *str , char ch )
-{
-    int noOfChar = 0;
-
-    for ( int i = 0; str[i] != '\0'; i++) {
-        if ( str[i] == ch )
-          noOfChar = noOfChar + 1;
-    }
-
-    return noOfChar;
-}
-int checkAreaParameters(const char *str)
-{
-    int areaValues[6];
-    int left, right, top, bottom, weight;
-
-    if(countChar(str, ',') > 4) {
-        LOGE("%s: No of area parameters exceeding the expected number %s", __FUNCTION__, str);
-        return -1;
-    }
-
-    if(parseNDimVector_HAL(str, areaValues, 5) !=0) {
-        LOGE("%s: Failed to parse the input string %s", __FUNCTION__, str);
-        return -1;
-    }
-
-    LOGV("%s: Area values are %d,%d,%d,%d,%d", __FUNCTION__,
-          areaValues[0], areaValues[1], areaValues[2], areaValues[3], areaValues[4]);
-
-    left = areaValues[0];
-    top = areaValues[1];
-    right = areaValues[2];
-    bottom = areaValues[3];
-    weight = areaValues[4];
-
-    // left should >= -1000
-    if (!(left >= -1000))
-        return -1;
-    // top should >= -1000
-    if(!(top >= -1000))
-        return -1;
-    // right should <= 1000
-    if(!(right <= 1000))
-        return -1;
-    // bottom should <= 1000
-    if(!(bottom <= 1000))
-        return -1;
-    // weight should >= 1
-    // weight should <= 1000
-    if(!((1 <= weight) && (weight <= 1000)))
-        return -1;
-    // left should < right
-    if(!(left < right))
-        return -1;
-    // top should < bottom
-    if(!(top < bottom))
-        return -1;
-
-    return 0;
-}
 
 bool QCameraHardwareInterface::isValidDimension(int width, int height) {
     bool retVal = FALSE;
@@ -1290,7 +1204,6 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPictureFormat(params)))                final_rc = rc;
     if ((rc = setSharpness(params)))                    final_rc = rc;
     if ((rc = setSaturation(params)))                   final_rc = rc;
-    if ((rc = setTouchAfAec(params)))                   final_rc = rc;
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
     if ((rc = setFaceDetect(params)))                   final_rc = rc;
@@ -1333,8 +1246,8 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
         if ((rc = setFocusMode(params)))                final_rc = rc;
         if ((rc = setBrightness(params)))               final_rc = rc;
         if ((rc = setISOValue(params)))                 final_rc = rc;
-        if ((rc = setFocusAreas(params)))  final_rc = rc;
-        if ((rc = setMeteringAreas(params)))  final_rc = rc;
+        if ((rc = setFocusAreas(params)))               final_rc = rc;
+        if ((rc = setMeteringAreas(params)))            final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))             final_rc = rc;
@@ -1641,51 +1554,268 @@ status_t QCameraHardwareInterface::updateFocusDistances(const char *focusmode)
     return BAD_VALUE;
 }
 
+// Parse string like "(1, 2, 3, 4, ..., N)"
+// num is pointer to an allocated array of size N
+static int parseNDimVector(const char *str, int *num, int N, char delim = ',')
+{
+    char *start, *end;
+    if(num == NULL) {
+        LOGE("Invalid output array (num == NULL)");
+        return -1;
+    }
+    //check if string starts and ends with parantheses
+    if(str[0] != '(' || str[strlen(str)-1] != ')') {
+        LOGE("Invalid format of string %s, valid format is (n1, n2, n3, n4 ...)", str);
+        return -1;
+    }
+    start = (char*) str;
+    start++;
+    for(int i=0; i<N; i++) {
+        *(num+i) = (int) strtol(start, &end, 10);
+        if(*end != delim && i < N-1) {
+            LOGE("Cannot find delimeter '%c' in string \"%s\". end = %c", delim, str, *end);
+            return -1;
+        }
+        start = end+1;
+    }
+    return 0;
+}
+
+// parse string like "(1, 2, 3, 4, 5),(1, 2, 3, 4, 5),..."
+static int parseCameraAreaString(const char* str, int max_num_areas,
+                                 camera_area_t *pAreas, int *num_areas_found)
+{
+    char area_str[32];
+    const char *start, *end, *p;
+    start = str; end = NULL;
+    int values[5], index=0;
+    *num_areas_found = 0;
+
+    while((start != NULL) && (index < max_num_areas)) {
+       if(*start != '(') {
+            LOGE("%s: Ill formatted area string: %s", __func__, str);
+            return -1;
+       }
+       end = strchr(start, ')');
+       if(end == NULL) {
+            LOGE("%s: Ill formatted area string: %s", __func__, str);
+            return -1;
+       }
+       int i;
+       for (i=0,p=start; p<=end; p++, i++) {
+           area_str[i] = *p;
+       }
+       area_str[i] = '\0';
+       if(parseNDimVector(area_str, values, 5) < 0){
+            LOGE("%s: Failed to parse the area string: %s", __func__, area_str);
+            return -1;
+       }
+       pAreas[index].x1 = values[0];
+       pAreas[index].y1 = values[1];
+       pAreas[index].x2 = values[2];
+       pAreas[index].y2 = values[3];
+       pAreas[index].weight = values[4];
+       index++;
+       start = strchr(end, '('); // serach for next '('
+    }
+    (*num_areas_found) = index;
+    return 0;
+}
+
 status_t QCameraHardwareInterface::setFocusAreas(const CameraParameters& params)
 {
+    LOGE("%s: E", __func__);
+    status_t rc;
+    int max_num_af_areas = mParameters.getInt(CameraParameters::KEY_MAX_NUM_FOCUS_AREAS);
+    if(max_num_af_areas == 0) {
+        return NO_ERROR;
+    }
     const char *str = params.get(CameraParameters::KEY_FOCUS_AREAS);
-
-    if (str == NULL || (strcmp(str, "0") == 0)) {
-        LOGE("%s: Parameter string is null", __FUNCTION__);
-    }
-    else {
-        // handling default string
-        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
-          mParameters.set(CameraParameters::KEY_FOCUS_AREAS, NULL);
-          return NO_ERROR;
+    if (str == NULL) {
+        LOGE("%s: Parameter string is null", __func__);
+        rc = NO_ERROR;
+    } else {
+        camera_area_t *areas = new camera_area_t[max_num_af_areas];
+        int num_areas_found=0;
+        if(parseCameraAreaString(str, max_num_af_areas, areas, &num_areas_found) < 0) {
+            LOGE("%s: Failed to parse the string: %s", __func__, str);
+            delete areas;
+            return BAD_VALUE;
         }
-
-        if(checkAreaParameters(str) != 0) {
-          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
-          return BAD_VALUE;
-        }
-
         mParameters.set(CameraParameters::KEY_FOCUS_AREAS, str);
-    }
+        num_areas_found = 1; //temp; need to change after the multi-roi is enabled
 
-    return NO_ERROR;
+        //if the native_set_parms is called when preview is not started, it
+        //crashes in lower layer, so return of preview is not started
+        if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED) {
+            delete areas;
+            return NO_ERROR;
+        }
+
+        //for special area string (0, 0, 0, 0, 0), set the num_areas_found to 0,
+        //so no action is takenby the lower layer
+        if(num_areas_found == 1 && (areas[0].x1 == 0) && (areas[0].y1 == 0)
+            && (areas[0].x2 == 0) && (areas[0].y2 == 0) && (areas[0].weight == 0)) {
+            num_areas_found = 0;
+        }
+#if 1 //temp solution
+
+        roi_info_t af_roi_value;
+        memset(&af_roi_value, 0, sizeof(roi_info_t));
+        uint16_t x1, x2, y1, y2, dx, dy;
+        int previewWidth, previewHeight;
+        this->getPreviewSize(&previewWidth, &previewHeight);
+        //transform the coords from (-1000, 1000) to (0, previewWidth or previewHeight)
+        x1 = (uint16_t)((areas[0].x1 + 1000.0f)*(previewWidth/2000.0f));
+        y1 = (uint16_t)((areas[0].y1 + 1000.0f)*(previewHeight/2000.0f));
+        x2 = (uint16_t)((areas[0].x2 + 1000.0f)*(previewWidth/2000.0f));
+        y2 = (uint16_t)((areas[0].y2 + 1000.0f)*(previewHeight/2000.0f));
+        dx = x2 - x1;
+        dy = y2 - y1;
+
+        af_roi_value.num_roi = num_areas_found;
+        af_roi_value.roi[0].x = x1;
+        af_roi_value.roi[0].y = y1;
+        af_roi_value.roi[0].dx = dx;
+        af_roi_value.roi[0].dy = dy;
+        af_roi_value.is_multiwindow = 0;
+        if (native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value))
+            rc = NO_ERROR;
+        else
+            rc = BAD_VALUE;
+        delete areas;
+#endif
+#if 0   //better solution with multi-roi, to be enabled later
+        af_mtr_area_t afArea;
+        afArea.num_area = num_areas_found;
+
+        uint16_t x1, x2, y1, y2, dx, dy;
+        int previewWidth, previewHeight;
+        this->getPreviewSize(&previewWidth, &previewHeight);
+
+        for(int i=0; i<num_areas_found; i++) {
+            //transform the coords from (-1000, 1000) to (0, previewWidth or previewHeight)
+            x1 = (uint16_t)((areas[i].x1 + 1000.0f)*(previewWidth/2000.0f));
+            y1 = (uint16_t)((areas[i].y1 + 1000.0f)*(previewHeight/2000.0f));
+            x2 = (uint16_t)((areas[i].x2 + 1000.0f)*(previewWidth/2000.0f));
+            y2 = (uint16_t)((areas[i].y2 + 1000.0f)*(previewHeight/2000.0f));
+            dx = x2 - x1;
+            dy = y2 - y1;
+            afArea.mtr_area[i].x = x1;
+            afArea.mtr_area[i].y = y1;
+            afArea.mtr_area[i].dx = dx;
+            afArea.mtr_area[i].dy = dy;
+            afArea.weight[i] = areas[i].weight;
+        }
+
+        if(native_set_parms(MM_CAMERA_PARM_AF_MTR_AREA, sizeof(af_mtr_area_t), (void*)&afArea))
+            rc = NO_ERROR;
+        else
+            rc = BAD_VALUE;*/
+#endif
+    }
+    LOGE("%s: X", __func__);
+    return rc;
 }
 
 status_t QCameraHardwareInterface::setMeteringAreas(const CameraParameters& params)
 {
-    const char *str = params.get(CameraParameters::KEY_METERING_AREAS);
-    if (str == NULL || (strcmp(str, "0") == 0)) {
-        LOGE("%s: Parameter string is null", __FUNCTION__);
+    LOGE("%s: E", __func__);
+    status_t rc;
+    int max_num_mtr_areas = mParameters.getInt(CameraParameters::KEY_MAX_NUM_METERING_AREAS);
+    if(max_num_mtr_areas == 0) {
+        return NO_ERROR;
     }
-    else {
-        // handling default string
-        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
-          mParameters.set(CameraParameters::KEY_METERING_AREAS, NULL);
-          return NO_ERROR;
-        }
-        if(checkAreaParameters(str) != 0) {
-          LOGE("%s: Failed to parse the input string '%s'", __FUNCTION__, str);
-          return BAD_VALUE;
+    const char *str = params.get(CameraParameters::KEY_METERING_AREAS);
+    if (str == NULL) {
+        LOGE("%s: Parameter string is null", __func__);
+        rc = NO_ERROR;
+    } else {
+        camera_area_t *areas = new camera_area_t[max_num_mtr_areas];
+        int num_areas_found=0;
+        if(parseCameraAreaString(str, max_num_mtr_areas, areas, &num_areas_found) < 0) {
+            LOGE("%s: Failed to parse the string: %s", __func__, str);
+            delete areas;
+            return BAD_VALUE;
         }
         mParameters.set(CameraParameters::KEY_METERING_AREAS, str);
-    }
 
-    return NO_ERROR;
+        //if the native_set_parms is called when preview is not started, it
+        //crashes in lower layer, so return of preview is not started
+        if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED) {
+            delete areas;
+            return NO_ERROR;
+        }
+
+        num_areas_found = 1; //temp; need to change after the multi-roi is enabled
+
+        //for special area string (0, 0, 0, 0, 0), set the num_areas_found to 0,
+        //so no action is takenby the lower layer
+        if(num_areas_found == 1 && (areas[0].x1 == 0) && (areas[0].y1 == 0)
+             && (areas[0].x2 == 0) && (areas[0].y2 == 0) && (areas[0].weight == 0)) {
+            num_areas_found = 0;
+        }
+#if 1
+        cam_set_aec_roi_t aec_roi_value;
+        uint16_t x1, x2, y1, y2;
+        int previewWidth, previewHeight;
+        this->getPreviewSize(&previewWidth, &previewHeight);
+        //transform the coords from (-1000, 1000) to (0, previewWidth or previewHeight)
+        x1 = (uint16_t)((areas[0].x1 + 1000.0f)*(previewWidth/2000.0f));
+        y1 = (uint16_t)((areas[0].y1 + 1000.0f)*(previewHeight/2000.0f));
+        x2 = (uint16_t)((areas[0].x2 + 1000.0f)*(previewWidth/2000.0f));
+        y2 = (uint16_t)((areas[0].y2 + 1000.0f)*(previewHeight/2000.0f));
+        delete areas;
+
+        if(num_areas_found == 1) {
+            aec_roi_value.aec_roi_enable = AEC_ROI_ON;
+            aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
+            aec_roi_value.aec_roi_position.coordinate.x = (x1+x2)/2;
+            aec_roi_value.aec_roi_position.coordinate.y = (y1+y2)/2;
+        } else {
+            aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
+            aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
+            aec_roi_value.aec_roi_position.coordinate.x = DONT_CARE_COORDINATE;
+            aec_roi_value.aec_roi_position.coordinate.y = DONT_CARE_COORDINATE;
+        }
+
+        if(native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value))
+            rc = NO_ERROR;
+        else
+            rc = BAD_VALUE;
+#endif
+#if 0   //solution including multi-roi, to be enabled later
+        aec_mtr_area_t aecArea;
+        aecArea.num_area = num_areas_found;
+
+        uint16_t x1, x2, y1, y2, dx, dy;
+        int previewWidth, previewHeight;
+        this->getPreviewSize(&previewWidth, &previewHeight);
+
+        for(int i=0; i<num_areas_found; i++) {
+            //transform the coords from (-1000, 1000) to (0, previewWidth or previewHeight)
+            x1 = (uint16_t)((areas[i].x1 + 1000.0f)*(previewWidth/2000.0f));
+            y1 = (uint16_t)((areas[i].y1 + 1000.0f)*(previewHeight/2000.0f));
+            x2 = (uint16_t)((areas[i].x2 + 1000.0f)*(previewWidth/2000.0f));
+            y2 = (uint16_t)((areas[i].y2 + 1000.0f)*(previewHeight/2000.0f));
+            dx = x2 - x1;
+            dy = y2 - y1;
+            aecArea.mtr_area[i].x = x1;
+            aecArea.mtr_area[i].y = y1;
+            aecArea.mtr_area[i].dx = dx;
+            aecArea.mtr_area[i].dy = dy;
+            aecArea.weight[i] = areas[i].weight;
+        }
+        delete areas;
+
+        if(native_set_parms(MM_CAMERA_PARM_AEC_MTR_AREA, sizeof(aec_mtr_area_t), (void*)&aecArea))
+            rc = NO_ERROR;
+        else
+            rc = BAD_VALUE;
+#endif
+    }
+    LOGE("%s: X", __func__);
+    return rc;
 }
 
 status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
@@ -2013,102 +2143,6 @@ status_t QCameraHardwareInterface::setPreviewFrameRateMode(const CameraParameter
     LOGE("Invalid preview frame rate mode value: %s", (str == NULL) ? "NULL" : str);
 
     return BAD_VALUE;
-}
-
-
-status_t QCameraHardwareInterface::setTouchAfAec(const CameraParameters& params)
-{
-    LOGE("%s",__func__);
-    if(mHasAutoFocusSupport){
-        int xAec, yAec, xAf, yAf;
-        int cx, cy;
-        int width, height;
-        params.getMeteringAreaCenter(&cx, &cy);
-        getPreviewSize(&width, &height);
-
-        // @Punit
-        // The coords sent from upper layer is in range (-1000, -1000) to (1000, 1000)
-        // So, they are transformed to range (0, 0) to (previewWidth, previewHeight)
-        cx = cx + 1000;
-        cy = cy + 1000;
-        cx = cx * (width / 2000.0f);
-        cy = cy * (height / 2000.0f);
-
-        //Negative values are invalid and does not update anything
-        LOGE("Touch Area Center (cx, cy) = (%d, %d)", cx, cy);
-
-        //Currently using same values for AF and AEC
-        xAec = cx; yAec = cy;
-        xAf = cx; yAf = cy;
-
-        const char *str = params.get(CameraParameters::KEY_TOUCH_AF_AEC);
-        if (str != NULL) {
-            int value = attr_lookup(touchafaec,
-                    sizeof(touchafaec) / sizeof(str_map), str);
-            if (value != NOT_FOUND) {
-
-                //Dx,Dy will be same as defined in res/layout/camera.xml
-                //passed down to HAL in a key.value pair.
-                int FOCUS_RECTANGLE_DX = params.getInt("touchAfAec-dx");
-                int FOCUS_RECTANGLE_DY = params.getInt("touchAfAec-dy");
-                mParameters.set(CameraParameters::KEY_TOUCH_AF_AEC, str);
-                mParameters.setTouchIndexAec(xAec, yAec);
-                mParameters.setTouchIndexAf(xAf, yAf);
-
-                cam_set_aec_roi_t aec_roi_value;
-                roi_info_t af_roi_value;
-
-                memset(&af_roi_value, 0, sizeof(roi_info_t));
-
-                //If touch AF/AEC is enabled and touch event has occured then
-                //call the ioctl with valid values.
-                if (value == true
-                        && (xAec >= 0 && yAec >= 0)
-                        && (xAf >= 0 && yAf >= 0)) {
-                    //Set Touch AEC params (Pass the center co-ordinate)
-                    aec_roi_value.aec_roi_enable = AEC_ROI_ON;
-                    aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
-                    aec_roi_value.aec_roi_position.coordinate.x = xAec;
-                    aec_roi_value.aec_roi_position.coordinate.y = yAec;
-
-                    //Set Touch AF params (Pass the top left co-ordinate)
-                    af_roi_value.num_roi = 1;
-                    if ((xAf-50) < 0)
-                        af_roi_value.roi[0].x = 1;
-                    else
-                        af_roi_value.roi[0].x = xAf - (FOCUS_RECTANGLE_DX/2);
-
-                    if ((yAf-50) < 0)
-                        af_roi_value.roi[0].y = 1;
-                    else
-                        af_roi_value.roi[0].y = yAf - (FOCUS_RECTANGLE_DY/2);
-
-                    af_roi_value.roi[0].dx = FOCUS_RECTANGLE_DX;
-                    af_roi_value.roi[0].dy = FOCUS_RECTANGLE_DY;
-                    af_roi_value.is_multiwindow = mMultiTouch;
-                    native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
-                    native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
-                }
-                else if(value == false) {
-                    //Set Touch AEC params
-                    aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
-                    aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
-                    aec_roi_value.aec_roi_position.coordinate.x = DONT_CARE_COORDINATE;
-                    aec_roi_value.aec_roi_position.coordinate.y = DONT_CARE_COORDINATE;
-
-                    //Set Touch AF params
-                    af_roi_value.num_roi = 0;
-                    native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value);
-                    native_set_parms(MM_CAMERA_PARM_AF_ROI, sizeof(roi_info_t), (void*)&af_roi_value);
-                }
-                //@Punit: If the values are negative, we dont send anything to the lower layer
-            }
-            return NO_ERROR;
-        }
-        LOGE("Invalid Touch AF/AEC value: %s", (str == NULL) ? "NULL" : str);
-        return BAD_VALUE;
-    }
-    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setSkinToneEnhancement(const CameraParameters& params) {

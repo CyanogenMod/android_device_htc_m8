@@ -3059,8 +3059,30 @@ void QualcommCameraHardware::runPreviewThread(void *data)
                     LOGE("%s: buffer to be enqueued is unlocked", __FUNCTION__);
                     mDisplayLock.unlock();
                 }
-             retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
-                                        frame_buffer[bufferIndex].buffer);
+             const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+             if(str != NULL){
+                 int is_hfr_off = 0;
+                 hfr_count++;
+                 if(!strcmp(str, CameraParameters::VIDEO_HFR_OFF)) {
+                    is_hfr_off = 1;
+                    retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
+                                               frame_buffer[bufferIndex].buffer);
+                 } else if (!strcmp(str, CameraParameters::VIDEO_HFR_2X)) {
+                    hfr_count %= 2;
+                 } else if (!strcmp(str, CameraParameters::VIDEO_HFR_3X)) {
+                    hfr_count %= 3;
+                 } else if (!strcmp(str, CameraParameters::VIDEO_HFR_4X)) {
+                    hfr_count %= 4;
+                 }
+                 if(hfr_count == 0)
+                     retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
+                                                frame_buffer[bufferIndex].buffer);
+                 else if(!is_hfr_off)
+                     retVal = mPreviewWindow->cancel_buffer(mPreviewWindow,
+                                                frame_buffer[bufferIndex].buffer);
+             } else
+                   retVal = mPreviewWindow->enqueue_buffer(mPreviewWindow,
+                                              frame_buffer[bufferIndex].buffer);
              if( retVal != NO_ERROR)
                LOGE("%s: Failed while queueing buffer %d for display."
                          " Error = %d", __FUNCTION__,

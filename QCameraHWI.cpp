@@ -1890,6 +1890,7 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
   uint32_t  skip_mode;
   char value[PROPERTY_VALUE_MAX];
   char buf[32];
+  int main_422 = 1;
   property_get("persist.camera.dumpimg", value, "0");
   enabled = atoi(value);
 
@@ -1924,6 +1925,9 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
             h = mDimension.picture_height;
             snprintf(buf, sizeof(buf), "/data/%dm_%dx%d.yuv", mDumpFrmCnt, w, h);
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+            if (mDimension.main_img_format == CAMERA_YUV_422_NV16 ||
+                mDimension.main_img_format == CAMERA_YUV_422_NV61)
+              main_422 = 2;
             break;
           case HAL_DUMP_FRM_THUMBNAIL:
             w = mDimension.ui_thumbnail_width;
@@ -1943,7 +1947,7 @@ void QCameraHardwareInterface::dumpFrameToFile(struct msm_frame* newFrame,
             LOGE("%s: %d %d", __func__, newFrame->y_off, newFrame->cbcr_off);
             write(file_fd, (const void *)(newFrame->buffer+newFrame->y_off), w * h);
             write(file_fd, (const void *)
-              (newFrame->buffer + newFrame->cbcr_off), w * h / 2);
+              (newFrame->buffer + newFrame->cbcr_off), w * h / 2 * main_422);
             close(file_fd);
             LOGE("dump %s", buf);
           }

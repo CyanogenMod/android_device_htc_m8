@@ -500,7 +500,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     OMX_GetExtensionIndex(pHandle,"omx.qcom.jpeg.exttype.user_preferences",
       &user_preferences);
     OMX_DBG_INFO("%s:User Preferences: color_format %d"
-      "thumbnail_color_format = %d encoder preference =%d\n",
+      "thumbnail_color_format = %d encoder preference =%d\n",__func__,
       userpreferences.color_format,userpreferences.thumbnail_color_format,
       userpreferences.preference);
     OMX_SetParameter(pHandle,user_preferences,&userpreferences);

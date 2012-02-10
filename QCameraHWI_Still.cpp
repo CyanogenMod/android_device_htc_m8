@@ -1597,6 +1597,7 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
     LOGD("%s: E ", __func__);
     mStopCallbackLock.lock( );
     if(!mActive) {
+        mStopCallbackLock.unlock();
         LOGD("%s: Stop receiving raw pic ", __func__);
         return NO_ERROR;
     }

@@ -1014,7 +1014,9 @@ status_t QCameraHardwareInterface::startPreview2()
 
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
+
     if (mRecordingHint && mFullLiveshotEnabled) {
+#if 0
       /* Camcorder mode and Full resolution liveshot enabled
        * TBD lookup table for correct aspect ratio matching size */
       memset(&maxDim, 0, sizeof(mm_camera_dimension_t));
@@ -1033,7 +1035,26 @@ status_t QCameraHardwareInterface::startPreview2()
       mParameters.setPictureSize(dim.picture_width, dim.picture_height);
       LOGI("%s Setting Liveshot dimension as %d x %d", __func__,
            maxDim.width, maxDim.height);
+#endif
+        int mPictureWidth, mPictureHeight;
+        bool matching;
+        /* First check if the picture resolution is the same, if not, change it*/
+        getPictureSize(&mPictureWidth, &mPictureHeight);
+
+        matching = (mPictureWidth == dim.picture_width) &&
+            (mPictureHeight == dim.picture_height);
+
+        if (!matching) {
+            dim.picture_width  = mPictureWidth;
+            dim.picture_height = mPictureHeight;
+            dim.ui_thumbnail_height = dim.display_height;
+            dim.ui_thumbnail_width = dim.display_width;
+        }
+        LOGE("%s: Fullsize Liveshaot Picture size to set: %d x %d", __func__,
+             dim.picture_width, dim.picture_height);
+        mParameters.setPictureSize(dim.picture_width, dim.picture_height);
     }
+
     ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
     if (MM_CAMERA_OK != ret) {
       LOGE("%s X: error - can't config preview parms!", __func__);

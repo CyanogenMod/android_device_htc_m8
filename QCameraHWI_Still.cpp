@@ -1037,6 +1037,7 @@ status_t QCameraStream_Snapshot::initFullLiveshot(void)
 {
     status_t ret = NO_ERROR;
     cam_ctrl_dimension_t dim;
+    bool matching = true;
 
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     ret = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
@@ -1044,23 +1045,39 @@ status_t QCameraStream_Snapshot::initFullLiveshot(void)
       LOGE("%s: error - can't get dimension!", __func__);
       return ret;
     }
+#if 1
+    /* First check if the picture resolution is the same, if not, change it*/
+    mHalCamCtrl->getPictureSize(&mPictureWidth, &mPictureHeight);
+    LOGD("%s: Picture size received: %d x %d", __func__,
+         mPictureWidth, mPictureHeight);
+
+    mThumbnailWidth = dim.display_width;
+    mThumbnailHeight = dim.display_height;
+    matching = (mPictureWidth == dim.picture_width) &&
+        (mPictureHeight == dim.picture_height);
+
+
+    if (!matching) {
+        dim.picture_width  = mPictureWidth;
+        dim.picture_height = mPictureHeight;
+        dim.ui_thumbnail_height = mThumbnailHeight;
+        dim.ui_thumbnail_width = mThumbnailWidth;
+    }
+    LOGD("%s: Picture size to set: %d x %d", __func__,
+         dim.picture_width, dim.picture_height);
+    ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
+#endif
     /* Initialize stream - set format, acquire channel */
     ret = initSnapshotFormat(&dim);
     if (NO_ERROR != ret) {
         LOGE("%s: error - can't init nonZSL stream!", __func__);
         return ret;
     }
-    ret = cam_config_get_parm(mCameraId,
-                              MM_CAMERA_PARM_DIMENSION, &dim);
     ret = initSnapshotBuffers(&dim, 1);
     if ( NO_ERROR != ret ){
         LOGE("%s: Failure allocating memory for Snapshot buffers", __func__);
         return ret;
     }
-    mPictureWidth = dim.picture_width;
-    mPictureHeight = dim.picture_height;
-    mThumbnailWidth = dim.display_width;
-    mThumbnailHeight = dim.display_height;
 
     return ret;
 }

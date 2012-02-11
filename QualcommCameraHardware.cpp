@@ -1810,6 +1810,9 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_VIDEO_FRAME_FORMAT, "yuv420sp");
 
     mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "85"); // max quality
+
+    mParameters.set("full-video-snap-supported", "false");
+
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH,
                     THUMBNAIL_WIDTH_STR); // informative
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT,

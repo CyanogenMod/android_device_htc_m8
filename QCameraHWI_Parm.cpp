@@ -689,7 +689,7 @@ bool QCameraHardwareInterface::supportsFaceDetection() {
 }
 
 bool QCameraHardwareInterface::supportsSelectableZoneAf() {
-   bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_FOCUS_RECT); //@Guru
+   bool rc = cam_config_is_parm_supported(mCameraId,MM_CAMERA_PARM_FOCUS_RECT);
    return rc;
 }
 
@@ -1023,7 +1023,9 @@ void QCameraHardwareInterface::initDefaultParameters()
 
     if (mFullLiveshotEnabled) {
         //Set Live Snapshot support
-        mParameters.set("video-snapshot-supported", "true");
+        mParameters.set("full-video-snap-supported", "true");
+    }else{
+        mParameters.set("full-video-snap-supported", "false");
     }
 
     //Set Camera Mode
@@ -1335,7 +1337,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
         if ((rc = setMeteringAreas(params)))  final_rc = rc;
     }
     //selectableZoneAF needs to be invoked after continuous AF
-    if ((rc = setSelectableZoneAf(params)))             final_rc = rc;   //@Guru : Need support from Lower level
+    if ((rc = setSelectableZoneAf(params)))             final_rc = rc;
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;

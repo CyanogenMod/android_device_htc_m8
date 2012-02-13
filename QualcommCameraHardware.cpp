@@ -4162,9 +4162,6 @@ bool QualcommCameraHardware::deinitZslBuffers()
         if(mJpegMapped[cnt]) {
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
-#ifdef USE_ION
-            deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
-#endif
         }
     }
     if(NULL != mJpegCopyMapped) {
@@ -4228,13 +4225,6 @@ bool QualcommCameraHardware::createSnapshotMemory (int numberOfRawBuffers, int n
         {
             for(int cnt = 0; cnt < numberOfJpegBuffers; cnt++)
             {
-#ifdef USE_ION
-                if (allocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_alloc[cnt], &Jpeg_ion_info_fd[cnt],
-                                        ion_heap, mJpegMaxSize, &mJpegfd[cnt]) < 0){
-                  LOGE("do_mmap: Open device %s failed!\n",pmem_region);
-                  return NULL;
-                }
-#endif
                 LOGE("%s  Jpeg memory index: %d , fd is %d ", __func__, cnt, mJpegfd[cnt]);
                 mJpegMapped[cnt]=mGetMemory(-1, mJpegMaxSize,1,mCallbackCookie);
                 if(mJpegMapped[cnt] == NULL) {
@@ -4604,9 +4594,6 @@ void QualcommCameraHardware::deinitRaw()
         if(NULL != mJpegMapped[cnt]) {
             mJpegMapped[cnt]->release(mJpegMapped[cnt]);
             mJpegMapped[cnt] = NULL;
-#ifdef USE_ION
-            deallocate_ion_memory(&Jpeg_main_ion_fd[cnt], &Jpeg_ion_info_fd[cnt]);
-#endif
         }
     }
     if(NULL != mJpegCopyMapped) {

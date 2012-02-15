@@ -71,6 +71,11 @@ typedef unsigned short int sa_family_t;
 #define QCAMERA_PARM_ENABLE   1
 #define QCAMERA_PARM_DISABLE  0
 
+#define QCIF_WIDTH      176
+#define QCIF_HEIGHT     144
+#define D1_WIDTH        720
+#define D1_HEIGHT       480
+
 struct str_map {
     const char *const desc;
     int val;
@@ -554,6 +559,7 @@ private:
 
     void setMyMode(int mode);
     bool isZSLMode();
+    bool isLowPowerCamcorder();
 
     void freePictureTable(void);
 

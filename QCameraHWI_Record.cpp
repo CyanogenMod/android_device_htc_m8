@@ -414,6 +414,7 @@ status_t QCameraStream_record::initEncodeBuffers()
   //cam_ctrl_dimension_t dim;
   int width = 0;  /* width of channel  */
   int height = 0; /* height of channel */
+  int buf_cnt;
 
   pmem_region = "/dev/pmem_adsp";
 
@@ -529,20 +530,26 @@ status_t QCameraStream_record::initEncodeBuffers()
   return ret;
 #endif
 
-    recordframes = new msm_frame[VIDEO_BUFFER_COUNT];
-    memset(recordframes,0,sizeof(struct msm_frame) * VIDEO_BUFFER_COUNT);
+   buf_cnt = VIDEO_BUFFER_COUNT;
+  if(mHalCamCtrl->isLowPowerCamcorder()) {
+    LOGE("%s: lower power camcorder selected", __func__);
+    buf_cnt = VIDEO_BUFFER_COUNT_LOW_POWER_CAMCORDER;
+  }
 
-		mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[VIDEO_BUFFER_COUNT *
+    recordframes = new msm_frame[buf_cnt];
+    memset(recordframes,0,sizeof(struct msm_frame) * buf_cnt);
+
+		mRecordBuf.video.video.buf.mp = new mm_camera_mp_buf_t[buf_cnt *
                                   sizeof(mm_camera_mp_buf_t)];
 		if (!mRecordBuf.video.video.buf.mp) {
 			LOGE("%s Error allocating memory for mplanar struct ", __func__);
 			return BAD_VALUE;
 		}
 		memset(mRecordBuf.video.video.buf.mp, 0,
-					 VIDEO_BUFFER_COUNT * sizeof(mm_camera_mp_buf_t));
+					 buf_cnt * sizeof(mm_camera_mp_buf_t));
 
     memset(&mHalCamCtrl->mRecordingMemory, 0, sizeof(mHalCamCtrl->mRecordingMemory));
-    mHalCamCtrl->mRecordingMemory.buffer_count = VIDEO_BUFFER_COUNT;
+    mHalCamCtrl->mRecordingMemory.buffer_count = buf_cnt;
 
 		mHalCamCtrl->mRecordingMemory.size = frame_len;
 		mHalCamCtrl->mRecordingMemory.cbcr_offset = planes[0];

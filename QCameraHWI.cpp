@@ -701,6 +701,26 @@ bool QCameraHardwareInterface::isZSLMode() {
 #endif
 }
 
+bool QCameraHardwareInterface::isLowPowerCamcorder() {
+
+    /* If Full size liveshot is disabled, switch to
+     * low power camcorder. */
+    if (!mFullLiveshotEnabled) {
+      return true;
+    }
+
+    /* C2D expects the resolutions to be 32 aligned.
+     * Otherwise the preview frames will be corrupted.
+     * So for QCIF and D1, run in low power mode by
+     * disabling C2D path */
+    if (mDimension.display_width == QCIF_WIDTH ||
+        mDimension.display_width == D1_WIDTH)
+      return true;
+    else
+      return false;
+}
+
+
 void QCameraHardwareInterface::debugShowPreviewFPS() const
 {
     static int mFrameCount;

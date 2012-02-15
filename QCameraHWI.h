@@ -501,7 +501,7 @@ private:
     status_t setPreviewFpsRange(const CameraParameters& params);
     status_t setPreviewFrameRate(const CameraParameters& params);
     status_t setPreviewFrameRateMode(const CameraParameters& params);
-    status_t setRecordSize(const CameraParameters& params);
+    status_t setVideoSize(const CameraParameters& params);
     status_t setPictureSize(const CameraParameters& params);
     status_t setJpegQuality(const CameraParameters& params);
     status_t setNumOfSnapshot(const CameraParameters& params);

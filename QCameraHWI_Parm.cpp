@@ -153,6 +153,19 @@ static camera_size_type default_preview_sizes[] = {
   { 176, 144}, // QCIF
 };
 
+static camera_size_type supported_video_sizes[] = {
+  { 1920, 1088},// 1080p
+  { 1280, 720}, // 720p
+  { 800, 480},  // WVGA
+  { 720, 480},  // 480p
+  { 640, 480},  // VGA
+  { 480, 320},  // HVGA
+  { 352, 288},  // CIF
+  { 320, 240},  // QVGA
+  { 176, 144},  // QCIF
+};
+#define SUPPORTED_VIDEO_SIZES_COUNT (sizeof(supported_video_sizes)/sizeof(camera_size_type))
+
 static struct camera_size_type zsl_picture_sizes[] = {
   { 1024, 768}, // 1MP XGA
   { 800, 600}, //SVGA
@@ -822,6 +835,14 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParamStringInitialized = true;
     }
 
+    //set supported video sizes
+    String8 videoSizes = create_sizes_str(supported_video_sizes, SUPPORTED_VIDEO_SIZES_COUNT);
+    mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_SIZES, videoSizes.string());
+
+    //set video size
+    String8 vSize = create_sizes_str(&supported_video_sizes[0], 1);
+    mParameters.set(CameraParameters::KEY_VIDEO_SIZE, vSize.string());
+
     //Set Preview size
     mParameters.setPreviewSize(DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_HEIGHT);
     mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
@@ -1206,7 +1227,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
 
     if ((rc = setCameraMode(params)))                   final_rc = rc;
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
-    if ((rc = setRecordSize(params)))                   final_rc = rc;
+    if ((rc = setVideoSize(params)))                    final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
     if ((rc = setJpegThumbnailSize(params)))            final_rc = rc;
     if ((rc = setJpegQuality(params)))                  final_rc = rc;
@@ -2256,12 +2277,12 @@ status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& par
     return BAD_VALUE;
 }
 
-status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)
+status_t QCameraHardwareInterface::setVideoSize(const CameraParameters& params)
 {
-    const char *recordSize = NULL;
-    recordSize = params.get("record-size");
-    if(!recordSize) {
-        mParameters.set("record-size", "");
+    const char *str= NULL;
+    str = params.get(CameraParameters::KEY_VIDEO_SIZE);
+    if(!str) {
+        mParameters.set(CameraParameters::KEY_VIDEO_SIZE, "");
         //If application didn't set this parameter string, use the values from
         //getPreviewSize() as video dimensions.
         LOGV("No Record Size requested, use the preview dimensions");
@@ -2269,14 +2290,14 @@ status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)
         videoHeight = previewHeight;
     } else {
         //Extract the record witdh and height that application requested.
-        LOGI("%s: requested record size %s", __FUNCTION__, recordSize);
-        if(!parse_size(recordSize, videoWidth, videoHeight)) {
-            mParameters.set("record-size" , recordSize);
+        LOGI("%s: requested record size %s", __func__, str);
+        if(!parse_size(str, videoWidth, videoHeight)) {
+            mParameters.set(CameraParameters::KEY_VIDEO_SIZE, str);
             //VFE output1 shouldn't be greater than VFE output2.
             if( (previewWidth > videoWidth) || (previewHeight > videoHeight)) {
                 //Set preview sizes as record sizes.
                 LOGI("Preview size %dx%d is greater than record size %dx%d,\
-                   resetting preview size to record size",previewWidth,\
+                   resetting preview size to record size",previewWidth,
                      previewHeight, videoWidth, videoHeight);
                 previewWidth = videoWidth;
                 previewHeight = videoHeight;
@@ -2295,13 +2316,13 @@ status_t QCameraHardwareInterface::setRecordSize(const CameraParameters& params)
                 mParameters.setPreviewSize(previewWidth, previewHeight);
             }
         } else {
-            mParameters.set("record-size", "");
-            LOGE("initPreview X: failed to parse parameter record-size (%s)", recordSize);
+            mParameters.set(CameraParameters::KEY_VIDEO_SIZE, "");
+            LOGE("initPreview X: failed to parse parameter record-size (%s)", str);
             return BAD_VALUE;
         }
     }
-    LOGI("%s: preview dimensions: %dx%d", __FUNCTION__, previewWidth, previewHeight);
-    LOGI("%s: video dimensions: %dx%d", __FUNCTION__, videoWidth, videoHeight);
+    LOGE("%s: preview dimensions: %dx%d", __func__, previewWidth, previewHeight);
+    LOGE("%s: video dimensions: %dx%d", __func__, videoWidth, videoHeight);
     mDimension.display_width = previewWidth;
     mDimension.display_height= previewHeight;
     mDimension.orig_video_width = videoWidth;
@@ -3184,8 +3205,6 @@ status_t QCameraHardwareInterface::setPreviewSizeTable(void)
 
     LOGD("%s: Max Preview Sizes Supported: %d X %d", __func__,
          dim.width, dim.height);
-    sprintf(str, "%dx%d", dim.width, dim.height);
-    mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, str);
 
     for (i = 0; i < preview_table_size; i++) {
         if ((preview_size_table->width <= dim.width) &&
@@ -3198,6 +3217,10 @@ status_t QCameraHardwareInterface::setPreviewSizeTable(void)
         }
         preview_size_table++;
     }
+    //set preferred preview size to maximum preview size
+    sprintf(str, "%dx%d", preview_size_table->width, preview_size_table->height);
+    mParameters.set(CameraParameters::KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO, str);
+    LOGD("KEY_PREFERRED_PREVIEW_SIZE_FOR_VIDEO = %s", str);
 
 end:
     /* Save the table in global member*/

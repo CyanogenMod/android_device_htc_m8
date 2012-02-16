@@ -1412,6 +1412,7 @@ status_t  QCameraHardwareInterface::takePicture()
 
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STARTED:
+        mStreamSnap->setFullSizeLiveshot(false);
         if (isZSLMode()) {
             if (mStreamSnap != NULL) {
                 ret = mStreamSnap->takePictureZSL();
@@ -1760,29 +1761,27 @@ void QCameraHardwareInterface::handleZoomEventForPreview(app_notify_cb_t *app_cb
 
 void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
 {
-    LOGI("zoomEvent: state:%d E",mCameraState);
-    switch (mCameraState) {
-        case CAMERA_STATE_SNAP_CMD_ACKED:
+    LOGI("zoomEvent: state:%d E",mPreviewState);
+    switch (mPreviewState) {
+    case QCAMERA_HAL_PREVIEW_STOPPED:
+        break;
+    case QCAMERA_HAL_PREVIEW_START:
+        break;
+    case QCAMERA_HAL_PREVIEW_STARTED:
+        handleZoomEventForPreview(app_cb);
+        break;
+    case QCAMERA_HAL_RECORDING_STARTED:
+        handleZoomEventForPreview(app_cb);
+        if (mFullLiveshotEnabled)
             handleZoomEventForSnapshot();
-            break;
-        case CAMERA_STATE_ZSL:
-            /* In ZSL mode, we start preview and snapshot stream at
-               the same time */
-            handleZoomEventForSnapshot();
+        break;
+    case QCAMERA_HAL_TAKE_PICTURE:
+        if(isZSLMode())
             handleZoomEventForPreview(app_cb);
-            break;
-
-        case CAMERA_STATE_PREVIEW:
-        case CAMERA_STATE_RECORD_START_CMD_SENT:
-        case CAMERA_STATE_RECORD:
-          if (!mFullLiveshotEnabled)
-            handleZoomEventForPreview(app_cb);
-          else
-            handleZoomEventForSnapshot();
-          break;
-        default:
-            handleZoomEventForPreview(app_cb);
-            break;
+        handleZoomEventForSnapshot();
+        break;
+    default:
+        break;
     }
     LOGI("zoomEvent: X");
 }

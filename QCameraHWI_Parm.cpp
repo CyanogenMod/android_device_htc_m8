@@ -938,8 +938,10 @@ void QCameraHardwareInterface::initDefaultParameters()
     if (mFullLiveshotEnabled) {
         //Set Live Snapshot support
         mParameters.set("full-video-snap-supported", "true");
+        mParameters.set("video-snapshot-supported", "true");
     }else{
         mParameters.set("full-video-snap-supported", "false");
+        mParameters.set("video-snapshot-supported", "false");
     }
 
     //Set Camera Mode

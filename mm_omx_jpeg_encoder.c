@@ -313,6 +313,8 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
     else
         userpreferences.preference = OMX_ENCODER_PREF_SOFTWARE_ONLY;
 
+    pmem_info.fd = encode_params->snapshot_fd;
+    pmem_info.offset = 0;
     OMX_UseBuffer(pHandle, &pInBuffers, 0, &pmem_info, inputPort->nBufferSize,
     (void *) encode_params->snapshot_buf);
 

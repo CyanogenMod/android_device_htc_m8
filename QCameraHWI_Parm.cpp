@@ -1371,6 +1371,7 @@ int QCameraHardwareInterface::getParameters(char **parms)
 void QCameraHardwareInterface::putParameters(char *rc)
 {
     free(rc);
+    rc = NULL;
 }
 
 CameraParameters& QCameraHardwareInterface::getParameters()

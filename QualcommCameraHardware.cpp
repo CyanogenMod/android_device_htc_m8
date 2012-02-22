@@ -1651,9 +1651,11 @@ void QualcommCameraHardware::initDefaultParameters()
                 picture_sizes_ptr, supportedPictureSizesCount);
         preview_size_values = create_sizes_str(
                 preview_sizes,  PREVIEW_SIZE_COUNT);
+        mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
+                            preview_size_values.string());
 
-	    mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
-	                        preview_size_values.string());
+        mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_SIZES,
+                            preview_size_values.string());
 
         mParameters.set(CameraParameters::KEY_SUPPORTED_PICTURE_SIZES,
                             picture_size_values.string());

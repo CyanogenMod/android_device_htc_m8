@@ -3078,7 +3078,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
              int previewBufSize;
              /* for CTS : Forcing preview memory buffer lenth to be
                           'previewWidth * previewHeight * 3/2'. Needed when gralloc allocated extra memory.*/
-             if( mPreviewFormat == CAMERA_YUV_420_NV21) {
+             if( mPreviewFormat == CAMERA_YUV_420_NV21 || mPreviewFormat == CAMERA_YUV_420_YV12) {
                previewBufSize = previewWidth * previewHeight * 3/2;
                camera_memory_t *previewMem = mGetMemory(frames[bufferIndex].fd, previewBufSize,
                                                         1, mCallbackCookie);

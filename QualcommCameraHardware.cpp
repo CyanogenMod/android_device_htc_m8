@@ -7703,6 +7703,7 @@ status_t QualcommCameraHardware::setRecordSize(const CameraParameters& params)
             return BAD_VALUE;
         }
     }
+    mParameters.setVideoSize(videoWidth,videoHeight);
     LOGI("%s: preview dimensions: %dx%d", __FUNCTION__, previewWidth, previewHeight);
     LOGI("%s: video dimensions: %dx%d", __FUNCTION__, videoWidth, videoHeight);
     mDimension.display_width = previewWidth;

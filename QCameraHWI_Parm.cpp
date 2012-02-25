@@ -321,6 +321,7 @@ static const str_map hfr[] = {
     { CameraParameters::VIDEO_HFR_3X, CAMERA_HFR_MODE_90FPS },
     { CameraParameters::VIDEO_HFR_4X, CAMERA_HFR_MODE_120FPS },
 };
+static const int HFR_VALUES_COUNT = (sizeof(hfr)/sizeof(str_map));
 
 static const str_map flash[] = {
     { CameraParameters::FLASH_MODE_OFF,  LED_MODE_OFF },
@@ -727,10 +728,21 @@ void QCameraHardwareInterface::initDefaultParameters()
                 mPictureSizesPtr, mSupportedPictureSizesCount);
         mPreviewSizeValues = create_sizes_str(
                 mPreviewSizes,  mPreviewSizeCount);
+
+        //Query for max HFR value
+        camera_hfr_mode_t maxHFR;
+        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_MAX_HFR_MODE, (void *)&maxHFR);
+        //Filter HFR values and build parameter string
+        String8 str;
+        for(int i=0; i<HFR_VALUES_COUNT; i++){
+            if(hfr[i].val <= maxHFR){
+                if(i>0)	str.append(",");
+                str.append(hfr[i].desc);
+            }
+        }
+        mHfrValues = str;
         mHfrSizeValues = create_sizes_str(
                 hfr_sizes, HFR_SIZE_COUNT);
-        mHfrValues = create_values_str(
-            hfr,sizeof(hfr)/sizeof(str_map));
         mFpsRangesSupportedValues = create_fps_str(
             FpsRangesSupported,FPS_RANGES_SUPPORTED_COUNT );
         mParameters.set(

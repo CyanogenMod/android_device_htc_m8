@@ -152,6 +152,7 @@ typedef enum {
     MM_CAMERA_PARM_AWB_LOCK,
     MM_CAMERA_PARM_AF_MTR_AREA,
     MM_CAMERA_PARM_AEC_MTR_AREA,
+    MM_CAMERA_PARM_MAX_HFR_MODE, /* 80 */
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 

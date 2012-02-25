@@ -499,8 +499,11 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
              dim->width, dim->height);
     }
         break;
+    case MM_CAMERA_PARM_MAX_HFR_MODE:
+        return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_MAX_HFR_MODE,
+                sizeof(camera_hfr_mode_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_FOCAL_LENGTH:
-        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_FOCAL_LENGTH,
+        return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_FOCAL_LENGTH,
                      sizeof(focus_distances_info_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_HORIZONTAL_VIEW_ANGLE:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_HORIZONTAL_VIEW_ANGLE,

@@ -379,6 +379,7 @@ public:
 
     status_t    takeLiveSnapshot();
     status_t    takeFullSizeLiveshot();
+    bool        canTakeFullSizeLiveshot();
 
     //virtual status_t          getBufferInfo( sp<IMemory>& Frame,
     //size_t *alignedSize);

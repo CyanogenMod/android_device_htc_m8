@@ -109,7 +109,8 @@ int mm_camera_zsl_check_burst_dispatching(mm_camera_obj_t * my_obj,
         data.snapshot.thumbnail.idx = thumb_frame->idx;
         ch->snapshot.pending_cnt--;
         for( i=0;i<MM_CAMERA_BUF_CB_MAX;i++) {
-            ch->buf_cb[i].cb(&data, ch->buf_cb[i].user_data);
+            if (ch->buf_cb[i].cb)
+              ch->buf_cb[i].cb(&data, ch->buf_cb[i].user_data);
         }
         if(ch->snapshot.pending_cnt == 0)
             *deliver_done = 1;

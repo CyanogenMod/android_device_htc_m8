@@ -1566,8 +1566,7 @@ status_t  QCameraHardwareInterface::takePicture()
       ret = UNKNOWN_ERROR;
       break;
     case QCAMERA_HAL_RECORDING_STARTED:
-      if (mFullLiveshotEnabled) {
-        LOGE("%s Taking FULL size liveshot ", __func__);
+      if (canTakeFullSizeLiveshot()) {
         takeFullSizeLiveshot();
       }else{
           LOGV(" Calling register for Live snapshot");
@@ -1591,6 +1590,49 @@ void  QCameraHardwareInterface::encodeData()
 {
     LOGI("encodeData: E");
     LOGI("encodeData: X");
+}
+
+bool QCameraHardwareInterface::canTakeFullSizeLiveshot() {
+    bool ret;
+    if (mFullLiveshotEnabled) {
+      /* Full size liveshot enabled. */
+
+      /* TODO Remove this workaround once the C2D limitation
+       * (32 alignment on width) is fixed. */
+      /* Start workaround */
+      if (mDimension.display_width == QCIF_WIDTH ||
+          mDimension.display_width == D1_WIDTH) {
+        return FALSE;
+      }
+      /* End workaround */
+
+      if (mDisEnabled) {
+       /* If DIS is enabled and any of the following conditions is true,
+        * - Picture size is same as video size.
+        * - Picture size is less than (video size + 10% DIS Margin)
+        * then fall back to Video size liveshot. */
+        if ((mDimension.picture_width == mDimension.video_width) &&
+            (mDimension.picture_height == mDimension.video_height)) {
+          ret = FALSE;
+        } else if ((mDimension.picture_width <
+                     (int)(mDimension.video_width * 1.1)) ||
+                   (mDimension.picture_height <
+                     (int)(mDimension.video_height * 1.1))) {
+          ret = FALSE;
+        } else {
+          /* Go with Full size live snapshot. */
+          ret = TRUE;
+        }
+      } else {
+        /* DIS Disabled. Go with Full size live snapshot */
+        ret = TRUE;
+      }
+    } else {
+      /* Full size liveshot disabled. Fallback to Video size liveshot. */
+      ret = FALSE;
+    }
+
+    return ret;
 }
 
 status_t QCameraHardwareInterface::takeFullSizeLiveshot()

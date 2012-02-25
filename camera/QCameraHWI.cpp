@@ -2140,7 +2140,7 @@ int QCameraHardwareInterface::allocate_ion_memory(QCameraHalHeap_t *p_camera_mem
   int rc = 0;
   struct ion_handle_data handle_data;
 
-  p_camera_memory->main_ion_fd[cnt] = open("/dev/ion", O_RDONLY | O_DSYNC);
+  p_camera_memory->main_ion_fd[cnt] = open("/dev/ion", O_RDONLY);
   if (p_camera_memory->main_ion_fd[cnt] < 0) {
     ALOGE("Ion dev open failed\n");
     ALOGE("Error is %s\n", strerror(errno));
@@ -2290,10 +2290,12 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
             frame->path = path;
             frame->cbcr_off =  planes[0]+heap->cbcr_offset;
             frame->y_off =  heap->y_offset;
+            frame->fd_data = heap->ion_info_fd[i];
+            frame->ion_alloc = heap->alloc[i];
             ALOGD("%s: Buffer idx: %d  addr: %x fd: %d phy_offset: %d"
                  "cbcr_off: %d y_off: %d frame_len: %d", __func__,
                  i, (unsigned int)frame->buffer, frame->fd,
-                 frame->phy_offset, cbcr_off, y_off, buf_len);
+                 frame->phy_offset, cbcr_off, y_off, frame->ion_alloc.len);
 
             buf_def->buf.mp[i].frame = *frame;
             buf_def->buf.mp[i].frame_offset = 0;

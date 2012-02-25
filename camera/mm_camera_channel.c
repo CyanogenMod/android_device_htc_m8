@@ -394,6 +394,17 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
 {
     int32_t rc = -1;
     mm_camera_stream_t *stream;
+    struct ion_flush_data cache_inv_data;
+    int ion_fd;
+    struct msm_frame *cache_frame;
+    struct msm_frame *cache_frame1 = NULL;
+#ifdef USE_ION
+    memset(&cache_inv_data, 0, sizeof(struct ion_flush_data));
+    ion_fd = open("/dev/ion", O_RDONLY);
+    if(ion_fd < 0) {
+        CDBG_ERROR("%s: Ion device open failed\n", __func__);
+    }
+#endif
 
     ALOGV("<DEBUG>: %s:ch_type:%d",__func__,ch_type);
     switch(ch_type) {
@@ -401,21 +412,31 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
         rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                           &my_obj->ch[ch_type].raw.stream, evt,
                                                                      &val->def);
+        cache_frame = val->def.frame;
         break;
     case MM_CAMERA_CH_PREVIEW:
         rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                          &my_obj->ch[ch_type].preview.stream, evt,
                                          &val->def);
+        cache_frame = val->def.frame;
+        CDBG("buffer fd = %d, length = %d, vaddr = %p\n",
+         val->def.frame->fd, val->def.frame->ion_alloc.len, val->def.frame->buffer);
         break;
     case MM_CAMERA_CH_VIDEO:
         {
             rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                             &my_obj->ch[ch_type].video.video, evt,
                             &val->video.video);
-            if(!rc && val->video.main.frame)
+            cache_frame = val->video.video.frame;
+            CDBG("buffer fd = %d, length = %d, vaddr = %p\n",
+                 val->video.video.frame->fd, val->video.video.frame->ion_alloc.len, val->video.video.frame->buffer);
+
+            if(!rc && val->video.main.frame) {
                 rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                 &my_obj->ch[ch_type].video.main, evt,
                                 &val->video.main);
+                cache_frame1 = val->video.main.frame;
+            }
         }
         break;
     case MM_CAMERA_CH_SNAPSHOT:
@@ -423,6 +444,9 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
             rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                             &my_obj->ch[ch_type].snapshot.main, evt,
                             &val->snapshot.main);
+            cache_frame = val->snapshot.main.frame;
+            CDBG("buffer fd = %d, length = %d, vaddr = %p\n",
+                 val->snapshot.main.frame->fd, val->snapshot.main.frame->ion_alloc.len, val->snapshot.main.frame->buffer);
             if(!rc) {
                 if (my_obj->op_mode == MM_CAMERA_OP_MODE_ZSL)
                   stream = &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream;
@@ -431,6 +455,9 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
                 rc = mm_camera_stream_fsm_fn_vtbl(my_obj,
                                 stream, evt,
                                 &val->snapshot.thumbnail);
+                cache_frame1 = val->snapshot.thumbnail.frame;
+                CDBG("buffer fd = %d, length = %d, vaddr = %p\n",
+                 val->snapshot.thumbnail.frame->fd, val->snapshot.thumbnail.frame->ion_alloc.len, val->snapshot.thumbnail.frame->buffer);
             }
         }
         break;
@@ -438,6 +465,32 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
         return -1;
         break;
     }
+#ifdef USE_ION
+    cache_inv_data.vaddr = cache_frame->buffer;
+    cache_inv_data.fd = cache_frame->fd;
+    cache_inv_data.handle = cache_frame->fd_data.handle;
+    cache_inv_data.length = cache_frame->ion_alloc.len;
+
+    if(ion_fd > 0) {
+        if(ioctl(ion_fd, ION_IOC_INV_CACHES, &cache_inv_data) < 0)
+            CDBG_ERROR("%s: Cache Invalidate failed\n", __func__);
+        else {
+            CDBG("%s: Successful cache invalidate\n", __func__);
+            if(cache_frame1) {
+              cache_inv_data.vaddr = cache_frame1->buffer;
+              cache_inv_data.fd = cache_frame1->fd;
+              cache_inv_data.handle = cache_frame1->fd_data.handle;
+              cache_inv_data.length = cache_frame1->ion_alloc.len;
+              if(ioctl(ion_fd, ION_IOC_INV_CACHES, &cache_inv_data) < 0)
+                CDBG_ERROR("%s: Cache Invalidate failed\n", __func__);
+              else
+                CDBG("%s: Successful cache invalidate\n", __func__);
+            }
+        }
+        close(ion_fd);
+    }
+#endif
+
     return rc;
 }
 

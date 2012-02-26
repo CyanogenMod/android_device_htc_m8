@@ -443,14 +443,14 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
                 LOGE("Face detection support is not available");
                 return NO_ERROR;
            }
-           //setFaceDetection("on");
+           setFaceDetection("on");
            return runFaceDetection();
         case CAMERA_CMD_STOP_FACE_DETECTION:
            if(supportsFaceDetection() == false){
                 LOGE("Face detection support is not available");
                 return NO_ERROR;
            }
-           //setFaceDetection("off");
+           setFaceDetection("off");
            return runFaceDetection();
 #if 0
         case CAMERA_CMD_SEND_META_DATA:

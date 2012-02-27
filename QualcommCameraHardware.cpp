@@ -8476,12 +8476,12 @@ status_t QualcommCameraHardware::setTouchAfAec(const CameraParameters& params)
 
                     //Set Touch AF params (Pass the top left co-ordinate)
                     af_roi_value.num_roi = 1;
-                    if ((xAf-50) < 0)
+                    if ((xAf-(FOCUS_RECTANGLE_DX/2)) < 0)
                         af_roi_value.roi[0].x = 1;
                     else
                         af_roi_value.roi[0].x = xAf - (FOCUS_RECTANGLE_DX/2);
 
-                    if ((yAf-50) < 0)
+                    if ((yAf-(FOCUS_RECTANGLE_DY/2)) < 0)
                         af_roi_value.roi[0].y = 1;
                     else
                         af_roi_value.roi[0].y = yAf - (FOCUS_RECTANGLE_DY/2);

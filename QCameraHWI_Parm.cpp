@@ -2908,6 +2908,10 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
 }
 
 status_t QCameraHardwareInterface::setDISMode() {
+
+  if(isLowPowerCamcorder())
+      mDisEnabled = 0; 
+
   uint32_t value = mRecordingHint && mDisEnabled;
 
   LOGI("%s DIS is %s value = %d", __func__,

@@ -679,8 +679,8 @@ static camera_antibanding_type camera_get_location(void) {
 #endif
 
 static const str_map scenemode[] = {
-    { CameraParameters::SCENE_MODE_OFF,           CAMERA_BESTSHOT_OFF },
-    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_AUTO },
+    { CameraParameters::SCENE_MODE_AUTO,           CAMERA_BESTSHOT_OFF },
+    { CameraParameters::SCENE_MODE_ASD,           CAMERA_BESTSHOT_AUTO },
     { CameraParameters::SCENE_MODE_ACTION,         CAMERA_BESTSHOT_ACTION },
     { CameraParameters::SCENE_MODE_PORTRAIT,       CAMERA_BESTSHOT_PORTRAIT },
     { CameraParameters::SCENE_MODE_LANDSCAPE,      CAMERA_BESTSHOT_LANDSCAPE },
@@ -1993,7 +1993,7 @@ void QualcommCameraHardware::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES,
                     skinToneEnhancement_values);
     mParameters.set(CameraParameters::KEY_SCENE_MODE,
-                    CameraParameters::SCENE_MODE_OFF);
+                    CameraParameters::SCENE_MODE_AUTO);
     mParameters.set("strtextures", "OFF");
 
     mParameters.set(CameraParameters::KEY_SUPPORTED_SCENE_MODES,

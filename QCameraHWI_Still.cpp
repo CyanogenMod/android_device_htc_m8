@@ -1369,12 +1369,14 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     } else if (enqueued) { /*not busy and old buffer (continue job)*/
       postviewframe = recvd_frame->snapshot.thumbnail.frame;
       mainframe = recvd_frame->snapshot.main.frame;
-
+      cam_config_get_parm(mHalCamCtrl->mCameraId, MM_CAMERA_PARM_DIMENSION, &dimension);
+      LOGV("%s: main_fmt =%d, tb_fmt =%d", __func__, dimension.main_img_format, dimension.thumb_format);
       /*since this is the continue job, we only care about the input buffer*/
       encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
       encode_params.thumbnail_fd = postviewframe->fd;
       encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
       encode_params.snapshot_fd = mainframe->fd;
+      encode_params.dimension = &dimension;
       if (!omxJpegEncodeNext(&encode_params)){
           LOGE("%s: Failure! JPEG encoder returned error.", __func__);
           ret = FAILED_TRANSACTION;

@@ -1449,6 +1449,8 @@ status_t  QCameraHardwareInterface::takePicture()
             return ret;
         }
 
+        /*prepare snapshot, e.g LED*/
+        takePicturePrepareHardware( );
         /* There's an issue where we have a glimpse of corrupted data between
            a time we stop a preview and display the postview. It happens because
            when we call stopPreview we deallocate the preview buffers hence overlay
@@ -2261,6 +2263,18 @@ void QCameraHardwareInterface::wdenoiseEvent(cam_ctrl_status_t status, void *coo
 bool QCameraHardwareInterface::isWDenoiseEnabled()
 {
     return mDenoiseValue;
+}
+
+void QCameraHardwareInterface::takePicturePrepareHardware()
+{
+    LOGV("%s: E", __func__);
+
+    /* Prepare snapshot*/
+    cam_ops_action(mCameraId,
+                  TRUE,
+                  MM_CAMERA_OPS_PREPARE_SNAPSHOT,
+                  this);
+    LOGV("%s: X", __func__);
 }
 
 }; // namespace android

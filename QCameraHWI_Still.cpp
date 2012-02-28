@@ -28,6 +28,8 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
+#define THUMBNAIL_DEFAULT_WIDTH 512
+#define THUMBNAIL_DEFAULT_HEIGHT 384
 
 /* following code implement the still image capture & encoding logic of this class*/
 namespace android {
@@ -371,8 +373,17 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
     mHalCamCtrl->getPictureSize(&mPictureWidth, &mPictureHeight);
     LOGD("%s: Picture size received: %d x %d", __func__,
          mPictureWidth, mPictureHeight);
+    mPostviewWidth = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+    mPostviewHeight =  mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    /*If application requested thumbnail size to be (0,0) 
+       then configure second outout to a default size.
+       Jpeg encoder will drop thumbnail as reflected in encodeParams.
+    */
+    if (mPostviewWidth == 0 && mPostviewHeight == 0) {
+         mPostviewWidth = THUMBNAIL_DEFAULT_WIDTH;
+         mPostviewHeight = THUMBNAIL_DEFAULT_HEIGHT;
+    }
 
-    mHalCamCtrl->getPreviewSize(&mPostviewWidth, &mPostviewHeight);
     LOGD("%s: Postview size received: %d x %d", __func__,
          mPostviewWidth, mPostviewHeight);
 
@@ -1409,22 +1420,6 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         }
         dimension.main_img_format = mPictureFormat;
         dimension.thumb_format = mThumbnailFormat;
-
-        #if 1
-
-        #else
-        mJpegHeap = new AshmemPool(frame_len,
-                                   1,
-                                   0, // we do not know how big the picture will be
-                                   "jpeg");
-        if (!mJpegHeap->initialized()) {
-            mJpegHeap.clear();
-            mJpegHeap = NULL;
-            LOGE("%s: Error allocating JPEG memory", __func__);
-            ret = NO_MEMORY;
-            goto end;
-        }
-        #endif
 
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");

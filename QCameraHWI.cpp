@@ -791,6 +791,12 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event, a
         case MM_CAMERA_CTRL_EVT_WDN_DONE:
             wdenoiseEvent(event->status, (void *)(event->cookie));
             break;
+        case MM_CAMERA_CTRL_EVT_ERROR:
+            app_cb->notifyCb  = mNotifyCb;
+            app_cb->argm_notify.msg_type = CAMERA_MSG_ERROR;
+            app_cb->argm_notify.ext1 = CAMERA_ERROR_UNKNOWN;
+            app_cb->argm_notify.cookie =  mCallbackCookie;
+            break;
        default:
             break;
     }

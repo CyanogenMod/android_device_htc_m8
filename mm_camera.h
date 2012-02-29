@@ -47,13 +47,15 @@ typedef enum {
     MM_CAMERA_STATE_EVT_REG_BUF_CB,
     MM_CAMERA_STATE_EVT_SET_FMT,
     MM_CAMERA_STATE_EVT_SET_DIM,
-    MM_CAMERA_STATE_EVT_REG_BUF,
+    MM_CAMERA_STATE_EVT_REG_BUF, // request amount of buffers and enqueue all buffers to kernel
     MM_CAMERA_STATE_EVT_UNREG_BUF,
     MM_CAMERA_STATE_EVT_STREAM_ON,
     MM_CAMERA_STATE_EVT_STREAM_OFF,
     MM_CAMERA_STATE_EVT_QBUF,
     MM_CAMERA_STATE_EVT_GET_CROP,
     MM_CAMERA_STATE_EVT_DISPATCH_BUFFERED_FRAME,
+    MM_CAMERA_STATE_EVT_REQUEST_BUF, // request amount of buffers to kernel only
+    MM_CAMERA_STATE_EVT_ENQUEUE_BUF, // enqueue some of buffers to kernel only
     MM_CAMERA_STATE_EVT_MAX
 } mm_camera_state_evt_type_t;
 
@@ -283,6 +285,8 @@ extern int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
                                             mm_camera_parm_t *parm);
 extern int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
                                             mm_camera_parm_t *parm);
+extern int32_t mm_camera_request_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf);
+extern int32_t mm_camera_enqueue_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf);
 extern int32_t mm_camera_prepare_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf);
 extern int32_t mm_camera_unprepare_buf(mm_camera_obj_t * my_obj, mm_camera_channel_type_t ch_type);
 extern int mm_camera_poll_thread_launch(mm_camera_obj_t * my_obj, int ch_type);

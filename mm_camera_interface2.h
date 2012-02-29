@@ -255,6 +255,7 @@ typedef struct {
     struct v4l2_plane planes[VIDEO_MAX_PLANES];
     uint32_t frame_offset;
     struct msm_frame frame;
+    int idx; /* index to stream frame */
 } mm_camera_mp_buf_t;
 
 typedef struct {
@@ -363,6 +364,8 @@ typedef struct {
     /* get a parm’s current value */
     int32_t (*get_parm)(mm_camera_t *camera, mm_camera_parm_type_t parm_type,
           void* p_value);
+    int32_t (*request_buf) (mm_camera_t *camera, mm_camera_reg_buf_t *buf);
+    int32_t (*enqueue_buf) (mm_camera_t *camera, mm_camera_reg_buf_t *buf);
     int32_t (*prepare_buf) (mm_camera_t *camera, mm_camera_reg_buf_t *buf);
     int32_t (*unprepare_buf) (mm_camera_t *camera, mm_camera_channel_type_t ch_type);
 } mm_camera_config_t;
@@ -525,6 +528,8 @@ int32_t cam_config_get_parm(
   int cam_id,
   mm_camera_parm_type_t parm_type,
   void* p_value);
+int32_t cam_config_request_buf(int cam_id, mm_camera_reg_buf_t *buf);
+int32_t cam_config_enqueue_buf(int cam_id, mm_camera_reg_buf_t *buf);
 int32_t cam_config_prepare_buf(int cam_id, mm_camera_reg_buf_t *buf);
 int32_t cam_config_unprepare_buf(int cam_id, mm_camera_channel_type_t ch_type);
 

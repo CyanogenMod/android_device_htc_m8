@@ -130,6 +130,7 @@ typedef struct {
 	 int                     stride[MM_CAMERA_MAX_NUM_FRAMES];
 	 uint32_t                addr_offset[MM_CAMERA_MAX_NUM_FRAMES];
 	 uint8_t                 local_flag[MM_CAMERA_MAX_NUM_FRAMES];
+     int                     enqueued_flag[MM_CAMERA_MAX_NUM_FRAMES];
 	 camera_memory_t        *camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
 } QCameraHalMemory_t;
 

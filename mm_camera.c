@@ -533,6 +533,22 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     return rc;
 }
 
+int32_t mm_camera_request_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf)
+{
+    int32_t rc = -MM_CAMERA_E_GENERAL;
+    rc = mm_camera_ch_fn(my_obj,    buf->ch_type,
+                    MM_CAMERA_STATE_EVT_REQUEST_BUF, (void *)&buf->preview);
+    return rc;
+}
+
+int32_t mm_camera_enqueue_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf)
+{
+    int32_t rc = -MM_CAMERA_E_GENERAL;
+    rc = mm_camera_ch_fn(my_obj,    buf->ch_type,
+                    MM_CAMERA_STATE_EVT_ENQUEUE_BUF, (void *)&buf->preview);
+    return rc;
+}
+
 int32_t mm_camera_prepare_buf(mm_camera_obj_t * my_obj, mm_camera_reg_buf_t *buf)
 {
     int32_t rc = -MM_CAMERA_E_GENERAL;

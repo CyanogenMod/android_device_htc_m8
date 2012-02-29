@@ -997,10 +997,6 @@ status_t QCameraHardwareInterface::startPreview2()
         LOGE("%s: X", __func__);
         return NO_ERROR;
     }
-    /* rest the preview memory struct */
-    mPreviewMemoryLock.lock();
-    memset(&mPreviewMemory, 0, sizeof(mPreviewMemory));
-    mPreviewMemoryLock.unlock();
 
     /*  get existing preview information, by qury mm_camera*/
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
@@ -1416,6 +1412,9 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
 
 void QCameraHardwareInterface::pausePreviewForSnapshot()
 {
+    if (mStreamDisplay) {
+        mStreamDisplay->setPreviewPauseFlag(TRUE);
+    }
     stopPreviewInternal( );
 }
 status_t QCameraHardwareInterface::resumePreviewAfterSnapshot()

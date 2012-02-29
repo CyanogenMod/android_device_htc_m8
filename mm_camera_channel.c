@@ -621,17 +621,19 @@ int32_t mm_camera_ch_fn(mm_camera_obj_t * my_obj,
         break;
     case MM_CAMERA_STATE_EVT_ATTR:
         rc = mm_camera_ch_util_attr(my_obj, ch_type,
-                                                                (mm_camera_channel_attr_t *)val);
+                                    (mm_camera_channel_attr_t *)val);
         break;
     case MM_CAMERA_STATE_EVT_REG_BUF_CB:
         rc = mm_camera_ch_util_reg_buf_cb(my_obj, ch_type,
-                                                                            (mm_camera_buf_cb_t *)val);
+                                          (mm_camera_buf_cb_t *)val);
         break;
     case MM_CAMERA_STATE_EVT_SET_FMT:
         rc = mm_camera_ch_util_set_fmt(my_obj, ch_type,
-                                                        (mm_camera_ch_image_fmt_parm_t *)val);
+                                       (mm_camera_ch_image_fmt_parm_t *)val);
         break;
     case MM_CAMERA_STATE_EVT_REG_BUF:
+    case MM_CAMERA_STATE_EVT_REQUEST_BUF:
+    case MM_CAMERA_STATE_EVT_ENQUEUE_BUF:
         rc = mm_camera_ch_util_reg_buf(my_obj, ch_type, evt, val);
         break;
     case MM_CAMERA_STATE_EVT_UNREG_BUF:

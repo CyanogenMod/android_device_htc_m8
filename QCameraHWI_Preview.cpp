@@ -626,11 +626,12 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
           msgType |=  CAMERA_MSG_PREVIEW_FRAME;
           int previewBufSize;
-          /* For CTS : Forcing preview memory buffer lenth to be
-             'previewWidth * previewHeight * 3/2'.
-              Needed when gralloc allocated extra memory.*/
-          //Can add this check for other formats as well.
-          if( mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) {
+          /* The preview buffer size sent back in the callback should be (width*height*bytes_per_pixel)
+           * As all preview formats we support, use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
+           * We need to put a check if some other formats are supported in future. (punits) */
+          if((mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) || (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV12) ||
+                    (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12))
+          {
               previewBufSize = previewWidth * previewHeight * 3/2;
               if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->size) {
                   previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->fd,
@@ -641,9 +642,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
                       data = previewMem;
                   }
               } else
-                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
-          } else
-                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];//mPreviewHeap->mBuffers[frame->def.idx];
+                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];
+          } else {
+                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];
+                LOGE("Invalid preview format, buffer size in preview callback may be wrong.");
+          }
       } else {
           data = NULL;
       }

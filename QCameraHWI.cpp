@@ -157,7 +157,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mFaceDetectOn(0),
                     mDisEnabled(0),
                     mZoomSupported(false),
-                    mFullLiveshotEnabled(1),
+                    mFullLiveshotEnabled(true),
                     mRecordingHint(0),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
                     mZslLookBackMode(0),
@@ -188,8 +188,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     property_get("persist.camera.hal.multitouchaf", value, "0");
     mMultiTouch = atoi(value);
 
-    property_get("persist.camera.full.liveshot", value, "0");
-    mFullLiveshotEnabled = atoi(value);
+    //property_get("persist.camera.full.liveshot", value, "0");
+    //mFullLiveshotEnabled = atoi(value);
 
     property_get("persist.camera.hal.dis", value, "0");
     mDisEnabled = atoi(value);
@@ -635,26 +635,6 @@ bool QCameraHardwareInterface::isSnapshotRunning() {
 
 bool QCameraHardwareInterface::isZSLMode() {
     return (myMode & CAMERA_ZSL_MODE);
-}
-bool QCameraHardwareInterface::isLowPowerCamcorder() {
-    if(mHFRLevel > 1) /* hard code the value now. Need to move tgtcommon to camear.h */
-      return true;
-
-    /* If Full size liveshot is disabled, always run
-     * in low power camcorder mode to save power. */
-    if (!mFullLiveshotEnabled) {
-      return true;
-    }
-
-    /* C2D expects the resolutions to be 32 aligned.
-     * Otherwise the preview frames will be corrupted.
-     * So for QCIF and D1, run in low power mode.
-     * i.e Bypass the C2D path */
-    if (mDimension.display_width == QCIF_WIDTH ||
-        mDimension.display_width == D1_WIDTH)
-      return true;
-    else
-      return false;
 }
 
 int QCameraHardwareInterface::getHDRMode() {

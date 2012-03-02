@@ -401,6 +401,17 @@ static const str_map hdr_bracket[] = {
     { CameraParameters::AE_BRACKET_HDR,HDR_MODE },
     { CameraParameters::AE_BRACKET,EXP_BRACKETING_MODE }
 };
+
+typedef enum {
+    LOW_POWER,
+    NORMAL_POWER
+} power_mode;
+
+static const str_map power_modes[] = {
+    { CameraParameters::LOW_POWER,LOW_POWER},
+    { CameraParameters::NORMAL_POWER,NORMAL_POWER }
+};
+
 /**************************************************************************/
 static int attr_lookup(const str_map arr[], int len, const char *name)
 {
@@ -947,17 +958,13 @@ void QCameraHardwareInterface::initDefaultParameters()
         mParameters.set("video-zoom-support", "false");
     }
 
-    if (mFullLiveshotEnabled) {
-        //Set Live Snapshot support
-        mParameters.set("full-video-snap-supported", "true");
-        mParameters.set("video-snapshot-supported", "true");
-    }else{
-        mParameters.set("full-video-snap-supported", "false");
-        mParameters.set("video-snapshot-supported", "false");
-    }
-
+    //8960 supports Power modes : Low power, Normal Power.
+    mParameters.set("power-mode-supported", "true");
     //Set Live shot support
     mParameters.set("video-snapshot-supported", "true");
+
+    //Set default power mode
+    mParameters.set(CameraParameters::KEY_POWER_MODE,"Normal_Power");
 
     //Set Camera Mode
     mParameters.set(CameraParameters::KEY_CAMERA_MODE,0);
@@ -1220,6 +1227,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setCameraMode(params)))                   final_rc = rc;
+    if ((rc = setPowerMode(params)))                    final_rc = rc;
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setRecordSize(params)))                   final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
@@ -1286,7 +1294,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
-
+	
    LOGI("%s: X", __func__);
    return final_rc;
 }
@@ -2291,6 +2299,30 @@ status_t QCameraHardwareInterface::setCameraMode(const CameraParameters& params)
     }
     return NO_ERROR;
 }
+
+status_t QCameraHardwareInterface::setPowerMode(const CameraParameters& params) {
+
+    const char *powermode = NULL;
+
+    powermode = params.get(CameraParameters::KEY_POWER_MODE);
+    if (powermode != NULL) {
+        int value = attr_lookup(power_modes,
+                sizeof(power_modes) / sizeof(str_map), powermode);
+        if(value == 0) {
+            LOGE("Enable Low Power Mode");
+            mPowerMode = value;
+            mFullLiveshotEnabled = false;
+            mParameters.set(CameraParameters::KEY_POWER_MODE,"Low_Power");
+        }else{
+            LOGE("Enable Normal Power Mode");
+            mPowerMode = value;
+            mFullLiveshotEnabled = true;
+            mParameters.set(CameraParameters::KEY_POWER_MODE,"Normal_Power");
+        }
+    }
+    return NO_ERROR;
+}
+
 
 status_t QCameraHardwareInterface::setPreviewSize(const CameraParameters& params)
 {
@@ -3379,5 +3411,29 @@ int QCameraHardwareInterface::getZSLBackLookCount(void) const
     return atoi(prop);
 }
 
+bool QCameraHardwareInterface::isLowPowerCamcorder() {
+
+    if(mPowerMode == LOW_POWER) {
+        return true;
+    }
+    if(mHFRLevel > 1) /* hard code the value now. Need to move tgtcommon to camear.h */
+      return true;
+
+    /* If Full size liveshot is disabled, always run
+     * in low power camcorder mode to save power. */
+    if (!mFullLiveshotEnabled) {
+      return true;
+    }
+
+    /* C2D expects the resolutions to be 32 aligned.
+     * Otherwise the preview frames will be corrupted.
+     * So for QCIF and D1, run in low power mode.
+     * i.e Bypass the C2D path */
+    if (mDimension.display_width == QCIF_WIDTH ||
+        mDimension.display_width == D1_WIDTH)
+      return true;
+    else
+      return false;
+}
 
 }; /*namespace android */

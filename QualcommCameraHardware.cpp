@@ -274,6 +274,7 @@ static struct camera_size_type for_3D_picture_sizes[] = {
 
 static int data_counter = 0;
 static int sensor_rotation = 0;
+static int record_flag = 0;
 static camera_size_type* picture_sizes;
 static camera_size_type* preview_sizes;
 static camera_size_type* hfr_sizes;
@@ -3086,7 +3087,7 @@ void QualcommCameraHardware::runPreviewThread(void *data)
         // If output  is NOT enabled (targets otherthan 7x30 , 8x50 and 8x60 currently..)
         if( (mCurrentTarget != TARGET_MSM7630 ) &&  (mCurrentTarget != TARGET_QSD8250) && (mCurrentTarget != TARGET_MSM8660)) {
             int flagwait = 1;
-            if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
+            if(rcb != NULL && (msgEnabled & CAMERA_MSG_VIDEO_FRAME) && (record_flag)) {
                 if(mStoreMetaDataInFrame){
                     flagwait = 1;
                     if(metadata_memory[bufferIndex]!= NULL)
@@ -7057,6 +7058,7 @@ status_t QualcommCameraHardware::startRecording()
             }
         }
       }
+      record_flag = 1;
     }
     return ret;
 }
@@ -7130,6 +7132,7 @@ status_t QualcommCameraHardware::startRecordingInternal()
 void QualcommCameraHardware::stopRecording()
 {
     LOGV("stopRecording: E");
+    record_flag = 0;
     Mutex::Autolock l(&mLock);
     {
         mRecordFrameLock.lock();

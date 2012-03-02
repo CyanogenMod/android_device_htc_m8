@@ -338,7 +338,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                     CAMERA_SET_REDEYE_REDUCTION, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_WAVELET_DENOISE:
         return mm_camera_send_native_ctrl_cmd(my_obj,
-                    CAMERA_SET_PARM_WAVELET_DENOISE, sizeof(int32_t), (void *)parm->p_value);
+                    CAMERA_SET_PARM_WAVELET_DENOISE, sizeof(denoise_param_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_3D_DISPLAY_DISTANCE:
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_3D_DISPLAY_DISTANCE, sizeof(float), (void *)parm->p_value);

@@ -2213,8 +2213,18 @@ status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& par
         if ((value != NOT_FOUND) &&  (mDenoiseValue != value)) {
             mDenoiseValue =  value;
             mParameters.set(CameraParameters::KEY_DENOISE, str);
-            bool ret = native_set_parms(MM_CAMERA_PARM_WAVELET_DENOISE, sizeof(value),
-                    (void *)&value);
+
+            char prop[PROPERTY_VALUE_MAX];
+            memset(prop, 0, sizeof(prop));
+            property_get("persist.denoise.process.plates", prop, "0");
+
+            denoise_param_t temp;
+            memset(&temp, 0, sizeof(denoise_param_t));
+            temp.denoise_enable = value;
+            temp.process_plates = atoi(prop);
+            LOGE("Denoise enable=%d, plates=%d", temp.denoise_enable, temp.process_plates);
+            bool ret = native_set_parms(MM_CAMERA_PARM_WAVELET_DENOISE, sizeof(temp),
+                    (void *)&temp);
             return ret ? NO_ERROR : UNKNOWN_ERROR;
         }
         return NO_ERROR;

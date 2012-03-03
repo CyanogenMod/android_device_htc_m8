@@ -2975,9 +2975,12 @@ status_t QCameraHardwareInterface::setDISMode() {
   /* TODO Remove this workaround once the C2D limitation
    * (32 alignment on width) is fixed. */
   /* Start workaround */
-  if (mDimension.display_width == QCIF_WIDTH ||
-      mDimension.display_width == D1_WIDTH) {
-    value = 0;
+  /*
+  * in live effect case Dimension will be reversed.
+  */
+  if (mDimension.display_width == QCIF_WIDTH || mDimension.display_height == QCIF_WIDTH ||
+      mDimension.display_width == D1_WIDTH || mDimension.display_height == D1_WIDTH) {
+      value = 0;
   }
   /* End workaround */
 
@@ -2995,8 +2998,11 @@ status_t QCameraHardwareInterface::setFullLiveshot()
   /* TODO Remove this workaround once the C2D limitation
    * (32 alignment on width) is fixed. */
   /* Start workaround */
-  if (mDimension.display_width == QCIF_WIDTH ||
-      mDimension.display_width == D1_WIDTH) {
+  /*
+  * in live effect case Dimension will be reversed.
+  */
+  if (mDimension.display_width == QCIF_WIDTH || mDimension.display_height == QCIF_WIDTH ||
+      mDimension.display_width == D1_WIDTH || mDimension.display_height == D1_WIDTH) {
     value = 0;
   }
   /* End workaround */

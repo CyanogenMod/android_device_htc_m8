@@ -1879,7 +1879,10 @@ void QCameraHardwareInterface::handleZoomEventForSnapshot(void)
         LOGD("%s: Setting crop info for snapshot", __func__);
         memcpy(&(mStreamSnap->mCrop), &v4l2_crop, sizeof(v4l2_crop));
     }
-
+    if(mFullLiveshotEnabled && mStreamLiveSnap){
+        LOGD("%s: Setting crop info for snapshot", __func__);
+        memcpy(&(mStreamLiveSnap->mCrop), &v4l2_crop, sizeof(v4l2_crop));
+    }
     LOGD("%s: X", __func__);
 }
 

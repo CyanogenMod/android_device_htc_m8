@@ -1812,7 +1812,7 @@ void QualcommCameraHardware::initDefaultParameters()
 
     mParameters.set(CameraParameters::KEY_JPEG_QUALITY, "85"); // max quality
 
-    mParameters.set("power-mode-supported", "false");
+    mParameters.set("full-video-snap-supported", "false");
 
     mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH,
                     THUMBNAIL_WIDTH_STR); // informative

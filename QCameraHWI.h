@@ -548,7 +548,6 @@ private:
     status_t setMeteringAreas(const CameraParameters& params);
     status_t setFullLiveshot(void);
     status_t setDISMode(void);
-    status_t setPowerMode(const CameraParameters& params);
     status_t setCaptureBurstExp(void);
     void takePicturePrepareHardware( );
 
@@ -599,7 +598,7 @@ private:
     QCameraStream       *mStreamDisplay;
     QCameraStream       *mStreamRecord;
     QCameraStream       *mStreamSnap;
-    QCameraStream       *mStreamLiveSnap;
+	QCameraStream       *mStreamLiveSnap;
 
     cam_ctrl_dimension_t mDimension;
     int  previewWidth, previewHeight;
@@ -624,7 +623,6 @@ private:
 
     unsigned int mPictureSizeCount;
     unsigned int mPreviewSizeCount;
-    int mPowerMode;
 
     bool mAutoFocusRunning;
     bool mMultiTouch;

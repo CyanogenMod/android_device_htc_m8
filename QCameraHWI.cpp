@@ -1344,7 +1344,7 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app
       app_cb->argm_notify.cookie =  mCallbackCookie;
 
       LOGE("Auto foucs state =%d", *status);
-      if(*status==CAM_CTRL_SUCCESS || *status==CAM_CTRL_ACCEPTED) {
+      if(*status==CAM_CTRL_SUCCESS) {
         app_cb->argm_notify.ext1 = true;
       }
       else if(*status==CAM_CTRL_FAILED){

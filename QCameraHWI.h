@@ -549,6 +549,7 @@ private:
     status_t setFullLiveshot(void);
     status_t setDISMode(void);
     status_t setPowerMode(const CameraParameters& params);
+    status_t setCaptureBurstExp(void);
     void takePicturePrepareHardware( );
 
     isp3a_af_mode_t getAutoFocusMode(const CameraParameters& params);

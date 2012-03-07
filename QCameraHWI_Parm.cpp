@@ -1245,16 +1245,8 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setAntibanding(params)))                  final_rc = rc;
     //    if ((rc = setOverlayFormats(params)))         final_rc = rc;
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
+    if ((rc = setCaptureBurstExp()))                    final_rc = rc;
 
-    const char *str_val = mParameters.get("capture-burst-exposures");
-    if ( str_val == NULL || strlen(str_val)==0 ) {
-        char burst_exp[PROPERTY_VALUE_MAX];
-        memset(burst_exp, 0, sizeof(burst_exp));
-        property_get("persist.capture.burst.exposures", burst_exp, "");
-        if ( strlen(burst_exp)>0 ) {
-            mParameters.set("capture-burst-exposures", burst_exp);
-        }
-    }
     mParameters.set("num-snaps-per-shutter", params.get("num-snaps-per-shutter"));
 
     if ((rc = setAEBracket(params)))              final_rc = rc;
@@ -2773,6 +2765,17 @@ status_t QCameraHardwareInterface::setAEBracket(const CameraParameters& params)
     }
     return NO_ERROR;
 }
+
+status_t QCameraHardwareInterface::setCaptureBurstExp()
+{
+    char burst_exp[PROPERTY_VALUE_MAX];
+    memset(burst_exp, 0, sizeof(burst_exp));
+    property_get("persist.capture.burst.exposures", burst_exp, "");
+    if (NULL != burst_exp)
+      mParameters.set("capture-burst-exposures", burst_exp);
+    return NO_ERROR;
+}
+
 status_t QCameraHardwareInterface::setRedeyeReduction(const CameraParameters& params)
 {
     if(supportsRedEyeReduction() == false) {

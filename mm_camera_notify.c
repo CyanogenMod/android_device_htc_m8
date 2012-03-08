@@ -433,7 +433,8 @@ static void mm_camera_snapshot_send_liveshot_notify(mm_camera_obj_t * my_obj)
             my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.ref_count[data.snapshot.main.idx]++;
             my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb[i].cb(&data,
                                     my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb[i].user_data);
-            my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots -= 1;
+            my_obj->snap_burst_num_by_user -= 1;
+            CDBG("%s: burst number =%d", __func__, my_obj->snap_burst_num_by_user);
             delivered = 1;
         }
     }
@@ -481,7 +482,8 @@ static void mm_camera_snapshot_send_snapshot_notify(mm_camera_obj_t * my_obj)
             if(my_obj->poll_threads[MM_CAMERA_CH_SNAPSHOT].data.used == 1){
                 buf_cb = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buf_cb[i];
                 buf_cb.cb(&data,buf_cb.user_data);
-                my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots -= 1;
+                my_obj->snap_burst_num_by_user -= 1;
+                CDBG("%s: burst number =%d", __func__, my_obj->snap_burst_num_by_user);
                 delivered = 1;
             }
         }

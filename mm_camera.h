@@ -141,7 +141,7 @@ typedef struct {
 typedef struct {
     mm_camera_stream_t thumbnail;
     mm_camera_stream_t main;
-    int8_t num_shots;
+    int    delivered_cnt;
     int8_t pending_cnt;
 } mm_camera_ch_snapshot_t;
 
@@ -252,6 +252,7 @@ typedef struct {
     mm_camera_poll_thread_t poll_threads[MM_CAMERA_POLL_THRAED_MAX];
     mm_camera_mem_map_t hist_mem_map;
     int full_liveshot;
+    int snap_burst_num_by_user;
 } mm_camera_obj_t;
 
 #define MM_CAMERA_DEV_NAME_LEN 32

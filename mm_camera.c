@@ -440,7 +440,7 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
         break;
     case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
         CDBG("%s: Setting snapshot burst number: %d\n", __func__, *((int *)parm->p_value));
-        my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots = *((int *)parm->p_value);
+        my_obj->snap_burst_num_by_user = *((int *)parm->p_value);
         rc = MM_CAMERA_OK;
         break;
     case MM_CAMERA_PARM_CH_IMAGE_FMT:
@@ -532,7 +532,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
         *((mm_camera_op_mode_type_t *)parm->p_value) = my_obj->op_mode;
         break;
     case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
-        *((int *)parm->p_value) = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.num_shots;
+        *((int *)parm->p_value) = my_obj->snap_burst_num_by_user;
         break;
     default:
         /* needs to add more implementation */

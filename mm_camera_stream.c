@@ -362,7 +362,7 @@ int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream,
 
   rc = ioctl(stream->fd, VIDIOC_QBUF, &buffer);
   if (rc < 0) {
-      CDBG_ERROR("%s: VIDIOC_QBUF error = %d\n", __func__, rc);
+      CDBG_ERROR("%s: VIDIOC_QBUF error = %d, stream type=%d\n", __func__, rc, stream->stream_type);
       return rc;
   }
   CDBG("%s: X idx: %d, stream_type:%d", __func__, idx, stream->stream_type);
@@ -686,13 +686,12 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
                     mm_camera_notify_frame_t *frame)
 {
     int32_t rc = MM_CAMERA_OK;
-    
     pthread_mutex_lock(&stream->frame.mutex);
 
     if(stream->frame.ref_count[frame->idx] == 0) {
         rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
-        CDBG_ERROR("%s: Error Trying to free second time?(idx=%d) count=%d\n",
-                   __func__, frame->idx, stream->frame.ref_count[frame->idx]);
+        CDBG_ERROR("%s: Error Trying to free second time?(idx=%d) count=%d, stream type=%d\n",
+                   __func__, frame->idx, stream->frame.ref_count[frame->idx], stream->stream_type);
         rc = -1;
     }else{
         stream->frame.ref_count[frame->idx]--;
@@ -704,7 +703,7 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
                      __func__, frame->idx, rc);
         }else{
             CDBG_ERROR("<DEBUG> : Still ref count pending count :%d",stream->frame.ref_count[frame->idx]);
-            CDBG_ERROR("<DEBUG> : for buffer:%p:%d",stream,frame->idx);
+            CDBG_ERROR("<DEBUG> : for buffer:%p:%d, stream type=%d",stream,frame->idx, stream->stream_type);
         }
     }
 
@@ -728,7 +727,7 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
         CDBG_ERROR("%s: Error Trying to free second time?(idx=%d) count=%d\n",
           __func__, frame->idx, stream->frame.ref_count[frame->idx]);
         rc = -1;
-    } 
+    }
 #endif
     pthread_mutex_unlock(&stream->frame.mutex);
     return rc;
@@ -763,7 +762,8 @@ static int32_t mm_camera_stream_fsm_reg(mm_camera_obj_t * my_obj,
                     rc = mm_camera_stream_qbuf(my_obj, stream,
                              stream->frame.frame[i].idx);
                     if (rc < 0) {
-                        CDBG_ERROR("%s: ioctl VIDIOC_QBUF error = %d\n", __func__, rc);
+                        CDBG_ERROR("%s: ioctl VIDIOC_QBUF error=%d, stream->type=%d\n",
+                           __func__, rc, stream->stream_type);
                         return rc;
                     }
                     stream->frame.ref_count[i] = 0;

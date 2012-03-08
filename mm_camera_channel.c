@@ -511,6 +511,8 @@ static int mm_camera_channel_skip_frames(mm_camera_obj_t *my_obj,
     count = mm_camera_stream_frame_get_q_cnt(mq);
     if(count < mm_camera_stream_frame_get_q_cnt(sq))
         count = mm_camera_stream_frame_get_q_cnt(sq);
+    CDBG("count =%d, look_back=%d,mq->match_cnt=%d, sq->match_cnt=%d",
+               count ,frame_attr->look_back, mq->match_cnt,sq->match_cnt);
     count -= frame_attr->look_back;
     for(i=0; i < count; i++) {
         mframe = mm_camera_stream_frame_deq(mq);
@@ -565,7 +567,7 @@ LOGE("%s: mzhu, E", __func__);
             CDBG_ERROR("%s: Error getting right frame!", __func__);
             goto end;
         }
-        num_of_req_frame = ch->snapshot.num_shots;
+        num_of_req_frame = my_obj->snap_burst_num_by_user;
         ch->snapshot.pending_cnt = num_of_req_frame;
         for(i = 0; i < num_of_req_frame; i++) {
             mframe = mm_camera_stream_frame_deq(mq);
@@ -591,6 +593,7 @@ LOGE("%s: mzhu, E", __func__);
                         ch->buf_cb[j].cb(&data, ch->buf_cb[j].user_data);
                 }
             } else {
+               CDBG_ERROR("%s: mframe %p, sframe = %p", __func__, mframe, sframe);
                 qmframe = mframe;
                 qsframe = sframe;
                 rc = -1;
@@ -605,9 +608,12 @@ LOGE("%s: mzhu, E", __func__);
             mm_camera_stream_frame_enq(sq, &stream2->frame.frame[qsframe->idx]);
             qsframe = NULL;
         }
+    } else {
+      CDBG_ERROR(" mq =%p sq =%p stream1 =%p stream2 =%p", mq, sq , stream1 , stream2);
+
     }
-    CDBG("%s: Number of burst: %d, pending_count: %d", __func__,
-        ch->snapshot.num_shots, ch->snapshot.pending_cnt);
+    CDBG("%s: burst number: %d, pending_count: %d", __func__,
+        my_obj->snap_burst_num_by_user, ch->snapshot.pending_cnt);
 end:
     pthread_mutex_unlock(&ch->mutex);
     /* If we are done sending callbacks for all the requested number of snapshots

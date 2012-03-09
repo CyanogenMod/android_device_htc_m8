@@ -1615,14 +1615,14 @@ static int parseCameraAreaString(const char* str, int max_num_areas,
     int values[5], index=0;
     *num_areas_found = 0;
 
-    while((start != NULL) && (index < max_num_areas)) {
+    while(start != NULL) {
        if(*start != '(') {
-            LOGE("%s: Ill formatted area string: %s", __func__, str);
+            LOGE("%s: error: Ill formatted area string: %s", __func__, str);
             return -1;
        }
        end = strchr(start, ')');
        if(end == NULL) {
-            LOGE("%s: Ill formatted area string: %s", __func__, str);
+            LOGE("%s: error: Ill formatted area string: %s", __func__, str);
             return -1;
        }
        int i;
@@ -1631,7 +1631,12 @@ static int parseCameraAreaString(const char* str, int max_num_areas,
        }
        area_str[i] = '\0';
        if(parseNDimVector(area_str, values, 5) < 0){
-            LOGE("%s: Failed to parse the area string: %s", __func__, area_str);
+            LOGE("%s: error: Failed to parse the area string: %s", __func__, area_str);
+            return -1;
+       }
+       // no more areas than max_num_areas are accepted.
+       if(index >= max_num_areas) {
+            LOGE("%s: error: too many areas specified %s", __func__, str);
             return -1;
        }
        pAreas[index].x1 = values[0];
@@ -1644,6 +1649,29 @@ static int parseCameraAreaString(const char* str, int max_num_areas,
     }
     (*num_areas_found) = index;
     return 0;
+}
+static bool validateCameraAreas(camera_area_t *areas, int num_areas)
+{
+    for(int i=0; i<num_areas; i++) {
+
+        // handle special case (0, 0, 0, 0, 0)
+        if((areas[i].x1 == 0) && (areas[i].y1 == 0)
+            && (areas[i].x2 == 0) && (areas[i].y2 == 0) && (areas[i].weight == 0)) {
+            continue;
+        }
+        if(areas[i].x1 < -1000) return false;               // left should be >= -1000
+        if(areas[i].y1 < -1000) return false;               // top  should be >= -1000
+        if(areas[i].x2 > 1000) return false;                // right  should be <= 1000
+        if(areas[i].y2 > 1000) return false;                // bottom should be <= 1000
+        if(areas[i].weight <= 0 || areas[i].weight > 1000)  // weight should be in [1, 1000]
+            return false;
+        if(areas[i].x1 >= areas[i].x2) {                    // left should be < right
+            return false;
+        }
+        if(areas[i].y1 >= areas[i].y2)                      // top should be < bottom
+            return false;
+    }
+    return true;
 }
 
 status_t QCameraHardwareInterface::setFocusAreas(const CameraParameters& params)
@@ -1663,6 +1691,15 @@ status_t QCameraHardwareInterface::setFocusAreas(const CameraParameters& params)
         int num_areas_found=0;
         if(parseCameraAreaString(str, max_num_af_areas, areas, &num_areas_found) < 0) {
             LOGE("%s: Failed to parse the string: %s", __func__, str);
+            delete areas;
+            return BAD_VALUE;
+        }
+        for(int i=0; i<num_areas_found; i++) {
+            LOGD("FocusArea[%d] = (%d, %d, %d, %d, %d)", i, (areas[i].x1), (areas[i].y1),
+                        (areas[i].x2), (areas[i].y2), (areas[i].weight));
+        }
+        if(validateCameraAreas(areas, num_areas_found) == false) {
+            LOGE("%s: invalid areas specified : %s", __func__, str);
             delete areas;
             return BAD_VALUE;
         }
@@ -1759,6 +1796,15 @@ status_t QCameraHardwareInterface::setMeteringAreas(const CameraParameters& para
         int num_areas_found=0;
         if(parseCameraAreaString(str, max_num_mtr_areas, areas, &num_areas_found) < 0) {
             LOGE("%s: Failed to parse the string: %s", __func__, str);
+            delete areas;
+            return BAD_VALUE;
+        }
+        for(int i=0; i<num_areas_found; i++) {
+            LOGD("MeteringArea[%d] = (%d, %d, %d, %d, %d)", i, (areas[i].x1), (areas[i].y1),
+                        (areas[i].x2), (areas[i].y2), (areas[i].weight));
+        }
+        if(validateCameraAreas(areas, num_areas_found) == false) {
+            LOGE("%s: invalid areas specified : %s", __func__, str);
             delete areas;
             return BAD_VALUE;
         }

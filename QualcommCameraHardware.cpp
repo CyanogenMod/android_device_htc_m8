@@ -8896,7 +8896,8 @@ status_t QualcommCameraHardware::setMeteringAreas(const CameraParameters& params
     }
     else {
         // handling default string
-        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+        if ((strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) ||
+            (strcmp("(0,0,0,0,0)", str) == 0)){
           mParameters.set(CameraParameters::KEY_METERING_AREAS, NULL);
           return NO_ERROR;
         }
@@ -8919,7 +8920,8 @@ status_t QualcommCameraHardware::setFocusAreas(const CameraParameters& params)
     }
     else {
         // handling default string
-        if (strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) {
+        if ((strcmp("(-2000,-2000,-2000,-2000,0)", str) == 0) ||
+            (strcmp("(0,0,0,0,0)", str) == 0)) {
           mParameters.set(CameraParameters::KEY_FOCUS_AREAS, NULL);
           return NO_ERROR;
         }

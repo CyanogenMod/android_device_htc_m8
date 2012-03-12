@@ -64,9 +64,26 @@ status_t QCameraStream_preview::setPreviewWindow(preview_stream_ops_t* window)
          * Release all the buffers back */
        // relinquishBuffers();
     }
-    mDisplayLock.lock();
+    Mutex::Autolock lock(mStopCallbackLock);
+    if(mPreviewWindow != window) {
+        //Display window changed
+        // check if we have flag
+        if (mbPausedBySnapshot) {
+           // Previously paused from snapshot, since display window changed,
+           // we need out previously owned buffer back to surface,
+           // and reset the flag.
+           mbPausedBySnapshot = FALSE;
+
+           ALOGV("%s : Preview window changed, previous buffer unprepared",__func__);
+           if (mDisplayBuf.preview.buf.mp != NULL) {
+               delete[] mDisplayBuf.preview.buf.mp;
+               mDisplayBuf.preview.buf.mp = NULL;
+           }
+           /*free camera_memory handles and return buffer back to surface*/
+           putBufferToSurface();
+       }
+    }
     mPreviewWindow = window;
-    mDisplayLock.unlock();
     ALOGV(" %s : X ", __FUNCTION__ );
     return retVal;
 }
@@ -235,7 +252,6 @@ status_t QCameraStream_preview::putBufferToSurface() {
 
     ALOGI(" %s : E ", __FUNCTION__);
 
-    //mDisplayLock.lock();
     mHalCamCtrl->mPreviewMemoryLock.lock();
 	for (int cnt = 0; cnt < mHalCamCtrl->mPreviewMemory.buffer_count; cnt++) {
         if (cnt < mHalCamCtrl->mPreviewMemory.buffer_count) {
@@ -268,7 +284,6 @@ status_t QCameraStream_preview::putBufferToSurface() {
 	}
 	memset(&mHalCamCtrl->mPreviewMemory, 0, sizeof(mHalCamCtrl->mPreviewMemory));
 	mHalCamCtrl->mPreviewMemoryLock.unlock();
-	//mDisplayLock.unlock();
     ALOGI(" %s : X ",__FUNCTION__);
     return NO_ERROR;
 }
@@ -281,7 +296,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
     ALOGI("%s, width = %d height = %d", __func__,
        mHalCamCtrl->mDimension.display_width,
        mHalCamCtrl->mDimension.display_height);
-    mDisplayLock.lock();
+    Mutex::Autolock lock(mStopCallbackLock);
     for (int i = 0; i < faces_detected; i++) {
        // top
        mHalCamCtrl->mFace[i].rect[0] =
@@ -298,7 +313,6 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
     }
     mHalCamCtrl->mMetadata.number_of_faces = faces_detected;
     mHalCamCtrl->mMetadata.faces = mHalCamCtrl->mFace;
-    mDisplayLock.unlock();
 }
 
 status_t QCameraStream_preview::initDisplayBuffers()
@@ -724,6 +738,18 @@ QCameraStream_preview::~QCameraStream_preview() {
 	if(mInit) {
 		release();
 	}
+
+    if (mbPausedBySnapshot) {
+       mbPausedBySnapshot = FALSE;
+       ALOGV("%s : previous buffer unprepared",__func__);
+       if (mDisplayBuf.preview.buf.mp != NULL) {
+           delete[] mDisplayBuf.preview.buf.mp;
+           mDisplayBuf.preview.buf.mp = NULL;
+       }
+       /*free camera_memory handles and return buffer back to surface*/
+       putBufferToSurface();
+   }
+
 	mInit = false;
 	mActive = false;
     ALOGV("%s: X", __func__);
@@ -919,6 +945,7 @@ status_t QCameraStream_preview::start()
         ALOGE("Debug : %s : Buffer Unprepared",__func__);
         if (mDisplayBuf.preview.buf.mp != NULL) {
             delete[] mDisplayBuf.preview.buf.mp;
+            mDisplayBuf.preview.buf.mp = NULL;
         }
 
         /*free camera_memory handles and return buffer back to surface*/

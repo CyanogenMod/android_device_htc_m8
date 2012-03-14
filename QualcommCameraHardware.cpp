@@ -5498,6 +5498,14 @@ void QualcommCameraHardware::stopPreviewInternal()
                 /* Flush the Free Q */
                 LINK_camframe_release_all_frames(CAM_VIDEO_FRAME);
             }
+            mFrameThreadWaitLock.lock();
+            while (mFrameThreadRunning) {
+              LOGI("stopPreviewInternal: waiting for old frame thread to complete.");
+              mFrameThreadWait.wait(mFrameThreadWaitLock);
+              LOGI("stopPreviewInternal: old frame thread completed.");
+            }
+            mFrameThreadWaitLock.unlock();
+
             mPreviewInitialized = false;
         }
     }

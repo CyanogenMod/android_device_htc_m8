@@ -159,6 +159,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          ret = UNKNOWN_ERROR;
      goto end;
     }
+    previewBufSize = dim.display_width * dim.display_height * 3/2;
     err = mPreviewWindow->set_usage(mPreviewWindow,
         GRALLOC_USAGE_PRIVATE_MM_HEAP |
         GRALLOC_USAGE_PRIVATE_IOMMU_HEAP |
@@ -650,35 +651,23 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   ALOGV("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
 
   camera_memory_t *previewMem = NULL;
-  int previewWidth, previewHeight;
-  mHalCamCtrl->mParameters.getPreviewSize(&previewWidth, &previewHeight);
 
   if (pcb != NULL) {
       //Sending preview callback if corresponding Msgs are enabled
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
           msgType |=  CAMERA_MSG_PREVIEW_FRAME;
-          int previewBufSize;
           /* The preview buffer size sent back in the callback should be (width*height*bytes_per_pixel)
-           * As all preview formats we support, use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
-           * We need to put a check if some other formats are supported in future. (punits) */
-          if((mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) || (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV12) ||
-                    (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12))
-          {
-              previewBufSize = previewWidth * previewHeight * 3/2;
-              if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->size) {
-                  previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->fd,
-                  previewBufSize, 1, mHalCamCtrl->mCallbackCookie);
-                  if (!previewMem || !previewMem->data) {
-                      ALOGE("%s: mGetMemory failed.\n", __func__);
-                  } else {
-                      data = previewMem;
-                  }
-              } else
-                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];
-          } else {
-                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];
-                ALOGE("Invalid preview format, buffer size in preview callback may be wrong.");
-          }
+           * As all preview formats we support, use 12 bits per pixel, buffer size = width * height * 3/2.*/
+          if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->size) {
+              previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->def.idx]->fd,
+                      previewBufSize, 1, mHalCamCtrl->mCallbackCookie);
+              if (!previewMem || !previewMem->data) {
+                  ALOGE("%s: mGetMemory failed.\n", __func__);
+              } else {
+                  data = previewMem;
+              }
+          } else
+              data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->def.idx];
       } else {
           data = NULL;
       }
@@ -720,7 +709,8 @@ QCameraStream_preview::
 QCameraStream_preview(int cameraId, camera_mode_t mode)
   : QCameraStream(cameraId,mode),
     mLastQueuedFrame(NULL),
-    mbPausedBySnapshot(FALSE)
+    mbPausedBySnapshot(FALSE),
+    previewBufSize(0)
   {
     mHalCamCtrl = NULL;
     ALOGE("%s: E", __func__);

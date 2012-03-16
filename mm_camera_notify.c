@@ -133,6 +133,9 @@ int mm_camera_zsl_frame_cmp_and_enq(mm_camera_obj_t * my_obj,
     mm_camera_frame_t *peer_frame_tmp;
     mm_camera_notify_frame_t notify_frame;
 
+    pthread_mutex_t *pSnapshotMutex = &(my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main.frame.readyq.mutex);
+    pthread_mutex_t *pPreviewMutex = &(my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream.frame.readyq.mutex);
+
     if(mystream->stream_type == MM_CAMERA_STREAM_PREVIEW) {
         peerstream = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main;
     } else
@@ -141,8 +144,8 @@ int mm_camera_zsl_frame_cmp_and_enq(mm_camera_obj_t * my_obj,
     peerq = &peerstream->frame.readyq;
     watermark = my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.water_mark;
     /* lock both queues */
-    pthread_mutex_lock(&myq->mutex);
-    pthread_mutex_lock(&peerq->mutex);
+    pthread_mutex_lock(pSnapshotMutex);
+    pthread_mutex_lock(pPreviewMutex);
     peer_frame = peerq->tail;
     /* for 30-120 fps streaming no need to consider the wrapping back of frame_id */
     if(!peer_frame || node->frame.frame_id > peer_frame->frame.frame_id) {
@@ -350,8 +353,8 @@ end:
               &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream.frame.readyq,
               &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main,
               &my_obj->ch[MM_CAMERA_CH_PREVIEW].preview.stream, &deliver_done);
-    pthread_mutex_unlock(&peerq->mutex);
-    pthread_mutex_unlock(&myq->mutex);
+    pthread_mutex_unlock(pPreviewMutex);
+    pthread_mutex_unlock(pSnapshotMutex);
     if(deliver_done > 0) {
         mm_camera_event_t data;
         CDBG("%s: ZSL delivered", __func__);

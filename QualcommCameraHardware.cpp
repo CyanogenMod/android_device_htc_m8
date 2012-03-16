@@ -849,11 +849,11 @@ static int mPreviewFormat;
 static const str_map preview_formats[] = {
         {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
         {CameraParameters::PIXEL_FORMAT_YUV420SP_ADRENO, CAMERA_YUV_420_NV21_ADRENO},
-        //{CameraParameters::PIXEL_FORMAT_YV12, CAMERA_YUV_420_YV12}
+        {CameraParameters::PIXEL_FORMAT_YUV420P, CAMERA_YUV_420_YV12}
 };
 static const str_map preview_formats1[] = {
         {CameraParameters::PIXEL_FORMAT_YUV420SP,   CAMERA_YUV_420_NV21},
-        {CameraParameters::PIXEL_FORMAT_YV12, CAMERA_YUV_420_YV12}
+        {CameraParameters::PIXEL_FORMAT_YUV420P, CAMERA_YUV_420_YV12}
 };
 
 static const str_map app_preview_formats[] = {
@@ -904,6 +904,7 @@ static capture_params_t mImageCaptureParms;
 static raw_capture_params_t mRawCaptureParms;
 static zsl_capture_params_t mZslCaptureParms;
 static zsl_params_t mZslParms;
+static yv12_format_parms_t myv12_params;
 
 static String8 create_sizes_str(const camera_size_type *sizes, int len) {
     String8 str;
@@ -2733,18 +2734,29 @@ static bool register_buf(int size,
                          uint8_t *buf,
                          int pmem_type,
                          bool vfe_can_write,
-                         bool register_buffer)
+                         bool register_buffer,
+                         bool use_all_chnls)
 {
     struct msm_pmem_info pmemBuf;
     CAMERA_HAL_UNUSED(frame_size);
 
+    memset(&pmemBuf, 0, sizeof(struct msm_pmem_info));
     pmemBuf.type     = pmem_type;
     pmemBuf.fd       = pmempreviewfd;
     pmemBuf.offset   = offset;
     pmemBuf.len      = size;
     pmemBuf.vaddr    = buf;
-    pmemBuf.y_off    = yoffset;
-    pmemBuf.cbcr_off = cbcr_offset;
+    pmemBuf.planar0_off = yoffset;
+     if(!use_all_chnls) {
+       LOGV("use_all_chnls = %d\n", use_all_chnls);
+       pmemBuf.planar1_off = cbcr_offset;
+       pmemBuf.planar2_off = yoffset;
+               } else {
+       pmemBuf.planar1_off = myv12_params.CbOffset;
+       pmemBuf.planar2_off = myv12_params.CrOffset;
+               }
+       LOGE("register_buf: CbOff = 0x%x CrOff = 0x%x",
+       pmemBuf.planar1_off, pmemBuf.planar2_off);
 
     pmemBuf.active   = vfe_can_write;
 
@@ -2770,7 +2782,8 @@ static bool register_buf(int size,
                          uint8_t *buf,
                          int pmem_type,
                          bool vfe_can_write,
-                         bool register_buffer = true);
+                         bool register_buffer = true,
+                         bool use_all_chnls = false);
 
 void QualcommCameraHardware::runFrameThread(void *data)
 {
@@ -2835,7 +2848,8 @@ void QualcommCameraHardware::runFrameThread(void *data)
                          (uint8_t *)frames[cnt].buffer,
                          MSM_PMEM_PREVIEW,
                          false,
-                         false );
+                         false,
+                         true);
             //mPreviewHeap[cnt].clear();
              // TODO : clean properly
             }
@@ -3025,6 +3039,33 @@ void QualcommCameraHardware::runPreviewThread(void *data)
          }
          mLastQueuedFrame = (void *)frame->buffer;
          bufferIndex = mapBuffer(frame);
+
+         // if 7x27A && yv12 is set as preview format use convert routines to
+         // convert from YUV420sp to YV12
+         yuv_image_type in_buf, out_buf;
+         int conversion_result = 0;
+
+         if(( mPreviewFormat == CAMERA_YUV_420_YV12 ) &&
+           ( mCurrentTarget == TARGET_MSM7627A || mCurrentTarget == TARGET_MSM7627 )){
+            // if the width is not multiple of 32,
+            //we cannot do inplace conversion as sizes of 420sp and YV12 frames differ
+            if(previewWidth%32){
+#if 0 //TODO :
+               LOGE("YV12::Doing not inplace conversion from 420sp to yv12");
+               in_buf.imgPtr = (unsigned char*)mPreviewMapped[bufferIndex]->data;
+               in_buf.dx = out_buf.dx = previewWidth;
+               in_buf.dy = in_buf.dy = previewHeight;
+               conversion_result = LINK_yuv_convert_ycrcb420sp_to_yv12(&in_buf, &out_buf);
+#endif
+            } else {
+               LOGE("Doing inplace conversion from 420sp to yv12");
+               in_buf.imgPtr = (unsigned char *)mPreviewMapped[bufferIndex]->data;
+               in_buf.dx  = previewWidth;
+               in_buf.dy  = previewHeight;
+               conversion_result = LINK_yuv_convert_ycrcb420sp_to_yv12_inplace(&in_buf);
+            }
+         }
+
          if(bufferIndex >= 0) {
            //Need to encapsulate this in IMemory object and send
 
@@ -3652,6 +3693,7 @@ int QualcommCameraHardware::deallocate_ion_memory(int *main_ion_fd, struct ion_f
 bool QualcommCameraHardware::initPreview()
 {
     const char * pmem_region;
+    int CbCrOffset = 0;
     int ion_heap;
     mParameters.getPreviewSize(&previewWidth, &previewHeight);
     const char *recordSize = NULL;
@@ -3733,8 +3775,18 @@ LOGE("%s Got preview dimension as %d x %d ", __func__, previewWidth, previewHeig
     ion_heap = ION_CAMERA_HEAP_ID;
 
     int cnt = 0;
+
+    memset(&myv12_params, 0, sizeof(yv12_format_parms_t));
     mPreviewFrameSize = previewWidth * previewHeight * 3/2;
-    int CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+    LOGE("Width = %d Height = %d \n", previewWidth, previewHeight);
+    if(mPreviewFormat == CAMERA_YUV_420_YV12) {
+       myv12_params.CbOffset = PAD_TO_WORD(previewWidth * previewHeight);
+       myv12_params.CrOffset = myv12_params.CbOffset + PAD_TO_WORD((previewWidth * previewHeight)/4);
+       mDimension.prev_format = CAMERA_YUV_420_YV12;
+       LOGE("CbOffset = 0x%x CrOffset = 0x%x \n",myv12_params.CbOffset, myv12_params.CrOffset);
+    } else {
+      CbCrOffset = PAD_TO_WORD(previewWidth * previewHeight);
+      }
 
     //Pass the yuv formats, display dimensions,
     //so that vfe will be initialized accordingly.
@@ -3902,7 +3954,7 @@ LOGE("%s Got preview dimension as %d x %d ", __func__, previewWidth, previewHeig
                 frames[cnt].cbcr_off = CbCrOffset;
                 frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
 #endif
-            }
+        }
 
             mPreviewBusyQueue.init();
             LINK_camframe_release_all_frames(CAM_PREVIEW_FRAME);
@@ -4760,6 +4812,7 @@ status_t QualcommCameraHardware::setPreviewWindow(preview_stream_ops_t* window)
 status_t QualcommCameraHardware::getBuffersAndStartPreview() {
     status_t retVal = NO_ERROR;
 	int stride;
+    bool all_chnls = false;
     LOGI(" %s : E ", __FUNCTION__);
     mFrameThreadWaitLock.lock();
     while (mFrameThreadRunning) {
@@ -4880,9 +4933,22 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
                       LOGE("%s: Couldnt map preview buffers", __FUNCTION__);
                       return UNKNOWN_ERROR;
                   }
-                  frames[cnt].y_off = 0;
-                  frames[cnt].cbcr_off= CbCrOffset;
-                  frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
+
+                  if(mPreviewFormat == CAMERA_YUV_420_YV12 && mCurrentTarget != TARGET_MSM7627A) {
+                    myv12_params.CbOffset = PAD_TO_WORD(previewWidth * previewHeight);
+                    myv12_params.CrOffset = myv12_params.CbOffset + PAD_TO_WORD((previewWidth * previewHeight)/4);
+                    LOGE("CbOffset = 0x%x CrOffset = 0x%x \n",myv12_params.CbOffset, myv12_params.CrOffset);
+                    frames[cnt].planar0_off = 0;
+                    frames[cnt].planar1_off = myv12_params.CbOffset;
+                    frames[cnt].planar2_off = myv12_params.CrOffset;
+                    frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
+                    all_chnls = true;
+                  }else{
+                    frames[cnt].planar0_off = 0;
+                    frames[cnt].planar1_off= CbCrOffset;
+                    frames[cnt].planar2_off = 0;
+                    frames[cnt].path = OUTPUT_TYPE_P; // MSM_FRAME_ENC;
+                  }
                   frame_buffer[cnt].frame = &frames[cnt];
                   frame_buffer[cnt].buffer = bhandle;
                   frame_buffer[cnt].size = handle->size;
@@ -4896,7 +4962,7 @@ status_t QualcommCameraHardware::getBuffersAndStartPreview() {
                              0,
                              (uint8_t *)frames[cnt].buffer/*(uint8_t *)mThumbnailMapped*/,
                              MSM_PMEM_PREVIEW,
-                             active);
+                             active,true,all_chnls);
                   LOGE("Came back from register call to kernel");
                 } else
                     LOGE("%s: setPreviewWindow: Could not get buffer handle", __FUNCTION__);
@@ -6899,13 +6965,14 @@ bool QualcommCameraHardware::initRecord()
         recordframes[cnt].buffer = (unsigned int)mRecordMapped[cnt]->data;
         recordframes[cnt].fd = mRecordfd[cnt];
 #endif
-        recordframes[cnt].y_off = 0;
-        recordframes[cnt].cbcr_off = CbCrOffset;
+        recordframes[cnt].planar0_off = 0;
+        recordframes[cnt].planar1_off = CbCrOffset;
+        recordframes[cnt].planar2_off = 0;
         recordframes[cnt].path = OUTPUT_TYPE_V;
         record_buffers_tracking_flag[cnt] = false;
         LOGV ("initRecord :  record heap , video buffers  buffer=%lu fd=%d y_off=%d cbcr_off=%d \n",
-          (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].y_off,
-          recordframes[cnt].cbcr_off);
+          (unsigned long)recordframes[cnt].buffer, recordframes[cnt].fd, recordframes[cnt].planar0_off,
+          recordframes[cnt].planar1_off);
         active=(cnt<ACTIVE_VIDEO_BUFFERS);
         type = MSM_PMEM_VIDEO;
         if((mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
@@ -9135,8 +9202,9 @@ bool QualcommCameraHardware::register_record_buffers(bool register_buffer) {
         pmemBuf.offset   = mRecordHeap->mAlignedBufferSize * cnt;
         pmemBuf.len      = mRecordHeap->mBufferSize;
         pmemBuf.vaddr    = (uint8_t *)mRecordHeap->mHeap->base() + mRecordHeap->mAlignedBufferSize * cnt;
-        pmemBuf.y_off    = 0;
-        pmemBuf.cbcr_off = recordframes[0].cbcr_off;
+        pmemBuf.planar0_off    = 0;
+        pmemBuf.planar1_off = recordframes[0].planar1_off;
+        pmemBuf.planar2_off = 0;
         if(register_buffer == true) {
             pmemBuf.active   = (cnt<ACTIVE_VIDEO_BUFFERS);
             if( (mVpeEnabled) && (cnt == kRecordBufferCount-1)) {
@@ -9174,6 +9242,7 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
     mCbCrOffset(cbcr_offset),
     myOffset(yOffset)
 {
+    bool all_chnls = false;
     LOGI("constructing MemPool %s backed by pmem pool %s: "
          "%d frames @ %d bytes, buffer size %d",
          mName,
@@ -9250,13 +9319,18 @@ QualcommCameraHardware::PmemPool::PmemPool(const char *pmem_pool,
                      || (pmem_type == MSM_PMEM_THUMBNAIL)){
                     active = (cnt < ACTIVE_ZSL_BUFFERS);
                 }
+                 if (pmem_type == MSM_PMEM_PREVIEW &&
+                       mPreviewFormat == CAMERA_YUV_420_YV12 && mCurrentTarget != TARGET_MSM7627A)
+                       all_chnls = true;
+
                 register_buf(mBufferSize,
                          mFrameSize, mCbCrOffset, myOffset,
                          mHeap->getHeapID(),
                          mAlignedBufferSize * cnt,
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
                          pmem_type,
-                         active);
+                         active,true,
+                         all_chnls);
             }
         }
 
@@ -9287,7 +9361,8 @@ QualcommCameraHardware::PmemPool::~PmemPool()
                          (uint8_t *)mHeap->base() + mAlignedBufferSize * cnt,
                          mPmemType,
                          false,
-                         false /* unregister */);
+                         false,/* unregister */
+                         false);
             }
         }
     }

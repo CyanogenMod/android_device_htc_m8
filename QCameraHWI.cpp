@@ -166,7 +166,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mPostPreviewHeap(NULL),
                     mHdrMode(HDR_BRACKETING_OFF),
                     mStreamLiveSnap(NULL),
-                    mExifTableNumEntries(0)
+                    mExifTableNumEntries(0),
+                    mDenoiseValue(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;

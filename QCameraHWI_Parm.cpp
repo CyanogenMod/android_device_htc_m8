@@ -3022,8 +3022,10 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
         mRecordingHint = value;
         native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
                                                (void *)&value);
-        native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),
+        if (value == TRUE) {
+          native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),
                                                (void *)&value);
+        }
         mParameters.set(CameraParameters::KEY_RECORDING_HINT, str);
       } else {
           LOGE("Invalid Picture Format value: %s", str);

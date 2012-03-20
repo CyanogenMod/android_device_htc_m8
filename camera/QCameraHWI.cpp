@@ -342,6 +342,12 @@ void QCameraHardwareInterface::release()
     default:
         break;
     }
+    // when camera is released,
+    // we need to set preview window to NULL
+    // to trigger returning buffers to surface if it's not done yet
+    if(mStreamDisplay)
+        mStreamDisplay->setPreviewWindow(NULL);
+
 #if 0
     if (isRecordingRunning()) {
         stopRecordingInternal();

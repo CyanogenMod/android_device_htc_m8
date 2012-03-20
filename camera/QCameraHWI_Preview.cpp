@@ -75,12 +75,12 @@ status_t QCameraStream_preview::setPreviewWindow(preview_stream_ops_t* window)
            mbPausedBySnapshot = FALSE;
 
            ALOGV("%s : Preview window changed, previous buffer unprepared",__func__);
+           /*free camera_memory handles and return buffer back to surface*/
+           putBufferToSurface();
            if (mDisplayBuf.preview.buf.mp != NULL) {
                delete[] mDisplayBuf.preview.buf.mp;
                mDisplayBuf.preview.buf.mp = NULL;
            }
-           /*free camera_memory handles and return buffer back to surface*/
-           putBufferToSurface();
        }
     }
     mPreviewWindow = window;
@@ -267,6 +267,7 @@ status_t QCameraStream_preview::putBufferToSurface() {
 	        if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)
                                                     (*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])))) {
                     ALOGE("%s: genlock_unlock_buffer failed, handle =%p", __FUNCTION__, (*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])));
+                    continue;
 	                //mHalCamCtrl->mPreviewMemoryLock.unlock();
                     //return -EINVAL;
                 } else {
@@ -732,12 +733,12 @@ QCameraStream_preview::~QCameraStream_preview() {
     if (mbPausedBySnapshot) {
        mbPausedBySnapshot = FALSE;
        ALOGV("%s : previous buffer unprepared",__func__);
+       /*free camera_memory handles and return buffer back to surface*/
+       putBufferToSurface();
        if (mDisplayBuf.preview.buf.mp != NULL) {
            delete[] mDisplayBuf.preview.buf.mp;
            mDisplayBuf.preview.buf.mp = NULL;
        }
-       /*free camera_memory handles and return buffer back to surface*/
-       putBufferToSurface();
    }
 
 	mInit = false;
@@ -933,6 +934,8 @@ status_t QCameraStream_preview::start()
     if (!mbPausedBySnapshot) {
         /* In case of a clean stop, we need to clean all buffers*/
         ALOGE("Debug : %s : Buffer Unprepared",__func__);
+        /*free camera_memory handles and return buffer back to surface*/
+        putBufferToSurface();
         if (mDisplayBuf.preview.buf.mp != NULL) {
             delete[] mDisplayBuf.preview.buf.mp;
             mDisplayBuf.preview.buf.mp = NULL;

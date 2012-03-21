@@ -347,7 +347,6 @@ void QCameraHardwareInterface::release()
     // to trigger returning buffers to surface if it's not done yet
     if(mStreamDisplay)
         mStreamDisplay->setPreviewWindow(NULL);
-
 #if 0
     if (isRecordingRunning()) {
         stopRecordingInternal();
@@ -1099,6 +1098,7 @@ status_t QCameraHardwareInterface::startPreview2()
         ret =  mStreamSnap->start();
         if (MM_CAMERA_OK != ret){
             ALOGE("%s: error - can't start Snapshot stream!", __func__);
+            mStreamDisplay->stop();
             return BAD_VALUE;
         }
     }else{

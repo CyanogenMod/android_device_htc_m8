@@ -500,7 +500,6 @@ private:
     bool isPreviewRunning();
     bool isRecordingRunning();
     bool isSnapshotRunning();
-    status_t storePreviewFrameForPostview(void);
 
     void processChannelEvent(mm_camera_ch_event_t *, app_notify_cb_t *);
     void processPreviewChannelEvent(mm_camera_ch_event_type_t channelEvent, app_notify_cb_t *);

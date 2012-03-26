@@ -22,9 +22,6 @@
 #include <utils/Errors.h>
 #include <utils/threads.h>
 #include <binder/MemoryHeapPmem.h>
-#ifdef USE_ION
-#include <binder/MemoryHeapIon.h>
-#endif
 #include <utils/String16.h>
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -344,6 +344,12 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
 
     pmem_info.fd = encode_params->snapshot_fd;
     pmem_info.offset = 0;
+
+    //Release previously allocated buffers before doing UseBuffer in burst mode
+    OMX_FreeBuffer(pHandle, 2, pInBuffers1);
+    OMX_FreeBuffer(pHandle, 0, pInBuffers);
+    OMX_FreeBuffer(pHandle, 1, pOutBuffers);
+
     OMX_UseBuffer(pHandle, &pInBuffers, 0, &pmem_info, inputPort->nBufferSize,
     (void *) encode_params->snapshot_buf);
 

@@ -55,7 +55,7 @@ static int init_rfkill() {
         snprintf(path, sizeof(path), "/sys/class/rfkill/rfkill%d/type", id);
         fd = open(path, O_RDONLY);
         if (fd < 0) {
-            LOGW("open(%s) failed: %s (%d)\n", path, strerror(errno), errno);
+            ALOGW("open(%s) failed: %s (%d)\n", path, strerror(errno), errno);
             return -1;
         }
         sz = read(fd, &buf, sizeof(buf));
@@ -82,14 +82,14 @@ static int check_bluetooth_power() {
 
     fd = open(rfkill_state_path, O_RDONLY);
     if (fd < 0) {
-        LOGE("open(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
-             errno);
+        ALOGE("open(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
+              errno);
         goto out;
     }
     sz = read(fd, &buffer, 1);
     if (sz != 1) {
-        LOGE("read(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
-             errno);
+        ALOGE("read(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
+              errno);
         goto out;
     }
 
@@ -119,14 +119,14 @@ static int set_bluetooth_power(int on) {
 
     fd = open(rfkill_state_path, O_WRONLY);
     if (fd < 0) {
-        LOGE("open(%s) for write failed: %s (%d)", rfkill_state_path,
-             strerror(errno), errno);
+        ALOGE("open(%s) for write failed: %s (%d)", rfkill_state_path,
+              strerror(errno), errno);
         goto out;
     }
     sz = write(fd, &buffer, 1);
     if (sz < 0) {
-        LOGE("write(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
-             errno);
+        ALOGE("write(%s) failed: %s (%d)", rfkill_state_path, strerror(errno),
+              errno);
         goto out;
     }
     ret = 0;
@@ -144,14 +144,14 @@ static int set_hci_smd_transport(int on) {
 
     fd = open(HCISMD_MOD_PARAM, O_WRONLY);
     if (fd < 0) {
-        LOGE("open(%s) for write failed: %s (%d)", HCISMD_MOD_PARAM,
+        ALOGE("open(%s) for write failed: %s (%d)", HCISMD_MOD_PARAM,
              strerror(errno), errno);
         goto out;
     }
     sz = write(fd, &buffer, 1);
     if (sz < 0) {
-        LOGE("write(%s) failed: %s (%d)", HCISMD_MOD_PARAM, strerror(errno),
-             errno);
+        ALOGE("write(%s) failed: %s (%d)", HCISMD_MOD_PARAM, strerror(errno),
+              errno);
         goto out;
     }
     ret = 0;
@@ -163,23 +163,23 @@ out:
 static inline int create_hci_sock() {
     int sk = socket(AF_BLUETOOTH, SOCK_RAW, BTPROTO_HCI);
     if (sk < 0) {
-        LOGE("Failed to create bluetooth hci socket: %s (%d)",
-             strerror(errno), errno);
+        ALOGE("Failed to create bluetooth hci socket: %s (%d)",
+              strerror(errno), errno);
     }
     return sk;
 }
 
 int bt_enable() {
-    LOGV(__FUNCTION__);
+    ALOGV(__FUNCTION__);
 
     int ret = -1;
     int hci_sock = -1;
     int attempt;
     static int bt_on_once;
 
-    LOGI("Starting hciattach daemon");
+    ALOGI("Starting hciattach daemon");
     if (property_set("ctl.start", "hciattach") < 0) {
-        LOGE("Failed to start hciattach");
+        ALOGE("Failed to start hciattach");
         goto out;
     }
 
@@ -194,7 +194,7 @@ int bt_enable() {
         if (!ret) {
             break;
         } else if (errno == EALREADY) {
-            LOGW("Bluetoothd already started, unexpectedly!");
+            ALOGW("Bluetoothd already started, unexpectedly!");
             break;
         }
 
@@ -202,14 +202,14 @@ int bt_enable() {
         usleep(100000);  // 100 ms retry delay
     }
     if (attempt == 0) {
-        LOGE("%s: Timeout waiting for HCI device to come up, error- %d, ",
-            __FUNCTION__, ret);
+        ALOGE("%s: Timeout waiting for HCI device to come up, error- %d, ",
+              __FUNCTION__, ret);
         goto out;
     }
 
-    LOGI("Starting bluetoothd deamon");
+    ALOGI("Starting bluetoothd deamon");
     if (property_set("ctl.start", "bluetoothd") < 0) {
-        LOGE("Failed to start bluetoothd");
+        ALOGE("Failed to start bluetoothd");
         goto out;
     }
 
@@ -221,14 +221,14 @@ out:
 }
 
 int bt_disable() {
-    LOGV(__FUNCTION__);
+    ALOGV(__FUNCTION__);
 
     int ret = -1;
     int hci_sock = -1;
 
-    LOGI("Stopping bluetoothd deamon");
+    ALOGI("Stopping bluetoothd deamon");
     if (property_set("ctl.stop", "bluetoothd") < 0) {
-        LOGE("Error stopping bluetoothd");
+        ALOGE("Error stopping bluetoothd");
         goto out;
     }
     usleep(HCID_STOP_DELAY_USEC);
@@ -247,7 +247,7 @@ out:
 }
 
 int bt_is_enabled() {
-    LOGV(__FUNCTION__);
+    ALOGV(__FUNCTION__);
 
     int hci_sock = -1;
     int ret = -1;
@@ -259,7 +259,7 @@ int bt_is_enabled() {
 
     dev_info.dev_id = HCI_DEV_ID;
     if (ret = ioctl(hci_sock, HCIGETDEVINFO, (void *)&dev_info) < 0) {
-        LOGE("ioctl error: ret=%d", ret);
+        ALOGE("ioctl error: ret=%d", ret);
         ret = 0;
         goto out;
     }

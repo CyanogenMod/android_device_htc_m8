@@ -1,3 +1,13 @@
+# Copyright (C) 2012 The Android Open Source Project
+#
+# IMPORTANT: Do not create world writable files or directories.
+# This is a common source of Android security bugs.
+#
+
+import /init.${ro.hardware}.rc
+import /init.usb.rc
+import /init.trace.rc
+
 on early-init
     # Set init and its forked children's oom_adj.
     write /proc/1/oom_adj -16
@@ -23,7 +33,7 @@ loglevel 3
     export ANDROID_DATA /data
     export ASEC_MOUNTPOINT /mnt/asec
     export LOOP_MOUNTPOINT /mnt/obb
-    export BOOTCLASSPATH /system/framework/core.jar:/system/framework/core-junit.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar:/system/framework/framework.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/apache-xml.jar:/system/framework/filterfw.jar
+    export BOOTCLASSPATH /system/framework/core.jar:/system/framework/core-junit.jar:/system/framework/bouncycastle.jar:/system/framework/ext.jar:/system/framework/framework.jar:/system/framework/framework2.jar:/system/framework/android.policy.jar:/system/framework/services.jar:/system/framework/apache-xml.jar
 
 # Backward compatibility
     symlink /system/etc /etc
@@ -38,6 +48,9 @@ loglevel 3
     mount cgroup none /acct cpuacct
     mkdir /acct/uid
 
+    mkdir /system
+    mkdir /data 0771 system system
+    mkdir /cache 0771 system cache
     mkdir /config 0500 root root
 
     # Directory for putting things only root should see.
@@ -66,25 +79,36 @@ loglevel 3
     write /proc/sys/kernel/sched_compat_yield 1
     write /proc/sys/kernel/sched_child_runs_first 0
     write /proc/sys/kernel/randomize_va_space 2
+    write /proc/sys/kernel/kptr_restrict 2
+    write /proc/sys/kernel/dmesg_restrict 1
+    write /proc/sys/vm/mmap_min_addr 32768
+    write /proc/sys/kernel/sched_rt_runtime_us 950000
+    write /proc/sys/kernel/sched_rt_period_us 1000000
 
 # Create cgroup mount points for process groups
     mkdir /dev/cpuctl
     mount cgroup none /dev/cpuctl cpu
     chown system system /dev/cpuctl
     chown system system /dev/cpuctl/tasks
-    chmod 0777 /dev/cpuctl/tasks
+    chmod 0660 /dev/cpuctl/tasks
     write /dev/cpuctl/cpu.shares 1024
+    write /dev/cpuctl/cpu.rt_runtime_us 950000
+    write /dev/cpuctl/cpu.rt_period_us 1000000
 
-    mkdir /dev/cpuctl/fg_boost
-    chown system system /dev/cpuctl/fg_boost/tasks
-    chmod 0777 /dev/cpuctl/fg_boost/tasks
-    write /dev/cpuctl/fg_boost/cpu.shares 1024
+    mkdir /dev/cpuctl/apps
+    chown system system /dev/cpuctl/apps/tasks
+    chmod 0666 /dev/cpuctl/apps/tasks
+    write /dev/cpuctl/apps/cpu.shares 1024
+    write /dev/cpuctl/apps/cpu.rt_runtime_us 800000
+    write /dev/cpuctl/apps/cpu.rt_period_us 1000000
 
-    mkdir /dev/cpuctl/bg_non_interactive
-    chown system system /dev/cpuctl/bg_non_interactive/tasks
-    chmod 0777 /dev/cpuctl/bg_non_interactive/tasks
+    mkdir /dev/cpuctl/apps/bg_non_interactive
+    chown system system /dev/cpuctl/apps/bg_non_interactive/tasks
+    chmod 0666 /dev/cpuctl/apps/bg_non_interactive/tasks
     # 5.0 %
-    write /dev/cpuctl/bg_non_interactive/cpu.shares 52
+    write /dev/cpuctl/apps/bg_non_interactive/cpu.shares 52
+    write /dev/cpuctl/apps/bg_non_interactive/cpu.rt_runtime_us 700000
+    write /dev/cpuctl/apps/bg_non_interactive/cpu.rt_period_us 1000000
 
 # Allow everybody to read the xt_qtaguid resource tracking misc dev.
 # This is needed by any process that uses socket tagging.
@@ -156,11 +180,18 @@ on post-fs-data
     mkdir /data/misc/wifi 0770 wifi wifi
     chmod 0660 /data/misc/wifi/wpa_supplicant.conf
     mkdir /data/local 0751 root root
+
+    # For security reasons, /data/local/tmp should always be empty.
+    # Do not place files or directories in /data/local/tmp
     mkdir /data/local/tmp 0771 shell shell
     mkdir /data/data 0771 system system
     mkdir /data/app-private 0771 system system
+    mkdir /data/app-asec 0700 root root
     mkdir /data/app 0771 system system
     mkdir /data/property 0700 root root
+    mkdir /data/ssh 0750 root shell
+    mkdir /data/ssh/empty 0700 root root
+    mkdir /data/radio 0770 radio radio
 
     # create dalvik-cache and double-check the perms, so as to enforce our permissions
     mkdir /data/dalvik-cache 0771 system system
@@ -187,12 +218,7 @@ on post-fs-data
     # must uncomment this line, otherwise encrypted filesystems
     # won't work.
     # Set indication (checked by vold) that we have finished this action
-    setprop vold.post_fs_data_done 1
-
-    chown system system /sys/class/android_usb/android0/f_mass_storage/lun/file
-    chmod 0660 /sys/class/android_usb/android0/f_mass_storage/lun/file
-    chown system system /sys/class/android_usb/android0/f_rndis/ethaddr
-    chmod 0660 /sys/class/android_usb/android0/f_rndis/ethaddr
+    #setprop vold.post_fs_data_done 1
 
 # Include extra init file
     import /system/etc/init.local.rc
@@ -208,7 +234,7 @@ on boot
 
 # Memory management.  Basic kernel parameters, and allow the high
 # level system server to be able to adjust the kernel OOM driver
-# paramters to match how it is managing things.
+# parameters to match how it is managing things.
     write /proc/sys/vm/overcommit_memory 1
     write /proc/sys/vm/min_free_order_shift 4
     chown root system /sys/module/lowmemorykiller/parameters/adj
@@ -226,12 +252,34 @@ on boot
     chown radio system /sys/android_power/acquire_full_wake_lock
     chown radio system /sys/android_power/acquire_partial_wake_lock
     chown radio system /sys/android_power/release_wake_lock
-    chown radio system /sys/power/state
+    chown system system /sys/power/state
+    chown system system /sys/power/wakeup_count
     chown radio system /sys/power/wake_lock
     chown radio system /sys/power/wake_unlock
     chmod 0660 /sys/power/state
     chmod 0660 /sys/power/wake_lock
     chmod 0660 /sys/power/wake_unlock
+
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/timer_rate
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/timer_rate
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/min_sample_time
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/min_sample_time
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/above_hispeed_delay
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/above_hispeed_delay
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/boost
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/boost
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/boostpulse
+    chown system system /sys/devices/system/cpu/cpufreq/interactive/input_boost
+    chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/input_boost
+
+    # Assume SMP uses shared cpufreq policy for all CPUs
+    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+
     chown system system /sys/class/timed_output/vibrator/enable
     chown system system /sys/class/leds/keyboard-backlight/brightness
     chown system system /sys/class/leds/lcd-backlight/brightness
@@ -322,49 +370,6 @@ on property:vold.decrypt=trigger_shutdown_framework
     class_reset late_start
     class_reset main
 
-# Used to disable USB when switching states
-on property:sys.usb.config=none
-    stop adbd
-    write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/bDeviceClass 0
-    setprop sys.usb.state $sys.usb.config
-
-# adb only USB configuration
-# This should only be used during device bringup
-# and as a fallback if the USB manager fails to set a standard configuration
-on property:sys.usb.config=adb
-    write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/idVendor 18d1
-    write /sys/class/android_usb/android0/idProduct D002
-    write /sys/class/android_usb/android0/functions $sys.usb.config
-    write /sys/class/android_usb/android0/enable 1
-    start adbd
-    setprop sys.usb.state $sys.usb.config
-
-# USB accessory configuration
-on property:sys.usb.config=accessory
-    write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/idVendor 18d1
-    write /sys/class/android_usb/android0/idProduct 2d00
-    write /sys/class/android_usb/android0/functions $sys.usb.config
-    write /sys/class/android_usb/android0/enable 1
-    setprop sys.usb.state $sys.usb.config
-
-# USB accessory configuration, with adb
-on property:sys.usb.config=accessory,adb
-    write /sys/class/android_usb/android0/enable 0
-    write /sys/class/android_usb/android0/idVendor 18d1
-    write /sys/class/android_usb/android0/idProduct 2d01
-    write /sys/class/android_usb/android0/functions $sys.usb.config
-    write /sys/class/android_usb/android0/enable 1
-    start adbd
-    setprop sys.usb.state $sys.usb.config
-
-# Used to set USB configuration at boot and to switch the configuration
-# when changing the default configuration
-on property:persist.sys.usb.config=*
-    setprop sys.usb.config $persist.sys.usb.config
-
 ## Daemon processes to be run by init.
 ##
 service ueventd /sbin/ueventd
@@ -390,18 +395,6 @@ service adbd /sbin/adbd
 on property:ro.kernel.qemu=1
     start adbd
 
-# This property trigger has added to imitiate the previous behavior of "adb root".
-# The adb gadget driver used to reset the USB bus when the adbd daemon exited,
-# and the host side adb relied on this behavior to force it to reconnect with the
-# new adbd instance after init relaunches it. So now we force the USB bus to reset
-# here when adbd sets the service.adb.root property to 1.  We also restart adbd here
-# rather than waiting for init to notice its death and restarting it so the timing
-# of USB resetting and adb restarting more closely matches the previous behavior.
-on property:service.adb.root=1
-    write /sys/class/android_usb/android0/enable 0
-    restart adbd
-    write /sys/class/android_usb/android0/enable 1
-
 service servicemanager /system/bin/servicemanager
     class core
     user system
@@ -421,6 +414,7 @@ service netd /system/bin/netd
     class main
     socket netd stream 0660 root system
     socket dnsproxyd stream 0660 root inet
+    socket mdns stream 0660 root system
 
 service debuggerd /system/bin/debuggerd
     class main
@@ -432,7 +426,7 @@ service ril-daemon /system/bin/rild
     socket rild-htc stream 660 radio system
     socket aepls001 stream 660 radio system
     user root
-    group radio cache inet misc audio sdcard_rw qcom_oncrpc log diag
+    group radio cache inet misc audio sdcard_rw qcom_oncrpc diag
 
 service surfaceflinger /system/bin/surfaceflinger
     class main
@@ -451,7 +445,7 @@ service zygote /system/bin/app_process -Xzygote /system/bin --zygote --start-sys
 service drm /system/bin/drmserver
     class main
     user drm
-    group system inet drmrpc
+    group drm system inet drmrpc sdcard_r
 
 service media /system/bin/mediaserver
     class main
@@ -504,12 +498,24 @@ service mtpd /system/bin/mtpd
 service keystore /system/bin/keystore /data/misc/keystore
     class main
     user keystore
-    group keystore
+    group keystore drmrpc
     socket keystore stream 666
 
 service dumpstate /system/bin/dumpstate -s
     class main
     socket dumpstate stream 0660 shell log
+    disabled
+    oneshot
+
+service sshd /system/bin/start-ssh
+    class main
+    disabled
+
+service mdnsd /system/bin/mdnsd
+    class main
+    user mdnsr
+    group inet net_raw
+    socket mdnsd stream 0660 mdnsr inet
     disabled
     oneshot
 
@@ -520,4 +526,3 @@ on property:service.adb.tcp.port=5555
 on property:service.adb.tcp.port=-1
     stop adbd
     start adbd
-

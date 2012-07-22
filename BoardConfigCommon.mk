@@ -47,9 +47,6 @@ TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
 TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
 COMMON_GLOBAL_CFLAGS += -DQCOM_HARDWARE
 
-# Init
-TARGET_PROVIDES_INIT_RC := true
-
 # Preload bootanimation
 TARGET_BOOTANIMATION_PRELOAD := true
 

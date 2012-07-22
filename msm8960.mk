@@ -16,8 +16,7 @@
 
 # Boot ramdisk setup
 PRODUCT_COPY_FILES += \
-    device/htc/msm8960-common/ramdisk/init.qcom.sh:root/init.qcom.sh \
-    device/htc/msm8960-common/ramdisk/init.rc:root/init.rc
+    device/htc/msm8960-common/ramdisk/init.qcom.sh:root/init.qcom.sh
 
 # Qualcomm scripts
 PRODUCT_COPY_FILES += \

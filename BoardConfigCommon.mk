@@ -30,6 +30,9 @@ TARGET_SPECIFIC_HEADER_PATH := device/htc/msm8960-common/include
 # Bootloader
 TARGET_NO_BOOTLOADER := true
 
+# Kernel
+TARGET_KERNEL_SOURCE := kernel/htc/msm8960
+
 # Platform
 TARGET_BOARD_PLATFORM := msm8960
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno200

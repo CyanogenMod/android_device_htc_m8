@@ -53,6 +53,9 @@ COMMON_GLOBAL_CFLAGS += -DQCOM_HARDWARE
 # Preload bootanimation
 TARGET_BOOTANIMATION_PRELOAD := true
 
+# ICS proprietary blob compatibility
+COMMON_GLOBAL_CFLAGS += -DQCOM_ICS_COMPAT -DICS_CAMERA_BLOB
+
 # QCOM hardware
 BOARD_USES_QCOM_HARDWARE := true
 

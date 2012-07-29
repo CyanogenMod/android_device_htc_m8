@@ -56,6 +56,9 @@ TARGET_BOOTANIMATION_PRELOAD := true
 # ICS proprietary blob compatibility
 COMMON_GLOBAL_CFLAGS += -DQCOM_ICS_COMPAT -DICS_CAMERA_BLOB
 
+# PMEM compatibility
+BOARD_NEEDS_MEMORYHEAPPMEM := true
+
 # QCOM hardware
 BOARD_USES_QCOM_HARDWARE := true
 

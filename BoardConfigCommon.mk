@@ -81,11 +81,8 @@ TARGET_CUSTOM_BLUEDROID := ../../../device/htc/msm8960-common/bluetooth/bluetoot
 # Graphics
 COMMON_GLOBAL_CFLAGS += -DQCOM_NO_SECURE_PLAYBACK -DQCOM_ROTATOR_KERNEL_FORMATS
 USE_OPENGL_RENDERER := true
-TARGET_HAVE_BYPASS := false
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
-TARGET_USES_OVERLAY := true
-#TARGET_QCOM_HDMI_OUT := true
 BOARD_EGL_CFG := device/htc/msm8960-common/configs/egl.cfg
 
 # Wifi

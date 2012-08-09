@@ -95,4 +95,3 @@ BOARD_WLAN_DEVICE                := qcwcn
 # Webkit
 ENABLE_WEBGL := true
 TARGET_FORCE_CPU_UPLOAD := true
-DYNAMIC_SHARED_LIBV8SO := true

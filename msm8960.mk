@@ -91,6 +91,11 @@ PRODUCT_PACKAGES += \
     make_ext4fs \
     setup_fs
 
+# Media config
+PRODUCT_COPY_FILES += \
+    device/htc/msm8960-common/configs/media_profiles.xml:system/etc/media_profiles.xml \
+    device/htc/msm8960-common/configs/media_codecs.xml:system/etc/media_codecs.xml
+
 # MSM8960 firmware
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/firmware/a225p5_pm4.fw:/system/etc/firmware/a225p5_pm4.fw \

@@ -820,13 +820,6 @@ void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd)
     rc = ioctl(fd, VIDIOC_DQEVENT, &ev);
     evt = (mm_camera_event_t *)ev.u.data;
 
-    if(ev.type == V4L2_EVENT_PRIVATE_START+MSM_CAM_APP_NOTIFY_ERROR_EVENT) {
-        evt->event_type = MM_CAMERA_EVT_TYPE_CTRL;
-        evt->e.ctrl.evt = MM_CAMERA_CTRL_EVT_ERROR;
-        mm_camera_dispatch_app_event(my_obj, evt);
-        return;
-    }
-
     if (rc >= 0) {
 //        CDBG("%s: VIDIOC_DQEVENT type = 0x%x, app event type = %d\n",
 //            __func__, ev.type, evt->event_type);

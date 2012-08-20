@@ -586,9 +586,6 @@ static int mm_camera_evt_sub(mm_camera_obj_t * my_obj,
         if(my_obj->evt_type_mask == (uint32_t)(1 << evt_type)) {
             rc = ioctl(my_obj->ctrl_fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
             CDBG("%s: unsubscribe event 0x%x, rc = %d", __func__, sub.type, rc);
-            sub.type = V4L2_EVENT_PRIVATE_START+MSM_CAM_APP_NOTIFY_ERROR_EVENT;
-            rc = ioctl(my_obj->ctrl_fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
-            CDBG("%s: unsubscribe event 0x%x, rc = %d", __func__, sub.type, rc);
         }
         my_obj->evt_type_mask &= ~(1 << evt_type);
         if(my_obj->evt_type_mask == 0) {
@@ -598,11 +595,6 @@ static int mm_camera_evt_sub(mm_camera_obj_t * my_obj,
     } else {
         if(!my_obj->evt_type_mask) {
             /* this is the first reg event */
-            rc = ioctl(my_obj->ctrl_fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
-            CDBG("%s: subscribe event 0x%x, rc = %d", __func__, sub.type, rc);
-            if (rc < 0)
-                goto end;
-            sub.type = V4L2_EVENT_PRIVATE_START+MSM_CAM_APP_NOTIFY_ERROR_EVENT;
             rc = ioctl(my_obj->ctrl_fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
             CDBG("%s: subscribe event 0x%x, rc = %d", __func__, sub.type, rc);
             if (rc < 0)

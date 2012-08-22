@@ -27,8 +27,7 @@ MM_CAM_FILES:= \
         mm_camera.c \
         mm_camera_poll_thread.c \
         mm_camera_notify.c mm_camera_helper.c \
-        mm_omx_jpeg_encoder.c \
-        mm_camera_sock.c
+        mm_omx_jpeg_encoder.c
 endif
 
 LOCAL_CFLAGS+= -DHW_ENCODE
@@ -102,7 +101,12 @@ else
 LOCAL_SHARED_LIBRARIES+= libdl
 endif
 
+LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/posix_types.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/byteorder.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/posix_types.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/types.h
 LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/socket.h
+LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/in.h
 
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 LOCAL_MODULE:= camera.$(TARGET_BOARD_PLATFORM)

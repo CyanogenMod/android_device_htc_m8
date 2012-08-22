@@ -48,6 +48,14 @@ extern "C" {
 #include "QCameraHWI_Mem.h"
 #include "QCameraStream.h"
 
+typedef unsigned short int sa_family_t;
+#include <stdio.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <unistd.h>
+#include <string.h>
+
 //Error codes
 #define  NOT_FOUND -1
 #define MAX_ZOOM_RATIOS 62
@@ -741,6 +749,7 @@ private:
 	 preview_stream_ops_t *mPreviewWindow;
      Mutex                mStateLock;
 	 int                  mPreviewState;
+     QCameraSocket_t      mSocketInfo;
      QCameraHalMemory_t   mPreviewMemory;
      QCameraHalHeap_t     mSnapshotMemory;
      QCameraHalHeap_t     mThumbnailMemory;

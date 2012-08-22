@@ -17,7 +17,9 @@ LOCAL_CFLAGS:= -DDLOPEN_LIBMMCAMERA=$(DLOPEN_LIBMMCAMERA)
 ifeq ($(strip $(TARGET_USES_ION)),true)
 LOCAL_CFLAGS += -DUSE_ION
 endif
-ifeq ($(call is-board-platform,msm8960),true)
+
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+
 MM_CAM_FILES:= \
         mm_camera_interface2.c \
         mm_camera_stream.c \
@@ -34,7 +36,7 @@ LOCAL_CFLAGS+= -DHW_ENCODE
 LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-ifeq ($(call is-board-platform,msm8960),true)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
                    QCameraHWI.cpp QCameraHWI_Preview.cpp \
                    QCameraHWI_Record.cpp QCameraHWI_Still.cpp \
@@ -65,13 +67,15 @@ LOCAL_CFLAGS+= -DUSE_NEON_CONVERSION
 # Uncomment below line to enable smooth zoom
 #LOCAL_CFLAGS+= -DCAMERA_SMOOTH_ZOOM
 
+LOCAL_CFLAGS+= -DLOGI=ALOGI -DLOGV=ALOGV -DLOGE=ALOGE -DLOGD=ALOGD -DLOGW=ALOGW
+
 LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-camera \
     $(TARGET_OUT_HEADERS)/mm-camera/common \
     $(TARGET_OUT_HEADERS)/mm-still \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
-ifeq ($(call is-board-platform,msm8960),true)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 LOCAL_C_INCLUDES+= $(TARGET_OUT_HEADERS)/mm-core/omxcore
 LOCAL_C_INCLUDES+= $(TARGET_OUT_HEADERS)/mm-still/mm-omx
 endif
@@ -85,7 +89,7 @@ LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
-ifeq ($(call is-board-platform,msm8960),true)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg libmmstillomx libimage-jpeg-enc-omx-comp
 else
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg

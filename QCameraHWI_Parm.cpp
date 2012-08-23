@@ -1290,7 +1290,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
 
    LOGI("%s: X", __func__);
-   return final_rc;
+   return NO_ERROR;
 }
 
 /** Retrieve the camera parameters.  The buffer returned by the camera HAL

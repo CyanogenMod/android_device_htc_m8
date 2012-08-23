@@ -859,6 +859,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 	LOGE("%s:  2\n", __func__);
 
     /* open domain socket*/
+/*
     n_try=MM_CAMERA_DEV_OPEN_TRIES;
     do{
         n_try--;
@@ -880,7 +881,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);
         return -MM_CAMERA_E_GENERAL;
     }
-
+*/
     /* set ctrl_fd to be the mem_mapping fd */
     rc =  mm_camera_util_s_ctrl(my_obj->ctrl_fd,
                         MSM_V4L2_PID_MMAP_INST, 0);

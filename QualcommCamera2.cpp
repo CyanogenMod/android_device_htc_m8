@@ -104,6 +104,11 @@ camera_device_ops_t camera_ops = {
   put_parameters:             android::put_parameters,
   send_command:               android::send_command,
 
+#ifdef USE_GET_VIDEO_BUFFER
+  get_number_of_video_buffers: NULL,
+  get_video_buffer:            NULL,
+#endif
+
   release:                    android::release,
   dump:                       android::dump,
 };

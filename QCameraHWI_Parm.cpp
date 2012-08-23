@@ -97,8 +97,8 @@ extern "C" {
 
 #define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
 #define DEFAULT_THUMBNAIL_SETTING 4
-#define THUMBNAIL_WIDTH_STR "512"
-#define THUMBNAIL_HEIGHT_STR "384"
+#define THUMBNAIL_WIDTH_STR "640"
+#define THUMBNAIL_HEIGHT_STR "480"
 #define THUMBNAIL_SMALL_HEIGHT 144
 
 #define JPEG_THUMBNAIL_SIZE_COUNT (sizeof(jpeg_thumbnail_sizes)/sizeof(camera_size_type))
@@ -127,6 +127,7 @@ static thumbnail_size_type thumbnail_sizes[] = {
 { 6144, 432, 288 }, //1.5
 { 5461, 512, 384 }, //1.333333
 { 5006, 352, 288 }, //1.222222
+{ 5461 ,640,480}
 };
 static camera_size_type jpeg_thumbnail_sizes[]  = {
 { 512, 288 },
@@ -134,6 +135,7 @@ static camera_size_type jpeg_thumbnail_sizes[]  = {
 { 432, 288 },
 { 512, 384 },
 { 352, 288 },
+{ 640, 480},
 {0,0}
 };
 

@@ -29,8 +29,8 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
-#define THUMBNAIL_DEFAULT_WIDTH 512
-#define THUMBNAIL_DEFAULT_HEIGHT 384
+#define THUMBNAIL_DEFAULT_WIDTH 640
+#define THUMBNAIL_DEFAULT_HEIGHT 480
 
 /* following code implement the still image capture & encoding logic of this class*/
 namespace android {
@@ -768,6 +768,8 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     planes[0] = dim->picture_frame_offset.mp[0].len;
     planes[1] = dim->picture_frame_offset.mp[1].len;
     frame_len = dim->picture_frame_offset.frame_len;
+    if(frame_len==0)
+        frame_len=planes[0]+planes[1];
     y_off = dim->picture_frame_offset.mp[0].offset;
     cbcr_off = dim->picture_frame_offset.mp[1].offset;
     LOGE("%s: main image: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
@@ -788,7 +790,9 @@ initSnapshotBuffers(cam_ctrl_dimension_t *dim, int num_of_buf)
     num_planes = 2;
     planes[0] = dim->thumb_frame_offset.mp[0].len;
     planes[1] = dim->thumb_frame_offset.mp[1].len;
-    frame_len = planes[0] + planes[1];
+    frame_len = dim->thumb_frame_offset.frame_len;
+    if(frame_len==0)
+        frame_len = dim->thumbnail_width * dim->thumbnail_height *2;
     if (!isFullSizeLiveshot()) {
 	y_off = dim->thumb_frame_offset.mp[0].offset;
 	cbcr_off = dim->thumb_frame_offset.mp[1].offset;

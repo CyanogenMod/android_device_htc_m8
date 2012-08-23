@@ -946,7 +946,7 @@ int32_t mm_camera_close(mm_camera_obj_t *my_obj)
         my_obj->ctrl_fd = 0;
     }
     if(my_obj->ds_fd > 0) {
-        mm_camera_socket_close(my_obj->ds_fd);
+//        mm_camera_socket_close(my_obj->ds_fd);
         my_obj->ds_fd = 0;
     }
     return MM_CAMERA_OK;
@@ -973,7 +973,10 @@ void mm_camera_ch_release(mm_camera_obj_t *my_obj, mm_camera_channel_type_t ch_t
     mm_camera_ch_fn(my_obj,ch_type, MM_CAMERA_STATE_EVT_RELEASE, 0);
 }
 
+
 int32_t mm_camera_sendmsg(mm_camera_obj_t *my_obj, void *msg, uint32_t buf_size, int sendfd)
 {
-    return mm_camera_socket_sendmsg(my_obj->ds_fd, msg, buf_size, sendfd);
+	return 1;
+//    return mm_camera_socket_sendmsg(my_obj->ds_fd, msg, buf_size, sendfd);
 }
+

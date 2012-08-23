@@ -28,7 +28,7 @@ MM_CAM_FILES:= \
         mm_camera_poll_thread.c \
         mm_camera_notify.c mm_camera_helper.c \
         mm_omx_jpeg_encoder.c \
-        mm_camera_sock.c
+#        mm_camera_sock.c
 endif
 
 LOCAL_CFLAGS+= -DHW_ENCODE

@@ -354,7 +354,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         if(my_obj->op_mode == MM_CAMERA_OP_MODE_ZSL){
            isZSL =1;
         }
-        mm_jpeg_encoder_setRotation(*((int *)parm->p_value),isZSL);
+        mm_jpeg_encoder_setRotation(*((int *)parm->p_value));
         return MM_CAMERA_OK;
 
     case MM_CAMERA_PARM_ASD_ENABLE:

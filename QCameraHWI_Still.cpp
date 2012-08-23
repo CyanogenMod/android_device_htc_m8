@@ -323,12 +323,10 @@ end:
     else
     {
 
-      LOGD("%s: Before omxJpegFinish", __func__);
-      omxJpegFinish();
-      LOGD("%s: After omxJpegFinish", __func__);
         /* getRemainingSnapshots call will give us number of snapshots still
            remaining after flushing current zsl buffer once*/
-        if (mNumOfRecievedJPEG == mNumOfSnapshot) {
+        int remaining_cb = 0;//mHalCamCtrl->getRemainingSnapshots();
+        if (!remaining_cb) {
             LOGD("%s: Complete JPEG Encoding Done!", __func__);
             setSnapshotState(SNAPSHOT_STATE_JPEG_COMPLETE_ENCODE_DONE);
             mBurstModeFlag = false;
@@ -337,24 +335,9 @@ end:
                 LOGD("%s: Resetting the ZSL attributes", __func__);
                 setZSLChannelAttribute();
             }
-        }else {
-            LOGD("%s: mNumOfRecievedJPEG(%d), mNumOfSnapshot(%d)", __func__, mNumOfRecievedJPEG, mNumOfSnapshot);
         }
     }
 
-    if(fail_cb_flag && mHalCamCtrl->mDataCb &&
-        (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
-        /* get picture failed. Give jpeg callback with NULL data
-         * to the application to restore to preview mode
-         */
-        jpg_data_cb  = mHalCamCtrl->mDataCb;
-    }
-    mStopCallbackLock.unlock( );
-    if(jpg_data_cb != NULL) {
-      jpg_data_cb (CAMERA_MSG_COMPRESSED_IMAGE,
-                   NULL, 0, NULL,
-                   mHalCamCtrl->mCallbackCookie);
-    }
 
     LOGD("%s: X", __func__);
 }
@@ -1371,7 +1354,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
     uint8_t *thumbnail_buf;
     uint32_t thumbnail_fd;
 
-    omx_jpeg_encode_params encode_params;
+//    omx_jpeg_encode_params encode_params;
 
     /* If it's the only frame, we directly pass to encoder.
        If not, we'll queue it and check during next jpeg .
@@ -1385,26 +1368,6 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
              "Enqueuing frame id(%d) for later processing.", __func__,
              recvd_frame->snapshot.main.idx);
         mSnapshotQueue.enqueue((void *)recvd_frame);
-    } else if (enqueued) { /*not busy and old buffer (continue job)*/
-      postviewframe = recvd_frame->snapshot.thumbnail.frame;
-      mainframe = recvd_frame->snapshot.main.frame;
-      cam_config_get_parm(mHalCamCtrl->mCameraId, MM_CAMERA_PARM_DIMENSION, &dimension);
-      LOGV("%s: main_fmt =%d, tb_fmt =%d", __func__, dimension.main_img_format, dimension.thumb_format);
-      /*since this is the continue job, we only care about the input buffer*/
-      encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
-      encode_params.thumbnail_fd = postviewframe->fd;
-      encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
-      encode_params.snapshot_fd = mainframe->fd;
-      encode_params.dimension = &dimension;
-      if (!omxJpegEncodeNext(&encode_params)){
-          LOGE("%s: Failure! JPEG encoder returned error.", __func__);
-          ret = FAILED_TRANSACTION;
-          goto end;
-      }
-      /* Save the pointer to the frame sent for encoding. we'll need it to
-         tell kernel that we are done with the frame.*/
-      mCurrentFrameEncoded = recvd_frame;
-      setSnapshotState(SNAPSHOT_STATE_JPEG_ENCODING);
     } else {  /*not busy and new buffer (first job)*/
         postviewframe = recvd_frame->snapshot.thumbnail.frame;
         /* No thumbnail for full size liveshot */
@@ -1432,9 +1395,8 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
         LOGD(" Passing my obj: %x", (unsigned int) this);
-        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this,
-             mHalCamCtrl->mJpegMemory.camera_memory[0]->data, &mJpegOffset);
-        omxJpegStart();
+        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this);
+        mm_jpeg_encoder_init();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
 
         LOGD("%s: Dimension to encode: main: %dx%d thumbnail: %dx%d", __func__,
@@ -1478,44 +1440,23 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
           }
           thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
           thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
-        }
-
-        //update exif parameters in HAL
-        mHalCamCtrl->setExifTags();
-
-        /*Fill in the encode parameters*/
-        encode_params.dimension = (const cam_ctrl_dimension_t *)&dimension;
-        if (!isFullSizeLiveshot()) {
-            encode_params.thumbnail_buf = (uint8_t *)postviewframe->buffer;
-            encode_params.thumbnail_fd = postviewframe->fd;
-            encode_params.thumbnail_offset = postviewframe->phy_offset;
-            encode_params.thumb_crop_offset = &thumb_crop_offset;
-        }
-        encode_params.snapshot_buf = (uint8_t *)mainframe->buffer;
-        encode_params.snapshot_fd = mainframe->fd;
-        encode_params.snapshot_offset = mainframe->phy_offset;
-        encode_params.scaling_params = &crop;
-        encode_params.exif_data = mHalCamCtrl->getExifData();
-        encode_params.exif_numEntries = mHalCamCtrl->getExifTableNumEntries();
-
-        if (isLiveSnapshot())
-            encode_params.a_cbcroffset = mainframe->cbcr_off;
-        else
-            encode_params.a_cbcroffset = -1;
-        encode_params.main_crop_offset = &main_crop_offset;
-
-	if (isFullSizeLiveshot())
-            encode_params.hasThumbnail = 0;
-        else
-            encode_params.hasThumbnail = 1;
-        encode_params.thumb_crop_offset = &thumb_crop_offset;
-        encode_params.main_format = dimension.main_img_format;
-        encode_params.thumbnail_format = dimension.thumb_format;
-
-        if (!omxJpegEncode(&encode_params)){
-            LOGE("%s: Failure! JPEG encoder returned error.", __func__);
-            ret = FAILED_TRANSACTION;
-            goto end;
+          if (!mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
+                          (uint8_t *)postviewframe->buffer,
+                          postviewframe->fd,
+                          postviewframe->phy_offset,
+                          (uint8_t *)mainframe->buffer,
+                          mainframe->fd,
+                          mainframe->phy_offset,
+                          &crop,
+                          NULL,
+                          0,
+                          -1,
+                          &main_crop_offset,
+                          &thumb_crop_offset)){
+              LOGE("%s: Failure! JPEG encoder returned error.", __func__);
+              ret = FAILED_TRANSACTION;
+              goto end;
+            }
         }
 
         /* Save the pointer to the frame sent for encoding. we'll need it to
@@ -1931,7 +1872,6 @@ QCameraStream_Snapshot(int cameraId, camera_mode_t mode)
         mCameraMemoryPtrThumb[i] = NULL;
     }
     /*load the jpeg lib*/
-    mJpegSessionId = omxJpegOpen( );
     LOGV("%s: X", __func__);
   }
 
@@ -1942,23 +1882,6 @@ QCameraStream_Snapshot::~QCameraStream_Snapshot() {
     /* deinit snapshot queue */
     if (mSnapshotQueue.isInitialized()) {
         mSnapshotQueue.deinit();
-    }
-    /* deinit snapshot queue */
-    if (mWDNQueue.isInitialized()) {
-        mWDNQueue.deinit();
-    }
-
-    if(mActive) {
-        stop();
-    }
-    if(mInit) {
-        release();
-    }
-    mInit = false;
-    mActive = false;
-    if (mJpegSessionId > 0) {
-      omxJpegClose( );
-      mJpegSessionId = 0;
     }
     LOGV("%s: X", __func__);
 
@@ -2136,7 +2059,7 @@ void QCameraStream_Snapshot::stop(void)
 
         if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
             LOGV("Destroy Jpeg Instance");
-            omxJpegAbort();
+            mm_jpeg_encoder_cancel();
         }
 
         /* Depending upon current state, we'll need to allocate-deallocate-deinit*/
@@ -2165,15 +2088,6 @@ void QCameraStream_Snapshot::stop(void)
                                             NULL);
     }
 
-    /* release is generally called in case of explicit call from
-       upper-layer during disconnect. So we need to deinit everything
-       whatever state we are in */
-    LOGV("Calling omxjpegjoin from release\n");
-    omxJpegFinish();
-#if 0
-    omxJpegClose();
-#endif
-    mFullLiveshot = false;
     LOGV("%s: X", __func__);
 
 }

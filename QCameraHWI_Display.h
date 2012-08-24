@@ -27,7 +27,7 @@
 extern "C" {
 
 #include <camera.h>
-#include <camera_defs_i.h>
+//#include <camera_defs_i.h>
 #include <mm_camera_interface2.h>
 }
 

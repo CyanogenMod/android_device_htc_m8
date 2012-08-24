@@ -975,7 +975,7 @@ void *QCameraStream_preview::getLastQueuedFrame(void)
 
 status_t QCameraStream_preview::sendMappingBuf(int ext_mode, int idx, int fd, uint32_t size)
 {
-    cam_sock_packet_t packet;
+/*    cam_sock_packet_t packet;
     memset(&packet, 0, sizeof(cam_sock_packet_t));
     packet.msg_type = CAM_SOCK_MSG_TYPE_FD_MAPPING;
     packet.payload.frame_fd_map.ext_mode = ext_mode;
@@ -987,11 +987,13 @@ status_t QCameraStream_preview::sendMappingBuf(int ext_mode, int idx, int fd, ui
         LOGE("%s: sending frame mapping buf msg Failed", __func__);
         return FAILED_TRANSACTION;
     }
+*/
     return NO_ERROR;
 }
 
 status_t QCameraStream_preview::sendUnMappingBuf(int ext_mode, int idx)
 {
+/*
     cam_sock_packet_t packet;
     memset(&packet, 0, sizeof(cam_sock_packet_t));
     packet.msg_type = CAM_SOCK_MSG_TYPE_FD_UNMAPPING;
@@ -1001,6 +1003,7 @@ status_t QCameraStream_preview::sendUnMappingBuf(int ext_mode, int idx)
         LOGE("%s: sending frame unmapping buf msg Failed", __func__);
         return FAILED_TRANSACTION;
     }
+*/
     return NO_ERROR;
 }
 

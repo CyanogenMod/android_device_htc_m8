@@ -252,7 +252,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     LOGE("%s: Calling upperlayer callback to store JPEG image", __func__);
 
     msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
-//    mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
+    mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"marvin", (char *)"jpg", 0);
     if (mHalCamCtrl->mDataCb && (mHalCamCtrl->mMsgEnabled & msg_type)) {
         // Create camera_memory_t object backed by the same physical
         // memory but with actual bitstream size.
@@ -2263,10 +2263,13 @@ uint32_t QCameraStream_Snapshot::fillFrameInfo
 status_t QCameraStream_Snapshot::doWaveletDenoise(mm_camera_ch_data_buf_t* frame)
 {
     status_t ret = NO_ERROR;
+
+/*
     cam_sock_packet_t packet;
     cam_ctrl_dimension_t dim;
 
     LOGD("%s: E", __func__);
+
 
     // get dim on the fly
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
@@ -2298,12 +2301,14 @@ status_t QCameraStream_Snapshot::doWaveletDenoise(mm_camera_ch_data_buf_t* frame
     }
 
 end:
+*/
     LOGD("%s: X", __func__);
     return ret;
 }
 
 status_t QCameraStream_Snapshot::sendWDenoiseStartMsg(mm_camera_ch_data_buf_t * frame)
 {
+/*
     cam_sock_packet_t packet;
     memset(&packet, 0, sizeof(cam_sock_packet_t));
     packet.msg_type = CAM_SOCK_MSG_TYPE_WDN_START;
@@ -2317,6 +2322,7 @@ status_t QCameraStream_Snapshot::sendWDenoiseStartMsg(mm_camera_ch_data_buf_t * 
         LOGE("%s: sending start wavelet denoise msg failed", __func__);
         return FAILED_TRANSACTION;
     }
+*/
     return NO_ERROR;
 }
 
@@ -2327,6 +2333,7 @@ status_t QCameraStream_Snapshot::sendWDenoiseMappingBuf
     cam_ctrl_dimension_t *      dim
 )
 {
+/*
     cam_sock_packet_t packet;
     memset(&packet, 0, sizeof(cam_sock_packet_t));
     packet.msg_type = CAM_SOCK_MSG_TYPE_FD_MAPPING;
@@ -2338,11 +2345,13 @@ status_t QCameraStream_Snapshot::sendWDenoiseMappingBuf
         LOGE("%s: sending frame mapping buf msg Failed", __func__);
         return FAILED_TRANSACTION;
     }
+*/
     return NO_ERROR;
 }
 
 status_t QCameraStream_Snapshot::sendWDenoiseUnMappingBuf(int ext_mode, int idx)
 {
+/*
     cam_sock_packet_t packet;
     memset(&packet, 0, sizeof(cam_sock_packet_t));
     packet.msg_type = CAM_SOCK_MSG_TYPE_FD_UNMAPPING;
@@ -2352,6 +2361,7 @@ status_t QCameraStream_Snapshot::sendWDenoiseUnMappingBuf(int ext_mode, int idx)
         LOGE("%s: sending frame unmapping buf msg Failed", __func__);
         return FAILED_TRANSACTION;
     }
+*/
     return NO_ERROR;
 }
 

@@ -2041,13 +2041,13 @@ end:
 
 void QCameraHardwareInterface::dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index)
 {
-    char buf[32];
+    char buf[64];
     int file_fd;
     if ( data != NULL) {
         char * str;
-        snprintf(buf, sizeof(buf), "/sdcard/%s_%d.%s", name, index, ext);
-        LOGE("marvin, %s size =%d", buf, size);
+        snprintf(buf, sizeof(buf), "/data/local/tmp/%s_%d.%s", name, index, ext);
         file_fd = open(buf, O_RDWR | O_CREAT, 0777);
+        LOGE("marvin, %s size =%d %d", buf, size, file_fd);
         write(file_fd, data, size);
         close(file_fd);
     }

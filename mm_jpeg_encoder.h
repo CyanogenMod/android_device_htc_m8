@@ -31,9 +31,9 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MM_JPEG_ENCODER_H
 #include <linux/ion.h>
 #include "camera.h"
-#include "jpege.h"
-#include "exif.h"
-#include "camera_defs_i.h"
+//#include "jpege.h"
+//#include "exif.h"
+//#include "camera_defs_i.h"
 
 extern void mm_jpege_event_handler(void*, jpeg_event_t event, void *p_arg);
 

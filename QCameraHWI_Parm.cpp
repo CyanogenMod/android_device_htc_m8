@@ -62,10 +62,10 @@ extern "C" {
 #include <stdlib.h>
 #include <linux/ion.h>
 #include <camera.h>
-#include <cam_fifo.h>
-#include <liveshot.h>
-#include <jpege.h>
-#include <jpeg_encoder.h>
+//#include <cam_fifo.h>
+//#include <liveshot.h>
+//#include <jpege.h>
+//#include <jpeg_encoder.h>
 
 } // extern "C"
 
@@ -2249,11 +2249,11 @@ status_t QCameraHardwareInterface::setSkinToneEnhancement(const CameraParameters
 
 status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& params) {
     LOGE("%s",__func__);
+/*
     status_t rc = NO_ERROR;
     rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_WAVELET_DENOISE);
     if(rc != MM_CAMERA_PARM_SUPPORT_SET) {
         LOGE("Wavelet Denoise is not supported for this sensor");
-        /* TO DO */
 //        return NO_ERROR;
     }
     const char *str = params.get(CameraParameters::KEY_DENOISE);
@@ -2279,7 +2279,9 @@ status_t QCameraHardwareInterface::setWaveletDenoise(const CameraParameters& par
         }
         return NO_ERROR;
     }
+  
     LOGE("Invalid Denoise value: %s", (str == NULL) ? "NULL" : str);
+*/
     return BAD_VALUE;
 }
 

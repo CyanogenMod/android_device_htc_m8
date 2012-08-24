@@ -72,9 +72,9 @@ static uint32_t jpegRotation = 0;
 static int8_t usethumbnail = 1;
 static int8_t use_thumbnail_padding = 0;
 #ifdef HW_ENCODE
-static uint8_t hw_encode = true;
+static uint8_t hw_encode = 1;
 #else
-static uint8_t hw_encode = false;
+static uint8_t hw_encode = 0;
 #endif
 static int8_t is_3dmode = 0;
 static cam_3d_frame_format_t img_format_3d;

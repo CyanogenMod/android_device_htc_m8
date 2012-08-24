@@ -2045,7 +2045,7 @@ void QCameraHardwareInterface::dumpFrameToFile(const void * data, uint32_t size,
     int file_fd;
     if ( data != NULL) {
         char * str;
-        snprintf(buf, sizeof(buf), "/data/%s_%d.%s", name, index, ext);
+        snprintf(buf, sizeof(buf), "/sdcard/%s_%d.%s", name, index, ext);
         LOGE("marvin, %s size =%d", buf, size);
         file_fd = open(buf, O_RDWR | O_CREAT, 0777);
         write(file_fd, data, size);

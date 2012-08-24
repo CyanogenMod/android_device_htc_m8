@@ -285,7 +285,7 @@ void enable_msg_type(struct camera_device * device, int32_t msg_type)
 void disable_msg_type(struct camera_device * device, int32_t msg_type)
 {
     QCameraHardwareInterface *hardware = util_get_Hal_obj(device);
-    LOGE("Q%s: E", __func__);
+    LOGE("Q%s: E %d", __func__,msg_type);
     if(hardware != NULL){
         hardware->disableMsgType(msg_type);
     }

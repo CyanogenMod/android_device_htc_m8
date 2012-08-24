@@ -90,7 +90,8 @@ LOCAL_C_INCLUDES += hardware/qcom/display/libgralloc \
 LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
-LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg libmmstillomx libimage-jpeg-enc-omx-comp
+LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg 
+#libmmstillomx libimage-jpeg-enc-omx-comp
 else
 LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg
 endif

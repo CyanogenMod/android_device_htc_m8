@@ -333,7 +333,8 @@ status_t QCameraStream_preview::initDisplayBuffers()
   num_planes = 2;
   planes[0] = dim.display_frame_offset.mp[0].len;
   planes[1] = dim.display_frame_offset.mp[1].len;
-  this->mDisplayStreamBuf.frame_len = dim.display_frame_offset.frame_len;
+  this->mDisplayStreamBuf.frame_len = planes[0]+planes[1]; //dim.display_frame_offset.frame_len;
+  LOGE("%s: planes=%d %d len=%d",__func__,planes[0],planes[1],this->mDisplayStreamBuf.frame_len);
 
   memset(&mDisplayBuf, 0, sizeof(mDisplayBuf));
   mDisplayBuf.preview.buf.mp = new mm_camera_mp_buf_t[mDisplayStreamBuf.num];
@@ -513,11 +514,11 @@ status_t QCameraStream_preview::processPreviewFrame(mm_camera_ch_data_buf_t *fra
   camera_memory_t *data = NULL;
   camera_frame_metadata_t *metadata = NULL;
 
-  Mutex::Autolock lock(mStopCallbackLock);
   if(!mActive) {
     LOGE("Preview Stopped. Returning callback");
     return NO_ERROR;
   }
+  Mutex::Autolock lock(mStopCallbackLock);
   if(mHalCamCtrl==NULL) {
     LOGE("%s: X: HAL control object not set",__func__);
     /*Call buf done*/

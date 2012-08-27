@@ -430,14 +430,23 @@ int32_t mm_camera_set_parm(mm_camera_obj_t * my_obj,
         }
         memcpy(&my_obj->dim, (cam_ctrl_dimension_t *)parm->p_value,
                      sizeof(cam_ctrl_dimension_t));
-        CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,raw_w=%d,raw_h=%d\n",
+        CDBG("%s: dw=%d,dh=%d,vw=%d,vh=%d,pw=%d,ph=%d,tw=%d,th=%d,raw_w=%d,raw_h=%d, %d %d %d %d \n",
                  __func__,
                  my_obj->dim.display_width,my_obj->dim.display_height,
                  my_obj->dim.video_width, my_obj->dim.video_height,
                  my_obj->dim.picture_width,my_obj->dim.picture_height,
                  my_obj->dim.ui_thumbnail_width,my_obj->dim.ui_thumbnail_height,
-                 my_obj->dim.raw_picture_width,my_obj->dim.raw_picture_height);
-        break;
+                 my_obj->dim.raw_picture_width,my_obj->dim.raw_picture_height,
+                 my_obj->dim.display_frame_offset.sp.len, my_obj->dim.video_frame_offset.sp.len,
+                 my_obj->dim.picture_frame_offset.sp.len, my_obj->dim.thumb_frame_offset.sp.len);
+/*
+          unsigned *p=(char *)&my_obj->dim;
+          int i;
+          for(i=0;i<sizeof(my_obj->dim)/4;i++) {
+              CDBG("%08x ",*p++);
+          }
+*/
+          break;
     case MM_CAMERA_PARM_SNAPSHOT_BURST_NUM:
         CDBG("%s: Setting snapshot burst number: %d\n", __func__, *((int *)parm->p_value));
         my_obj->snap_burst_num_by_user = *((int *)parm->p_value);

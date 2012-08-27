@@ -97,8 +97,8 @@ extern "C" {
 
 #define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
 #define DEFAULT_THUMBNAIL_SETTING 4
-#define THUMBNAIL_WIDTH_STR "640"
-#define THUMBNAIL_HEIGHT_STR "480"
+#define THUMBNAIL_WIDTH_STR "512"
+#define THUMBNAIL_HEIGHT_STR "384"
 #define THUMBNAIL_SMALL_HEIGHT 144
 
 #define JPEG_THUMBNAIL_SIZE_COUNT (sizeof(jpeg_thumbnail_sizes)/sizeof(camera_size_type))

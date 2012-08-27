@@ -29,8 +29,8 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 
-#define THUMBNAIL_DEFAULT_WIDTH 640
-#define THUMBNAIL_DEFAULT_HEIGHT 480
+#define THUMBNAIL_DEFAULT_WIDTH 512
+#define THUMBNAIL_DEFAULT_HEIGHT 384
 
 /* following code implement the still image capture & encoding logic of this class*/
 namespace android {
@@ -235,12 +235,12 @@ receiveCompleteJpegPicture(jpeg_event_t event)
     bool fail_cb_flag = false;
 
     //Mutex::Autolock l(&snapshotLock);
-    mStopCallbackLock.lock( );
     if(!mActive && !isLiveSnapshot()) {
         LOGE("Cancel Picture");
         goto end;
     }
 
+    mStopCallbackLock.lock( );
     if(mCurrentFrameEncoded!=NULL && isLiveSnapshot()){
         LOGE("<DEBUG>: Calling buf done for liveshot buffer");
         cam_evt_buf_done(mCameraId, mCurrentFrameEncoded);
@@ -263,13 +263,12 @@ receiveCompleteJpegPicture(jpeg_event_t event)
             LOGE("%s: mGetMemory failed.\n", __func__);
             goto end;
         }
+        memcpy(encodedMem->data, mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset );
         LOGE("%s: Calling mDataCb %x",__func__, mHalCamCtrl->mDataCb);
-//      mStopCallbackLock.unlock();
-//      if(mActive || isLiveSnapshot()){
+      mStopCallbackLock.unlock();
+      if(mActive || isLiveSnapshot()){
           jpg_data_cb  = mHalCamCtrl->mDataCb;
-//      }
-
-//      mStopCallbackLock.unlock( );
+      }
       if (jpg_data_cb != NULL) {
         jpg_data_cb (msg_type,
                              encodedMem, 0, NULL,
@@ -277,7 +276,6 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         encodedMem->release( encodedMem );
         jpg_data_cb = NULL;
       }
- //     mStopCallbackLock.lock( );
     } else {
       LOGW("%s: JPEG callback was cancelled--not delivering image.", __func__);
     }
@@ -1371,7 +1369,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         /*TBD: Move JPEG handling to the mm-camera library */
         LOGD("Setting callbacks, initializing encoder and start encoding.");
         LOGD(" Passing my obj: %x", (unsigned int) this);
-        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this);
+        set_callbacks(snapshot_jpeg_fragment_cb, snapshot_jpeg_cb, this) ; //, mHalCamCtrl->mJpegMemory.camera_memory[0]->data, &mJpegOffset);
         mm_jpeg_encoder_init();
         mm_jpeg_encoder_setMainImageQuality(mHalCamCtrl->getJpegQuality());
 
@@ -2022,7 +2020,7 @@ void QCameraStream_Snapshot::stop(void)
     status_t ret = NO_ERROR;
 
     LOGV("%s: E", __func__);
-    //Mutex::Autolock l(&snapshotLock);
+//    Mutex::Autolock l(&snapshotLock);
 
     if(!mActive) {
       LOGV("%s: Not Active return now", __func__);
@@ -2244,12 +2242,12 @@ uint32_t QCameraStream_Snapshot::fillFrameInfo
     case MSM_V4L2_EXT_CAPTURE_MODE_MAIN:
         frame_info->frame_idx = rcvd_frame->snapshot.main.idx;
         frame_info->fd = rcvd_frame->snapshot.main.frame->fd;
-        frame_info->size = dim->picture_frame_offset.frame_len;
+        frame_info->size = dim->picture_frame_offset.mp[0].len+dim->picture_frame_offset.mp[1].len;
         break;
     case MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL:
         frame_info->frame_idx = rcvd_frame->snapshot.thumbnail.idx;
         frame_info->fd = rcvd_frame->snapshot.thumbnail.frame->fd;
-        frame_info->size = dim->thumb_frame_offset.frame_len;
+        frame_info->size = dim->thumb_frame_offset.mp[0].len+dim->thumb_frame_offset.mp[1].len;
         break;
     default:
         LOGE("%s: error - wrong ext_mode (%d)!", __func__, ext_mode);

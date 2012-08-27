@@ -399,9 +399,15 @@ status_t QCameraStream_record::initEncodeBuffers()
     height = dim.video_height;
   }
   num_planes = 2;
+
+
   planes[0] = dim.video_frame_offset.mp[0].len;
   planes[1] = dim.video_frame_offset.mp[1].len;
-  frame_len = dim.video_frame_offset.frame_len;
+  // look like HTC changed the dimension structure and removed the frame length
+  // this works for 720p
+  frame_len = planes[0]+planes[1]+2048; //dim.video_frame_offset.frame_len;
+
+LOGE("%s: %d %d %d",__func__,planes[0],planes[1],frame_len);
 
   buf_cnt = VIDEO_BUFFER_COUNT;
   if(mHalCamCtrl->isLowPowerCamcorder()) {

@@ -30,7 +30,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __MM_CAMERA_DBG_H__
 #define __MM_CAMERA_DBG_H__
 
-//#define LOG_DEBUG 1
+#define LOG_DEBUG 1
 
 #undef CDBG
 #ifndef LOG_DEBUG

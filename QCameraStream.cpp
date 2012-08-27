@@ -304,7 +304,7 @@ status_t QCameraStream::setFormat(uint8_t ch_type_mask)
     }*/
 
     rc = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
-    LOGV("%s: Stream MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
+    LOGV("%s: Stream MM_CAMERA_PARM_CH_IMAGE_FMT %d %d rc = %d\n", __func__, fmt.ch_type, fmt.video.video.fmt, rc);
     if(MM_CAMERA_OK != rc) {
         LOGE("%s:set stream channel format err=%d\n", __func__, ret);
         LOGE("%s: X", __func__);

@@ -439,7 +439,7 @@ typedef struct {
     cam_sp_len_offset_t sp;
     cam_mp_len_offset_t mp[8];
   };
-  uint32_t frame_len;
+//  uint32_t frame_len;
 } cam_frame_len_offset_t;
 
 typedef struct {

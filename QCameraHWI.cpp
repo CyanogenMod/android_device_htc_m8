@@ -137,26 +137,29 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mCallbackCookie(0),
                     //mPreviewHeap(0),
                     mStreamDisplay (NULL), mStreamRecord(NULL), mStreamSnap(NULL),
+                    mStreamLiveSnap(NULL),
                     mPreviewFormat(0),
                     mFps(0),
                     mDebugFps(0),
+                    mDenoiseValue(0),
                     mMaxZoom(0),
                     mCurrentZoom(0),
                     mSupportedPictureSizesCount(15),
+                    mFaceDetectOn(0),
                     mDumpFrmCnt(0), mDumpSkipCnt(0),
                     mPictureSizeCount(15),
                     mPreviewSizeCount(13),
                     mAutoFocusRunning(false),
                     mHasAutoFocusSupport(false),
                     mInitialized(false),
+                    mDisEnabled(0),
                     mIs3DModeOn(0),
                     mSmoothZoomRunning(false),
                     mParamStringInitialized(false),
-                    mFaceDetectOn(0),
-                    mDisEnabled(0),
                     mZoomSupported(false),
                     mFullLiveshotEnabled(0),
                     mRecordingHint(0),
+                    mHdrMode(HDR_BRACKETING_OFF),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
                     mZslLookBackMode(0),
                     mZslLookBackValue(0),
@@ -164,10 +167,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mPictureSizes(NULL),
                     mCameraState(CAMERA_STATE_UNINITED),
                     mPostPreviewHeap(NULL),
-                    mHdrMode(HDR_BRACKETING_OFF),
-                    mStreamLiveSnap(NULL),
-                    mExifTableNumEntries(0),
-                    mDenoiseValue(0)
+                    mExifTableNumEntries(0)
 {
     LOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -2249,7 +2249,7 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 {
     int rc = 0;
     int i;
-    int path;
+    int path=0;
     struct msm_frame *frame;
     LOGE("Init Heap =%p. stream_buf =%p, pmem_type =%d, num_of_buf=%d. buf_len=%d, cbcr_off=%d",
          heap, StreamBuf, pmem_type, num_of_buf, buf_len, cbcr_off);

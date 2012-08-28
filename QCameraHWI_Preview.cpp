@@ -938,7 +938,7 @@ status_t QCameraStream_preview::start()
     (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
                                       NULL,
                                       (mm_camera_register_buf_cb_type_t)NULL,
-                                      NULL,
+                                      0,
                                       NULL);
     mInit = false;
     LOGE("%s: END", __func__);

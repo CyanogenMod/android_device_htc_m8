@@ -264,7 +264,7 @@ receiveCompleteJpegPicture(jpeg_event_t event)
             goto end;
         }
         memcpy(encodedMem->data, mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset );
-        LOGE("%s: Calling mDataCb %x",__func__, mHalCamCtrl->mDataCb);
+//        LOGE("%s: Calling mDataCb %x",__func__, mHalCamCtrl->mDataCb);
       mStopCallbackLock.unlock();
       if(mActive || isLiveSnapshot()){
           jpg_data_cb  = mHalCamCtrl->mDataCb;
@@ -582,7 +582,7 @@ deinitSnapshotChannel(mm_camera_channel_type_t ch_type)
     /* unreg buf notify*/
     if (getSnapshotState() >= SNAPSHOT_STATE_BUF_NOTIF_REGD){
         if (NO_ERROR != cam_evt_register_buf_notify(mCameraId,
-                        ch_type, NULL,(mm_camera_register_buf_cb_type_t)NULL,NULL, this)) {
+                        ch_type, NULL,(mm_camera_register_buf_cb_type_t)NULL,0, this)) {
             LOGE("%s: Failure to unregister buf notification", __func__);
         }
     }
@@ -1414,7 +1414,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
           }
           thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
           thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
-          LOGD("mm_jpeg_encoder_encode: %x %x %x, %x %x %", postviewframe->buffer,postviewframe->fd,postviewframe->phy_offset,mainframe->buffer,mainframe->fd,mainframe->phy_offset);
+//          LOGD("mm_jpeg_encoder_encode: %x %x %x, %x %x %", postviewframe->buffer,postviewframe->fd,postviewframe->phy_offset,mainframe->buffer,mainframe->fd,mainframe->phy_offset);
           if (!mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
                           (uint8_t *)postviewframe->buffer,
                           postviewframe->fd,
@@ -2051,7 +2051,7 @@ void QCameraStream_Snapshot::stop(void)
         (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_RAW,
                                             NULL,
                                             (mm_camera_register_buf_cb_type_t)NULL,
-                                            NULL,
+                                            0,
                                             NULL);
     } else {
         ret= QCameraStream::deinitChannel(mCameraId, MM_CAMERA_CH_SNAPSHOT);
@@ -2061,7 +2061,7 @@ void QCameraStream_Snapshot::stop(void)
         (void)cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_SNAPSHOT,
                                             NULL,
                                             (mm_camera_register_buf_cb_type_t)NULL,
-                                            NULL,
+                                            0,
                                             NULL);
     }
 

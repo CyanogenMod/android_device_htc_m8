@@ -51,6 +51,30 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define JPEG_DEFAULT_MAINIMAGE_QUALITY 75
 #define JPEG_DEFAULT_THUMBNAIL_QUALITY 75
 
+int jpeg_buffer_get_pmem_fd();
+int jpeg_buffer_get_actual_size();
+int jpeg_buffer_set_actual_size();
+int jpege_enqueue_output_buffer();
+int jpege_init();
+int jpege_abort();
+int jpeg_buffer_destroy();
+int exif_destroy();
+int jpege_destroy();
+int exif_init();
+int jpeg_buffer_init();
+int jpeg_buffer_allocate();
+int jpeg_buffer_reset();
+int jpeg_buffer_use_external_buffer();
+int jpeg_buffer_attach_existing();
+int jpeg_buffer_set_start_offset();
+int jpeg_buffer_set_phy_offset();
+int jpege_set_source();
+int jpege_set_destination();
+int jpege_get_default_config();
+int exif_set_tag();
+int jpege_start();
+int jpeg_buffer_get_addr();
+
 int is_encoding = 0;
 pthread_mutex_t jpege_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t jpegcb_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -320,7 +344,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
   int cbcroffset = 0;
   int actual_size = 0, padded_size = 0;
   usethumbnail = thumbnail_buf ? 1 : 0;
-  int w_scale_factor = (is_3dmode && img_format_3d == SIDE_BY_SIDE_FULL) ? 2 : 1;
+  int w_scale_factor = (is_3dmode && img_format_3d == (int)SIDE_BY_SIDE_FULL) ? 2 : 1;
 
   pthread_mutex_lock(&jpege_mutex);
   //mmcamera_util_profile("encoder configure");

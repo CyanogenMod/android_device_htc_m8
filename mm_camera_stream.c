@@ -240,8 +240,8 @@ int32_t mm_camera_util_s_ctrl( int32_t fd,  uint32_t id, int32_t value)
     rc = ioctl (fd, VIDIOC_S_CTRL, &control);
 
     if(rc) {
-        CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %ld\n",
-                 __func__, fd, id, (uint32_t)value, rc);
+//        CDBG("%s: fd=%d, S_CTRL, id=0x%x, value = 0x%x, rc = %ld\n",
+//                 __func__, fd, id, (uint32_t)value, rc);
         rc = MM_CAMERA_E_GENERAL;
     }
     return rc;
@@ -850,7 +850,7 @@ int32_t mm_camera_stream_fsm_fn_vtbl (mm_camera_obj_t * my_obj,
                    mm_camera_stream_t *stream,
                    mm_camera_state_evt_type_t evt, void *val)
 {
-    CDBG("%s: stream fd=%d, type = %d, state=%d, evt\n",
+    CDBG("%s: stream fd=%d, type = %d, state=%d, evt=%d\n",
                  __func__, stream->fd, stream->stream_type, stream->state, evt);
     return mm_camera_stream_fsm_fn[stream->state] (my_obj, stream, evt, val);
 }

@@ -68,7 +68,7 @@ static hw_module_t camera_common  = {
   author:"Qcom",
   methods: &camera_module_methods,
   dso: NULL,
-  //reserved[0]:  0,
+  reserved:  {0},
 };
 camera_module_t HAL_MODULE_INFO_SYM = {
   common: camera_common,

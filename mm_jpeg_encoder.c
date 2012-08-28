@@ -35,7 +35,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mm_camera_dbg.h"
 #include <sys/system_properties.h>
 #include "mm_camera_interface2.h"
-#define JPG_DBG
+//#define JPG_DBG
 #ifdef JPG_DBG
 #undef CDBG
   #ifdef _ANDROID_

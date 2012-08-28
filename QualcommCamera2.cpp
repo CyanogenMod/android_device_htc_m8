@@ -444,8 +444,9 @@ int set_parameters(struct camera_device * device, const char *parms)
         //param.unflatten(str);
         rc = hardware->setParameters(parms);
         //rc = 0;
-  }
-  return rc;
+    }
+    LOGE("Q%s: X", __func__);
+    return rc;
 }
 
 char* get_parameters(struct camera_device * device)

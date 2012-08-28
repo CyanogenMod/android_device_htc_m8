@@ -936,7 +936,7 @@ bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
 
     dim->prev_padding_format =  getPreviewPadding( );
 
-    dim->enc_format = CAMERA_YUV_420_NV12;
+    dim->enc_format = CAMERA_YUV_420_NV21;
     dim->orig_video_width = mDimension.orig_video_width;
     dim->orig_video_height = mDimension.orig_video_height;
     dim->video_width = mDimension.video_width;

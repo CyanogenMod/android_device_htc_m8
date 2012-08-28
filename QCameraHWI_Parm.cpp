@@ -703,7 +703,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     mDimension.orig_video_height = DEFAULT_STREAM_HEIGHT;
 
     mDimension.prev_format     = CAMERA_YUV_420_NV21;
-    mDimension.enc_format      = CAMERA_YUV_420_NV12;
+    mDimension.enc_format      = CAMERA_YUV_420_NV21;
     if (snap_format == 1) {
       mDimension.main_img_format = CAMERA_YUV_422_NV61;
     } else {

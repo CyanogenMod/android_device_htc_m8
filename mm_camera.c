@@ -289,8 +289,9 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                     CAMERA_SET_AEC_MTR_AREA, sizeof(aec_mtr_area_t), (void *)parm->p_value);
 #endif
     case MM_CAMERA_PARM_CAF_ENABLE:
-        return mm_camera_send_native_ctrl_cmd(my_obj,
-                    CAMERA_SET_PARM_CAF, sizeof(uint32_t), (void *)parm->p_value);
+        LOGE("CAMERA_PARM_CAF not supported");
+        return 0;//mm_camera_send_native_ctrl_cmd(my_obj,
+                 //   CAMERA_SET_PARM_CAF, sizeof(uint32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_BESTSHOT_MODE:
         CDBG("%s : MM_CAMERA_PARM_BESTSHOT_MODE value : %d",__func__,*((int *)(parm->p_value)));
         return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -309,11 +310,13 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_FD, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AEC_LOCK:
-        return mm_camera_send_native_ctrl_cmd(my_obj,
-                    CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
+        LOGE("CAMERA_PARM_AEC_LOCK not supported");
+        return 0; //mm_camera_send_native_ctrl_cmd(my_obj,
+                  //  CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AWB_LOCK:
-        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
-                                                     sizeof(int32_t), (void *)parm->p_value);
+        LOGE("CAMERA_PARM_AWB_LOCK not supported");
+        return 0;//mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
+                  //                                   sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_MCE:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_PARM_MCE,
                                                      sizeof(int32_t), (void *)parm->p_value);
@@ -370,8 +373,9 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                   CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
 
     case MM_CAMERA_PARM_DIS_ENABLE:
-      return mm_camera_send_native_ctrl_cmd(my_obj,
-                  CAMERA_SET_DIS_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
+      LOGE("CAMERA_PARM_DIS_ENABLE not supported");
+      return 0;//mm_camera_send_native_ctrl_cmd(my_obj,
+               //   CAMERA_SET_DIS_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
 
     case MM_CAMERA_PARM_FULL_LIVESHOT: {
       my_obj->full_liveshot = *((int *)(parm->p_value));
@@ -509,8 +513,9 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     }
         break;
     case MM_CAMERA_PARM_MAX_HFR_MODE:
-        return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_MAX_HFR_MODE,
-                sizeof(camera_hfr_mode_t), (void *)parm->p_value);
+        LOGE("CAMERA_PARM_MAX_HFR_MODE not supported");
+        return 0;//mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_MAX_HFR_MODE,
+                //sizeof(camera_hfr_mode_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_FOCAL_LENGTH:
         return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_FOCAL_LENGTH,
                      sizeof(focus_distances_info_t), (void *)parm->p_value);

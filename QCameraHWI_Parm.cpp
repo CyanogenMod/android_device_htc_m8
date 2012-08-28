@@ -84,7 +84,7 @@ extern "C" {
 
 //Default FPS
 #define MINIMUM_FPS 5
-#define MAXIMUM_FPS 31
+#define MAXIMUM_FPS 30
 #define DEFAULT_FPS MAXIMUM_FPS
 
 //Default Picture Width
@@ -869,11 +869,11 @@ void QCameraHardwareInterface::initDefaultParameters()
     if (cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS)) {
         mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
                         mPreviewFrameRateValues.string());
-     } /* else {
+     }  else {
         mParameters.set(
             CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES,
             DEFAULT_FPS);
-    }*/
+    }
 
     //Set Preview Frame Rate Modes
     mParameters.setPreviewFrameRateMode("frame-rate-auto");
@@ -1266,7 +1266,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
-    if ((rc = setAecAwbLock(params)))                   final_rc = rc;
+//    if ((rc = setAecAwbLock(params)))                   final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -1292,7 +1292,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
 
    LOGI("%s: X", __func__);
-   return NO_ERROR;
+   return rc;
 }
 
 /** Retrieve the camera parameters.  The buffer returned by the camera HAL
@@ -3022,6 +3022,7 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
   if(str != NULL){
       int32_t value = attr_lookup(recording_Hints,
                                   sizeof(recording_Hints) / sizeof(str_map), str);
+      LOGE("setRecordingHint %s",str);
       if(value != NOT_FOUND){
         mRecordingHint = value;
         native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),

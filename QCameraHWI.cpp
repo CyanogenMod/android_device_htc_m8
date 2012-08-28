@@ -155,7 +155,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mFaceDetectOn(0),
                     mDisEnabled(0),
                     mZoomSupported(false),
-                    mFullLiveshotEnabled(1),
+                    mFullLiveshotEnabled(0),
                     mRecordingHint(0),
                     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
                     mZslLookBackMode(0),

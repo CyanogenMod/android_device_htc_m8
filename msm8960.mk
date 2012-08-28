@@ -115,3 +115,20 @@ PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/firmware/WCNSS_cfg.dat:/system/etc/firmware/wlan/prima/WCNSS_cfg.dat \
     device/htc/msm8960-common/firmware/WCNSS_qcom_cfg.ini:/system/etc/firmware/wlan/prima/WCNSS_qcom_cfg.ini \
     device/htc/msm8960-common/firmware/WCNSS_qcom_wlan_nv.bin:/system/etc/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
+
+# Common build properties
+PRODUCT_PROPERTY_OVERRIDES += \
+    com.qc.hardware=true \
+    debug.composition.type=dyn \
+    debug.egl.hw=1 \
+    debug.enabletr=true \
+    debug.sf.hw=1 \
+    dev.pm.dyn_samplingrate=1 \
+    persist.gps.qmienabled=true \
+    persist.thermal.monitor=true \
+    ro.baseband.arch=msm \
+    ro.opengles.version=131072 \
+    ro.product.wireless=WCN3660 \
+    ro.qualcomm.bt.hci_transport=smd \
+    ro.use_data_netmgrd=true \
+    wifi.interface=wlan0

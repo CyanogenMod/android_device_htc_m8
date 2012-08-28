@@ -1531,6 +1531,8 @@ encodeDisplayAndSave(mm_camera_ch_data_buf_t* recvd_frame,
     }
 
     memset(&dummy_crop,0,sizeof(common_crop_t));
+    mPictureFormat=CAMERA_YUV_420_NV12;
+    mThumbnailFormat=CAMERA_YUV_420_NV12;
     ret = encodeData(recvd_frame, &dummy_crop, mSnapshotStreamBuf.frame_len,
                      enqueued);
     if (ret != NO_ERROR) {

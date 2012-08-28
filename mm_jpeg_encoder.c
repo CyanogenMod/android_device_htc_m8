@@ -387,7 +387,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
     tn_img_info.height = dimension->thumbnail_height;
     buf_size = tn_img_info.width * tn_img_info.height * 2;
     tn_img_info.fragment_cnt = 1;
-    tn_img_info.color_format = YCRCBLP_H2V2;
+    tn_img_info.color_format = dimension->thumb_format; //YCRCBLP_H2V2;
     tn_img_info.p_fragments[0].width = tn_img_info.width;
     tn_img_info.p_fragments[0].height = CEILING16(dimension->thumbnail_height);
     jpeg_buffer_reset(tn_img_info.p_fragments[0].color.yuv.luma_buf);
@@ -443,7 +443,7 @@ int8_t mm_jpeg_encoder_encode(const cam_ctrl_dimension_t * dimension,
   main_img_info.height = dimension->orig_picture_dy;
   buf_size = main_img_info.width * main_img_info.height * 2;
   main_img_info.fragment_cnt = 1;
-  main_img_info.color_format = YCRCBLP_H2V2;
+  main_img_info.color_format = dimension->main_img_format; //YCRCBLP_H2V2;
   main_img_info.p_fragments[0].width = main_img_info.width;
   main_img_info.p_fragments[0].height = CEILING16(main_img_info.height);
   jpeg_buffer_reset(main_img_info.p_fragments[0].color.yuv.luma_buf);

@@ -936,7 +936,7 @@ bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
 
     dim->prev_padding_format =  getPreviewPadding( );
 
-    dim->enc_format = CAMERA_YUV_420_NV21;
+    dim->enc_format = CAMERA_YUV_420_NV12;
     dim->orig_video_width = mDimension.orig_video_width;
     dim->orig_video_height = mDimension.orig_video_height;
     dim->video_width = mDimension.video_width;
@@ -1470,8 +1470,8 @@ void liveshot_callback(mm_camera_ch_data_buf_t *recvd_frame,
     dim.picture_height = pme->mDimension.video_height;
     dim.ui_thumbnail_width = pme->mDimension.video_width;
     dim.ui_thumbnail_height = pme->mDimension.video_height;
-    dim.main_img_format = pme->mDimension.enc_format;
-    dim.thumb_format = pme->mDimension.enc_format;
+    dim.main_img_format = CAMERA_YUV_420_NV21; //pme->mDimension.enc_format;
+    dim.thumb_format = CAMERA_YUV_420_NV21; //pme->mDimension.enc_format;
 
     mJpegMaxSize = pme->mDimension.video_width * pme->mDimension.video_width * 1.5;
 

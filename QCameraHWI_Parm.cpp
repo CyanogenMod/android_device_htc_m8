@@ -78,7 +78,9 @@ extern "C" {
 #define EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR 0
 #define EXPOSURE_COMPENSATION_DENOMINATOR 6
 #define EXPOSURE_COMPENSATION_STEP ((float (1))/EXPOSURE_COMPENSATION_DENOMINATOR)
-#define FOCUS_AREA_INIT "(-1000,-1000,1000,1000,1000)"
+//#define FOCUS_AREA_INIT "(-1000,-1000,1000,1000,1000)"
+
+#define FOCUS_AREA_INIT "(0,0,0,0,0)"
 
 #define HDR_HAL_FRAME 2
 
@@ -276,7 +278,7 @@ static const str_map focus_modes[] = {
     { CameraParameters::FOCUS_MODE_NORMAL,   AF_MODE_NORMAL },
     { CameraParameters::FOCUS_MODE_MACRO,    AF_MODE_MACRO },
     { CameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE, AF_MODE_CAF},
-    { CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, AF_MODE_CAF }
+    { CameraParameters::FOCUS_MODE_CONTINUOUS_VIDEO, /*AF_MODE_UNCHANGED*/ AF_MODE_CAF_VID }
 };
 
 static const str_map selectable_zone_af[] = {
@@ -1367,7 +1369,7 @@ status_t QCameraHardwareInterface::runFaceDetection()
         preview_parm_config (&dim, mParameters);
         LOGE("%s: why set_dimension everytime?", __func__);
         ret = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
-        ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
+        ret = native_set_parms(MM_CAMERA_PARM_FD, sizeof(int), (void *)&value);
         return ret ? NO_ERROR : UNKNOWN_ERROR;
     }
     LOGE("Invalid Face Detection value: %s", (str == NULL) ? "NULL" : str);
@@ -1923,9 +1925,13 @@ status_t QCameraHardwareInterface::setFocusMode(const CameraParameters& params)
                    !strcmp(str, CameraParameters::FOCUS_MODE_CONTINUOUS_PICTURE)){
                     cafSupport = TRUE;
                 }
-                LOGE("Continuous Auto Focus %d", cafSupport);
                 bool ret = native_set_parms(MM_CAMERA_PARM_CONTINUOUS_AF, sizeof(cafSupport),
                                        (void *)&cafSupport);
+		LOGE("MM_CAMERA_PARM_CONTINUOUS_AF(%d)=%d",cafSupport,ret);
+                ret = native_set_parms(MM_CAMERA_PARM_FOCUS_MODE, sizeof(value),(void *)&value);
+		LOGE("MM_CAMERA_PARM_FOCUS_MODE(%d)=%d",value,ret);
+
+//                LOGE("Continuous Auto Focus %d", cafSupport);
             }
 
             return NO_ERROR;
@@ -1974,6 +1980,7 @@ status_t QCameraHardwareInterface::setSelectableZoneAf(const CameraParameters& p
                 mParameters.set(CameraParameters::KEY_SELECTABLE_ZONE_AF, str);
                 bool ret = native_set_parms(MM_CAMERA_PARM_FOCUS_RECT, sizeof(value),
                         (void *)&value);
+                LOGE("zone_af(%d) = %d",value,ret);
                 return ret ? NO_ERROR : UNKNOWN_ERROR;
             }
         }
@@ -2721,7 +2728,7 @@ status_t QCameraHardwareInterface::setFaceDetect(const CameraParameters& params)
 //        cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
 //        preview_parm_config (&dim, mParameters);
 //        cam_config_set_parm(mCameraId, MM_CAMERA_PARM_DIMENSION,&dim);
-        native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
+        native_set_parms(MM_CAMERA_PARM_FD, sizeof(int), (void *)&value);
         mParameters.set(CameraParameters::KEY_FACE_DETECTION, str);
         return NO_ERROR;
     }
@@ -2742,7 +2749,7 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
             mFaceDetectOn = value;
             mMetaDataWaitLock.unlock();
             mParameters.set(CameraParameters::KEY_FACE_DETECTION, str);
-            native_set_parms(MM_CAMERA_PARM_FD, sizeof(int8_t), (void *)&value);
+            native_set_parms(MM_CAMERA_PARM_FD, sizeof(int), (void *)&value);
             mParameters.set(CameraParameters::KEY_FACE_DETECTION, str);
             return NO_ERROR;
         }
@@ -3028,7 +3035,7 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
         native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
                                                (void *)&value);
         if (value == TRUE) {
-          native_set_parms(MM_CAMERA_PARM_CAF_ENABLE, sizeof(value),
+          native_set_parms(MM_CAMERA_PARM_CONTINUOUS_AF, sizeof(value),
                                                (void *)&value);
         }
         mParameters.set(CameraParameters::KEY_RECORDING_HINT, str);
@@ -3063,10 +3070,32 @@ status_t QCameraHardwareInterface::setDISMode() {
   }
   /* End workaround */
 
-  LOGI("%s DIS is %s value = %d", __func__,
-          value ? "Enabled" : "Disabled", value);
-  native_set_parms(MM_CAMERA_PARM_DIS_ENABLE, sizeof(value),
-                                               (void *)&value);
+
+//  LOGI("%s DIS is %s value = %d", __func__,
+//          value ? "Enabled" : "Disabled", value);
+//  native_set_parms(MM_CAMERA_PARM_DIS_ENABLE, sizeof(value),
+//                                               (void *)&value);
+
+    video_dis_param_ctrl_t disCtrl;
+    bool ret = true;
+    LOGV("mDisEnabled = %d", value);
+
+    int video_frame_cbcroffset;
+    video_frame_cbcroffset = PAD_TO_WORD(mDimension.video_width * mDimension.video_height);
+
+    disCtrl.dis_enable = value;
+    const char *str = mParameters.get(CameraParameters::KEY_VIDEO_HIGH_FRAME_RATE);
+    if((str != NULL) && (strcmp(str, CameraParameters::VIDEO_HFR_OFF))) {
+        LOGI("%s: HFR is ON, setting DIS as OFF", __FUNCTION__);
+        disCtrl.dis_enable = 0;
+    }
+    disCtrl.video_rec_width = mDimension.video_width;
+    disCtrl.video_rec_height = mDimension.video_height;
+    disCtrl.output_cbcr_offset = video_frame_cbcroffset;
+
+//    ret = native_set_parms( MM_CAMERA_PARM_VIDEO_DIS,
+//                       sizeof(disCtrl), &disCtrl);
+
   return NO_ERROR;
 }
 

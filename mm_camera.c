@@ -71,6 +71,7 @@ static int32_t mm_camera_ctrl_set_auto_focus (mm_camera_obj_t *my_obj, int value
     memset (&queryctrl, 0, sizeof (queryctrl));
     queryctrl.id = V4L2_CID_FOCUS_AUTO;
 
+    LOGE("mm_camera_ctrl_set_auto_focus(%d)",value);
     if(value != 0 && value != 1) {
         CDBG("%s:boolean required, invalid value = %d\n",__func__, value);
         return -MM_CAMERA_E_INVALID_INPUT;
@@ -288,10 +289,10 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_AEC_MTR_AREA, sizeof(aec_mtr_area_t), (void *)parm->p_value);
 #endif
-    case MM_CAMERA_PARM_CAF_ENABLE:
-        LOGE("CAMERA_PARM_CAF not supported");
-        return 0;//mm_camera_send_native_ctrl_cmd(my_obj,
-                 //   CAMERA_SET_PARM_CAF, sizeof(uint32_t), (void *)parm->p_value);
+    case MM_CAMERA_PARM_FOCUS_MODE:
+        LOGE("CAMERA_PARM_FOCUS_MODE: %d",*((int *)(parm->p_value)));
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_PARM_FOCUS_MODE, sizeof(uint32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_BESTSHOT_MODE:
         CDBG("%s : MM_CAMERA_PARM_BESTSHOT_MODE value : %d",__func__,*((int *)(parm->p_value)));
         return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -379,6 +380,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
 
     case MM_CAMERA_PARM_FULL_LIVESHOT: {
       my_obj->full_liveshot = *((int *)(parm->p_value));
+      LOGE("full_liveshot = %d",my_obj->full_liveshot);
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_FULL_LIVESHOT, sizeof(uint32_t), (void *)parm->p_value);
     }

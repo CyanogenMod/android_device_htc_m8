@@ -639,6 +639,7 @@ typedef enum {
   CAMERA_SET_DIS_ENABLE,
   CAMERA_GET_PARM_MAX_HFR_MODE,
 */
+  CAMERA_SET_PARM_FOCUS_MODE=0x87,
   CAMERA_CTRL_PARM_MAX
 } cam_ctrl_type;
 
@@ -951,10 +952,11 @@ typedef enum {
 /* Auto focus mode, used for CAMERA_PARM_AF_MODE */
 typedef enum {
   AF_MODE_UNCHANGED = -1,
-  AF_MODE_NORMAL    = 0,
+  AF_MODE_NORMAL    = 1,
   AF_MODE_MACRO,
   AF_MODE_AUTO,
   AF_MODE_CAF,
+  AF_MODE_CAF_VID,
   AF_MODE_MAX
 } isp3a_af_mode_t;
 

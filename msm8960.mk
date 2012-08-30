@@ -56,6 +56,10 @@ PRODUCT_PACKAGES += \
     libalsa-intf \
     libaudioutils
 
+# Camera
+PRODUCT_PACKAGES += \
+    camera.msm8960
+
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8960 \

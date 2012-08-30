@@ -848,7 +848,11 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.set(CameraParameters::KEY_SUPPORTED_VIDEO_SIZES, videoSizes.string());
 
     //set video size
-    String8 vSize = create_sizes_str(&supported_video_sizes[4], 1);
+    String8 vSize;
+    if(mHasAutoFocusSupport)
+        vSize = create_sizes_str(&supported_video_sizes[0], 1);
+    else
+        vSize = create_sizes_str(&supported_video_sizes[4], 1);
     mParameters.set(CameraParameters::KEY_VIDEO_SIZE, vSize.string());
 
     //Set Preview size

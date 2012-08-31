@@ -144,17 +144,17 @@ static camera_size_type jpeg_thumbnail_sizes[]  = {
 static camera_size_type default_preview_sizes[] = {
   { 1920, 1080}, //1080p
   { 1280, 720}, // 720P, reserved
-  { 800, 480}, // WVGA
+//  { 800, 480}, // WVGA
   { 768, 432},
-  { 720, 480},
+//  { 720, 480},
   { 640, 480}, // VGA
   { 576, 432},
   { 480, 320}, // HVGA
   { 384, 288},
-  { 352, 288}, // CIF
+//  { 352, 288}, // CIF
   { 320, 240}, // QVGA
   { 240, 160}, // SQVGA
-  { 176, 144}, // QCIF
+//  { 176, 144}, // QCIF
 };
 
 static camera_size_type supported_video_sizes[] = {

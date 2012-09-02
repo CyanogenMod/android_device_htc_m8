@@ -1255,6 +1255,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setSaturation(params)))                   final_rc = rc;
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
+    if ((rc = setSceneDetect(params)))                  final_rc = rc;
     if ((rc = setFaceDetect(params)))                   final_rc = rc;
     if ((rc = setStrTextures(params)))                  final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
@@ -1475,14 +1476,12 @@ status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params
         return NO_ERROR;
     }
 
-    const char *str = params.get(CameraParameters::KEY_SCENE_DETECT);
+    const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     LOGE("Scene Detect string : %s",str);
     if (str != NULL) {
-        int32_t value = attr_lookup(scenedetect, sizeof(scenedetect) / sizeof(str_map), str);
+        int32_t value= (strcmp(str,CameraParameters::SCENE_MODE_ASD)==0);
         LOGE("Scenedetect Value : %d",value);
         if (value != NOT_FOUND) {
-            mParameters.set(CameraParameters::KEY_SCENE_DETECT, str);
-
             retParm = native_set_parms(MM_CAMERA_PARM_ASD_ENABLE, sizeof(value),
                                        (void *)&value);
 

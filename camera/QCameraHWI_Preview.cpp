@@ -331,7 +331,7 @@ status_t QCameraStream_preview::initDisplayBuffers()
   this->mDisplayStreamBuf.num = mHalCamCtrl->mPreviewMemory.buffer_count;
   this->myMode=myMode; /*Need to assign this in constructor after translating from mask*/
   num_planes = 2;
-  planes[0] = dim.display_frame_offset.mp[0].len;
+  planes[0] = width*height; //dim.display_frame_offset.mp[0].len;
   planes[1] = dim.display_frame_offset.mp[1].len;
   this->mDisplayStreamBuf.frame_len = planes[0]+planes[1]; //dim.display_frame_offset.frame_len;
   LOGE("%s: planes=%d %d len=%d",__func__,planes[0],planes[1],this->mDisplayStreamBuf.frame_len);

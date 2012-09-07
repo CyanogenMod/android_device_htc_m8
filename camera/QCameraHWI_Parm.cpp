@@ -1038,18 +1038,21 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
 
     //Set Sharpness
+    mParameters.set("max-sharpness",CAMERA_MAX_SHARPNESS);
     mParameters.set(CameraParameters::KEY_MAX_SHARPNESS,
             CAMERA_MAX_SHARPNESS);
     mParameters.set(CameraParameters::KEY_SHARPNESS,
                     CAMERA_DEF_SHARPNESS);
 
     //Set Contrast
+    mParameters.set("max-contrast",CAMERA_MAX_CONTRAST);
     mParameters.set(CameraParameters::KEY_MAX_CONTRAST,
             CAMERA_MAX_CONTRAST);
     mParameters.set(CameraParameters::KEY_CONTRAST,
                     CAMERA_DEF_CONTRAST);
 
     //Set Saturation
+    mParameters.set("max-saturation",CAMERA_MAX_SATURATION);
     mParameters.set(CameraParameters::KEY_MAX_SATURATION,
             CAMERA_MAX_SATURATION);
     mParameters.set(CameraParameters::KEY_SATURATION,

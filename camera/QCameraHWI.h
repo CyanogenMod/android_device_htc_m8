@@ -211,7 +211,18 @@ typedef struct{
     rat_t       focalLength;
     uint16_t    flashMode;
     uint16_t    isoSpeed;
+
+    bool        mAltitude;
+    bool        mLongitude;
+    bool        mLatitude;
+    bool        mTimeStamp;
+    bool        mGpsProcess;
+
+    int         mAltitude_ref;
+    long        mGPSTimestamp;
+
 } exif_values_t;
+
 
 namespace android {
 
@@ -465,6 +476,7 @@ public:
     bool isCameraReady();
     exif_tags_info_t* getExifData(){ return mExifData; }
     void resetExifData();
+    void initExifData();
     int getExifTableNumEntries() { return mExifTableNumEntries; }
 private:
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];

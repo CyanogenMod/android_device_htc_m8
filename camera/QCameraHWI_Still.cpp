@@ -1415,6 +1415,8 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
           thumb_crop_offset.x=mCrop.snapshot.thumbnail_crop.left;
           thumb_crop_offset.y=mCrop.snapshot.thumbnail_crop.top;
 //          LOGD("mm_jpeg_encoder_encode: %x %x %x, %x %x %", postviewframe->buffer,postviewframe->fd,postviewframe->phy_offset,mainframe->buffer,mainframe->fd,mainframe->phy_offset);
+          mHalCamCtrl->setExifTags();
+          mHalCamCtrl->initExifData();
           if (!mm_jpeg_encoder_encode((const cam_ctrl_dimension_t *)&dimension,
                           (uint8_t *)postviewframe->buffer,
                           postviewframe->fd,
@@ -1423,8 +1425,8 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
                           mainframe->fd,
                           mainframe->phy_offset,
                           &crop,
-                          NULL,
-                          0,
+                          mHalCamCtrl->getExifData(),
+                          mHalCamCtrl->getExifTableNumEntries(),
                           -1,
                           &main_crop_offset,
                           &thumb_crop_offset)){
@@ -1982,6 +1984,9 @@ status_t QCameraStream_Snapshot::start(void) {
         LOGE("%s : Error while Initializing snapshot",__func__);
         goto end;
     }
+
+    mHalCamCtrl->setExifTags();
+    mHalCamCtrl->initExifData();
 
     if (mSnapshotFormat == PICTURE_FORMAT_RAW) {
         ret = takePictureRaw();

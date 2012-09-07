@@ -1841,8 +1841,10 @@ status_t QCameraHardwareInterface::setMeteringAreas(const CameraParameters& para
             num_areas_found = 0;
         }
 #if 1
-        cam_set_aec_roi_t aec_roi_value;
-        uint16_t x1, x2, y1, y2;
+        roi_info_t aec_roi_value;
+        memset(&aec_roi_value, 0, sizeof(roi_info_t));
+        uint16_t x1, x2, y1, y2, dx, dy;
+
         int previewWidth, previewHeight;
         this->getPreviewSize(&previewWidth, &previewHeight);
         //transform the coords from (-1000, 1000) to (0, previewWidth or previewHeight)
@@ -1850,21 +1852,18 @@ status_t QCameraHardwareInterface::setMeteringAreas(const CameraParameters& para
         y1 = (uint16_t)((areas[0].y1 + 1000.0f)*(previewHeight/2000.0f));
         x2 = (uint16_t)((areas[0].x2 + 1000.0f)*(previewWidth/2000.0f));
         y2 = (uint16_t)((areas[0].y2 + 1000.0f)*(previewHeight/2000.0f));
-        delete areas;
 
-        if(num_areas_found == 1) {
-            aec_roi_value.aec_roi_enable = AEC_ROI_ON;
-            aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
-            aec_roi_value.aec_roi_position.coordinate.x = (x1+x2)/2;
-            aec_roi_value.aec_roi_position.coordinate.y = (y1+y2)/2;
-        } else {
-            aec_roi_value.aec_roi_enable = AEC_ROI_OFF;
-            aec_roi_value.aec_roi_type = AEC_ROI_BY_COORDINATE;
-            aec_roi_value.aec_roi_position.coordinate.x = DONT_CARE_COORDINATE;
-            aec_roi_value.aec_roi_position.coordinate.y = DONT_CARE_COORDINATE;
-        }
+        dx = x2 - x1;
+        dy = y2 - y1;
 
-        if(native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value))
+        aec_roi_value.num_roi = num_areas_found;
+        aec_roi_value.roi[0].x = x1;
+        aec_roi_value.roi[0].y = y1;
+        aec_roi_value.roi[0].dx = dx;
+        aec_roi_value.roi[0].dy = dy;
+        aec_roi_value.is_multiwindow = 0;
+
+        if(native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(aec_roi_value), (void *)&aec_roi_value))
             rc = NO_ERROR;
         else
             rc = BAD_VALUE;

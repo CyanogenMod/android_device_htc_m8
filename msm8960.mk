@@ -14,6 +14,11 @@
 # limitations under the License.
 #
 
+$(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
+
+# overlays
+DEVICE_PACKAGE_OVERLAYS += device/htc/msm8960-common/overlay
+
 # Boot ramdisk setup
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/ramdisk/init.qcom.sh:root/init.qcom.sh

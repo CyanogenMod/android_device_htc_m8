@@ -88,6 +88,8 @@ PRODUCT_PACKAGES += \
     libOmxVenc \
     libOmxAacEnc \
     libOmxAmrEnc \
+    libOmxEvrcEnc \
+    libOmxQcelp13Enc \
     libstagefrighthw
 
 # HDMI

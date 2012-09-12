@@ -128,7 +128,8 @@ int32_t QCameraHardwareInterface::createPreview()
 /* constructor */
 QCameraHardwareInterface::
 QCameraHardwareInterface(int cameraId, int mode)
-                  : mCameraId(cameraId),
+                  : mZslFlashEnable(false),
+                    mCameraId(cameraId),
                     mParameters(),
                     mMsgEnabled(0),
                     mNotifyCb(0),
@@ -534,7 +535,7 @@ void QCameraHardwareInterface::setMyMode(int mode)
         myMode = CAMERA_MODE_2D;
     }
 
-    if (mode & CAMERA_SUPPORT_MODE_ZSL) {
+    if (mode & CAMERA_SUPPORT_MODE_ZSL ) {
         myMode = (camera_mode_t)(myMode |CAMERA_ZSL_MODE);
     }else {
         myMode = (camera_mode_t) (myMode | CAMERA_NONZSL_MODE);
@@ -723,16 +724,16 @@ processSnapshotChannelEvent(mm_camera_ch_event_type_t channelEvent, app_notify_c
       mCameraState);
     switch(channelEvent) {
         case MM_CAMERA_CH_EVT_STREAMING_ON:
-          if (!mFullLiveshotEnabled) {
-            mCameraState =
-              isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
-          }
-          break;
+            if (!mFullLiveshotEnabled) {
+                mCameraState =
+                  isZSLMode() ? CAMERA_STATE_ZSL : CAMERA_STATE_SNAP_CMD_ACKED;
+            }
+            break;
         case MM_CAMERA_CH_EVT_STREAMING_OFF:
-          if (!mFullLiveshotEnabled) {
-            mCameraState = CAMERA_STATE_READY;
-          }
-          break;
+            if (!mFullLiveshotEnabled) {
+                mCameraState = CAMERA_STATE_READY;
+            }
+            break;
         case MM_CAMERA_CH_EVT_DATA_DELIVERY_DONE:
             break;
         case MM_CAMERA_CH_EVT_DATA_REQUEST_MORE:
@@ -1164,7 +1165,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
     }
 
     mStreamDisplay->stop();
-    if(isZSLMode()) {
+    if(isZSLMode() && !mZslFlashEnable) {
         /* take care snapshot object for ZSL mode */
         mStreamSnap->stop();
     }
@@ -1514,6 +1515,22 @@ void liveshot_callback(mm_camera_ch_data_buf_t *recvd_frame,
 
 }
 
+void QCameraHardwareInterface::changeMode(camera_mode_t mode) {
+    if(myMode==mode)
+        return;
+    stopPreviewInternal();
+    mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
+    QCameraStream_Snapshot::deleteInstance (mStreamSnap);
+    mStreamSnap = NULL;
+    setMyMode(mode); //CAMERA_SUPPORT_MODE_NONZSL | CAMERA_SUPPORT_MODE_2D);
+    mStreamSnap = QCameraStream_Snapshot::createInstance(mCameraId,myMode);
+    mStreamSnap->setHALCameraControl(this);
+    mStreamSnap->init();
+    mStreamDisplay->setMode(myMode);
+    startPreview2();
+    mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;
+}
+
 status_t  QCameraHardwareInterface::takePicture()
 {
     LOGI("takePicture: E");
@@ -1523,8 +1540,12 @@ status_t  QCameraHardwareInterface::takePicture()
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STARTED:
         mStreamSnap->setFullSizeLiveshot(false);
+        mZslFlashEnable=0;
         if (isZSLMode()) {
-            if (mStreamSnap != NULL) {
+            if(cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_LED_MODE))
+	            cam_config_get_parm(mCameraId,MM_CAMERA_PARM_QUERY_FLASH4SNAP,(void *)&mZslFlashEnable);
+            LOGE("ZSL Mode Flash=%d",mZslFlashEnable);
+            if (!mZslFlashEnable && mStreamSnap != NULL) {
                 pausePreviewForZSL();
                 ret = mStreamSnap->takePictureZSL();
                 if (ret != MM_CAMERA_OK) {
@@ -1533,14 +1554,17 @@ status_t  QCameraHardwareInterface::takePicture()
                 }
             }
             else {
-                LOGE("%s: ZSL stream not active! Failure!!", __func__);
+                LOGE("%s: ZSL Can't take picture with flash, switch to Non-ZSL mode", __func__);
                 ret = BAD_VALUE;
             }
-            return ret;
+            if(!mZslFlashEnable)
+                return ret;
+            // stop preview, delete the snapshot object and recreate it in Non-ZSL mode
+            changeMode((camera_mode_t)(CAMERA_SUPPORT_MODE_NONZSL | CAMERA_SUPPORT_MODE_2D));
         }
 
         /*prepare snapshot, e.g LED*/
-        takePicturePrepareHardware( );
+        takePicturePrepareHardware();
         /* There's an issue where we have a glimpse of corrupted data between
            a time we stop a preview and display the postview. It happens because
            when we call stopPreview we deallocate the preview buffers hence overlay

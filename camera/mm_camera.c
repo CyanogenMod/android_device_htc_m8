@@ -530,7 +530,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     case MM_CAMERA_PARM_FOCUS_DISTANCES:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_GET_PARM_FOCUS_DISTANCES,
                      sizeof(focus_distances_info_t), (void *)parm->p_value);
-  case MM_CAMERA_PARM_QUERY_FALSH4SNAP:
+  case MM_CAMERA_PARM_QUERY_FLASH4SNAP:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_QUERY_FLASH_FOR_SNAPSHOT,
                      sizeof(int), (void *)parm->p_value);
   case MM_CAMERA_PARM_3D_FRAME_FORMAT:

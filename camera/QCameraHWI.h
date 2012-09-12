@@ -457,7 +457,7 @@ public:
 	int getZSLBackLookCount(void) const;
     //QCameraHardwareInterface(int  cameraId, int mode);
     ~QCameraHardwareInterface();
-   int initHeapMem(QCameraHalHeap_t *heap,
+    int initHeapMem(QCameraHalHeap_t *heap,
 				int num_of_buf,
 				int pmem_type,
 				int frame_len,
@@ -468,7 +468,7 @@ public:
                                 uint8_t num_planes,
                                 uint32_t *planes);
 
-	int releaseHeapMem( QCameraHalHeap_t *heap);
+    int releaseHeapMem( QCameraHalHeap_t *heap);
     int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt, int ion_type);
     int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
     void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
@@ -478,6 +478,9 @@ public:
     void resetExifData();
     void initExifData();
     int getExifTableNumEntries() { return mExifTableNumEntries; }
+    void changeMode(camera_mode_t mode);
+    int mZslFlashEnable;
+
 private:
     int16_t  zoomRatios[MAX_ZOOM_RATIOS];
     bool mUseOverlay;

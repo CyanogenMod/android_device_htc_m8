@@ -1371,8 +1371,7 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
         dimension.orig_picture_dx = mPictureWidth;
         dimension.orig_picture_dy = mPictureHeight;
 
-        int width = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-        int height = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+        mHalCamCtrl->getThumbSizesFromAspectRatio((uint32_t)((mPictureWidth * Q12)/mPictureHeight),&mThumbnailWidth,&mThumbnailHeight);
 
         if(!mDropThumbnail) {
             if(isZSLMode()) {
@@ -1389,14 +1388,6 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
             dimension.thumbnail_height = height = 0;
         }
 
-
-        if((width != 0) && (height != 0)) {
-            dimension.thumbnail_width = mThumbnailWidth;
-            dimension.thumbnail_height = mThumbnailHeight;
-        } else {
-            dimension.thumbnail_width = 0;
-            dimension.thumbnail_height = 0;
-        }
         dimension.main_img_format = mPictureFormat;
         dimension.thumb_format = mThumbnailFormat;
 

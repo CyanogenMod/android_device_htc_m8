@@ -929,7 +929,7 @@ void QCameraHardwareInterface::initDefaultParameters()
             thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].width;
     mDimension.ui_thumbnail_height =
             thumbnail_sizes[DEFAULT_THUMBNAIL_SETTING].height;
-    mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "90");
+    mParameters.set(CameraParameters::KEY_JPEG_THUMBNAIL_QUALITY, "50");
     String8 valuesStr = create_sizes_str(jpeg_thumbnail_sizes, JPEG_THUMBNAIL_SIZE_COUNT);
     mParameters.set(CameraParameters::KEY_SUPPORTED_JPEG_THUMBNAIL_SIZES,
                 valuesStr.string());
@@ -2406,6 +2406,8 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const CameraParameters& pa
 status_t QCameraHardwareInterface::setJpegThumbnailSize(const CameraParameters& params){
     int width = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
     int height = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+
+    getThumbSizesFromAspectRatio((uint32_t)((mDimension.picture_width * Q12)/mDimension.picture_height),&width,&height);
 
     LOGE("requested jpeg thumbnail size %d x %d", width, height);
 

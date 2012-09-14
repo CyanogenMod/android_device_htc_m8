@@ -177,6 +177,12 @@ static void snapshot_jpeg_cb(jpeg_event_t event, void *user_data)
            if (!(pme->isZSLMode())) {
                pme->stop();
            }
+           /* If we've just taken a picture with the flash by switching from ZSL mode to
+              Non-ZSL mode, switch back to ZSL mode */
+           if(pme->mHalCamCtrl->mZslFlashEnable) {
+               pme->mHalCamCtrl->mZslFlashEnable=0;
+               pme->mHalCamCtrl->changeMode((camera_mode_t)(CAMERA_SUPPORT_MODE_ZSL | CAMERA_SUPPORT_MODE_2D));
+           }
         }
     }
     else
@@ -1939,7 +1945,7 @@ status_t QCameraStream_Snapshot::start(void) {
     }
     LOGD("%s: Number of images to be captured: %d", __func__, mNumOfSnapshot);
 
-	if(mHalCamCtrl->isRawSnapshot()) {
+    if(mHalCamCtrl->isRawSnapshot()) {
         LOGD("%s: Acquire Raw Snapshot Channel", __func__);
         ret = cam_ops_ch_acquire(mCameraId, MM_CAMERA_CH_RAW);
         if (NO_ERROR != ret) {

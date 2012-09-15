@@ -64,7 +64,6 @@ TARGET_CUSTOM_BLUEDROID := ../../../device/htc/msm8960-common/bluetooth/bluetoot
 
 # Camera
 BOARD_NEEDS_MEMORYHEAPPMEM := true
-COMMON_GLOBAL_CFLAGS += -DICS_CAMERA_BLOB
 
 # FM radio
 BOARD_HAVE_QCOM_FM := true

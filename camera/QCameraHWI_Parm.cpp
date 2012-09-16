@@ -2404,8 +2404,8 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const CameraParameters& pa
 }
 
 status_t QCameraHardwareInterface::setJpegThumbnailSize(const CameraParameters& params){
-    int width = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-    int height = params.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    int width;
+    int height;
 
     getThumbSizesFromAspectRatio((uint32_t)((mDimension.picture_width * Q12)/mDimension.picture_height),&width,&height);
 

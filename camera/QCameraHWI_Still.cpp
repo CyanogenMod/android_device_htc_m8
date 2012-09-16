@@ -368,11 +368,15 @@ configSnapshotDimension(cam_ctrl_dimension_t* dim)
          mPictureWidth, mPictureHeight);
     /*Current VFE software design requires picture size >= display size for ZSL*/
     if (isZSLMode()){
-      mPostviewWidth = dim->display_width;
-      mPostviewHeight = dim->display_height;
+        mPostviewWidth = dim->display_width;
+        mPostviewHeight = dim->display_height;
     } else {
-      mPostviewWidth = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
-      mPostviewHeight =  mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+        mPostviewWidth = mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_WIDTH);
+        mPostviewHeight =  mHalCamCtrl->mParameters.getInt(CameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT);
+    }
+    if (isLiveSnapshot()){
+        mPostviewWidth = THUMBNAIL_DEFAULT_WIDTH;
+        mPostviewHeight = THUMBNAIL_DEFAULT_HEIGHT;
     }
     /*If application requested thumbnail size to be (0,0) 
        then configure second outout to a default size.
@@ -1376,8 +1380,6 @@ encodeData(mm_camera_ch_data_buf_t* recvd_frame,
 
         dimension.orig_picture_dx = mPictureWidth;
         dimension.orig_picture_dy = mPictureHeight;
-
-        mHalCamCtrl->getThumbSizesFromAspectRatio((uint32_t)((mPictureWidth * Q12)/mPictureHeight),&mThumbnailWidth,&mThumbnailHeight);
 
         if(!mDropThumbnail) {
             if(isZSLMode()) {

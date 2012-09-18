@@ -1480,7 +1480,7 @@ void liveshot_callback(mm_camera_ch_data_buf_t *recvd_frame,
     dim.main_img_format = CAMERA_YUV_420_NV21; //pme->mDimension.enc_format;
     dim.thumb_format = CAMERA_YUV_420_NV21; //pme->mDimension.enc_format;
 
-    mJpegMaxSize = pme->mDimension.video_width * pme->mDimension.video_width * 1.5;
+    mJpegMaxSize = (pme->mDimension.video_width * pme->mDimension.video_height * 3)/2;
 
     LOGE("Picture w = %d , h = %d, size = %d",dim.picture_width,dim.picture_height,mJpegMaxSize);
      if (pme->mStreamLiveSnap){

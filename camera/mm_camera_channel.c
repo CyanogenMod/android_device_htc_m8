@@ -395,7 +395,7 @@ static int32_t mm_camera_ch_util_qbuf(mm_camera_obj_t *my_obj,
     int32_t rc = -1;
     mm_camera_stream_t *stream;
 
-    LOGE("<DEBUG>: %s:ch_type:%d",__func__,ch_type);
+    LOGV("<DEBUG>: %s:ch_type:%d",__func__,ch_type);
     switch(ch_type) {
     case MM_CAMERA_CH_RAW:
         rc = mm_camera_stream_fsm_fn_vtbl(my_obj,

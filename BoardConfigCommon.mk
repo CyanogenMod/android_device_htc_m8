@@ -64,9 +64,6 @@ BOARD_HAVE_HTC_AUDIO := true
 BOARD_HAVE_BLUETOOTH := true
 TARGET_CUSTOM_BLUEDROID := ../../../device/htc/msm8960-common/bluetooth/bluetooth.c
 
-# Camera
-BOARD_NEEDS_MEMORYHEAPPMEM := true
-
 # FM radio
 BOARD_HAVE_QCOM_FM := true
 COMMON_GLOBAL_CFLAGS += -DQCOM_FM_ENABLED

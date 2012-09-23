@@ -231,6 +231,7 @@ bool register_record_buffers(bool register_buffer) {
     return true;
 }
 #endif
+#ifndef USE_ION
 PmemPool::PmemPool(const char *pmem_pool,
                                            int flags,
                                            int pmem_type,
@@ -366,7 +367,7 @@ PmemPool::~PmemPool()
 #endif
     LOGI("%s: %s X", __FUNCTION__, mName);
 }
-#ifdef USE_ION
+#else
 const char IonPool::mIonDevName[] = "/dev/ion";
 
 IonPool::IonPool(int flags,

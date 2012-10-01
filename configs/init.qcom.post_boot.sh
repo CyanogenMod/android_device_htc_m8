@@ -27,7 +27,6 @@
 #
 
 target=`getprop ro.board.platform`
-hardware=`getprop ro.hardware`
 case "$target" in
     "msm7201a_ffa" | "msm7201a_surf" | "msm7627_ffa" | "msm7627_surf" | "msm7627a" | \
     "qsd8250_surf" | "qsd8250_ffa" | "msm7630_surf" | "msm7630_1x" | "msm7630_fusion" | "qsd8650a_st1x")
@@ -120,16 +119,7 @@ case "$target" in
      chown system /sys/power/cpufreq_ceiling
      chown system /sys/module/restart/parameters/notify_efs_sync
      echo "0,2,4,7,9,12" > /sys/module/lowmemorykiller/parameters/adj
-     case "$hardware" in "elite")
-         echo "7746,9720,11694,13742,15715,24709" > /sys/module/lowmemorykiller/parameters/minfree
-         ;;
-     esac
-     case "$hardware" in "ville")
-         echo "7946,9953,11960,14008,16015,25108" > /sys/module/lowmemorykiller/parameters/minfree
-         ;;
-     esac
-     chown radio.system /sys/module/modem_8960/parameters/enable_modem_ssr
-     ;;
+        ;;
 esac
 
 case "$target" in
@@ -165,23 +155,9 @@ esac
 
 # Post-setup services
 case "$target" in
-    "msm8660")
+    "msm8660" | "msm8960")
         start mpdecision
-        ;;
-    "msm8960")
-        # Disable ETB tracing and turn off QDSS clocks
-        # must be prior to mpdecision (see below)
-        stop mpdecision
-        echo 1 > /sys/devices/system/cpu/cpu1/online
-        echo "1\0" > /dev/msm_ptm
-        echo "0\0" > /dev/msm_ptm
-        echo 0 > /sys/devices/system/cpu/cpu1/online
-        start mpdecision
-	;;
-esac
-
-case "$target" in
-    "msm8660" | "msm8660_csfb")
         start thermald
     ;;
 esac
+

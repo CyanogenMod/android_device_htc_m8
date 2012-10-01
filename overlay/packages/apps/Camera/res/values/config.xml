@@ -1,4 +1,4 @@
 <resources>
   <!-- Enable Zero Shutter Lag on camera -->
-  <bool name="enableZSL">true</bool>
+  <bool name="enableZSL">false</bool>
 </resources>

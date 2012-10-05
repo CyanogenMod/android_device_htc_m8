@@ -92,6 +92,10 @@ PRODUCT_PACKAGES += \
     libOmxQcelp13Enc \
     libstagefrighthw
 
+# Power
+PRODUCT_PACKAGES += \
+    power.msm8960
+
 # HDMI
 PRODUCT_PACKAGES += \
     hdmid

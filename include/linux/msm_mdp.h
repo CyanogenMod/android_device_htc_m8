@@ -433,6 +433,11 @@ struct msmfb_mixer_info_req {
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
  struct mdp_mixer_info info[MAX_PIPE_PER_MIXER];
 };
+enum {
+ DISPLAY_SUBSYSTEM_ID,
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+ ROTATOR_SUBSYSTEM_ID,
+};
 struct msmfb_usb_projector_info {
  int usb_offset;
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */

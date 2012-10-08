@@ -394,7 +394,7 @@ static int mm_camera_stream_util_request_buf(mm_camera_obj_t * my_obj,
         __func__, stream->fd, rc);
       goto end;
     }
-    LOGE("%s: stream fd=%d, ioctl VIDIOC_REQBUFS: memtype = %d, num_frames = %d, rc=%d\n",
+    ALOGE("%s: stream fd=%d, ioctl VIDIOC_REQBUFS: memtype = %d, num_frames = %d, rc=%d\n",
         __func__, stream->fd, bufreq.memory, bufreq.count, rc);
 
 end:
@@ -417,9 +417,9 @@ static int mm_camera_stream_util_enqueue_buf(mm_camera_obj_t * my_obj,
 
     for(i = 0; i < vbuf->num; i++){
         int idx = vbuf->buf.mp[i].idx;
-        LOGE("%s: enqueue buf index = %d\n",__func__, idx);
+        ALOGE("%s: enqueue buf index = %d\n",__func__, idx);
         if(idx < MM_CAMERA_MAX_NUM_FRAMES) {
-            LOGE("%s: stream_fd = %d, frame_fd = %d, frame ID = %d, offset = %d\n",
+            ALOGE("%s: stream_fd = %d, frame_fd = %d, frame ID = %d, offset = %d\n",
                      __func__, stream->fd, stream->frame.frame[i].frame.fd,
                      idx, stream->frame.frame_offset[idx]);
             rc = mm_camera_stream_qbuf(my_obj, stream, stream->frame.frame[idx].idx);
@@ -718,7 +718,7 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
           CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n", __func__,
             frame->idx, rc);
     } else if(stream->frame.ref_count[frame->idx] == 1) {
-        LOGE("<DEBUG> : Buf done for buffer:%p:%d",stream,frame->idx);
+        ALOGE("<DEBUG> : Buf done for buffer:%p:%d",stream,frame->idx);
         rc = mm_camera_stream_qbuf(my_obj, stream, frame->idx);
         if(rc < 0)
             CDBG("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",

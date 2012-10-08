@@ -51,7 +51,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #define LOG_NIDEBUG 0
     #define LOG_TAG "mm-camera"
     #include <utils/Log.h>
-    #define CDBG(fmt, args...) LOGE(fmt, ##args)
+    #define CDBG(fmt, args...) ALOGE(fmt, ##args)
   #else
     #include <stdio.h>
     #define CDBG(fmt, args...) fprintf(stderr, fmt, ##args)
@@ -59,8 +59,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 #ifdef _ANDROID_
-  #define CDBG_HIGH(fmt, args...)  LOGE(fmt, ##args)
-  #define CDBG_ERROR(fmt, args...)  LOGE(fmt, ##args)
+  #define CDBG_HIGH(fmt, args...)  ALOGE(fmt, ##args)
+  #define CDBG_ERROR(fmt, args...)  ALOGE(fmt, ##args)
 #else
   #define CDBG_HIGH(fmt, args...) fprintf(stderr, fmt, ##args)
   #define CDBG_ERROR(fmt, args...) fprintf(stderr, fmt, ##args)

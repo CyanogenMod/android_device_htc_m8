@@ -16,9 +16,9 @@
 
 /*#error uncomment this for compiler test!*/
 
-//#define LOG_NDEBUG 0
-#define LOG_NIDEBUG 0
-#define LOG_TAG "QualcommCamera"
+//#define ALOG_NDEBUG 0
+#define ALOG_NIDEBUG 0
+#define ALOG_TAG "QualcommCamera"
 #include <utils/Log.h>
 #include <utils/threads.h>
 #include <fcntl.h>
@@ -130,7 +130,7 @@ void cam_notify_callback(int32_t msgType,
                                 int32_t ext2,
                                 void* user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   camera_device * device = (camera_device *)user;
   if(device) {
     camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
@@ -148,7 +148,7 @@ camera_memory_t* get_mem(int fd,size_t buf_size,
                                 unsigned int num_bufs,
                                 void *user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   camera_device * device = (camera_device *)user;
   if(device) {
     camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
@@ -167,7 +167,7 @@ void native_send_data_callback(int32_t msgType,
                               camera_memory_t * framebuffer,
                               void* user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   static unsigned int counter = 0;
 #if 0
   camera_device * device = (camera_device *)user;
@@ -191,7 +191,7 @@ void native_send_data_callback(int32_t msgType,
           counter++;
 #if 0
         } else {
-          LOGE("%s: out of memory", __func__);
+          ALOGE("%s: out of memory", __func__);
         }
 #endif
 //      }
@@ -204,7 +204,7 @@ static void cam_data_callback(int32_t msgType,
                               const sp<IMemory>& dataPtr,
                               void* user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   static unsigned int counter = 0;
   camera_device * device = (camera_device *)user;
   if(device) {
@@ -225,7 +225,7 @@ static void cam_data_callback(int32_t msgType,
           counter++;
           data_cb(msgType, (camera_memory_t *)qmem, counter, NULL, user_data);
         } else {
-          LOGE("%s: out of memory", __func__);
+          ALOGE("%s: out of memory", __func__);
         }
       }
     }
@@ -237,7 +237,7 @@ static void cam_data_callback_timestamp(nsecs_t timestamp,
                                         const sp<IMemory>& dataPtr,
                                         void* user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
 
   static unsigned int counter = 0;
   camera_device * device = (camera_device *)user;
@@ -259,7 +259,7 @@ static void cam_data_callback_timestamp(nsecs_t timestamp,
           counter++;
           data_cb_timestamp(timestamp, msgType, (camera_memory_t *)qmem, counter, user_data);
         } else {
-          LOGE("%s: out of memory", __func__);
+          ALOGE("%s: out of memory", __func__);
         }
       }
     }
@@ -277,15 +277,15 @@ QualcommCameraHardware * util_get_Hal_obj( struct camera_device * device)
 }
 void close_Hal_obj( struct camera_device * device)
 {
-  LOGI("%s: E", __func__);
+  ALOGI("%s: E", __func__);
   QualcommCameraHardware* hardware = NULL;
   if(device && device->priv){
       camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
-      LOGI("%s: clear hw", __func__);
+      ALOGI("%s: clear hw", __func__);
       hardware = camHal->hardware;
       delete hardware;
   }
-  LOGI("%s: X", __func__);
+  ALOGI("%s: X", __func__);
 }
 
 
@@ -304,14 +304,14 @@ extern "C" int get_number_of_cameras()
 {
     /* try to query every time we get the call!*/
 
-    LOGE("Q%s: E", __func__);
+    ALOGE("Q%s: E", __func__);
     return android::HAL_getNumberOfCameras( );
 }
 
 extern "C" int get_camera_info(int camera_id, struct camera_info *info)
 {
   int rc = -1;
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   if(info) {
     struct CameraInfo camInfo;
     memset(&camInfo, -1, sizeof (struct CameraInfo));
@@ -322,7 +322,7 @@ extern "C" int get_camera_info(int camera_id, struct camera_info *info)
       info->orientation = camInfo.orientation;
     }
   }
-   LOGV("Q%s: X", __func__);
+   ALOGV("Q%s: X", __func__);
    return rc;
 }
 
@@ -332,7 +332,7 @@ extern "C" int  camera_device_open(
   const struct hw_module_t* module, const char* id,
           struct hw_device_t** hw_device)
 {
-    LOGE("Q%s: E", __func__);
+    ALOGE("Q%s: E", __func__);
     int rc = -1;
     camera_device *device = NULL;
     if(module && id && hw_device) {
@@ -371,7 +371,7 @@ extern "C" int  camera_device_open(
 
 extern "C"  int close_camera_device( hw_device_t *hw_dev)
 {
-  LOGE("Q%s: device =%p E", __func__, hw_dev);
+  ALOGE("Q%s: device =%p E", __func__, hw_dev);
   int rc =  -1;
   camera_device_t *device = (camera_device_t *)hw_dev;
   if(device) {
@@ -400,7 +400,7 @@ extern "C"  int close_camera_device( hw_device_t *hw_dev)
 int set_preview_window(struct camera_device * device,
         struct preview_stream_ops *window)
 {
-  LOGE("Q%s: E window = %p", __func__, window);
+  ALOGE("Q%s: E window = %p", __func__, window);
   int rc = -1;
   QualcommCameraHardware *hardware = util_get_Hal_obj(device);
   if(hardware != NULL) {
@@ -416,7 +416,7 @@ void set_callbacks(struct camera_device * device,
         camera_request_memory get_memory,
         void *user)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
@@ -449,7 +449,7 @@ void set_callbacks(struct camera_device * device,
         cam_dt_timestamp_cb = NULL;
       }
       #endif
-      LOGE("cam_nt_cb =%p,cam_dt_cb=%p,cam_dt_timestamp_cb=%p",  cam_nt_cb, cam_dt_cb, cam_dt_timestamp_cb);
+      ALOGE("cam_nt_cb =%p,cam_dt_cb=%p,cam_dt_timestamp_cb=%p",  cam_nt_cb, cam_dt_cb, cam_dt_timestamp_cb);
       hardware->setCallbacks(notify_cb,data_cb,data_cb_timestamp,get_memory, user);
     }
   }
@@ -466,7 +466,7 @@ void enable_msg_type(struct camera_device * device, int32_t msg_type)
 void disable_msg_type(struct camera_device * device, int32_t msg_type)
 {
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   if(hardware != NULL){
     hardware->disableMsgType(msg_type);
   }
@@ -474,7 +474,7 @@ void disable_msg_type(struct camera_device * device, int32_t msg_type)
 
 int msg_type_enabled(struct camera_device * device, int32_t msg_type)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -485,19 +485,19 @@ int msg_type_enabled(struct camera_device * device, int32_t msg_type)
 
 int start_preview(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     rc = hardware->startPreview( );
   }
-  LOGE("Q%s: X", __func__);
+  ALOGE("Q%s: X", __func__);
   return rc;
 }
 
 void stop_preview(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     hardware->stopPreview( );
@@ -506,7 +506,7 @@ void stop_preview(struct camera_device * device)
 
 int preview_enabled(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware* hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -517,7 +517,7 @@ int preview_enabled(struct camera_device * device)
 
 int store_meta_data_in_buffers(struct camera_device * device, int enable)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -528,7 +528,7 @@ int store_meta_data_in_buffers(struct camera_device * device, int enable)
 
 int start_recording(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -539,7 +539,7 @@ int start_recording(struct camera_device * device)
 
 void stop_recording(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware* hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     hardware->stopRecording( );
@@ -548,7 +548,7 @@ void stop_recording(struct camera_device * device)
 
 int recording_enabled(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -560,7 +560,7 @@ int recording_enabled(struct camera_device * device)
 void release_recording_frame(struct camera_device * device,
                 const void *opaque)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     hardware->releaseRecordingFrame( opaque);
@@ -569,7 +569,7 @@ void release_recording_frame(struct camera_device * device,
 
 int auto_focus(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -580,7 +580,7 @@ int auto_focus(struct camera_device * device)
 
 int cancel_auto_focus(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -591,7 +591,7 @@ int cancel_auto_focus(struct camera_device * device)
 
 int take_picture(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -603,7 +603,7 @@ int take_picture(struct camera_device * device)
 int cancel_picture(struct camera_device * device)
 
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -617,7 +617,7 @@ String8 g_str;
 int set_parameters(struct camera_device * device, const char *parms)
 
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL && parms){
@@ -632,7 +632,7 @@ int set_parameters(struct camera_device * device, const char *parms)
 
 char* get_parameters(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   char* rc = NULL;
 
   CameraParameters param;
@@ -642,32 +642,32 @@ char* get_parameters(struct camera_device * device)
     g_str = g_param.flatten( );
     rc = (char *)g_str.string( );
     if (!rc) {
-      LOGE("get_parameters: NULL string");
+      ALOGE("get_parameters: NULL string");
     } else {
-      //LOGE("get_parameters: %s", rc);
+      //ALOGE("get_parameters: %s", rc);
     }
   }
-  LOGE("get_parameters X");
+  ALOGE("get_parameters X");
   return rc;
 }
 
 void put_parameters(struct camera_device * device, char *parm)
 
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     if(hardware != NULL){
       //rc = hardware->putParameters(parm );
     }
   }
-  LOGE("put_parameters X");
+  ALOGE("put_parameters X");
 }
 
 int send_command(struct camera_device * device,
             int32_t cmd, int32_t arg1, int32_t arg2)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
@@ -678,7 +678,7 @@ int send_command(struct camera_device * device,
 
 void release(struct camera_device * device)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){
     camera_hardware_t *camHal = (camera_hardware_t *)device->priv;
@@ -689,7 +689,7 @@ void release(struct camera_device * device)
 
 int dump(struct camera_device * device, int fd)
 {
-  LOGE("Q%s: E", __func__);
+  ALOGE("Q%s: E", __func__);
   int rc = -1;
   QualcommCameraHardware * hardware = util_get_Hal_obj(device);
   if(hardware != NULL){

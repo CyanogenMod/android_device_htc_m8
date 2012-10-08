@@ -30,13 +30,6 @@ extern "C" {
 //#include <camera_defs_i.h>
 
 }
-/*
-#define LOGV ALOGV
-#define LOGI ALOGI
-#define LOGD ALOGD
-#define LOGE ALOGE
-#define LOGW ALOGW
-*/
 
 #define VIDEO_BUFFER_COUNT 5
 #define VIDEO_BUFFER_COUNT_LOW_POWER_CAMCORDER 9

@@ -114,18 +114,18 @@ status_t QCameraStream::initChannel(int cameraId,
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     rc = cam_config_get_parm(cameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != rc) {
-      LOGE("%s: error - can't get camera dimension!", __func__);
-      LOGE("%s: X", __func__);
+      ALOGE("%s: error - can't get camera dimension!", __func__);
+      ALOGE("%s: X", __func__);
       return BAD_VALUE;
     }
 
     if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask) {
         rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_PREVIEW);
-        LOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
+        ALOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
 
         if(MM_CAMERA_OK != rc) {
-                LOGE("%s: preview channel acquir error =%d\n", __func__, rc);
-                LOGE("%s: X", __func__);
+                ALOGE("%s: preview channel acquir error =%d\n", __func__, rc);
+                ALOGE("%s: X", __func__);
                 return BAD_VALUE;
         }
         else{
@@ -134,16 +134,16 @@ status_t QCameraStream::initChannel(int cameraId,
             fmt.def.fmt = CAMERA_YUV_420_NV12; //dim.prev_format;
             fmt.def.dim.width = dim.display_width;
             fmt.def.dim.height =  dim.display_height;
-            LOGV("%s: preview channel fmt = %d", __func__,
+            ALOGV("%s: preview channel fmt = %d", __func__,
                      dim.prev_format);
-            LOGV("%s: preview channel resolution = %d X %d", __func__,
+            ALOGV("%s: preview channel resolution = %d X %d", __func__,
                      dim.display_width, dim.display_height);
 
             rc = cam_config_set_parm(cameraId, MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
-            LOGV("%s: preview MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
+            ALOGV("%s: preview MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
             if(MM_CAMERA_OK != rc) {
-                    LOGE("%s:set preview channel format err=%d\n", __func__, ret);
-                    LOGE("%s: X", __func__);
+                    ALOGE("%s:set preview channel format err=%d\n", __func__, ret);
+                    ALOGE("%s: X", __func__);
                     ret = BAD_VALUE;
             }
         }
@@ -153,11 +153,11 @@ status_t QCameraStream::initChannel(int cameraId,
     if(MM_CAMERA_CH_VIDEO_MASK & ch_type_mask)
     {
         rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_VIDEO);
-        LOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
+        ALOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
 
         if(MM_CAMERA_OK != rc) {
-                LOGE("%s: video channel acquir error =%d\n", __func__, rc);
-                LOGE("%s: X", __func__);
+                ALOGE("%s: video channel acquir error =%d\n", __func__, rc);
+                ALOGE("%s: X", __func__);
                 ret = BAD_VALUE;
         }
         else {
@@ -166,17 +166,17 @@ status_t QCameraStream::initChannel(int cameraId,
             fmt.video.video.fmt = CAMERA_YUV_420_NV12; //dim.enc_format;
             fmt.video.video.dim.width = dim.video_width;
             fmt.video.video.dim.height = dim.video_height;
-            LOGV("%s: video channel fmt = %d", __func__,
+            ALOGV("%s: video channel fmt = %d", __func__,
                      dim.enc_format);
-            LOGV("%s: video channel resolution = %d X %d", __func__,
+            ALOGV("%s: video channel resolution = %d X %d", __func__,
                  dim.video_width, dim.video_height);
 
             rc = cam_config_set_parm(cameraId,  MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
 
-            LOGV("%s: video MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
+            ALOGV("%s: video MM_CAMERA_PARM_CH_IMAGE_FMT rc = %d\n", __func__, rc);
             if(MM_CAMERA_OK != rc) {
-                LOGE("%s:set video channel format err=%d\n", __func__, rc);
-                LOGE("%s: X", __func__);
+                ALOGE("%s:set video channel format err=%d\n", __func__, rc);
+                ALOGE("%s: X", __func__);
                 ret= BAD_VALUE;
             }
         }
@@ -189,13 +189,13 @@ status_t QCameraStream::initChannel(int cameraId,
     mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
     int i;
 
-    LOGV("QCameraStream::initChannel : E");
+    ALOGV("QCameraStream::initChannel : E");
     if(MM_CAMERA_CH_PREVIEW_MASK & ch_type_mask){
         rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_PREVIEW);
-        LOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
+        ALOGV("%s:ch_acquire MM_CAMERA_CH_PREVIEW, rc=%d\n",__func__, rc);
         if(MM_CAMERA_OK != rc) {
-                LOGE("%s: preview channel acquir error =%d\n", __func__, rc);
-                LOGE("%s: X", __func__);
+                ALOGE("%s: preview channel acquir error =%d\n", __func__, rc);
+                ALOGE("%s: X", __func__);
                 return BAD_VALUE;
         }
         /*Callback register*/
@@ -203,13 +203,13 @@ status_t QCameraStream::initChannel(int cameraId,
        /* ret = cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_PREVIEW,
                                                 preview_notify_cb,
                                                 this);
-        LOGV("Buf notify MM_CAMERA_CH_PREVIEW, rc=%d\n",rc);*/
+        ALOGV("Buf notify MM_CAMERA_CH_PREVIEW, rc=%d\n",rc);*/
     }else if(MM_CAMERA_CH_VIDEO_MASK & ch_type_mask){
         rc = cam_ops_ch_acquire(cameraId, MM_CAMERA_CH_VIDEO);
-        LOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
+        ALOGV("%s:ch_acquire MM_CAMERA_CH_VIDEO, rc=%d\n",__func__, rc);
         if(MM_CAMERA_OK != rc) {
-                LOGE("%s: preview channel acquir error =%d\n", __func__, rc);
-                LOGE("%s: X", __func__);
+                ALOGE("%s: preview channel acquir error =%d\n", __func__, rc);
+                ALOGE("%s: X", __func__);
                 return BAD_VALUE;
         }
         /*Callback register*/
@@ -217,11 +217,11 @@ status_t QCameraStream::initChannel(int cameraId,
         /*ret = cam_evt_register_buf_notify(mCameraId, MM_CAMERA_CH_VIDEO,
                                                 record_notify_cb,
                                                 this);
-        LOGV("Buf notify MM_CAMERA_CH_VIDEO, rc=%d\n",rc);*/
+        ALOGV("Buf notify MM_CAMERA_CH_VIDEO, rc=%d\n",rc);*/
     }
 
     ret = (MM_CAMERA_OK==rc)? NO_ERROR : BAD_VALUE;
-    LOGV("%s: X, ret = %d", __func__, ret);
+    ALOGV("%s: X, ret = %d", __func__, ret);
     return ret;
 }
 
@@ -231,21 +231,21 @@ status_t QCameraStream::deinitChannel(int cameraId,
 
     int rc = MM_CAMERA_OK;
 
-    LOGV("%s: E, channel = %d\n", __func__, ch_type);
+    ALOGV("%s: E, channel = %d\n", __func__, ch_type);
 
     if (MM_CAMERA_CH_MAX <= ch_type) {
-        LOGE("%s: X: BAD_VALUE", __func__);
+        ALOGE("%s: X: BAD_VALUE", __func__);
         return BAD_VALUE;
     }
 
     cam_ops_ch_release(cameraId, ch_type);
 
-    LOGV("%s: X, channel = %d\n", __func__, ch_type);
+    ALOGV("%s: X, channel = %d\n", __func__, ch_type);
     return NO_ERROR;
 }
 
 status_t QCameraStream::setMode(int enable) {
-  LOGE("%s :myMode %x ", __func__, myMode);
+  ALOGE("%s :myMode %x ", __func__, myMode);
   if (enable) {
       myMode = (camera_mode_t)(myMode | CAMERA_ZSL_MODE);
   } else {
@@ -263,13 +263,13 @@ status_t QCameraStream::setFormat(uint8_t ch_type_mask)
     cam_ctrl_dimension_t dim;
     mm_camera_ch_image_fmt_parm_t fmt;
 
-    LOGE("%s: E",__func__);
+    ALOGE("%s: E",__func__);
 
     memset(&dim, 0, sizeof(cam_ctrl_dimension_t));
     rc = cam_config_get_parm(mCameraId, MM_CAMERA_PARM_DIMENSION, &dim);
     if (MM_CAMERA_OK != rc) {
-      LOGE("%s: error - can't get camera dimension!", __func__);
-      LOGE("%s: X", __func__);
+      ALOGE("%s: error - can't get camera dimension!", __func__);
+      ALOGE("%s: X", __func__);
       return BAD_VALUE;
     }
 
@@ -304,13 +304,13 @@ status_t QCameraStream::setFormat(uint8_t ch_type_mask)
     }*/
 
     rc = cam_config_set_parm(mCameraId, MM_CAMERA_PARM_CH_IMAGE_FMT, &fmt);
-    LOGV("%s: Stream MM_CAMERA_PARM_CH_IMAGE_FMT %d %d rc = %d\n", __func__, fmt.ch_type, fmt.video.video.fmt, rc);
+    ALOGV("%s: Stream MM_CAMERA_PARM_CH_IMAGE_FMT %d %d rc = %d\n", __func__, fmt.ch_type, fmt.video.video.fmt, rc);
     if(MM_CAMERA_OK != rc) {
-        LOGE("%s:set stream channel format err=%d\n", __func__, ret);
-        LOGE("%s: X", __func__);
+        ALOGE("%s:set stream channel format err=%d\n", __func__, ret);
+        ALOGE("%s: X", __func__);
         ret = BAD_VALUE;
     }
-    LOGE("%s: X",__func__);
+    ALOGE("%s: X",__func__);
     return ret;
 }
 

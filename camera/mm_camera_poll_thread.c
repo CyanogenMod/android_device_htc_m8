@@ -383,7 +383,7 @@ int mm_camera_poll_thread_launch(mm_camera_obj_t * my_obj, int ch_type)
         poll_cb->data.poll_type = MM_CAMERA_POLL_TYPE_EVT;
     }
 
-    LOGE("%s: ch_type = %d, poll_type = %d, read fd = %d, write fd = %d",
+    ALOGE("%s: ch_type = %d, poll_type = %d, read fd = %d, write fd = %d",
          __func__, ch_type, poll_cb->data.poll_type,
          poll_cb->data.pfds[0], poll_cb->data.pfds[1]);
     /* launch the thread */

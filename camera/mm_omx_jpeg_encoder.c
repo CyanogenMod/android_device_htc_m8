@@ -116,14 +116,14 @@ static jpeg_color_format_t get_jpeg_format_from_cam_format(
   jpeg_color_format_t jpg_format = DEFAULT_COLOR_FORMAT;
   int i, j;
   j = sizeof (color_format_map) / sizeof(color_format_map_t);
-  LOGV("%s: j =%d, cam_format =%d", __func__, j, cam_format);
+  ALOGV("%s: j =%d, cam_format =%d", __func__, j, cam_format);
   for(i =0; i< j; i++) {
     if (color_format_map[i].isp_format == cam_format){
       jpg_format = color_format_map[i].jpg_format;
       break;
     }
   }
-  LOGV("%s x: i =%d, jpg_format=%d", __func__, i, jpg_format);
+  ALOGV("%s x: i =%d, jpg_format=%d", __func__, i, jpg_format);
 
   return jpg_format;
 }
@@ -160,7 +160,7 @@ OMX_ERRORTYPE ftbdone(OMX_OUT OMX_HANDLETYPE hComponent,
                       OMX_OUT OMX_PTR pAppData,
                       OMX_OUT OMX_BUFFERHEADERTYPE* pBuffer)
 {
-    LOGE("%s", __func__);
+    ALOGE("%s", __func__);
     *out_buffer_size = pBuffer->nFilledLen;
     pthread_mutex_lock(&lock);
     expectedEvent = OMX_EVENT_FTB_DONE;
@@ -176,7 +176,7 @@ OMX_ERRORTYPE ftbdone(OMX_OUT OMX_HANDLETYPE hComponent,
 
 OMX_ERRORTYPE handleError(OMX_IN OMX_EVENTTYPE eEvent, OMX_IN OMX_U32 error)
 {
-    LOGE("%s", __func__);
+    ALOGE("%s", __func__);
     if (error == OMX_EVENT_JPEG_ERROR) {
         if (mmcamera_jpeg_callback && encoding) {
             OMX_DBG_INFO("%s:OMX_EVENT_JPEG_ERROR\n", __func__);
@@ -273,7 +273,7 @@ int8_t omxJpegOpen()
 
 int8_t omxJpegStart()
 {
-    LOGE("%s", __func__);
+    ALOGE("%s", __func__);
     pthread_mutex_lock(&jpege_mutex);
     callbacks.EmptyBufferDone = etbdone;
     callbacks.FillBufferDone = ftbdone;
@@ -563,13 +563,13 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     thumbnailQuality.nQFactor = jpegThumbnailQuality;
     OMX_SetParameter(pHandle, thumbnailQualityType, &thumbnailQuality);
 
-    LOGE("isZSLMode is %d\n",isZSLMode);
+    ALOGE("isZSLMode is %d\n",isZSLMode);
     if(!isZSLMode){
     //Pass rotation if not ZSL mode
     rotType.nPortIndex = OUTPUT_PORT;
     rotType.nRotation = jpegRotation;
     OMX_SetConfig(pHandle, OMX_IndexConfigCommonRotate, &rotType);
-    LOGE("Set rotation to %d\n",jpegRotation);
+    ALOGE("Set rotation to %d\n",jpegRotation);
     }
 
     OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.exif", &exif);
@@ -597,7 +597,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
       tag.tag_entry.count =1;
       tag.tag_entry.copy = 1;
       tag.tag_entry.data._short = orientation;
-      LOGE("%s jpegRotation = %d , orientation value =%d\n",__func__,jpegRotation,orientation);
+      ALOGE("%s jpegRotation = %d , orientation value =%d\n",__func__,jpegRotation,orientation);
       OMX_SetParameter(pHandle, exif, &tag);
       }
 
@@ -688,7 +688,7 @@ void omxJpegAbort()
 int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality)
 {
     pthread_mutex_lock(&jpege_mutex);
-    LOGE("%s: current main inage quality %d ," \
+    ALOGE("%s: current main inage quality %d ," \
     " new quality : %d\n", __func__, jpegMainimageQuality, quality);
     if (quality <= 100)
         jpegMainimageQuality = quality;
@@ -699,7 +699,7 @@ int8_t mm_jpeg_encoder_setMainImageQuality(uint32_t quality)
 int8_t mm_jpeg_encoder_setThumbnailQuality(uint32_t quality)
 {
     pthread_mutex_lock(&jpege_mutex);
-    LOGE("%s: current thumbnail quality %d ," \
+    ALOGE("%s: current thumbnail quality %d ," \
     " new quality : %d\n", __func__, jpegThumbnailQuality, quality);
     if (quality <= 100)
         jpegThumbnailQuality = quality;
@@ -713,7 +713,7 @@ int8_t mm_jpeg_encoder_setRotation(int rotation, int isZSL)
 
     /*Set ZSL Mode*/
     isZSLMode = isZSL;
-    LOGE("%s: Setting ZSL Mode to %d Rotation = %d\n",__func__,isZSLMode,rotation);
+    ALOGE("%s: Setting ZSL Mode to %d Rotation = %d\n",__func__,isZSLMode,rotation);
     /* Set rotation configuration */
     switch (rotation) {
     case 0:

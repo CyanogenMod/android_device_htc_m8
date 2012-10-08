@@ -80,7 +80,6 @@ TARGET_USES_ION := true
 BOARD_EGL_CFG := device/htc/msm8960-common/configs/egl.cfg
 
 # Wifi
-BOARD_LEGACY_NL80211_STA_EVENTS  := true
 WPA_SUPPLICANT_VERSION           := VER_0_8_X
 BOARD_WPA_SUPPLICANT_DRIVER      := NL80211
 BOARD_HOSTAPD_DRIVER             := NL80211

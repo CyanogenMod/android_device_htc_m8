@@ -825,7 +825,6 @@ deinitSnapshotBuffers(void)
 
     /* Deinit only if we have already initialized*/
     if (getSnapshotState() >= SNAPSHOT_STATE_BUF_INITIALIZED ){
-
         if(!isLiveSnapshot()) {
             ALOGD("%s: Unpreparing Snapshot Buffer", __func__);
             ret = cam_config_unprepare_buf(mCameraId, MM_CAMERA_CH_SNAPSHOT);
@@ -835,7 +834,6 @@ deinitSnapshotBuffers(void)
                 goto end;
             }
         }
-
         /* Clear main and thumbnail heap*/
         mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
         if (!isFullSizeLiveshot())
@@ -2053,6 +2051,10 @@ void QCameraStream_Snapshot::stopPolling(void)
                                           ops_type, this)) {
         ALOGE("%s: Failure stopping snapshot", __func__);
     }
+    // need to stop the preview here or it causes an iommu page fault
+    if ((myMode & CAMERA_ZSL_MODE)  && !mHalCamCtrl->mZslFlashEnable)
+        cam_ops_action(mCameraId, FALSE,MM_CAMERA_OPS_PREVIEW, this);
+
 }
 
 void QCameraStream_Snapshot::stop(void)
@@ -2072,7 +2074,6 @@ void QCameraStream_Snapshot::stop(void)
     if (getSnapshotState() != SNAPSHOT_STATE_UNINIT) {
         /* Stop polling for further frames */
         stopPolling();
-
         if(getSnapshotState() == SNAPSHOT_STATE_JPEG_ENCODING) {
             ALOGV("Destroy Jpeg Instance");
             mm_jpeg_encoder_cancel();

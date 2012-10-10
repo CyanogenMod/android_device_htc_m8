@@ -434,7 +434,8 @@ ALOGE("%s: %d %d %d",__func__,planes[0],planes[1],frame_len);
 
     for (int cnt = 0; cnt < mHalCamCtrl->mRecordingMemory.buffer_count; cnt++) {
 #ifdef USE_ION
-      if(mHalCamCtrl->allocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt, ION_CP_MM_HEAP_ID) < 0) {
+      // allocate from the iommu heap
+      if(mHalCamCtrl->allocate_ion_memory(&mHalCamCtrl->mRecordingMemory, cnt, 0) < 0) {
         ALOGE("%s ION alloc failed\n", __func__);
         return UNKNOWN_ERROR;
       }

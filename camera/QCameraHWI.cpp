@@ -1961,6 +1961,8 @@ void QCameraHardwareInterface::zoomEvent(cam_ctrl_status_t *status, app_notify_c
     case QCAMERA_HAL_PREVIEW_START:
         break;
     case QCAMERA_HAL_PREVIEW_STARTED:
+        if(isZSLMode())
+          handleZoomEventForSnapshot();
         handleZoomEventForPreview(app_cb);
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
@@ -2221,7 +2223,7 @@ int QCameraHardwareInterface::allocate_ion_memory(QCameraHalHeap_t *p_camera_mem
   int rc = 0;
   struct ion_handle_data handle_data;
 
-  p_camera_memory->main_ion_fd[cnt] = open("/dev/ion", O_RDONLY | O_SYNC);
+  p_camera_memory->main_ion_fd[cnt] = open("/dev/ion", O_RDONLY | O_DSYNC);
   if (p_camera_memory->main_ion_fd[cnt] < 0) {
     ALOGE("Ion dev open failed\n");
     ALOGE("Error is %s\n", strerror(errno));

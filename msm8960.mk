@@ -97,6 +97,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     hdmid
 
+# QCOM rngd
+PRODUCT_PACKAGES += \
+    qrngd
+
 # USB
 PRODUCT_PACKAGES += \
     com.android.future.usb.accessory

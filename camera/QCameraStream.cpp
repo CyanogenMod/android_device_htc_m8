@@ -219,7 +219,7 @@ status_t QCameraStream::initChannel(int cameraId,
                                                 this);
         ALOGV("Buf notify MM_CAMERA_CH_VIDEO, rc=%d\n",rc);*/
     }
-
+    setFormat(ch_type_mask);
     ret = (MM_CAMERA_OK==rc)? NO_ERROR : BAD_VALUE;
     ALOGV("%s: X, ret = %d", __func__, ret);
     return ret;

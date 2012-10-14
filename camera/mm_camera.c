@@ -311,13 +311,11 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_FD, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AEC_LOCK:
-        ALOGE("CAMERA_PARM_AEC_LOCK not supported");
-        return 0; //mm_camera_send_native_ctrl_cmd(my_obj,
-                  //  CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                    CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AWB_LOCK:
-        ALOGE("CAMERA_PARM_AWB_LOCK not supported");
-        return 0;//mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
-                  //                                   sizeof(int32_t), (void *)parm->p_value);
+        return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
+                                                     sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_MCE:
         return mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_PARM_MCE,
                                                      sizeof(int32_t), (void *)parm->p_value);
@@ -365,9 +363,14 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_ASD_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
 
-    case MM_CAMERA_PARM_RECORDING_HINT:
+/*    case MM_CAMERA_PARM_RECORDING_HINT:
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_RECORDING_HINT, sizeof(uint32_t), (void *)parm->p_value);
+*/
+    case MM_CAMERA_PARM_HDR_MODE:
+      return mm_camera_send_native_ctrl_cmd(my_obj,
+                  CAMERA_SET_HDR_MODE, sizeof(uint32_t), (void *)parm->p_value);
+
 
     case MM_CAMERA_PARM_PREVIEW_FORMAT:
       return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -875,6 +878,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
 	ALOGE("%s:  2\n", __func__);
 
     /* open domain socket*/
+
 /*
     n_try=MM_CAMERA_DEV_OPEN_TRIES;
     do{
@@ -895,7 +899,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     if (my_obj->ds_fd <= 0) {
         CDBG("%s: cannot open domain socket fd of '%s' Errno = %d\n",
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);
-        return -MM_CAMERA_E_GENERAL;
+//        return -MM_CAMERA_E_GENERAL;
     }
 */
     /* set ctrl_fd to be the mem_mapping fd */

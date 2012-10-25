@@ -75,6 +75,10 @@ PRODUCT_PACKAGES += \
     libqdutils \
     libtilerenderer
 
+# Lights
+PRODUCT_PACKAGES += \
+    lights.msm8960
+
 # OMX
 PRODUCT_PACKAGES += \
     libdivxdrmdecrypt \

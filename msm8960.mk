@@ -51,7 +51,6 @@ PRODUCT_COPY_FILES += \
 
 # Audio
 PRODUCT_PACKAGES += \
-    alsa.msm8960 \
     audio.a2dp.default \
     audio_policy.msm8960 \
     audio.primary.msm8960 \

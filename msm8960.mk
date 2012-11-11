@@ -113,6 +113,10 @@ PRODUCT_PACKAGES += \
     make_ext4fs \
     setup_fs
 
+# GPS config
+PRODUCT_COPY_FILES += \
+    device/htc/msm8960-common/configs/gps.conf:system/etc/gps.conf
+
 # Media config
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/audio_policy.conf:system/etc/audio_policy.conf \

@@ -1,7 +1,7 @@
 <resources>
 
     <!-- Values for the notification light pulse spinners -->
-    <string-array name="notification_pulse_length_entries">
+    <!-- string-array name="notification_pulse_length_entries">
         <item>@string/pulse_length_very_short</item>
         <item>@string/pulse_length_short</item>
         <item>@string/pulse_length_normal</item>
@@ -23,5 +23,5 @@
 
     <string-array name="notification_pulse_speed_values" translatable="false">
         <item>1000</item>
-    </string-array>
+    </string-array -->
 </resources>

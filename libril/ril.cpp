@@ -1985,7 +1985,7 @@ static int responseRilSignalStrength(Parcel &p,
         return RIL_ERRNO_INVALID_RESPONSE;
     }
 
-    if (responselen >= sizeof (RIL_SignalStrength_v5)) {
+    if (responselen >= sizeof (RIL_SignalStrength_HTC)) {
         RIL_SignalStrength_HTC *p_cur = ((RIL_SignalStrength_HTC *) response);
 
         p.writeInt32(p_cur->GW_SignalStrength.signalStrength);

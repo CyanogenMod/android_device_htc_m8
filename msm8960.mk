@@ -51,11 +51,13 @@ PRODUCT_COPY_FILES += \
 
 # Audio
 PRODUCT_PACKAGES += \
+    alsa.msm8960 \
     audio.a2dp.default \
     audio_policy.msm8960 \
     audio.primary.msm8960 \
-    libalsa-intf \
-    libaudioutils
+    audio.r_submix.default \
+    audio.usb.default \
+    libaudio-resampler
 
 # Camera
 PRODUCT_PACKAGES += \

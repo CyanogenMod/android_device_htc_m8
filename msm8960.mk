@@ -125,6 +125,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/gps.conf:system/etc/gps.conf
 
+# Thermal config
+PRODUCT_COPY_FILES += \
+    device/htc/msm8960-common/configs/thermald.conf:system/etc/thermald.conf
+
 # Media config
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/audio_policy.conf:system/etc/audio_policy.conf \

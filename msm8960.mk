@@ -67,12 +67,7 @@ PRODUCT_PACKAGES += \
     gralloc.msm8960 \
     hwcomposer.msm8960 \
     libgenlock \
-    libhwcexternal \
-    libhwcservice \
-    libmemalloc \
-    liboverlay \
-    libqdutils \
-    libtilerenderer
+    liboverlay
 
 # Lights
 PRODUCT_PACKAGES += \

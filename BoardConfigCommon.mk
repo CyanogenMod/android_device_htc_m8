@@ -63,7 +63,8 @@ BOARD_HAVE_HTC_AUDIO := true
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
-TARGET_CUSTOM_BLUEDROID := ../../../device/htc/msm8960-common/bluetooth/bluetooth.c
+BOARD_HAVE_BLUETOOTH_QCOM := true
+BLUETOOTH_HCI_USE_MCT := true
 
 # FM radio
 #BOARD_HAVE_QCOM_FM := true

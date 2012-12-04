@@ -14,6 +14,10 @@
 
 LOCAL_PATH:= $(call my-dir)
 
+ifeq ($(TARGET_PROVIDES_LIBLIGHT),true)
+ifeq ($(TARGET_VENDOR),htc)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := lights.msm8960
@@ -28,3 +32,7 @@ LOCAL_SHARED_LIBRARIES := liblog
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif # TARGET_BOARD_PLATFORM
+endif # TARGET_VENDOR
+endif # TARGET_PROVIDES_LIBLIGHT

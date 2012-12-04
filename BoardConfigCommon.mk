@@ -80,6 +80,9 @@ TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
 BOARD_EGL_CFG := device/htc/msm8960-common/configs/egl.cfg
 
+# Lights
+TARGET_PROVIDES_LIBLIGHT := true
+
 # Wifi
 WPA_SUPPLICANT_VERSION           := VER_0_8_X
 BOARD_WPA_SUPPLICANT_DRIVER      := NL80211

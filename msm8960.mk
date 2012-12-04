@@ -67,6 +67,14 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     camera.msm8960
 
+# GPS
+PRODUCT_PACKAGES += \
+    libloc_adapter \
+    libloc_eng \
+    libloc_api_v02 \
+    libgps.utils \
+    gps.msm8960
+
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8960 \

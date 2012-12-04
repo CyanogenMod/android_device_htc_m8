@@ -129,6 +129,10 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/thermald.conf:system/etc/thermald.conf
 
+# WPA supplicant config
+PRODUCT_COPY_FILES += \
+    device/htc/msm8960-common/configs/wpa_supplicant.conf:system/etc/wifi/wpa_supplicant.conf
+
 # Media config
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/audio_policy.conf:system/etc/audio_policy.conf \

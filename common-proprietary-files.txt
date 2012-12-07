@@ -1,0 +1,133 @@
+# Configuration files
+etc/agps_rm
+
+# Executable files
+bin/cand
+bin/charging
+bin/mm-qcamera-daemon
+bin/mpdecision
+bin/netmgrd
+bin/netsharing
+bin/qmuxd
+bin/rmt_storage
+bin/thermald
+bin/zchgd
+
+# Audio
+lib/libacdbloader.so
+lib/libaudcal.so
+
+# Camera
+lib/libcameraface.so
+lib/libcamerapp.so
+lib/libcam_oem_plugin.so
+lib/libDxOAF.so
+lib/libgemini.so
+lib/libmmcamera_frameproc.so
+lib/libmmcamera_rawchipproc.so
+lib/libmmcamera_statsproc30.so
+lib/libmmipl.so
+lib/libmmjpeg.so
+lib/liboemcamera.so
+lib/libOlaEngine.so
+lib/libposteffect.so
+
+# Graphics
+lib/egl/eglsubAndroid.so
+lib/egl/libEGL_adreno200.so
+lib/egl/libGLESv1_CM_adreno200.so
+lib/egl/libGLESv2_adreno200.so
+lib/egl/libq3dtools_adreno200.so
+lib/egl/libGLESv2S3D_adreno200.so
+lib/egl/libplayback_adreno200.so
+lib/libC2D2.so
+lib/libc2d2_z180.so
+lib/libgsl.so
+lib/libOpenCL.so
+lib/libOpenVG.so
+lib/libsc-a2xx.so
+
+# Graphics firmware
+etc/firmware/a225p5_pm4.fw
+etc/firmware/a225_pfp.fw
+etc/firmware/a225_pm4.fw
+etc/firmware/leia_pfp_470.fw
+etc/firmware/leia_pm4_470.fw
+etc/firmware/vidc_1080p.fw
+
+# Media libraries
+lib/libmmosal.so
+lib/libmm-color-convertor.so
+lib/libmmparser.so
+lib/libmmparser_divxdrmlib.so
+lib/libwvm.so
+lib/libWVStreamControlAPI_L3.so
+
+# Modem firmware
+etc/firmware/modem.b00
+etc/firmware/modem.b01
+etc/firmware/modem.b02
+etc/firmware/modem.b03
+etc/firmware/modem.b04
+etc/firmware/modem.b06
+etc/firmware/modem.b07
+etc/firmware/modem.mdt
+etc/firmware/modem_fw.b00
+etc/firmware/modem_fw.b01
+etc/firmware/modem_fw.b02
+etc/firmware/modem_fw.b03
+etc/firmware/modem_fw.b04
+etc/firmware/modem_fw.b05
+etc/firmware/modem_fw.b06
+etc/firmware/modem_fw.b07
+etc/firmware/modem_fw.b08
+etc/firmware/modem_fw.b09
+etc/firmware/modem_fw.b10
+etc/firmware/modem_fw.b13
+etc/firmware/modem_fw.b14
+etc/firmware/modem_fw.b21
+etc/firmware/modem_fw.b22
+etc/firmware/modem_fw.b23
+etc/firmware/modem_fw.b25
+etc/firmware/modem_fw.b26
+etc/firmware/modem_fw.b29
+etc/firmware/modem_fw.mdt
+
+# Q6 firmware
+etc/firmware/q6.b00
+etc/firmware/q6.b01
+etc/firmware/q6.b03
+etc/firmware/q6.b04
+etc/firmware/q6.b05
+etc/firmware/q6.b06
+etc/firmware/q6.mdt
+
+# Qualcomm/HTC common libs
+lib/libdiag.so
+lib/libdsi_netctrl.so
+lib/libdsutils.so
+lib/libidl.so
+lib/libqdi.so
+lib/libqdp.so
+lib/libqmi.so
+lib/libqmi_cci.so
+lib/libqmi_common_so.so
+lib/libqmi_csi.so
+lib/libqmi_encdec.so
+lib/libqmiservices.so
+
+# Radio
+lib/libnetmgr.so
+lib/libqc-opt.so
+lib/libril-qc-qmi-1.so
+lib/libril-qcril-hook-oem.so
+
+# WLAN
+etc/firmware/wlan/prima/WCNSS_cfg.dat
+etc/firmware/wlan/prima/WCNSS_qcom_cfg.ini
+etc/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
+etc/firmware/wcnss.b00
+etc/firmware/wcnss.b01
+etc/firmware/wcnss.b02
+etc/firmware/wcnss.b04
+etc/firmware/wcnss.mdt

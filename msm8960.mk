@@ -139,15 +139,6 @@ PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/media_profiles.xml:system/etc/media_profiles.xml \
     device/htc/msm8960-common/configs/media_codecs.xml:system/etc/media_codecs.xml
 
-# MSM8960 firmware
-PRODUCT_COPY_FILES += \
-    device/htc/msm8960-common/firmware/a225p5_pm4.fw:/system/etc/firmware/a225p5_pm4.fw \
-    device/htc/msm8960-common/firmware/a225_pfp.fw:/system/etc/firmware/a225_pfp.fw \
-    device/htc/msm8960-common/firmware/a225_pm4.fw:/system/etc/firmware/a225_pm4.fw \
-    device/htc/msm8960-common/firmware/leia_pfp_470.fw:/system/etc/firmware/leia_pfp_470.fw \
-    device/htc/msm8960-common/firmware/leia_pm4_470.fw:/system/etc/firmware/leia_pm4_470.fw \
-    device/htc/msm8960-common/firmware/vidc_1080p.fw:/system/etc/firmware/vidc_1080p.fw
-
 # Common build properties
 PRODUCT_PROPERTY_OVERRIDES += \
     com.qc.hardware=true \

@@ -32,6 +32,9 @@ lib/liboemcamera.so
 lib/libOlaEngine.so
 lib/libposteffect.so
 
+# GPS
+lib/libloc_api_v02.so
+
 # Graphics
 lib/egl/eglsubAndroid.so
 lib/egl/libEGL_adreno200.so

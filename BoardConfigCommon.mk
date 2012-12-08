@@ -80,6 +80,9 @@ BOARD_EGL_CFG := device/htc/msm8960-common/configs/egl.cfg
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
 
+# Power
+TARGET_PROVIDES_POWERHAL := true
+
 # Time
 KERNEL_HAS_GETTIMEOFDAY_HELPER := true
 

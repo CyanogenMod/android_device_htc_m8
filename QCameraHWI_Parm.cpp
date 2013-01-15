@@ -2533,10 +2533,11 @@ status_t QCameraHardwareInterface::setPreviewFormat(const CameraParameters& para
           return BAD_VALUE;
         }
         bool ret = native_set_parms(MM_CAMERA_PARM_PREVIEW_FORMAT, sizeof(cam_format_t),
-                                   (void *)&format_info.mm_cam_format);
+                                   (void *)&mPreviewFormatInfo.mm_cam_format);
         mParameters.set(CameraParameters::KEY_PREVIEW_FORMAT, str);
-        mPreviewFormat = previewFormat;
-        LOGE("Setting preview format to %d",mPreviewFormat);
+        mPreviewFormat = mPreviewFormatInfo.mm_cam_format;
+        LOGI("Setting preview format to %d, i =%d, num=%d, hal_format=%d",
+             mPreviewFormat, i, num, mPreviewFormatInfo.Hal_format);
         return NO_ERROR;
     } else if ( strTexturesOn ) {
       mPreviewFormatInfo.mm_cam_format = CAMERA_YUV_420_NV21;

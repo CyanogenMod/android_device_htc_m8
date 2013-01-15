@@ -1289,6 +1289,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
+    setExifTags();
 
    LOGI("%s: X", __func__);
    return rc;
@@ -3524,6 +3525,8 @@ void QCameraHardwareInterface::addExifTag(exif_tag_id_t tagid, exif_tag_type_t t
         mExifData[index].tag_entry.data._shorts = (uint16_t *)data;
     else if((type == EXIF_SHORT) && (count == 1))
         mExifData[index].tag_entry.data._short = *(uint16_t *)data;
+
+    if(type==EXIF_ASCII) LOGE("addExifTag %x %s",tagid,(char *)data);
     // Increase number of entries
     mExifTableNumEntries++;
 }
@@ -3534,19 +3537,90 @@ rat_t getRational(int num, int denom)
     return temp;
 }
 
+void QCameraHardwareInterface::initExifData(){
+
+    if (mExifValues.dateTime) {
+        addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
+                  20, 1, (void *)mExifValues.dateTime);
+        addExifTag(EXIFTAGID_EXIF_DATE_TIME_CREATED, EXIF_ASCII,
+                  20, 1, (void *)mExifValues.dateTime);
+    }
+    addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1, 1, (void *)&(mExifValues.focalLength));
+    addExifTag(EXIFTAGID_ISO_SPEED_RATING,EXIF_SHORT,1,1,(void *)&(mExifValues.isoSpeed));
+
+    if(mExifValues.mGpsProcess) {
+        addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
+           EXIF_ASCII_PREFIX_SIZE + strlen(mExifValues.gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE) + 1,
+           1, (void *)mExifValues.gpsProcessingMethod);
+    }
+
+    if(mExifValues.mLatitude) {
+        addExifTag(EXIFTAGID_GPS_LATITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.latitude);
+
+        if(mExifValues.latRef) {
+            addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
+                                    1, (void *)mExifValues.latRef);
+        }
+    }
+
+    if(mExifValues.mLongitude) {
+        addExifTag(EXIFTAGID_GPS_LONGITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.longitude);
+
+        if(mExifValues.lonRef) {
+            addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
+                                1, (void *)mExifValues.lonRef);
+        }
+    }
+
+    if(mExifValues.mAltitude) {
+        addExifTag(EXIFTAGID_GPS_ALTITUDE, EXIF_RATIONAL, 1,
+                    1, (void *)&(mExifValues.altitude));
+
+        addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1, 1, (void *)&mExifValues.mAltitude_ref);
+    }
+
+    if(mExifValues.mTimeStamp) {
+        time_t unixTime;
+        struct tm *UTCTimestamp;
+
+        unixTime = (time_t)mExifValues.mGPSTimestamp;
+        UTCTimestamp = gmtime(&unixTime);
+
+        strftime(mExifValues.gpsDateStamp, sizeof(mExifValues.gpsDateStamp), "%Y:%m:%d", UTCTimestamp);
+        addExifTag(EXIFTAGID_GPS_DATESTAMP, EXIF_ASCII,
+                          strlen(mExifValues.gpsDateStamp)+1 , 1, (void *)mExifValues.gpsDateStamp);
+
+        mExifValues.gpsTimeStamp[0] = getRational(UTCTimestamp->tm_hour, 1);
+        mExifValues.gpsTimeStamp[1] = getRational(UTCTimestamp->tm_min, 1);
+        mExifValues.gpsTimeStamp[2] = getRational(UTCTimestamp->tm_sec, 1);
+
+        addExifTag(EXIFTAGID_GPS_TIMESTAMP, EXIF_RATIONAL,
+                  3, 1, (void *)mExifValues.gpsTimeStamp);
+        LOGE("EXIFTAGID_GPS_TIMESTAMP set");
+    }
+
+}
+
 //Add all exif tags in this function
 void QCameraHardwareInterface::setExifTags()
 {
     const char *str;
 
     //set TimeStamp
+    time_t rawtime;
+    struct tm * timeinfo;
+
     str = mParameters.get(CameraParameters::KEY_EXIF_DATETIME);
     if(str != NULL) {
       strncpy(mExifValues.dateTime, str, 19);
       mExifValues.dateTime[19] = '\0';
-      addExifTag(EXIFTAGID_EXIF_DATE_TIME_ORIGINAL, EXIF_ASCII,
-                  20, 1, (void *)mExifValues.dateTime);
+    } else {
+      time ( &rawtime );
+      timeinfo = localtime ( &rawtime );
+      sprintf(mExifValues.dateTime,"%04d:%02d:%02d %02d:%02d:%02d",timeinfo->tm_year+1900, timeinfo->tm_mon+1,
+            timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
     }
+    LOGE("setExifTags %s",mExifValues.dateTime);
 
     //Set focal length
     int focalLengthValue = (int) (mParameters.getFloat(
@@ -3554,11 +3628,8 @@ void QCameraHardwareInterface::setExifTags()
 
     mExifValues.focalLength = getRational(focalLengthValue, FOCAL_LENGTH_DECIMAL_PRECISION);
 
-    addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1, 1, (void *)&(mExifValues.focalLength));
-
     //Set ISO Speed
     mExifValues.isoSpeed = getISOSpeedValue();
-    addExifTag(EXIFTAGID_ISO_SPEED_RATING,EXIF_SHORT,1,1,(void *)&(mExifValues.isoSpeed));
 
     //set gps tags
     setExifTagsGPS();
@@ -3575,11 +3646,11 @@ void QCameraHardwareInterface::setExifTagsGPS()
        strncpy(mExifValues.gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE, str,
            GPS_PROCESSING_METHOD_SIZE - 1);
        mExifValues.gpsProcessingMethod[EXIF_ASCII_PREFIX_SIZE + GPS_PROCESSING_METHOD_SIZE-1] = '\0';
-       addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
-           EXIF_ASCII_PREFIX_SIZE + strlen(mExifValues.gpsProcessingMethod + EXIF_ASCII_PREFIX_SIZE) + 1,
-           1, (void *)mExifValues.gpsProcessingMethod);
        LOGE("EXIFTAGID_GPS_PROCESSINGMETHOD = %s %s", mExifValues.gpsProcessingMethod,
                                                     mExifValues.gpsProcessingMethod+8);
+       mExifValues.mGpsProcess  = true;
+    }else{
+        mExifValues.mGpsProcess = false;
     }
     str = NULL;
 
@@ -3587,7 +3658,6 @@ void QCameraHardwareInterface::setExifTagsGPS()
     str = mParameters.get(CameraParameters::KEY_GPS_LATITUDE);
     if(str != NULL) {
         parseGPSCoordinate(str, mExifValues.latitude);
-        addExifTag(EXIFTAGID_GPS_LATITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.latitude);
         LOGE("EXIFTAGID_GPS_LATITUDE = %s", str);
 
         //set Latitude Ref
@@ -3598,10 +3668,11 @@ void QCameraHardwareInterface::setExifTagsGPS()
             mExifValues.latRef[0] = 'N';
         }
         mExifValues.latRef[1] = '\0';
+        mExifValues.mLatitude = true;
         mParameters.set(CameraParameters::KEY_GPS_LATITUDE_REF,mExifValues.latRef);
-        addExifTag(EXIFTAGID_GPS_LATITUDE_REF, EXIF_ASCII, 2,
-                                1, (void *)mExifValues.latRef);
         LOGE("EXIFTAGID_GPS_LATITUDE_REF = %s", mExifValues.latRef);
+    }else{
+        mExifValues.mLatitude = false;
     }
 
     //set Longitude
@@ -3609,7 +3680,6 @@ void QCameraHardwareInterface::setExifTagsGPS()
     str = mParameters.get(CameraParameters::KEY_GPS_LONGITUDE);
     if(str != NULL) {
         parseGPSCoordinate(str, mExifValues.longitude);
-        addExifTag(EXIFTAGID_GPS_LONGITUDE, EXIF_RATIONAL, 3, 1, (void *)mExifValues.longitude);
         LOGE("EXIFTAGID_GPS_LONGITUDE = %s", str);
 
         //set Longitude Ref
@@ -3620,54 +3690,39 @@ void QCameraHardwareInterface::setExifTagsGPS()
             mExifValues.lonRef[0] = 'E';
         }
         mExifValues.lonRef[1] = '\0';
+        mExifValues.mLongitude = true;
         LOGE("EXIFTAGID_GPS_LONGITUDE_REF = %s", mExifValues.lonRef);
         mParameters.set(CameraParameters::KEY_GPS_LONGITUDE_REF, mExifValues.lonRef);
-        addExifTag(EXIFTAGID_GPS_LONGITUDE_REF, EXIF_ASCII, 2,
-                                1, (void *)mExifValues.lonRef);
+    }else{
+        mExifValues.mLongitude = false;
     }
 
     //set Altitude
     str = mParameters.get(CameraParameters::KEY_GPS_ALTITUDE);
-
     if(str != NULL) {
         double value = atof(str);
-        int ref = 0;
+        mExifValues.mAltitude_ref = 0;
         if(value < 0){
-            ref = 1;
+            mExifValues.mAltitude_ref = 1;
             value = -value;
         }
         mExifValues.altitude = getRational(value*1000, 1000);
-
-        addExifTag(EXIFTAGID_GPS_ALTITUDE, EXIF_RATIONAL, 1,
-                    1, (void *)&(mExifValues.altitude));
+        mExifValues.mAltitude = true;
         //set AltitudeRef
-        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, ref);
-        addExifTag(EXIFTAGID_GPS_ALTITUDE_REF, EXIF_BYTE, 1, 1, (void *)&ref);
+        mParameters.set(CameraParameters::KEY_GPS_ALTITUDE_REF, mExifValues.mAltitude_ref);
         LOGE("EXIFTAGID_GPS_ALTITUDE = %f", value);
+    }else{
+        mExifValues.mAltitude = false;
     }
 
     //set Gps TimeStamp
     str = NULL;
     str = mParameters.get(CameraParameters::KEY_GPS_TIMESTAMP);
     if(str != NULL) {
-      long value = atol(str);
-      time_t unixTime;
-      struct tm *UTCTimestamp;
-
-      unixTime = (time_t)value;
-      UTCTimestamp = gmtime(&unixTime);
-
-      strftime(mExifValues.gpsDateStamp, sizeof(mExifValues.gpsDateStamp), "%Y:%m:%d", UTCTimestamp);
-      addExifTag(EXIFTAGID_GPS_DATESTAMP, EXIF_ASCII,
-                          strlen(mExifValues.gpsDateStamp)+1 , 1, (void *)mExifValues.gpsDateStamp);
-
-      mExifValues.gpsTimeStamp[0] = getRational(UTCTimestamp->tm_hour, 1);
-      mExifValues.gpsTimeStamp[1] = getRational(UTCTimestamp->tm_min, 1);
-      mExifValues.gpsTimeStamp[2] = getRational(UTCTimestamp->tm_sec, 1);
-
-      addExifTag(EXIFTAGID_GPS_TIMESTAMP, EXIF_RATIONAL,
-                  3, 1, (void *)mExifValues.gpsTimeStamp);
-      LOGE("EXIFTAGID_GPS_TIMESTAMP set");
+      mExifValues.mTimeStamp = true;
+      mExifValues.mGPSTimestamp = atol(str);
+    }else{
+         mExifValues.mTimeStamp = false;
     }
 }
 

@@ -144,6 +144,7 @@ static camera_size_type jpeg_thumbnail_sizes[]  = {
 static camera_size_type default_preview_sizes[] = {
   { 1920, 1080}, //1080p
   { 1280, 720}, // 720P, reserved
+  { 960, 720}, // for panorama
   { 800, 480}, // WVGA
   { 768, 432},
   { 720, 480},
@@ -160,6 +161,7 @@ static camera_size_type default_preview_sizes[] = {
 static camera_size_type supported_video_sizes[] = {
   { 1920, 1080},// 1080p
   { 1280, 720}, // 720p
+  { 960, 720},  // for panorama
   { 800, 480},  // WVGA
   { 720, 480},  // 480p
   { 640, 480},  // VGA

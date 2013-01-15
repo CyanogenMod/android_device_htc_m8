@@ -1545,11 +1545,11 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
     LOGE("ISO string : %s",str);
     int8_t temp_hjr;
     if (str != NULL) {
-        int value = (camera_iso_mode_type)attr_lookup(
+        int value = attr_lookup(
           iso, sizeof(iso) / sizeof(str_map), str);
         LOGE("ISO Value : %d",value);
         if (value != NOT_FOUND) {
-            camera_iso_mode_type temp = (camera_iso_mode_type) value;
+            int temp = value;
             if (value == CAMERA_ISO_DEBLUR) {
                temp_hjr = true;
                native_set_parms(MM_CAMERA_PARM_HJR, sizeof(int8_t), (void*)&temp_hjr);
@@ -1564,7 +1564,7 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
             }
 
             mParameters.set(CameraParameters::KEY_ISO_MODE, str);
-            native_set_parms(MM_CAMERA_PARM_ISO, sizeof(camera_iso_mode_type), (void *)&temp);
+            native_set_parms(MM_CAMERA_PARM_ISO, sizeof(int), (void *)&temp);
             return NO_ERROR;
         }
     }

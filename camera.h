@@ -2,7 +2,7 @@
 #define __CAMERA_H__
 
 #include <stdint.h>
-#include "msm_camera.h"
+#include <media/msm_camera.h>
 #include <pthread.h>
 #include <linux/videodev2.h>
 #include <sys/mman.h>
@@ -1140,18 +1140,6 @@ typedef enum {
   CAMERA_WB_MAX_PLUS_1
 } config3a_wb_t;
 
-/* Enum Type for different ISO Mode supported */
-typedef enum {
-  CAMERA_ISO_AUTO = 0,
-  CAMERA_ISO_DEBLUR,
-  CAMERA_ISO_100,
-  CAMERA_ISO_200,
-  CAMERA_ISO_400,
-  CAMERA_ISO_800,
-  CAMERA_ISO_1600,
-  CAMERA_ISO_MAX
-} camera_iso_mode_type;
-
 typedef enum {
   LED_MODE_OFF,
   LED_MODE_AUTO,
@@ -1258,8 +1246,6 @@ typedef struct {
   roi_t roi[MAX_ROI];
   uint8_t is_multiwindow;
 } roi_info_t;
-
-extern camera_iso_mode_type max_camera_iso_type;
 
 #define CAMERA_MIN_BRIGHTNESS  0
 #define CAMERA_DEF_BRIGHTNESS  3

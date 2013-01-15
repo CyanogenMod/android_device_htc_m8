@@ -1540,7 +1540,7 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
     }
     const char *str = params.get(CameraParameters::KEY_ISO_MODE);
     LOGE("ISO string : %s",str);
-    int8_t temp_hjr;
+    int temp_hjr;
     if (str != NULL) {
         int value = attr_lookup(
           iso, sizeof(iso) / sizeof(str_map), str);
@@ -1549,13 +1549,13 @@ status_t  QCameraHardwareInterface::setISOValue(const CameraParameters& params) 
             int temp = value;
             if (value == CAMERA_ISO_DEBLUR) {
                temp_hjr = true;
-               native_set_parms(MM_CAMERA_PARM_HJR, sizeof(int8_t), (void*)&temp_hjr);
+               native_set_parms(MM_CAMERA_PARM_HJR, sizeof(int), (void*)&temp_hjr);
                mHJR = value;
             }
             else {
                if (mHJR == CAMERA_ISO_DEBLUR) {
                    temp_hjr = false;
-                   native_set_parms(MM_CAMERA_PARM_HJR, sizeof(int8_t), (void*)&temp_hjr);
+                   native_set_parms(MM_CAMERA_PARM_HJR, sizeof(int), (void*)&temp_hjr);
                    mHJR = value;
                }
             }
@@ -2634,11 +2634,11 @@ status_t QCameraHardwareInterface::setMCEValue(const CameraParameters& params)
     if (str != NULL) {
         int value = attr_lookup(mce, sizeof(mce) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-            int temp = (int8_t)value;
+            int temp = value;
             LOGI("%s: setting MCE value of %s", __FUNCTION__, str);
             mParameters.set(CameraParameters::KEY_MEMORY_COLOR_ENHANCEMENT, str);
 
-            native_set_parms(MM_CAMERA_PARM_MCE, sizeof(int8_t), (void *)&temp);
+            native_set_parms(MM_CAMERA_PARM_MCE, sizeof(int), (void *)&temp);
             return NO_ERROR;
         }
     }
@@ -2707,9 +2707,9 @@ status_t QCameraHardwareInterface::setLensshadeValue(const CameraParameters& par
         int value = attr_lookup(lensshade,
                                     sizeof(lensshade) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-            int8_t temp = (int8_t)value;
+            int temp = value;
             mParameters.set(CameraParameters::KEY_LENSSHADE, str);
-            native_set_parms(MM_CAMERA_PARM_ROLLOFF, sizeof(int8_t), (void *)&temp);
+            native_set_parms(MM_CAMERA_PARM_ROLLOFF, sizeof(int), (void *)&temp);
             return NO_ERROR;
         }
     }
@@ -2859,11 +2859,11 @@ status_t QCameraHardwareInterface::setRedeyeReduction(const CameraParameters& pa
     if (str != NULL) {
         int value = attr_lookup(redeye_reduction, sizeof(redeye_reduction) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
-            int8_t temp = (int8_t)value;
+            int temp = value;
             LOGI("%s: setting Redeye Reduction value of %s", __FUNCTION__, str);
             mParameters.set(CameraParameters::KEY_REDEYE_REDUCTION, str);
 
-            native_set_parms(MM_CAMERA_PARM_REDEYE_REDUCTION, sizeof(int8_t), (void *)&temp);
+            native_set_parms(MM_CAMERA_PARM_REDEYE_REDUCTION, sizeof(int), (void *)&temp);
             return NO_ERROR;
         }
     }

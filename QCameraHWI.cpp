@@ -975,8 +975,14 @@ status_t QCameraHardwareInterface::startPreview()
         LOGE("%s: cannot start preview in recording state", __func__);
         break;
     case QCAMERA_HAL_TAKE_PICTURE:
-        LOGE("%s: cannot start preview in SNAPSHOT state", __func__);
+        while(mCameraState != CAMERA_STATE_READY) {
+            mLock.unlock();
+            LOGE("Waiting for CAMERA_STATE_READY %d",mCameraState);
+            usleep(1000);
+            mLock.lock();
+        }
         mPreviewState = QCAMERA_HAL_PREVIEW_START;
+        LOGE("%s:  HAL::startPreview begin", __func__);
         retVal = startPreview2();
         if(retVal == NO_ERROR)
             mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;

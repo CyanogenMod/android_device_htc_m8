@@ -885,8 +885,9 @@ status_t QCameraStream_preview::start()
     /* unregister the notify fn from the mmmm_camera_t object*/
 
     ALOGI("%s: Stop the thread \n", __func__);
-    /* call stop() in parent class to stop the monitor thread*/
-    ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_PREVIEW, 0);
+    /* In zsl mode this is done when the shapshot channel stops to avoid an iommu page fault*/
+    if (!((myMode & CAMERA_ZSL_MODE) && !mHalCamCtrl->mZslFlashEnable))
+      ret = cam_ops_action(mCameraId, FALSE, MM_CAMERA_OPS_PREVIEW, 0);
     if(MM_CAMERA_OK != ret) {
       ALOGE ("%s: camera preview stop err=%d\n", __func__, ret);
     }

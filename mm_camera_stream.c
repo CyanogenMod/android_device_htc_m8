@@ -702,8 +702,8 @@ int32_t mm_camera_stream_util_buf_done(mm_camera_obj_t * my_obj,
                 CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
                      __func__, frame->idx, rc);
         }else{
-            CDBG_ERROR("<DEBUG> : Still ref count pending count :%d",stream->frame.ref_count[frame->idx]);
-            CDBG_ERROR("<DEBUG> : for buffer:%p:%d, stream type=%d",stream,frame->idx, stream->stream_type);
+            CDBG("<DEBUG> : Still ref count pending count :%d",stream->frame.ref_count[frame->idx]);
+            CDBG("<DEBUG> : for buffer:%p:%d, stream type=%d",stream,frame->idx, stream->stream_type);
         }
     }
 

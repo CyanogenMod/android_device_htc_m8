@@ -43,7 +43,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #if 0
 #undef CDBG
 #undef LOG_TAG
-#define CDBG LOGE
+#define CDBG ALOGE
 #define LOG_TAG "NotifyLogs"
 #endif
 
@@ -566,7 +566,7 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
     idx =  mm_camera_read_msm_frame(my_obj,stream);
     if (idx < 0)
         return;
-    LOGE("Video thread locked");
+    ALOGE("Video thread locked");
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
     for( i=0;i<MM_CAMERA_BUF_CB_MAX;i++) {
         if((my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].cb) &&
@@ -579,19 +579,19 @@ static void mm_camera_read_video_frame(mm_camera_obj_t * my_obj)
             data.video.video.frame = &my_obj->ch[MM_CAMERA_CH_VIDEO].video.video.
                 frame.frame[idx].frame;
             my_obj->ch[MM_CAMERA_CH_VIDEO].video.video.frame.ref_count[idx]++;
-            LOGE("Video thread callback issued");
+            ALOGE("Video thread callback issued");
             my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].cb(&data,
                                     my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].user_data);
-            LOGE("Video thread callback returned");
+            ALOGE("Video thread callback returned");
             if( my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].cb_type==MM_CAMERA_BUF_CB_COUNT ) {
-                LOGE("<DEBUG>:%s: Additional cb called for buffer %p:%d",__func__,stream,idx);
+                ALOGE("<DEBUG>:%s: Additional cb called for buffer %p:%d",__func__,stream,idx);
                 if(--(my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].cb_count) == 0 )
                     my_obj->ch[MM_CAMERA_CH_VIDEO].buf_cb[i].cb=NULL;
             }
         }
     }
     pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_VIDEO].mutex);
-    LOGE("Video thread unlocked");
+    ALOGE("Video thread unlocked");
 }
 
 static void mm_camera_read_video_main_frame(mm_camera_obj_t * my_obj)

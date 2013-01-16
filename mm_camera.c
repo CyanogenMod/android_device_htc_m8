@@ -71,7 +71,7 @@ static int32_t mm_camera_ctrl_set_auto_focus (mm_camera_obj_t *my_obj, int value
     memset (&queryctrl, 0, sizeof (queryctrl));
     queryctrl.id = V4L2_CID_FOCUS_AUTO;
 
-    LOGE("mm_camera_ctrl_set_auto_focus(%d)",value);
+    ALOGE("mm_camera_ctrl_set_auto_focus(%d)",value);
     if(value != 0 && value != 1) {
         CDBG("%s:boolean required, invalid value = %d\n",__func__, value);
         return -MM_CAMERA_E_INVALID_INPUT;
@@ -290,7 +290,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                     CAMERA_SET_AEC_MTR_AREA, sizeof(aec_mtr_area_t), (void *)parm->p_value);
 #endif
     case MM_CAMERA_PARM_FOCUS_MODE:
-        LOGE("CAMERA_PARM_FOCUS_MODE: %d",*((int *)(parm->p_value)));
+        ALOGE("CAMERA_PARM_FOCUS_MODE: %d",*((int *)(parm->p_value)));
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_FOCUS_MODE, sizeof(uint32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_BESTSHOT_MODE:
@@ -311,11 +311,11 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         return mm_camera_send_native_ctrl_cmd(my_obj,
                     CAMERA_SET_PARM_FD, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AEC_LOCK:
-        LOGE("CAMERA_PARM_AEC_LOCK not supported");
+        ALOGE("CAMERA_PARM_AEC_LOCK not supported");
         return 0; //mm_camera_send_native_ctrl_cmd(my_obj,
                   //  CAMERA_SET_AEC_LOCK, sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_AWB_LOCK:
-        LOGE("CAMERA_PARM_AWB_LOCK not supported");
+        ALOGE("CAMERA_PARM_AWB_LOCK not supported");
         return 0;//mm_camera_send_native_ctrl_cmd(my_obj,   CAMERA_SET_AWB_LOCK,
                   //                                   sizeof(int32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_MCE:
@@ -374,13 +374,13 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
                   CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
 
     case MM_CAMERA_PARM_DIS_ENABLE:
-      LOGE("CAMERA_PARM_DIS_ENABLE not supported");
+      ALOGE("CAMERA_PARM_DIS_ENABLE not supported");
       return 0;//mm_camera_send_native_ctrl_cmd(my_obj,
                //   CAMERA_SET_DIS_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
 
     case MM_CAMERA_PARM_FULL_LIVESHOT: {
       my_obj->full_liveshot = *((int *)(parm->p_value));
-      LOGE("full_liveshot = %d",my_obj->full_liveshot);
+      ALOGE("full_liveshot = %d",my_obj->full_liveshot);
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_FULL_LIVESHOT, sizeof(uint32_t), (void *)parm->p_value);
     }
@@ -515,7 +515,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     }
         break;
     case MM_CAMERA_PARM_MAX_HFR_MODE:
-        LOGE("CAMERA_PARM_MAX_HFR_MODE not supported");
+        ALOGE("CAMERA_PARM_MAX_HFR_MODE not supported");
         return 0;//mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_MAX_HFR_MODE,
                 //sizeof(camera_hfr_mode_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_FOCAL_LENGTH:
@@ -854,10 +854,10 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     do{
         n_try--;
         my_obj->ctrl_fd = open(dev_name,O_RDWR | O_NONBLOCK);
-		LOGE("%s:  ctrl_fd = %d", __func__, my_obj->ctrl_fd);
-        LOGE("Errno:%d",errno);
+		ALOGE("%s:  ctrl_fd = %d", __func__, my_obj->ctrl_fd);
+        ALOGE("Errno:%d",errno);
         if((my_obj->ctrl_fd > 0) || (errno != EIO) || (n_try <= 0 )) {
-			LOGE("%s:  opened, break out while loop", __func__);
+			ALOGE("%s:  opened, break out while loop", __func__);
 
             break;
 		}
@@ -866,13 +866,13 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
         usleep(sleep_msec*1000);
     }while(n_try>0);
 
-	LOGE("%s:  after while loop", __func__);
+	ALOGE("%s:  after while loop", __func__);
     if (my_obj->ctrl_fd <= 0) {
         CDBG("%s: cannot open control fd of '%s' Errno = %d\n",
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);
         return -MM_CAMERA_E_GENERAL;
     }
-	LOGE("%s:  2\n", __func__);
+	ALOGE("%s:  2\n", __func__);
 
     /* open domain socket*/
 /*
@@ -880,10 +880,10 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
     do{
         n_try--;
         my_obj->ds_fd = mm_camera_socket_create(my_obj->my_id, MM_CAMERA_SOCK_TYPE_UDP); // TODO: UDP for now, change to TCP
-        LOGE("%s:  ds_fd = %d", __func__, my_obj->ds_fd);
-        LOGE("Errno:%d",errno);
+        ALOGE("%s:  ds_fd = %d", __func__, my_obj->ds_fd);
+        ALOGE("Errno:%d",errno);
         if((my_obj->ds_fd > 0) || (n_try <= 0 )) {
-            LOGE("%s:  opened, break out while loop", __func__);
+            ALOGE("%s:  opened, break out while loop", __func__);
             break;
         }
         CDBG("%s:failed with I/O error retrying after %d milli-seconds",
@@ -891,7 +891,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj,
         usleep(sleep_msec*1000);
     }while(n_try>0);
 
-    LOGE("%s:  after while loop for domain socket open", __func__);
+    ALOGE("%s:  after while loop for domain socket open", __func__);
     if (my_obj->ds_fd <= 0) {
         CDBG("%s: cannot open domain socket fd of '%s' Errno = %d\n",
                  __func__, mm_camera_util_get_dev_name(my_obj),errno);

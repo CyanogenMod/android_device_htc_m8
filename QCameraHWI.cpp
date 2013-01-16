@@ -1020,7 +1020,10 @@ status_t QCameraHardwareInterface::startPreview2()
       ALOGE("%s: X", __func__);
       return BAD_VALUE;
     }
+    int z=0;
 
+    setFullLiveshot();
+//    cam_config_set_parm(mCameraId, MM_CAMERA_PARM_FULL_LIVESHOT, &z);
     /* config the parmeters and see if we need to re-init the stream*/
     initPreview = preview_parm_config (&dim, mParameters);
 

@@ -73,7 +73,7 @@ int mm_camera_socket_create(int cam_id, mm_camera_sock_type_t sock_type)
 
     memset(&sock_addr, 0, sizeof(sock_addr));
     sock_addr.sun_family = AF_UNIX;
-    snprintf(sock_addr.sun_path, UNIX_PATH_MAX, "/data/cam_socket%d", cam_id);
+    snprintf(sock_addr.sun_path, UNIX_PATH_MAX, "/data/cam_socket");
     if(connect(socket_fd, (struct sockaddr *) &sock_addr,
       sizeof(sock_addr)) != 0)
       socket_fd = -1;

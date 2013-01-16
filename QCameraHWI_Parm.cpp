@@ -86,7 +86,7 @@ extern "C" {
 
 //Default FPS
 #define MINIMUM_FPS 5
-#define MAXIMUM_FPS 30
+#define MAXIMUM_FPS 200
 #define DEFAULT_FPS MAXIMUM_FPS
 
 //Default Picture Width
@@ -147,6 +147,7 @@ static camera_size_type default_preview_sizes[] = {
   { 1920, 1088}, //1080p
   { 1280, 720}, // 720P, reserved
   { 960, 720}, // for panorama
+  { 960, 544},
   { 800, 480}, // WVGA
   { 768, 432},
   { 720, 480},
@@ -165,6 +166,7 @@ static camera_size_type supported_video_sizes[] = {
   { 1280, 720}, // 720p
   { 960, 720},  // for panorama
   { 800, 480},  // WVGA
+  { 768, 432},
   { 720, 480},  // 480p
   { 640, 480},  // VGA
   { 480, 320},  // HVGA
@@ -187,9 +189,12 @@ static struct camera_size_type zsl_picture_sizes[] = {
 static camera_size_type default_picture_sizes[] = {
   { 4000, 3000}, // 12MP
   { 3264, 2448}, // 8MP
+  { 3264, 1840}, // 6MP
   { 2592, 1944}, // 5MP
+  { 2992, 1680},
+  { 2592, 1456},
   { 2048, 1536}, // 3MP QXGA
-  { 1920, 1080}, //HD1080
+  { 1920, 1088}, //HD1080
   { 1600, 1200}, // 2MP UXGA
   { 1280, 768}, //WXGA
   { 1280, 720}, //HD720
@@ -530,7 +535,8 @@ static String8 create_values_range_str(int min, int max){
 
         for (int i = min + 1; i <= max; i++) {
             snprintf(buffer, sizeof(buffer), ",%d", i);
-            str.append(buffer);
+            if(i%10 == 0)
+                str.append(buffer);
         }
     }
     return str;
@@ -1272,7 +1278,7 @@ status_t QCameraHardwareInterface::setParameters(const CameraParameters& params)
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
     if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
-//    if ((rc = setAecAwbLock(params)))                   final_rc = rc;
+    if ((rc = setAecAwbLock(params)))                   final_rc = rc;
 
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
@@ -1479,7 +1485,7 @@ status_t QCameraHardwareInterface::setSceneDetect(const CameraParameters& params
     const char *str = params.get(CameraParameters::KEY_SCENE_MODE);
     ALOGE("Scene Detect string : %s",str);
     if (str != NULL) {
-        int32_t value= (strcmp(str,CameraParameters::SCENE_MODE_ASD)==0);
+        int32_t value= (strcmp(str,CameraParameters::SCENE_MODE_ASD)==0 || strcmp(str,CameraParameters::SCENE_MODE_AUTO)==0);
         ALOGE("Scenedetect Value : %d",value);
         if (value != NOT_FOUND) {
             retParm = native_set_parms(MM_CAMERA_PARM_ASD_ENABLE, sizeof(value),
@@ -2170,10 +2176,13 @@ status_t QCameraHardwareInterface::setPreviewFrameRate(const CameraParameters& p
     uint16_t fps = (uint16_t)params.getPreviewFrameRate();
     ALOGV("requested preview frame rate  is %u", fps);
 
+/*
     if(mInitialized && (fps == previousFps)){
         ALOGV("No change is FPS Value %d",fps );
         return NO_ERROR;
     }
+*/
+
 
     if(MINIMUM_FPS <= fps && fps <=MAXIMUM_FPS){
         mParameters.setPreviewFrameRate(fps);
@@ -2189,6 +2198,7 @@ status_t QCameraHardwareInterface::setPreviewFrameRateMode(const CameraParameter
 
     ALOGE("%s",__func__);
     status_t rc = NO_ERROR;
+    return rc;
     rc = cam_config_is_parm_supported(mCameraId, MM_CAMERA_PARM_FPS);
     if(!rc) {
        ALOGE(" CAMERA FPS mode is not supported for this sensor");
@@ -3037,8 +3047,8 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
       ALOGE("setRecordingHint %s",str);
       if(value != NOT_FOUND){
         mRecordingHint = value;
-        native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
-                                               (void *)&value);
+//        native_set_parms(MM_CAMERA_PARM_RECORDING_HINT, sizeof(value),
+//                                               (void *)&value);
         if (value == TRUE) {
           native_set_parms(MM_CAMERA_PARM_CONTINUOUS_AF, sizeof(value),
                                                (void *)&value);
@@ -3058,8 +3068,8 @@ status_t QCameraHardwareInterface::setRecordingHint(const CameraParameters& para
 
 status_t QCameraHardwareInterface::setDISMode() {
 
-  if(isLowPowerCamcorder())
-      mDisEnabled = 0; 
+//  if(isLowPowerCamcorder())
+//      mDisEnabled = 0; 
 
   uint32_t value = mRecordingHint && mDisEnabled;
 
@@ -3076,8 +3086,8 @@ status_t QCameraHardwareInterface::setDISMode() {
   /* End workaround */
 
 
-//  ALOGI("%s DIS is %s value = %d", __func__,
-//          value ? "Enabled" : "Disabled", value);
+  ALOGI("%s DIS is %s value = %d", __func__,
+          value ? "Enabled" : "Disabled", value);
 //  native_set_parms(MM_CAMERA_PARM_DIS_ENABLE, sizeof(value),
 //                                               (void *)&value);
 
@@ -3098,8 +3108,8 @@ status_t QCameraHardwareInterface::setDISMode() {
     disCtrl.video_rec_height = mDimension.video_height;
     disCtrl.output_cbcr_offset = video_frame_cbcroffset;
 
-//    ret = native_set_parms( MM_CAMERA_PARM_VIDEO_DIS,
-//                       sizeof(disCtrl), &disCtrl);
+    ret = native_set_parms( MM_CAMERA_PARM_VIDEO_DIS,
+                       sizeof(disCtrl), &disCtrl);
 
   return NO_ERROR;
 }

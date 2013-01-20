@@ -80,6 +80,9 @@ TARGET_PROVIDES_LIBLIGHT := true
 # Power
 TARGET_PROVIDES_POWERHAL := true
 
+# RIL
+BOARD_RIL_CLASS := "../../../device/htc/msm8960-common/libril/"
+
 # Time
 KERNEL_HAS_GETTIMEOFDAY_HELPER := true
 

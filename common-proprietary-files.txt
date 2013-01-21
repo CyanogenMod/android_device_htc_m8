@@ -2,7 +2,6 @@
 etc/agps_rm
 
 # Executable files
-bin/cand
 bin/charging
 bin/mm-qcamera-daemon
 bin/mpdecision

@@ -93,4 +93,3 @@ include $(BUILD_SHARED_LIBRARY)
 
 endif # BOARD_USES_QCOM_HARDWARE
 endif # USE_CAMERA_STUB
->>>>>>> B

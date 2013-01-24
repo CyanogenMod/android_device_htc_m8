@@ -1,5 +1,7 @@
 ifneq ($(USE_CAMERA_STUB),true)
 ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+ifeq ($(BOARD_VENDOR),htc)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 
 # When zero we link against libmmcamera; when 1, we dlopen libmmcamera.
 DLOPEN_LIBMMCAMERA := 1
@@ -91,5 +93,7 @@ LOCAL_MODULE := camera.$(TARGET_BOOTLOADER_BOARD_NAME)
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)
 
+endif # TARGET_BOARD_PLATFORM
+endif # BOARD_VENDOR
 endif # BOARD_USES_QCOM_HARDWARE
 endif # USE_CAMERA_STUB

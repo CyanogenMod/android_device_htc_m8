@@ -54,19 +54,15 @@ enum {
 };
 
 enum {
-  PULSE_LENGTH_VERY_SHORT = 1,
-  PULSE_LENGTH_SHORT = 2,
-  PULSE_LENGTH_NORMAL= 3,
-  PULSE_LENGTH_LONG= 4,
-  PULSE_LENGTH_ALWAYS_ON = 5,
+  PULSE_LENGTH_ALWAYS_ON = 1,
+  PULSE_LENGTH_NORMAL = 2,
+  PULSE_LENGTH_LONG = 3,
 };
 
 enum {
-  BLINK_MODE_OFF,
-  BLINK_MODE_VERY_SHORT,
-  BLINK_MODE_SHORT,
-  BLINK_MODE_NORMAL,
-  BLINK_MODE_LONG,
+  BLINK_MODE_OFF = 0,
+  BLINK_MODE_NORMAL = 1,
+  BLINK_MODE_LONG = 4,
 };
 
 static int write_int(const char* path, int value) {
@@ -84,7 +80,7 @@ static int write_int(const char* path, int value) {
     return -errno;
   }
 
-  bytes = snprintf(buffer, sizeof(buffer), "%d\n",value);
+  bytes = snprintf(buffer, sizeof(buffer), "%d\n", value);
   written = write(fd, buffer, bytes);
   close(fd);
 
@@ -110,11 +106,8 @@ static void set_speaker_light_locked(struct light_device_t *dev,
   if (((colorRGB >> 8) & 0xFF) > ((colorRGB >> 16) & 0xFF)) color = LED_GREEN;
 
   switch (state->flashOnMS) {
-    case PULSE_LENGTH_VERY_SHORT:
-      blinkMode = BLINK_MODE_VERY_SHORT;
-      break;
-    case PULSE_LENGTH_SHORT:
-      blinkMode = BLINK_MODE_SHORT;
+    case PULSE_LENGTH_ALWAYS_ON:
+      state->flashMode = LIGHT_FLASH_NONE;
       break;
     case PULSE_LENGTH_NORMAL:
       blinkMode = BLINK_MODE_NORMAL;
@@ -122,22 +115,21 @@ static void set_speaker_light_locked(struct light_device_t *dev,
     case PULSE_LENGTH_LONG:
       blinkMode = BLINK_MODE_LONG;
       break;
-    case PULSE_LENGTH_ALWAYS_ON:
-      state->flashMode = LIGHT_FLASH_NONE;
-      break;
   }
 
   switch (state->flashMode) {
     case LIGHT_FLASH_TIMED:
       switch (color) {
         case LED_AMBER:
-          write_int(AMBER_BLINK_FILE, 1);
+          write_int(AMBER_LED_FILE, 1);
           write_int(GREEN_LED_FILE, 0);
           write_int(AMBER_BLINK_FILE, blinkMode);
+          write_int(GREEN_BLINK_FILE, 0);
           break;
         case LED_GREEN:
-          write_int(GREEN_BLINK_FILE, 1);
           write_int(AMBER_LED_FILE, 0);
+          write_int(GREEN_LED_FILE, 1);
+          write_int(AMBER_BLINK_FILE, 0);
           write_int(GREEN_BLINK_FILE, blinkMode);
           break;
         case LED_BLANK:
@@ -154,10 +146,14 @@ static void set_speaker_light_locked(struct light_device_t *dev,
         case LED_AMBER:
           write_int(AMBER_LED_FILE, 1);
           write_int(GREEN_LED_FILE, 0);
+          write_int(AMBER_BLINK_FILE, 0);
+          write_int(GREEN_BLINK_FILE, 0);
           break;
         case LED_GREEN:
           write_int(AMBER_LED_FILE, 0);
           write_int(GREEN_LED_FILE, 1);
+          write_int(AMBER_BLINK_FILE, 0);
+          write_int(GREEN_BLINK_FILE, 0);
           break;
         case LED_BLANK:
           write_int(AMBER_LED_FILE, 0);

@@ -89,6 +89,9 @@ TARGET_PROVIDES_LIBLIGHT := true
 # Power
 TARGET_PROVIDES_POWERHAL := true
 
+# Recovery
+BOARD_HAS_NO_SELECT_BUTTON := true
+
 # RIL
 BOARD_RIL_CLASS := "../../../device/htc/msm8960-common/libril/"
 

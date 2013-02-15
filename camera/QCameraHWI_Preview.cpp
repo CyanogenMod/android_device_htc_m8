@@ -71,6 +71,23 @@ status_t QCameraStream_preview::setPreviewWindow(preview_stream_ops_t* window)
     return retVal;
 }
 
+status_t QCameraStream_preview::freeBuffersBeforeStartPreview()
+{
+        status_t retVal = NO_ERROR;
+        if (mbPausedBySnapshot) {
+           mbPausedBySnapshot = FALSE;
+
+           ALOGV("%s : Preview window was same but the preview dimension changed",__func__);
+           /*free camera_memory handles and return buffer back to surface*/
+           putBufferToSurface();
+           if (mDisplayBuf.preview.buf.mp != NULL) {
+               delete[] mDisplayBuf.preview.buf.mp;
+               mDisplayBuf.preview.buf.mp = NULL;
+           }
+       }
+       return retVal;
+}
+
 status_t QCameraStream_preview::getBufferFromSurface() {
     int err = 0;
     int numMinUndequeuedBufs = 0;

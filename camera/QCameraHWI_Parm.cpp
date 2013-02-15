@@ -149,7 +149,7 @@ static camera_size_type default_preview_sizes[] = {
   { 960, 720}, // for panorama
 //  { 960, 544},
   { 800, 480}, // WVGA
-  { 768, 432},
+//  { 768, 432},
   { 720, 480},
   { 640, 480}, // VGA
   { 576, 432},

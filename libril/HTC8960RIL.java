@@ -101,6 +101,26 @@ public class HTC8960RIL extends QualcommSharedRIL implements CommandsInterface {
             appStatus.pin2           = appStatus.PinStateFromRILInt(p.readInt());
             cardStatus.mApplications[i] = appStatus;
         }
+        int appIndex = -1;
+        if (mPhoneType == RILConstants.CDMA_PHONE && !skipCdmaSubcription) {
+            appIndex = cardStatus.mCdmaSubscriptionAppIndex;
+            Log.d(LOG_TAG, "This is a CDMA PHONE " + appIndex);
+        } else {
+            appIndex = cardStatus.mGsmUmtsSubscriptionAppIndex;
+            Log.d(LOG_TAG, "This is a GSM PHONE " + appIndex);
+        }
+
+        if (numApplications > 0) {
+            IccCardApplicationStatus application = cardStatus.mApplications[appIndex];
+            mAid = application.aid;
+            mUSIM = application.app_type
+                      == IccCardApplicationStatus.AppType.APPTYPE_USIM;
+            mSetPreferredNetworkType = mPreferredNetworkType;
+
+            if (TextUtils.isEmpty(mAid))
+               mAid = "";
+            Log.d(LOG_TAG, "mAid " + mAid);
+        }
         return cardStatus;
     }
 

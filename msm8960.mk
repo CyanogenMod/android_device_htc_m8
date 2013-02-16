@@ -123,6 +123,14 @@ PRODUCT_PACKAGES += \
     make_ext4fs \
     setup_fs
 
+# Recovery
+PRODUCT_PACKAGES += \
+    init.recovery.qcom.rc \
+    choice_fn \
+    power_test \
+    offmode_charging \
+    detect_key
+
 # GPS config
 PRODUCT_COPY_FILES += \
     device/htc/msm8960-common/configs/gps.conf:system/etc/gps.conf

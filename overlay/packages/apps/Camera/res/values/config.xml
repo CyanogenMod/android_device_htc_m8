@@ -1,4 +1,6 @@
 <resources>
   <!-- Enable Zero Shutter Lag on camera -->
   <bool name="enableZSL">true</bool>
+  <!-- Send video-size parameter to HAL before recording -->
+  <bool name="needsEarlyVideoSize">true</bool>
 </resources>

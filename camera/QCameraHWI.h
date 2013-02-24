@@ -445,7 +445,7 @@ public:
                                      int *picture_height);
     bool isRawSnapshot();
     bool mShutterSoundPlayed;
-    void                dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
+    void dumpFrameToFile(struct msm_frame*, HAL_cam_dump_frm_type_t);
 
     static QCameraHardwareInterface *createInstance(int, int);
 	//QCameraHardwareInterface(int cameraId, int mode);
@@ -453,26 +453,25 @@ public:
     void getZSLLookBack(int *mode, int *value);
     void setZSLEmptyQueueFlag(bool flag);
     void getZSLEmptyQueueFlag(bool *flag);
-	int getZSLQueueDepth(void) const;
-	int getZSLBackLookCount(void) const;
-    //QCameraHardwareInterface(int  cameraId, int mode);
+    int getZSLQueueDepth(void) const;
+    int getZSLBackLookCount(void) const;
+
     ~QCameraHardwareInterface();
-    int initHeapMem(QCameraHalHeap_t *heap,
-				int num_of_buf,
-				int pmem_type,
-				int frame_len,
-				int cbcr_off,
-				int y_off,
-				mm_cameara_stream_buf_t *StreamBuf,
-                                mm_camera_buf_def_t *buf_def,
-                                uint8_t num_planes,
-                                uint32_t *planes);
+    int initHeapMem(QCameraHalHeap_t *heap, int num_of_buf, int pmem_type,
+      int frame_len, int cbcr_off, int y_off, mm_cameara_stream_buf_t *StreamBuf,
+      mm_camera_buf_def_t *buf_def, uint8_t num_planes, uint32_t *planes);
 
     int releaseHeapMem( QCameraHalHeap_t *heap);
-    int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt, int ion_type);
+
+    int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt,
+      int ion_type);
     int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
-    void dumpFrameToFile(const void * data, uint32_t size, char* name, char* ext, int index);
-    preview_format_info_t  getPreviewFormatInfo( );
+
+    int cache_ops(struct ion_flush_data *cache_inv_data, int type);
+
+    void dumpFrameToFile(const void * data, uint32_t size, char* name,
+      char* ext, int index);
+    preview_format_info_t getPreviewFormatInfo( );
     bool isCameraReady();
     exif_tags_info_t* getExifData(){ return mExifData; }
     void resetExifData();

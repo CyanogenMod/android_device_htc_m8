@@ -2176,6 +2176,27 @@ ION_OPEN_FAILED:
   return -1;
 }
 
+int QCameraHardwareInterface::cache_ops(struct ion_flush_data *cache_data,
+  int type)
+{
+  int ion_fd, rc = 0;
+
+  ion_fd = open("/dev/ion", O_RDONLY);
+  if (ion_fd <= 0) {
+    ALOGE("%s: ION device open failed\n", __func__);
+    return -ENXIO;
+  } else {
+    rc = ioctl(ion_fd, type, cache_data);
+    if (rc < 0)
+      ALOGE("%s: Cache Invalidate failed\n", __func__);
+    else
+      ALOGV("%s: Cache OPs type(%d) success", __func__);
+    close(ion_fd);
+  }
+
+  return rc;
+}
+
 int QCameraHardwareInterface::deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt)
 {
   struct ion_handle_data handle_data;

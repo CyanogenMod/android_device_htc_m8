@@ -326,7 +326,20 @@ status_t QCameraStream_record::processRecordFrame(void *data)
 
   ALOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
   mRecordedFrames[frame->video.video.idx] = *frame;
-#if 1
+
+#ifdef USE_ION
+  struct ion_flush_data cache_inv_data;
+
+  cache_inv_data.vaddr = (void *)frame->video.video.frame->buffer;
+  cache_inv_data.fd = frame->video.video.frame->fd;
+  cache_inv_data.handle = frame->video.video.frame->fd_data.handle;
+  cache_inv_data.length = frame->video.video.frame->ion_alloc.len;
+
+  if (mHalCamCtrl->cache_ops(&cache_inv_data, ION_IOC_CLEAN_CACHES) < 0)
+    ALOGE("%s: Cache clean for Video buffer %p fd = %d failed", __func__,
+      cache_inv_data.vaddr, cache_inv_data.fd);
+#endif
+
   if (mHalCamCtrl->mStoreMetaDataInFrame) {
     mStopCallbackLock.unlock();
     if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
@@ -335,7 +348,6 @@ status_t QCameraStream_record::processRecordFrame(void *data)
               0, mHalCamCtrl->mCallbackCookie);
     }
   } else {
-    //rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME, mRecordHeap->mBuffers[frame->video.video.idx], rdata);
     mStopCallbackLock.unlock();
     if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
       rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
@@ -343,30 +355,7 @@ status_t QCameraStream_record::processRecordFrame(void *data)
               0, mHalCamCtrl->mCallbackCookie);
     }
   }
-#else  //Dump the Frame
-    {
-      static int frameCnt = 0;
-      if (frameCnt <= 13 ) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "/data/%d_video.yuv", frameCnt);
-        int file_fd = open(buf, O_RDWR | O_CREAT, 0777);
-        ALOGE("dumping video frame %d", frameCnt);
-        if (file_fd < 0) {
-          ALOGE("cannot open file\n");
-        }
-        else
-        {
-          ALOGE("Dump Frame size = %d",record_frame_len);
-          write(file_fd, (const void *)(const void *)frame->video.video.frame->buffer,
-          record_frame_len);
-        }
-        close(file_fd);
-      }
-      frameCnt++;
-    }
-    if(MM_CAMERA_OK! = cam_evt_buf_done(mCameraId, frame))
-      ALOGE("%s : BUF DONE FAILED",__func__);
-#endif
+
   ALOGV("%s : END",__func__);
   return NO_ERROR;
 }

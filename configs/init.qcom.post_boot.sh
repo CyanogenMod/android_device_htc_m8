@@ -97,16 +97,6 @@ esac
 
 case "$target" in
     "msm8960")
-     echo "interactive" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-     echo "interactive" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
-     echo 90 > /sys/devices/system/cpu/cpufreq/ondemand/up_threshold
-     echo 50000 > /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate
-     echo 1 > /sys/devices/system/cpu/cpufreq/ondemand/io_is_busy
-     echo 4 > /sys/devices/system/cpu/cpufreq/ondemand/sampling_down_factor
-     echo 10 > /sys/devices/system/cpu/cpufreq/ondemand/down_differential
-     echo 384000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
-     echo 384000 > /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
-     chown system /sys/devices/system/cpu/cpufreq/ondemand/io_is_busy
      chown system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
      chown system /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
      chown system /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq
@@ -118,7 +108,6 @@ case "$target" in
      chown system /sys/power/perflock
      chown system /sys/power/cpufreq_ceiling
      chown system /sys/module/restart/parameters/notify_efs_sync
-     echo "0,2,4,7,9,12" > /sys/module/lowmemorykiller/parameters/adj
         ;;
 esac
 

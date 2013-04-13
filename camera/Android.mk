@@ -41,7 +41,7 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/mm-camera \
     $(TARGET_OUT_HEADERS)/mm-camera/common \
     $(TARGET_OUT_HEADERS)/mm-still \
-    $(TARGET_OUT_HEADERS)/mm-still/jpeg \
+    $(TARGET_OUT_HEADERS)/mm-still/jpeg
 
 ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-core/omxcore
@@ -56,9 +56,9 @@ LOCAL_C_INCLUDES += \
         hardware/qcom/media/libstagefrighthw
 
 # CM doesn't use kernel includes
-#LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
-#LOCAL_C_INCLUDES+= $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
-#LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include/media
+LOCAL_C_INCLUDES += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 
 ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 LOCAL_SRC_FILES := mm_camera_interface2.c mm_camera_stream.c \

@@ -18,7 +18,7 @@ on post-fs-data
     chmod 0700 /devlog
 
     # Set indication (checked by vold) that we have finished this action
-    setprop vold.post_fs_done 1
+    setprop vold.post_fs_data_done 1
 
     # prepare kernel for wifi module
     setprop ro.product.wireless WCN3660

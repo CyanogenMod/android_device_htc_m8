@@ -105,6 +105,12 @@ static void set_speaker_light_locked(struct light_device_t *dev,
   if ((colorRGB >> 16) & 0xFF) color = LED_AMBER;
   if (((colorRGB >> 8) & 0xFF) > ((colorRGB >> 16) & 0xFF)) color = LED_GREEN;
 
+  if (state->flashMode == LIGHT_FLASH_TIMED)
+  {
+    // make sure to blink by default regardless of timing
+    blinkMode = BLINK_MODE_NORMAL;
+  }
+
   switch (state->flashOnMS) {
     case PULSE_LENGTH_ALWAYS_ON:
       state->flashMode = LIGHT_FLASH_NONE;

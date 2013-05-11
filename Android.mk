@@ -14,9 +14,10 @@
 # limitations under the License.
 #
 
-ifneq ($(filter jewel evita ville fireball,$(TARGET_DEVICE)),)
-
 LOCAL_PATH := $(call my-dir)
-include $(call all-subdir-makefiles,$(LOCAL_PATH))
 
+ifeq ($(BOARD_VENDOR),htc)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+include $(call all-subdir-makefiles,$(LOCAL_PATH))
+endif
 endif

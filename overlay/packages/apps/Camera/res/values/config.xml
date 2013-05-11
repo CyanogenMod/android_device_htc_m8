@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- Send video-size parameter to HAL before recording -->
-    <bool name="needsEarlyVideoSize">true</bool>
-</resources>

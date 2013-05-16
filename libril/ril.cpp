@@ -2022,8 +2022,10 @@ static int responseRilSignalStrength(Parcel &p,
         p.writeInt32(p_cur->EVDO_SignalStrength.dbm);
         p.writeInt32(p_cur->EVDO_SignalStrength.ecio);
         p.writeInt32(p_cur->EVDO_SignalStrength.signalNoiseRatio);
+#ifdef RIL_USE_ATT_SIGNAL_STRENGTH
         p.writeInt32(p_cur->ATT_SignalStrength.dbm);
         p.writeInt32(p_cur->ATT_SignalStrength.ecno);
+#endif
         p.writeInt32(p_cur->LTE_SignalStrength.signalStrength);
         p.writeInt32(p_cur->LTE_SignalStrength.rsrp);
         p.writeInt32(p_cur->LTE_SignalStrength.rsrq);

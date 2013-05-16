@@ -118,6 +118,5 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.thermal.monitor=true \
     ro.opengles.version=131072 \
     ro.qc.sdk.audio.fluencetype=fluence \
-    ro.telephony.ril_class=HTCQualcommRIL \
     ro.use_data_netmgrd=true \
     wifi.interface=wlan0

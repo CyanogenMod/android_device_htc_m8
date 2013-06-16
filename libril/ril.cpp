@@ -3190,10 +3190,11 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
           case RIL_UNSOL_ENTER_LPM: unsolResponseIndex = 36; break;
           case RIL_UNSOL_CDMA_3G_INDICATOR: unsolResponseIndex = 37; break;
           case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: unsolResponseIndex = 38; break;
-          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = 39; break;
-          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = 40; break;
-          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: unsolResponseIndex = 41; break;
-          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = 42; break;
+          case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: unsolResponseIndex = 39; break;
+          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = 40; break;
+          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = 41; break;
+          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: unsolResponseIndex = 42; break;
+          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = 43; break;
           default: ALOGE("unsupported unsolicited response code %d", unsolResponse); return;
         }
 
@@ -3547,6 +3548,7 @@ requestToString(int request) {
         case RIL_UNSOL_ENTER_LPM: return "UNSOL_ENTER_LPM";
         case RIL_UNSOL_CDMA_3G_INDICATOR: return "UNSOL_CDMA_3G_INDICATOR";
         case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: return "UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR";
+        case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: return "UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL";
         case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: return "UNSOL_RESPONSE_PHONE_MODE_CHANGE";
         case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: return "UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED";
         case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: return "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED";

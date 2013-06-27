@@ -3195,6 +3195,12 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
           case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = 41; break;
           case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: unsolResponseIndex = 42; break;
           case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = 43; break;
+          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7:
+            // remap 4802 to 2
+            ALOGE("m7 supported unsolicited response code %d", unsolResponse);
+            unsolResponse = RIL_UNSOL_RESPONSE_VOICE_NETWORK_STATE_CHANGED;
+            unsolResponseIndex = 2;
+            break;
           default: ALOGE("unsupported unsolicited response code %d", unsolResponse); return;
         }
 
@@ -3553,6 +3559,7 @@ requestToString(int request) {
         case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: return "UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED";
         case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: return "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED";
         case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: return "UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED";
+        case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7: return "UNSOL_RESPONSE_VOICE_NETWORK_STATE_CHANGED";
         default: return "<unknown request>";
     }
 }

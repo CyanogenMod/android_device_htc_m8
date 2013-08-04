@@ -111,7 +111,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.audio.speaker.location=high \
     persist.hwc.mdpcomp.enable=true \
     persist.thermal.monitor=true \
-    ro.opengles.version=131072 \
     ro.qc.sdk.audio.fluencetype=fluence \
     ro.use_data_netmgrd=true \
     wifi.interface=wlan0

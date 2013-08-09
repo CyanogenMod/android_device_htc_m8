@@ -49,6 +49,9 @@ TARGET_CPU_SMP := true
 TARGET_CPU_VARIANT := krait
 TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
 
+# Charge mode
+BOARD_CHARGING_MODE_BOOTING_LPM := /sys/htc_lpm/lpm_mode
+
 # Flags
 COMMON_GLOBAL_CFLAGS += -DHTCLOG
 
@@ -85,6 +88,9 @@ BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := device/htc/m8/bluetooth
 COMMON_GLOBAL_CFLAGS += -DHTC_CAMERA_HARDWARE
 COMMON_GLOBAL_CFLAGS += -DPROPERTY_PERMS_APPEND='{"htc.camera.sensor.", AID_CAMERA, 0}, {"camera.4k2k.", AID_MEDIA, 0},'
 USE_DEVICE_SPECIFIC_CAMERA := true
+
+# Charge mode
+BOARD_CHARGING_MODE_BOOTING_LPM := /sys/htc_lpm/lpm_mode
 
 # Graphics
 BOARD_EGL_CFG := device/htc/m8/configs/egl.cfg

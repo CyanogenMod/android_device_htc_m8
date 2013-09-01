@@ -58,4 +58,5 @@
     {RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE, responseInts, WAKE_PARTIAL},           // s_unsolResponses[41]: 6002
     {RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED, responseVoid, WAKE_PARTIAL},    // s_unsolResponses[42]: 21004
     {RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED, responseVoid, WAKE_PARTIAL},   // s_unsolResponses[43]: 21005
-    {RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED, responseVoid, WAKE_PARTIAL},  // s_unsolResponses[44]: 21007
+    {RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED, responseDataCallList, WAKE_PARTIAL},  // s_unsolResponses[44]: 21007
+    {RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7, responseDataCallList, WAKE_PARTIAL},  // mapped to s_unsolResponses[44]: 5757

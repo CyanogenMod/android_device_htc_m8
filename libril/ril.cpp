@@ -2359,16 +2359,22 @@ static int responseCellInfoList(Parcel &p, void *response, size_t responselen)
                 p.writeInt32(p_cur->CellInfo.lte.cellIdentityLte.pci);
                 p.writeInt32(p_cur->CellInfo.lte.cellIdentityLte.tac);
 
+                // RSRP and RSRQ are being reported as dBm*10, not dBm
+                int rsrp = (p_cur->CellInfo.lte.signalStrengthLte.rsrp != INT_MAX ?
+                            p_cur->CellInfo.lte.signalStrengthLte.rsrp/10 : INT_MAX);
+                int rsrq = (p_cur->CellInfo.lte.signalStrengthLte.rsrq != INT_MAX ?
+                            p_cur->CellInfo.lte.signalStrengthLte.rsrq/10 : INT_MAX);
+
                 appendPrintBuf("%s lteSS: ss=%d,rsrp=%d,rsrq=%d,rssnr=%d,cqi=%d,ta=%d", printBuf,
                     p_cur->CellInfo.lte.signalStrengthLte.signalStrength,
-                    p_cur->CellInfo.lte.signalStrengthLte.rsrp,
-                    p_cur->CellInfo.lte.signalStrengthLte.rsrq,
+                    rsrp,
+                    rsrq,
                     p_cur->CellInfo.lte.signalStrengthLte.rssnr,
                     p_cur->CellInfo.lte.signalStrengthLte.cqi,
                     p_cur->CellInfo.lte.signalStrengthLte.timingAdvance);
                 p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.signalStrength);
-                p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.rsrp);
-                p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.rsrq);
+                p.writeInt32(rsrp);
+                p.writeInt32(rsrq);
                 p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.rssnr);
                 p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.cqi);
                 p.writeInt32(p_cur->CellInfo.lte.signalStrengthLte.timingAdvance);

@@ -41,6 +41,7 @@ char const*const AMBER_LED_FILE = "/sys/class/leds/amber/brightness";
 char const*const GREEN_LED_FILE = "/sys/class/leds/green/brightness";
 
 char const*const BUTTON_FILE = "/sys/class/leds/button-backlight/brightness";
+char const*const BUTTON_CURRENTS_FILE = "/sys/class/leds/button-backlight/currents";
 
 char const*const AMBER_BLINK_FILE = "/sys/class/leds/amber/blink";
 char const*const GREEN_BLINK_FILE = "/sys/class/leds/green/blink";
@@ -210,22 +211,23 @@ static void handle_speaker_battery_locked(struct light_device_t *dev) {
   }
 }
 
-static int set_light_buttons(struct light_device_t* dev,
-                             struct light_state_t const* state) {
-  int err = 0;
-  int on = is_lit(state);
-  pthread_mutex_lock(&g_lock);
-  err = write_int(BUTTON_FILE, on ? 255 : 0);
-  pthread_mutex_unlock(&g_lock);
-
-  return 0;
-}
-
 static int rgb_to_brightness(struct light_state_t const* state)
 {
   int color = state->color & 0x00ffffff;
   return ((77 * ((color >> 16) & 0x00ff)) + (150 * ((color >> 8) & 0x00ff)) +
           (29 * (color & 0x00ff))) >> 8;
+}
+
+static int set_light_buttons(struct light_device_t* dev,
+                             struct light_state_t const* state) {
+  int err = 0;
+  int brightness = rgb_to_brightness(state);
+  pthread_mutex_lock(&g_lock);
+  err = write_int(BUTTON_FILE, brightness);
+  err = write_int(BUTTON_CURRENTS_FILE, (brightness / 25));
+  pthread_mutex_unlock(&g_lock);
+
+  return 0;
 }
 
 static int set_light_backlight(struct light_device_t* dev,

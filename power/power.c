@@ -29,9 +29,9 @@
 #define SCALING_GOVERNOR_PATH "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
 #define BOOSTPULSE_ONDEMAND "/sys/devices/system/cpu/cpufreq/ondemand/boostpulse"
 #define BOOSTPULSE_INTERACTIVE "/sys/devices/system/cpu/cpufreq/interactive/boostpulse"
-#define SAMPLING_RATE_SCREEN_ON "50000"
+#define SAMPLING_RATE_SCREEN_ON "500000"
 #define SAMPLING_RATE_SCREEN_OFF "500000"
-#define TIMER_RATE_SCREEN_ON "30000"
+#define TIMER_RATE_SCREEN_ON "500000"
 #define TIMER_RATE_SCREEN_OFF "500000"
 
 struct cm_power_module {

@@ -27,6 +27,7 @@
 BOARD_VENDOR := htc
 
 # Bootloader
+TARGET_BOOTLOADER_BOARD_NAME := MSM8960
 TARGET_NO_BOOTLOADER := true
 
 # Platform

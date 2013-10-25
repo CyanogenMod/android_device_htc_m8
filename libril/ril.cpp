@@ -237,7 +237,6 @@ static int responseSsn(Parcel &p, void *response, size_t responselen);
 static int responseSimStatus(Parcel &p, void *response, size_t responselen);
 static int responseGsmBrSmsCnf(Parcel &p, void *response, size_t responselen);
 static int responseCdmaBrSmsCnf(Parcel &p, void *response, size_t responselen);
-static int responseCdmaEriInfo(Parcel &p, void *response, size_t responselen);
 static int responseCdmaSms(Parcel &p, void *response, size_t responselen);
 static int responseCellList(Parcel &p, void *response, size_t responselen);
 static int responseCdmaInformationRecords(Parcel &p,void *response, size_t responselen);
@@ -2915,30 +2914,6 @@ static int responseCdmaBrSmsCnf(Parcel &p, void *response, size_t responselen) {
     return 0;
 }
 
-static int responseCdmaEriInfo(Parcel &p, void *response, size_t responselen) {
-    /*
-     * Method from RIL.java
-     * private Object responseCdmaEriInfo(Parcel p) {
-     * CdmaERIInfo mCdmaERIInfo = new CdmaERIInfo();
-     *
-     * mCdmaERIInfo.carrier_id = p.readInt();
-     * mCdmaERIInfo.eri_id = p.readInt();
-     * mCdmaERIInfo.icon_img_id = p.readInt();
-     * mCdmaERIInfo.param1 = p.readInt();
-     * mCdmaERIInfo.param2 = p.readInt();
-     * mCdmaERIInfo.param3 = p.readInt();
-     * mCdmaERIInfo.param4 = p.readInt();
-     * mCdmaERIInfo.text = p.readString();
-     * mCdmaERIInfo.data_support = p.readInt();
-     *
-     * if (p.dataAvail() > 0)
-     *      localCdmaERIInfo.roaming_type = p.readInt();
-     * return localCdmaERIInfo;
-     * }
-     */
-    return 0;
-}
-
 static int responseCdmaSms(Parcel &p, void *response, size_t responselen) {
     int num;
     int digitCount;
@@ -3839,25 +3814,20 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
 #endif
         switch (unsolResponse) {
           case RIL_UNSOL_ENTER_LPM: unsolResponseIndex = htc_base + 0; break;
-          case RIL_UNSOL_CDMA_3G_INDICATOR: unsolResponseIndex = htc_base + 1; break;
-          case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: unsolResponseIndex = htc_base + 2; break;
-          case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: unsolResponseIndex = htc_base + 3; break;
-          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = htc_base + 4; break;
-          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = htc_base + 5; break;
-          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC:
-            // remap to 21005 to 1036
-            RLOGD("HTC supported unsolicited response code %d", unsolResponse);
-            unsolResponse = RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED;
-            unsolResponseIndex = htc_base - 5;
-            break;
-          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7:
-          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = htc_base + 7; break;
-          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7:
-            // remap 4802 to 2
-            RLOGD("m7 supported unsolicited response code %d", unsolResponse);
-            unsolResponse = RIL_UNSOL_RESPONSE_VOICE_NETWORK_STATE_CHANGED;
-            unsolResponseIndex = 2;
-            break;
+          case RIL_UNSOL_ENTER_LPM_M7: unsolResponseIndex = htc_base + 1; break;
+          case RIL_UNSOL_CDMA_3G_INDICATOR: unsolResponseIndex = htc_base + 2; break;
+          case RIL_UNSOL_CDMA_3G_INDICATOR_M7: unsolResponseIndex = htc_base + 3; break;
+          case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: unsolResponseIndex = htc_base + 4; break;
+          case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR_M7: unsolResponseIndex = htc_base + 5; break;
+          case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: unsolResponseIndex = htc_base + 6; break;
+          case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL_M7: unsolResponseIndex = htc_base + 7; break;
+          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = htc_base + 8; break;
+          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7: unsolResponseIndex = htc_base + 9; break;
+          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = htc_base + 10; break;
+          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC: unsolResponseIndex = htc_base + 11; break;
+          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC_M7: unsolResponseIndex = htc_base + 12; break;
+          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = htc_base + 13; break;
+          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7: unsolResponseIndex = htc_base + 14; break;
           default:
             RLOGE("unsupported unsolicited response code %d", unsolResponse);
             return;
@@ -4228,16 +4198,21 @@ requestToString(int request) {
         case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED: return "RESPONSE_IMS_NETWORK_STATE_CHANGED";
         case RIL_UNSOL_RESPONSE_TETHERED_MODE_STATE_CHANGED: return "RIL_UNSOL_RESPONSE_TETHERED_MODE_STATE_CHANGED";
         case RIL_UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED: return "UNSOL_UICC_SUBSCRIPTION_STATUS_CHANGED";
-        case RIL_UNSOL_ENTER_LPM: return "UNSOL_ENTER_LPM";
-        case RIL_UNSOL_CDMA_3G_INDICATOR: return "UNSOL_CDMA_3G_INDICATOR";
-        case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: return "UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR";
-        case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: return "UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL";
+        case RIL_UNSOL_ENTER_LPM:
+        case RIL_UNSOL_ENTER_LPM_M7: return "UNSOL_ENTER_LPM";
+        case RIL_UNSOL_CDMA_3G_INDICATOR:
+        case RIL_UNSOL_CDMA_3G_INDICATOR_M7: return "UNSOL_CDMA_3G_INDICATOR";
+        case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR:
+        case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR_M7: return "UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR";
+        case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL:
+        case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL_M7: return "UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL";
         case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: return "UNSOL_RESPONSE_PHONE_MODE_CHANGE";
-        case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: return "UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED";
-        case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC: return "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED";
-        case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7:
-        case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: return "UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED";
         case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7: return "UNSOL_RESPONSE_VOICE_NETWORK_STATE_CHANGED";
+        case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: return "UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED";
+        case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC:
+        case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC_M7: return "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC";
+        case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED:
+        case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7: return "UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED";
         default: return "<unknown request>";
     }
 }

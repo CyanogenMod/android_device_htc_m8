@@ -71,7 +71,7 @@
     {RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL_M7, responseStrings, WAKE_PARTIAL},          // s_unsolResponses[7]: 4270
     {RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE, responseInts, WAKE_PARTIAL},                     // s_unsolResponses[8]: 6002
     {RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7, responseInts, WAKE_PARTIAL},                  // s_unsolResponses[9]: 4802
-    {RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED, responseVoid, WAKE_PARTIAL},              // s_unsolResponses[10]: 21004
+    {RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED_HTC, responseVoid, WAKE_PARTIAL},          // s_unsolResponses[10]: 21004
     {RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC, responseVoid, WAKE_PARTIAL},         // s_unsolResponses[11]: 21005
     {RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC_M7, responseVoid, WAKE_PARTIAL},      // s_unsolResponses[12]: 5755
     {RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED, responseInts, WAKE_PARTIAL},            // s_unsolResponses[13]: 21007

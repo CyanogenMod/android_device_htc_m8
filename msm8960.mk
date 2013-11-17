@@ -51,7 +51,8 @@ PRODUCT_PACKAGES += \
     gralloc.msm8960 \
     hwcomposer.msm8960 \
     libgenlock \
-    liboverlay
+    liboverlay \
+    memtrack.msm8960
 
 # Lights
 PRODUCT_PACKAGES += \

@@ -112,5 +112,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
     persist.hwc.mdpcomp.enable=true \
     persist.thermal.monitor=true \
     ro.qc.sdk.audio.fluencetype=fluence \
+    ro.telephony.call_ring.multiple=0 \
     ro.use_data_netmgrd=true \
     wifi.interface=wlan0

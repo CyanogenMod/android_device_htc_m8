@@ -1,7 +1,7 @@
 # Copyright 2006 The Android Open Source Project
 
 ifeq ($(BOARD_PROVIDES_LIBRIL),true)
-ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
+ifeq ($(TARGET_BOARD_PLATFORM),msm8974)
 ifeq ($(BOARD_VENDOR),htc)
 
 LOCAL_PATH:= $(call my-dir)

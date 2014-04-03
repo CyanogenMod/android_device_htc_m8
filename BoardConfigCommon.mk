@@ -27,11 +27,11 @@
 BOARD_VENDOR := htc
 
 # Bootloader
-TARGET_BOOTLOADER_BOARD_NAME := MSM8960
+TARGET_BOOTLOADER_BOARD_NAME := MSM8974
 TARGET_NO_BOOTLOADER := true
 
 # Platform
-TARGET_BOARD_PLATFORM := msm8960
+TARGET_BOARD_PLATFORM := msm8974
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno200
 
 # Architecture
@@ -57,18 +57,20 @@ TARGET_USES_QCOM_BSP := true
 
 # Audio
 BOARD_USES_ALSA_AUDIO := true
-BOARD_USES_LEGACY_ALSA_AUDIO := true
+#BOARD_USES_LEGACY_ALSA_AUDIO := true
 TARGET_USES_QCOM_COMPRESSED_AUDIO := true
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
+BOARD_HAVE_BLUETOOTH_QCOM := true
+BLUETOOTH_HCI_USE_MCT := true
 
 # Graphics
 USE_OPENGL_RENDERER := true
 TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
-BOARD_EGL_CFG := device/htc/msm8960-common/configs/egl.cfg
+BOARD_EGL_CFG := device/htc/msm8974-common/configs/egl.cfg
 
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
@@ -78,7 +80,7 @@ TARGET_POWERHAL_VARIANT := qcom
 
 # SELinux
 BOARD_SEPOLICY_DIRS += \
-    device/htc/msm8960-common/sepolicy
+    device/htc/msm8974-common/sepolicy
 
 BOARD_SEPOLICY_UNION += \
     app.te \

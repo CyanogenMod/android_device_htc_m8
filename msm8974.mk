@@ -38,8 +38,8 @@ PRODUCT_COPY_FILES += \
 # Audio
 PRODUCT_PACKAGES += \
     audio.a2dp.default \
-    audio_policy.msm8960 \
-    audio.primary.msm8960 \
+    audio_policy.msm8974 \
+    audio.primary.msm8974 \
     audio.r_submix.default \
     audio.usb.default \
     libaudio-resampler \
@@ -47,16 +47,16 @@ PRODUCT_PACKAGES += \
 
 # Graphics
 PRODUCT_PACKAGES += \
-    copybit.msm8960 \
-    gralloc.msm8960 \
-    hwcomposer.msm8960 \
+    copybit.msm8974 \
+    gralloc.msm8974 \
+    hwcomposer.msm8974 \
     libgenlock \
     liboverlay \
-    memtrack.msm8960
+    memtrack.msm8974
 
 # Lights
 PRODUCT_PACKAGES += \
-    lights.msm8960
+    lights.msm8974
 
 # OMX
 PRODUCT_PACKAGES += \
@@ -73,7 +73,7 @@ PRODUCT_PACKAGES += \
 
 # Power
 PRODUCT_PACKAGES += \
-    power.msm8960
+    power.msm8974
 
 # QCOM rngd
 PRODUCT_PACKAGES += \

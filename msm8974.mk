@@ -28,7 +28,8 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/init.qcom.sh:root/init.qcom.sh \
     $(LOCAL_PATH)/rootdir/init.qcom.ssr.sh:root/init.qcom.ssr.sh \
     $(LOCAL_PATH)/rootdir/init.qcom.syspart_fixup.sh:root/init.qcom.syspart_fixup.sh \
-    $(LOCAL_PATH)/rootdir/init.qcom.wifi.sh:root/init.qcom.wifi.sh
+    $(LOCAL_PATH)/rootdir/init.qcom.wifi.sh:root/init.qcom.wifi.sh \
+    $(LOCAL_PATH)/rootdir/ueventd.qcom.rc:root/ueventd.qcom.rc
 
 # Permissions
 PRODUCT_COPY_FILES += \
@@ -129,3 +130,5 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.telephony.call_ring.multiple=0 \
     ro.use_data_netmgrd=true \
     wifi.interface=wlan0
+
+$(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

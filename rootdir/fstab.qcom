@@ -17,3 +17,6 @@
 /dev/block/platform/msm_sdcc.1/by-name/adsp         /firmware/adsp   vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
 /dev/block/platform/msm_sdcc.1/by-name/wcnss        /firmware/wcnss  vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
 /dev/block/platform/msm_sdcc.1/by-name/custdata     /custdata        ext4    rw,seclabel,nosuid,nodev,data=ordered defaults
+
+/dev/block/platform/msm_sdcc.2/mmcblk1p1            auto             auto    defaults                                                                    voldmanaged=sdcard1:auto
+

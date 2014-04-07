@@ -15,6 +15,13 @@
 #
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+$(call inherit-product, vendor/cm/config/common_full_phone.mk)
+$(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
+
+# this should go away when we finish blobs, our device-specific repos
+# should inherit m8-common by themselves
+$(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
 
 # Ramdisk
 PRODUCT_PACKAGES += \

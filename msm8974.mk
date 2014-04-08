@@ -23,6 +23,9 @@ $(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
 # should inherit m8-common by themselves
 $(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
 
+## overlays
+DEVICE_PACKAGE_OVERLAYS += device/htc/msm8974-common/overlay
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \

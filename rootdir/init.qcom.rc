@@ -46,28 +46,26 @@ on init
     # session is not exercised through RemoteDisplay in the android framework
     setprop persist.sys.wfd.virtual 0
 
-    # See storage config details at http://source.android.com/tech/storage/
+    # handle storage devices
     mkdir /mnt/shell/emulated 0700 shell shell
     mkdir /storage/emulated 0555 root root
-    mkdir /storage/ext_sd 0700 root root
-    mkdir /mnt/media_rw/ext_sd 0700 media_rw media_rw
-    mkdir /storage/usb 0700 root root
-    mkdir /mnt/media_rw/usb 0700 media_rw media_rw
+    mkdir /storage/sdcard1 0775 system system
+    mkdir /storage/usbdisk 0775 system system
 
     export EXTERNAL_STORAGE /storage/emulated/legacy
+    export SECONDARY_STORAGE /storage/sdcard1
     export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
     export EMULATED_STORAGE_TARGET /storage/emulated
-    export SECONDARY_STORAGE /storage/ext_sd
-    export EXTERNAL_STORAGE2 /storage/ext_sd
-    export EXTERNAL_STORAGE3 /storage/usb
 
-    # Support legacy paths
+    # for backwards compatibility
     symlink /storage/emulated/legacy /sdcard
     symlink /storage/emulated/legacy /mnt/sdcard
     symlink /storage/emulated/legacy /storage/sdcard0
     symlink /mnt/shell/emulated/0 /storage/emulated/legacy
-    symlink /storage/ext_sd /sdcard2
-    symlink /storage/usb /mnt/usb
+    symlink /storage/sdcard1 /ext_card
+    symlink /storage/sdcard1 /mnt/ext_card
+    symlink /storage/usbdisk /usbdisk
+    symlink /storage/usbdisk /mnt/usbdisk
 
     export PATH ${PATH}:/vendor/bin
     export LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/vendor/lib
@@ -135,7 +133,6 @@ on init
     setprop persist.usb.hvdcp.detect "true"
 
 on post-fs
-    export LD_PRELOAD /vendor/lib/libNimsWrap.so
     chown system carrier /carrier
     chmod 0770 /carrier
 
@@ -631,13 +628,19 @@ service ftp_del /system/bin/sdptool del 0x1ff20
     disabled
     oneshot
 
-service fuse_ext_sd /system/bin/sdcard -u 1023 -g 1023 -w 1023 -d /mnt/media_rw/ext_sd /storage/ext_sd
+service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
+    class late_start
+
+service fuse_sdcard1 /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/sdcard1 /storage/sdcard1
     class late_start
     disabled
 
-service fuse_usb /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usb /storage/usb
+service fuse_usbdisk /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usbdisk /storage/usbdisk
     class late_start
     disabled
+
+on property:ro.fuse_sdcard=true
+    start sdcard
 
 service gpsone_daemon /system/bin/gpsone_daemon
     class late_start
@@ -928,9 +931,6 @@ service rmt_storage /system/bin/rmt_storage modem_st1 modem_st2 fsc recovery rad
     class core
     user root
 #    disabled
-
-service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
-    class late_start
 
 service security-check1 /sbin/security_boot_check system
     class core

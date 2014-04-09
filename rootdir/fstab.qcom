@@ -11,12 +11,12 @@
 /dev/block/platform/msm_sdcc.1/by-name/system       /system          ext4    ro,seclabel,noatime,data=ordered                                            wait
 /dev/block/platform/msm_sdcc.1/by-name/userdata     /data            ext4    nosuid,nodev,barrier=1,noauto_da_alloc,discard                              wait,encryptable=/dev/block/platform/msm_sdcc.1/by-name/extra
 /dev/block/platform/msm_sdcc.1/by-name/cache        /cache           ext4    rw,seclabel,nosuid,nodev,data=ordered                                       wait,check
-/dev/block/platform/msm_sdcc.1/by-name/devlog       /devlog          ext4    rw,seclabel,nosuid,nodev,errors=continue,data=ordered                       wait
-/dev/block/platform/msm_sdcc.1/by-name/fataldevlog  /fataldevlog     ext4    rw,seclabel,nosuid,nodev,errors=continue,data=ordered                       wait
-/dev/block/platform/msm_sdcc.1/by-name/radio        /firmware/radio  vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
-/dev/block/platform/msm_sdcc.1/by-name/adsp         /firmware/adsp   vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
-/dev/block/platform/msm_sdcc.1/by-name/wcnss        /firmware/wcnss  vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
-/dev/block/platform/msm_sdcc.1/by-name/custdata     /custdata        ext4    rw,seclabel,nosuid,nodev,data=ordered defaults
+#/dev/block/platform/msm_sdcc.1/by-name/devlog       /devlog          ext4    rw,seclabel,nosuid,nodev,errors=continue,data=ordered                       wait
+#/dev/block/platform/msm_sdcc.1/by-name/fataldevlog  /fataldevlog     ext4    rw,seclabel,nosuid,nodev,errors=continue,data=ordered                       wait
+#/dev/block/platform/msm_sdcc.1/by-name/radio        /firmware/radio  vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
+#/dev/block/platform/msm_sdcc.1/by-name/adsp         /firmware/adsp   vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
+#/dev/block/platform/msm_sdcc.1/by-name/wcnss        /firmware/wcnss  vfat    ro,uid=1000,gid=1000,fmask=0337,dmask=0227,codepage=cp437,iocharset=iso8859-1,shortname=lower,errors=remount-ro wait
+#/dev/block/platform/msm_sdcc.1/by-name/custdata     /custdata        ext4    rw,seclabel,nosuid,nodev,data=ordered defaults
 
 /dev/block/platform/msm_sdcc.2/mmcblk1p1            auto             auto    defaults                                                                    voldmanaged=sdcard1:auto
 

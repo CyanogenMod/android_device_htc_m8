@@ -251,7 +251,7 @@ on post-fs-data
     chown media_rw media_rw /data/media
     setprop ro.crypto.fuse_sdcard true
 
-    permissions for NFC
+    # permissions for NFC
     chmod 0600 /dev/pn544
     chown nfc nfc /dev/pn544
     setprop debug.nfc.fw_download "true"
@@ -336,13 +336,13 @@ on fs
 
     mkdir /devlog 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/devlog
-    e2fsck emmc@devlog
-    mount ext4 emmc@devlog /devlog nosuid nodev barrier=1,errors=continue
+    e2fsck /dev/block/platform/msm_sdcc.1/by-name/devlog
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/devlog /devlog nosuid nodev barrier=1,errors=continue
 
     mkdir /fataldevlog 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
-    e2fsck emmc@fataldevlog
-    mount ext4 emmc@fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
+    e2fsck /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
 
     mkdir /ramdump 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/reserve
@@ -377,7 +377,7 @@ on fs
 
     mkdir /custdata 0771 system system
     wait /dev/block/platform/msm_sdcc.1/by-name/custdata
-    mount ext4 emmc@custdata /custdata nosuid nodev barrier=1
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/custdata /custdata nosuid nodev barrier=1
 
     # Link vendor/lib by QCT original design
     symlink /system/vendor/lib /vendor/lib

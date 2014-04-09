@@ -39,3 +39,8 @@
 
 /system/bin/hci_qcomm_init         u:object_r:hci_exec:s0
 /system/bin/bdAddrLoader           u:object_r:hci_exec:s0
+
+# Sysfs files used by surfaceflinger
+/sys/devices/virtual/graphics/fb1/hpd          -- u:object_r:sysfs:s0
+/sys/devices/virtual/graphics/fb1/vendor_name  -- u:object_r:sysfs:s0
+/sys/devices/virtual/graphics/fb1/product_description       -- u:object_r:sysfs:s0

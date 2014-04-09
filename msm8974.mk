@@ -31,7 +31,6 @@ DEVICE_PACKAGE_OVERLAYS += device/htc/msm8974-common/overlay
 PRODUCT_PACKAGES += \
     fstab.qcom \
     init.network.sh \
-    init.power.rc \
     init.qcom.audio.sh \
     init.qcom.class_core.sh \
     init.qcom.early_boot.sh \

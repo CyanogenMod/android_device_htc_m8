@@ -48,6 +48,12 @@ PRODUCT_PACKAGES += \
     init.usbdiag.sh \
     ueventd.qcom.rc
 
+# Qcom init scripts for /etc
+
+PRODUCT_COPY_FILES += \
+   $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.bluedroid.sh:system/etc/init.qcom.bt.bluedroid.sh \
+   $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.sh:system/etc/init.qcom.bt.sh
+
 # Permissions
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/handheld_core_hardware.xml:system/etc/permissions/handheld_core_hardware.xml \

@@ -110,6 +110,9 @@
 /dev/msm_rotator          0660   system     system
 /dev/hw_random            0660   system     system
 /dev/adsprpc-smd          0664   system     system
+/dev/htc_msgservice       0660   system     system
+/dev/simlock              0660   radio      radio
+/dev/pn544                0600   nfc        nfc
 
 #permissions for audio
 /dev/msm_qcelp            0660   system     audio

@@ -68,7 +68,6 @@ PRODUCT_PACKAGES += \
     ueventd.qcom.rc
 
 # Qcom init scripts for /etc
-
 PRODUCT_COPY_FILES += \
    $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.bluedroid.sh:system/etc/init.qcom.bt.bluedroid.sh \
    $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.sh:system/etc/init.qcom.bt.sh
@@ -103,6 +102,10 @@ PRODUCT_PACKAGES += \
     audio.usb.default \
     libaudio-resampler \
     tinymix
+
+# Camera
+PRODUCT_PACKAGES += \
+    camera.msm8974
 
 # Graphics
 PRODUCT_PACKAGES += \

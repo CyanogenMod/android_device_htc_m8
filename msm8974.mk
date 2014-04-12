@@ -113,7 +113,8 @@ PRODUCT_PACKAGES += \
     libOmxAmrEnc \
     libOmxEvrcEnc \
     libOmxQcelp13Enc \
-    libstagefrighthw
+    libstagefrighthw \
+    libdashplayer
 
 # Power
 PRODUCT_PACKAGES += \

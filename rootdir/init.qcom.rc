@@ -277,9 +277,6 @@ on post-fs-data
     mkdir /data/media 0770 media_rw media_rw
     setprop ro.crypto.fuse_sdcard true
 
-    setprop debug.nfc.fw_download "true"
-    setprop debug.nfc.fw_boot_download "false"
-
     mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
 
     # Create the directories used by the Wireless subsystem

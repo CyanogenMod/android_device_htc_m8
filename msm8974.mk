@@ -166,8 +166,13 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PACKAGES += \
     Torch
 
+PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
+    persist.sys.usb.config=mtp
+
 # Common build properties
 PRODUCT_PROPERTY_OVERRIDES += \
+    debug.nfc.fw_download=true \
+    debug.nfc.fw_boot_download=false \
     com.qc.hardware=true \
     debug.composition.type=dyn \
     debug.egl.hw=1 \
@@ -185,6 +190,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.sf.lcd_density=420 \
     ro.telephony.call_ring.multiple=0 \
     ro.use_data_netmgrd=true \
-    wifi.interface=wlan0
+    wifi.interface=wlan0 \
+    ro.vendor.extension_library=/system/vendor/lib/libqc-opt.so
 
 $(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

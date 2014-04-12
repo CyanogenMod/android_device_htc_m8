@@ -34,7 +34,6 @@ on early-init
     mkdir /firmware 0771 system system
     mkdir /vendor 0771 system system
     mkdir /vendor/firmware 0771 system system
-    symlink /data/tombstones /tombstones
     mount debugfs debugfs /sys/kernel/debug
 
 on init
@@ -129,9 +128,6 @@ on init
     chmod 0220 /sys/class/power_supply/battery/disable_limit_chg
 # HTC SSD Battery - END
 
-# QC2.0 daemon
-    setprop persist.usb.hvdcp.detect "true"
-
 on post-fs
     chown system carrier /carrier
     chmod 0770 /carrier
@@ -140,13 +136,17 @@ on early-boot
     # set RLIMIT_MEMLOCK to 64MB
     setrlimit 8 67108864 67108864
     # Allow subsystem (modem etc) debugging
-    write /sys/module/subsystem_restart/parameters/enable_debug ${persist.sys.ssr.enable_debug}
+    # write /sys/module/subsystem_restart/parameters/enable_debug ${persist.sys.ssr.enable_debug}
     # exec /system/bin/sh /init.qcom.early_boot.sh ${ro.board.platform}
     # exec /system/bin/sh /init.qcom.syspart_fixup.sh ${ro.board.platform} ${ro.serialno}
     # exec /system/bin/sh /init.qcom.early_boot.sh msm8974
     exec /system/bin/sh /init.qcom.syspart_fixup.sh msm8974 123456789012
 
 on boot
+
+    # 4.3+ requires this
+    chmod 0644 /proc/cmdline
+
     chown bluetooth bluetooth /sys/module/bluetooth_power/parameters/power
     chown bluetooth bluetooth /sys/class/rfkill/rfkill0/type
     chown bluetooth bluetooth /sys/class/rfkill/rfkill0/state
@@ -267,6 +267,7 @@ on boot
 # msm specific files that need to be created on /data
 on post-fs-data
     mkdir /data/tombstones 0771 system system
+    symlink /data/tombstones /tombstones
     mkdir /tombstones/modem 0771 system system
     mkdir /tombstones/lpass 0771 system system
     mkdir /tombstones/wcnss 0771 system system
@@ -356,18 +357,15 @@ on fs
 
     mkdir /devlog 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/devlog
-    e2fsck /dev/block/platform/msm_sdcc.1/by-name/devlog
     mount ext4 /dev/block/platform/msm_sdcc.1/by-name/devlog /devlog nosuid nodev barrier=1,errors=continue
 
     mkdir /fataldevlog 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
-    e2fsck /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
     mount ext4 /dev/block/platform/msm_sdcc.1/by-name/fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
 
     mkdir /ramdump 0700 root root
     wait /dev/block/platform/msm_sdcc.1/by-name/reserve
     mount vfat emmc@reserve /ramdump rw
-    umount /ramdump
 
     # mount carrier partition
     mkdir /carrier 0770 system carrier
@@ -436,11 +434,6 @@ service amp_unload /system/bin/amploader -u
     disabled
     oneshot
 
-service atfwd /system/bin/ATFWD-daemon
-    class late_start
-    user system
-    group system radio
-
 service audiod /system/bin/audiod
    class late_start
    user system
@@ -467,14 +460,6 @@ service bridgemgrd /system/bin/bridgemgrd
     user radio
     group radio qcom_diag
     disabled
-
-# bugreport is triggered by the KEY_VOL-UP and KEY_VOL-DOWN keycodes
-service bugreport /system/bin/dumpstate -d -p -B \
- -o /data/data/com.android.shell/files/bugreports/bugreport
-    disabled
-    cgroup bg
-    oneshot
-    keycodes 114 115
 
 service bt-dun /system/bin/dun-server /dev/smd7 /dev/rfcomm0
     class late_start
@@ -519,10 +504,6 @@ service cir_fw_update /system/bin/cir_fw_update -u cir.img
     user root
     group root
     oneshot
-
-service clockd /system/bin/clockd
-    class main
-    user root
 
 service dbus /system/bin/dbus-daemon --system --nofork
     class main
@@ -648,11 +629,6 @@ service gpsone_daemon /system/bin/gpsone_daemon
     group gps inet net_raw
     disabled
 
-service gsiff_daemon /system/bin/gsiff_daemon
-    class late_start
-    user system
-    group gps net_raw
-
 service hcheck /system/bin/hcheck
     class late_start
     user system
@@ -702,11 +678,6 @@ service htc_ebdlogd_rel /system/bin/htc_ebdlogd -s -k
     disabled
     oneshot
     ioprio idle 0
-
-service hvdcp /system/bin/hvdcp
-    class core
-    user root
-    disabled
 
 service ims_regmanager /system/bin/exe-ims-regmanagerprocessnative
     class late_start
@@ -787,11 +758,6 @@ service map1_del /system/bin/sdptool del 0x1ff17
     disabled
     oneshot
 
-service memlock /system/bin/memlock
-    class main
-    cgroup bg
-    user root
-
 service mpdecision /system/bin/mpdecision --no_sleep --avg_comp
     class core
     user root
@@ -809,21 +775,11 @@ service p2p_supplicant /system/bin/logwrapper /system/bin/wpa_supplicant -g@andr
     disabled
     oneshot
 
-service pnpmgr /system/bin/pnpmgr
-    class core
-    user root
-
 service port-bridge /system/bin/port-bridge /dev/smd0 /dev/ttyGS0
     class late_start
     user system
     group system inet
     disabled
-
-service ppd /system/bin/mm-pp-daemon
-    class late_start
-    user system
-    socket pps stream 0660 system system graphics
-    group system graphics
 
 service profiler_daemon /system/bin/profiler_daemon
     class late_start
@@ -863,11 +819,6 @@ service qcom-sh /system/bin/sh /init.qcom.sh
     class late_start
     user root
     oneshot
-
-service qgesturesvr /system/bin/mm-gesture-daemon
-    class late_start
-    user system
-    group system camera input graphics net_bt_stack
 
 service qmiproxy /system/bin/qmiproxy
     class main
@@ -932,38 +883,16 @@ service rmt_storage /system/bin/rmt_storage modem_st1 modem_st2 fsc recovery rad
     user root
 #    disabled
 
-service security-check1 /sbin/security_boot_check system
-    class core
-    oneshot
-
-service security-check2 /sbin/security_boot_check recovery
-    class core
-    oneshot
-
 service sensors /system/bin/sensors.qcom
     class late_start
     user root
     group root
     disabled
 
-service ssr_diag /system/bin/ssr_diag
-    class late_start
-    user system
-    group system
-
-service thermal-engine /system/bin/thermal-engine
-    class main
-    user root
-    group root
-
 service time_daemon /system/bin/time_daemon
    class late_start
    user root
    group root
-
-service tpd /sbin/tpd
-    class core
-    user root
 
 service usbhub_init /system/bin/usbhub_init
    class late_start
@@ -1058,10 +987,6 @@ service zchgd_offmode /system/bin/zchgd -pseudooffmode -autostop -poffmodewarn
 on ffbm
     start fastmmisrv
 
-# This will make sure that sdcard service starts as late_start.
-on nonencrypted
-    setprop ro.fuse_sdcard ${persist.fuse_sdcard}
-
 on property:bluetooth.hciattach=true
     start hciattach
 
@@ -1141,12 +1066,6 @@ on property:persist.usb.chgdisabled=1
 
 on property:persist.usb.chgdisabled=0
     write /sys/class/power_supply/battery/charging_enabled 1
-
-on property:persist.usb.hvdcp.detect=true
-    start hvdcp
-
-on property:persist.usb.hvdcp.detect=false
-    stop hvdcp
 
 on property:ro.bluetooth.ftm_enabled=true
     start ftmd

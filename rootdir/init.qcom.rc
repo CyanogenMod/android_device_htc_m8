@@ -1106,3 +1106,6 @@ on property:vold.decrypt=trigger_restart_framework
 
 on property:wlan.driver.ath=0
     start wcnss-service
+
+on property:service.adb.root=1
+    write /sys/class/android_usb/android0/restart_adbd 1

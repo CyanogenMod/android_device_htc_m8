@@ -25,6 +25,14 @@ $(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
 $(call inherit-product, frameworks/native/build/phone-xxhdpi-2048-dalvik-heap.mk)
 $(call inherit-product-if-exists, frameworks/native/build/phone-xxhdpi-2048-hwui-memory.mk)
 
+# Audio configuration
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/audio/audio_effects.conf:system/etc/snd_soc_msm/audio_effects.conf \
+    $(LOCAL_PATH)/audio/audio_policy.conf:system/etc/snd_soc_msm/audio_policy.conf \
+    $(LOCAL_PATH)/audio/snd_soc_msm_2x:system/etc/snd_soc_msm/snd_soc_msm_2x \
+    $(LOCAL_PATH)/audio/snd_soc_msm_Taiko:system/etc/snd_soc_msm/snd_soc_msm_Taiko \
+    $(LOCAL_PATH)/audio/snd_soc_msm_Taiko_DMIC:system/etc/snd_soc_msm/snd_soc_msm_Taiko_DMIC
+
 # this should go away when we finish blobs, our device-specific repos
 # should inherit m8-common by themselves
 $(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)

@@ -340,6 +340,9 @@ on post-fs-data
     # Enable the setgid bit on the directory
     chmod 2775 /data/audio
 
+    mkdir /data/misc/radio 0770 system radio
+    mkdir /data/misc/sms 0770 system radio
+
     setprop vold.post_fs_data_done 1
 
     #Create a folder for SRS to be able to create a usercfg file

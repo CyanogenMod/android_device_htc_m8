@@ -35,7 +35,7 @@ PRODUCT_COPY_FILES += \
 
 # this should go away when we finish blobs, our device-specific repos
 # should inherit m8-common by themselves
-$(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
+$(call inherit-product-if-exists, vendor/htc/m8-common/m8-common-vendor.mk)
 
 ## overlays
 DEVICE_PACKAGE_OVERLAYS += device/htc/msm8974-common/overlay

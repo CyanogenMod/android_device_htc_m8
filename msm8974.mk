@@ -37,7 +37,12 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/audio/audio_policy.conf:system/etc/audio_policy.conf \
     $(LOCAL_PATH)/audio/snd_soc_msm_2x:system/etc/snd_soc_msm/snd_soc_msm_2x \
     $(LOCAL_PATH)/audio/snd_soc_msm_Taiko:system/etc/snd_soc_msm/snd_soc_msm_Taiko \
-    $(LOCAL_PATH)/audio/snd_soc_msm_Taiko_DMIC:system/etc/snd_soc_msm/snd_soc_msm_Taiko_DMIC
+    $(LOCAL_PATH)/audio/snd_soc_msm_Taiko_DMIC:system/etc/snd_soc_msm/snd_soc_msm_Taiko_DMIC \
+    $(LOCAL_PATH)/audio/soundimage/srsfx_trumedia_ext.cfg:system/etc/soundimage/srsfx_trumedia_ext.cfg \
+    $(LOCAL_PATH)/audio/soundimage/srsfx_trumedia_ext_HS250.cfg:system/etc/soundimage/srsfx_trumedia_ext_HS250.cfg \
+    $(LOCAL_PATH)/audio/soundimage/srsfx_trumedia_ext_MAX300.cfg:system/etc/soundimage/srsfx_trumedia_ext_MAX300.cfg \
+    $(LOCAL_PATH)/audio/soundimage/srsfx_trumedia_int.cfg:system/etc/soundimage/srsfx_trumedia_int.cfg \
+    $(LOCAL_PATH)/audio/soundimage/srsmodels.lic:system/etc/soundimage/srsmodels.lic
 
 # this should go away when we finish blobs, our device-specific repos
 # should inherit m8-common by themselves

@@ -14,6 +14,12 @@
 # limitations under the License.
 #
 
+# Device uses ultra-high-density artwork where available
+PRODUCT_AAPT_CONFIG := hdpi xhdpi xxhdpi
+PRODUCT_AAPT_PREF_CONFIG := xxhdpi
+
+PRODUCT_BOOT_JARS += qcmediaplayer
+
 # Boot animation
 TARGET_SCREEN_HEIGHT := 1920
 TARGET_SCREEN_WIDTH := 1080
@@ -27,8 +33,8 @@ $(call inherit-product-if-exists, frameworks/native/build/phone-xxhdpi-2048-hwui
 
 # Audio configuration
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/audio/audio_effects.conf:system/etc/snd_soc_msm/audio_effects.conf \
-    $(LOCAL_PATH)/audio/audio_policy.conf:system/etc/snd_soc_msm/audio_policy.conf \
+    $(LOCAL_PATH)/audio/audio_effects.conf:system/etc/audio_effects.conf \
+    $(LOCAL_PATH)/audio/audio_policy.conf:system/etc/audio_policy.conf \
     $(LOCAL_PATH)/audio/snd_soc_msm_2x:system/etc/snd_soc_msm/snd_soc_msm_2x \
     $(LOCAL_PATH)/audio/snd_soc_msm_Taiko:system/etc/snd_soc_msm/snd_soc_msm_Taiko \
     $(LOCAL_PATH)/audio/snd_soc_msm_Taiko_DMIC:system/etc/snd_soc_msm/snd_soc_msm_Taiko_DMIC
@@ -111,6 +117,13 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     lights.msm8974
 
+# FM radio
+PRODUCT_PACKAGES += \
+    qcom.fmradio \
+    libqcomfm_jni \
+    FM2 \
+    FMRecord
+
 # OMX
 PRODUCT_PACKAGES += \
     libc2dcolorconvert \
@@ -136,6 +149,9 @@ PRODUCT_PACKAGES += \
 # Touchscreen
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.input.noresample=1
+
+# qcmediaplayer
+PRODUCT_PACKAGES += qcmediaplayer
 
 # USB
 PRODUCT_PACKAGES += \

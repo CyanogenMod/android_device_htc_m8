@@ -18,7 +18,6 @@
 PRODUCT_AAPT_CONFIG := hdpi xhdpi xxhdpi
 PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 
-PRODUCT_BOOT_JARS += qcmediaplayer
 
 # Boot animation
 TARGET_SCREEN_HEIGHT := 1920
@@ -158,8 +157,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.input.noresample=1
 
-# qcmediaplayer
-PRODUCT_PACKAGES += qcmediaplayer
 
 # USB
 PRODUCT_PACKAGES += \

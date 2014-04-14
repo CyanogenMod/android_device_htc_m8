@@ -189,6 +189,17 @@ on boot
     start imsqmidaemon
     insmod /system/lib/modules/adsprpc.ko
 
+    chown system system /sys/class/leds/green/brightness
+    chown system system /sys/class/leds/green/blink
+    chown system system /sys/class/leds/green/off_timer
+    chown system system /sys/class/leds/amber/brightness
+    chown system system /sys/class/leds/amber/blink
+    chown system system /sys/class/leds/amber/off_timer
+
+    # Torch
+    chown system system /sys/class/leds/flashlight/brightness
+    chmod 0666 /sys/class/leds/flashlight/brightness
+
 # Define TCP buffer sizes for various networks
 #   ReadMin, ReadInitial, ReadMax, WriteMin, WriteInitial, WriteMax,
     setprop net.tcp.buffersize.default 4096,87380,110208,4096,16384,110208

@@ -112,6 +112,13 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     camera.msm8974
 
+# GPS
+PRODUCT_PACKAGES += \
+    gps.msm8974
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/gps/gps.conf:system/etc/gps.conf
+
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8974 \

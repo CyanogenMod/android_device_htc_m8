@@ -98,6 +98,9 @@ BOARD_EGL_CFG := device/htc/msm8974-common/configs/egl.cfg
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
 
+# NFC
+BOARD_NFC_HAL_SUFFIX := msm8974
+
 # Power
 TARGET_POWERHAL_VARIANT := qcom
 

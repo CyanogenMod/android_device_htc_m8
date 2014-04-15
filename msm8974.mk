@@ -139,6 +139,16 @@ PRODUCT_PACKAGES += \
     FM2 \
     FMRecord
 
+# NFC
+PRODUCT_PACKAGES += \
+    nfc.msm8974 \
+    libnfc \
+    libnfc_ndef \
+    libnfc_jni \
+    Nfc \
+    Tag \
+    com.android.nfc_extras
+
 # OMX
 PRODUCT_PACKAGES += \
     libc2dcolorconvert \

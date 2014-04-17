@@ -242,7 +242,7 @@
     </path>
 
     <path name="low-latency-playback">
-        <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia5" value="1" />
+        <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia5" value="1" />
     </path>
 
     <path name="low-latency-playback hdmi">
@@ -262,7 +262,7 @@
     </path>
 
     <path name="compress-offload-playback">
-        <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia4" value="1" />
+        <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia4" value="1" />
     </path>
 
     <path name="compress-offload-playback hdmi">
@@ -806,7 +806,7 @@
         <ctl name="ADC2 Volume" value="8" />
         <ctl name="DEC5 Volume" value="84" />
     </path>
-
+    <!-- M8 calls this path for normal phone calle -->
     <path name="speaker">
     </path>
 
@@ -916,7 +916,7 @@
     <path name="handset-mic">
         <path name="dmic1" />
     </path>
-
+    <!-- M8 calls this path for normal phone calls -->
     <path name="voice-handset">
         <path name="sidetone-handset" />
         <path name="handset" />

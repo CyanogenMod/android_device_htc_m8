@@ -35,6 +35,7 @@ TARGET_NO_BOOTLOADER := true
 # Platform
 TARGET_BOARD_PLATFORM := msm8974
 TARGET_BOARD_PLATFORM_GPU := qcom-adreno330
+TARGET_USES_ION := true
 
 # Architecture
 TARGET_ARCH := arm
@@ -93,6 +94,7 @@ BOARD_HAVE_NEW_QC_GPS := true
 USE_OPENGL_RENDERER := true
 TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
+TARGET_USES_OVERLAY := true
 BOARD_EGL_CFG := device/htc/msm8974-common/configs/egl.cfg
 
 # Lights

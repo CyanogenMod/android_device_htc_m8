@@ -914,7 +914,7 @@
     </path>
 
     <path name="handset-mic">
-        <path name="dmic1" />
+        <path name="dual-mic" />
     </path>
     <!-- M8 calls this path for normal phone calls -->
     <path name="voice-handset">

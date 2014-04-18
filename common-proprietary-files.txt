@@ -241,7 +241,6 @@ bin/qseecomd
 bin/ptt_socket_app
 bin/rmt_storage
 bin/time_daemon
-bin/wcnss_service
 bin/mpdecision
 etc/hldm.bin
 etc/hltrd.bin

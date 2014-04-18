@@ -206,7 +206,8 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     WCNSS_cfg.dat \
     WCNSS_qcom_cfg.ini \
-    WCNSS_qcom_wlan_nv.bin
+    WCNSS_qcom_wlan_nv.bin \
+    wcnss_service
 
 # WPA supplicant config
 PRODUCT_COPY_FILES += \

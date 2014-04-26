@@ -114,6 +114,10 @@ PRODUCT_PACKAGES += \
     libaudio-resampler \
     tinymix
 
+# Target audio amp
+PRODUCT_PACKAGES += \
+    libaudioamp
+
 # Camera
 PRODUCT_PACKAGES += \
     camera.msm8974

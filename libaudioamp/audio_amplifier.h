@@ -13,8 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#if defined(__cplusplus)
+extern "C" {
+#endif
 int amplifier_open(void);
 void amplifier_set_devices(int devices);
 int amplifier_set_mode(audio_mode_t mode);
 int amplifier_close(void);
+#if defined(__cplusplus)
+}
+#endif

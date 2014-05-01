@@ -914,12 +914,11 @@
     </path>
 
     <path name="handset-mic">
-        <path name="dual-mic" />
+        <path name="dmic-endfire" />
     </path>
     <!-- M8 calls this path for normal phone calls -->
     <path name="voice-handset">
-        <path name="sidetone-handset" />
-        <path name="handset" />
+        <path name="earpiece-voice" />
     </path>
 
     <path name="voice-handset-tmus">
@@ -938,8 +937,12 @@
         <path name="speaker" />
     </path>
 
+    <path name="voice-speaker">
+        <path name="voice-call speaker" />
+    </path>
+
     <path name="voice-speaker-mic">
-        <path name="speaker-mic" />
+        <path name="speaker-dmic-endfire" />
     </path>
 
     <path name="voice-headphones">

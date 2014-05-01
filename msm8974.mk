@@ -295,6 +295,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.ril.hsupa.category=6 \
     ro.ril.hsxpa=4 \
     ro.ril.disable.cpc=1 \
-    ro.ril.def.agps.mode=1
+    ro.ril.def.agps.mode=1 \
+    tunnel.audio.encode=true
 
 $(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

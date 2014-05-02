@@ -918,7 +918,7 @@
     </path>
 
     <path name="voice-speaker-dmic-ef">
-        <path name="dmic-endfire" />
+        <path name="speaker-dmic-endfire" />
     </path>
 
     <path name="handset-mic">

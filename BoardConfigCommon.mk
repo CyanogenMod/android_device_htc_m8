@@ -77,6 +77,8 @@ TARGET_USES_QCOM_BSP := true
 
 # Audio
 BOARD_USES_ALSA_AUDIO := true
+AUDIO_FEATURE_DISABLED_MULTI_VOICE_SESSIONS := true
+# TODO amp broken
 BOARD_AUDIO_AMPLIFIER := device/htc/msm8974-common/libaudioamp
 
 # Bluetooth

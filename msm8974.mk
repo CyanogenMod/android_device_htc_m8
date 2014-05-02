@@ -268,7 +268,6 @@ PRODUCT_PROPERTY_OVERRIDES += \
     lpa.decode=true \
     persist.hwc.mdpcomp.enable=true \
     persist.thermal.monitor=true \
-    ro.qc.sdk.audio.fluencetype=none \
     ro.sf.lcd_density=420 \
     ro.telephony.call_ring.multiple=0 \
     ro.use_data_netmgrd=true \
@@ -296,6 +295,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.ril.hsxpa=4 \
     ro.ril.disable.cpc=1 \
     ro.ril.def.agps.mode=1 \
-    tunnel.audio.encode=true
+    tunnel.audio.encode=true \
+    ro.qc.sdk.audio.fluencetype=fluence \
+    persist.audio.fluence.voicecall=true \
+    persist.audio.fluence.speaker=true
 
 $(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

@@ -913,9 +913,18 @@
         <ctl name="DAC1 Switch" value="1" />
     </path>
 
+    <path name="voice-dmic-ef">
+        <path name="dmic-endfire" />
+    </path>
+
+    <path name="voice-speaker-dmic-ef">
+        <path name="dmic-endfire" />
+    </path>
+
     <path name="handset-mic">
         <path name="dmic-endfire" />
     </path>
+
     <!-- M8 calls this path for normal phone calls -->
     <path name="voice-handset">
         <path name="earpiece-voice" />
@@ -983,7 +992,7 @@
     </path>
 
     <path name="voice-rec-mic">
-        <path name="handset-mic" />
+        <path name="line-vr" />
     </path>
 
     <path name="camcorder-mic">

@@ -788,7 +788,7 @@
         <ctl name="DEC5 Volume" value="84" />
     </path>
 
-    <path name="headset-vr">
+    <path name="headset-mic">
         <path name="headset-mic-generic" />
         <ctl name="ADC2 Volume" value="12" />
         <ctl name="DEC5 Volume" value="95" />
@@ -955,14 +955,11 @@
     </path>
 
     <path name="voice-headphones">
-        <path name="sidetone-headphones" />
-        <path name="headphones" />
+        <path name="headphones-voice" />
     </path>
 
     <path name="voice-headset-mic">
-    <!-- will not select this device in HAL -->
-        <path name="headset-mic-generic" />
-        <ctl name="ADC2 Volume" value="13" />
+        <path name="headset-voice" />
     </path>
 
     <path name="low-latency-playback voice-speaker-and-headphones">

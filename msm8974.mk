@@ -122,13 +122,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     camera.msm8974
 
-# GPS
-PRODUCT_PACKAGES += \
-    gps.msm8974
-
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/gps/gps.conf:system/etc/gps.conf
-
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8974 \
@@ -295,6 +288,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.ril.hsxpa=4 \
     ro.ril.disable.cpc=1 \
     ro.ril.def.agps.mode=1 \
+    persist.gps.qc_nlp_in_use=0 \
+    ro.gps.agps_provider=1 \
+    ro.qc.sdk.izat.premium_enabled=0 \
+    ro.qc.sdk.izat.service_mask=0x0 \
     tunnel.audio.encode=true \
     ro.qc.sdk.audio.fluencetype=fluence \
     persist.audio.fluence.voicecall=true \

@@ -296,6 +296,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.qc.sdk.audio.fluencetype=fluence \
     persist.audio.fluence.voicecall=true \
     persist.audio.fluence.speaker=true \
+    audio.offload.buffer.size.kb=32 \
+    audio.offload.gapless.enabled=false \
     ro.opengles.version=196608
 
 $(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

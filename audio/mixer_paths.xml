@@ -226,7 +226,7 @@
 
     <!-- These are audio route (FE to BE) specific mixer settings -->
     <path name="deep-buffer-playback">
-        <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia1" value="1" />
+        <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia1" value="1" />
     </path>
 
     <path name="deep-buffer-playback hdmi">
@@ -242,7 +242,7 @@
     </path>
 
     <path name="low-latency-playback">
-        <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia5" value="1" />
+        <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia5" value="1" />
     </path>
 
     <path name="low-latency-playback hdmi">
@@ -262,7 +262,7 @@
     </path>
 
     <path name="compress-offload-playback">
-        <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia4" value="1" />
+        <ctl name="SLIMBUS_0_RX Audio Mixer MultiMedia4" value="1" />
     </path>
 
     <path name="compress-offload-playback hdmi">

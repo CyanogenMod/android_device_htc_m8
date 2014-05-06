@@ -50,17 +50,17 @@ on init
     # See storage config details at http://source.android.com/tech/storage/
     mkdir /mnt/shell/emulated 0700 shell shell
     mkdir /storage/emulated 0555 root root
-    mkdir /storage/ext_sd 0700 root root
-    mkdir /mnt/media_rw/ext_sd 0700 media_rw media_rw
+    mkdir /storage/sdcard1 0700 root root
+    mkdir /mnt/media_rw/sdcard1 0700 media_rw media_rw
     mkdir /storage/usbdisk 0700 root root
     mkdir /mnt/media_rw/usbdisk 0700 media_rw media_rw
 
     export EXTERNAL_STORAGE /storage/emulated/legacy
     export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
     export EMULATED_STORAGE_TARGET /storage/emulated
-    export SECONDARY_STORAGE /storage/ext_sd
-    export EXTERNAL_STORAGE2 /storage/ext_sd
-    export EXTERNAL_STORAGE3 /storage/ext_sd
+    export SECONDARY_STORAGE /storage/sdcard1
+    export EXTERNAL_STORAGE2 /storage/sdcard1
+    export EXTERNAL_STORAGE3 /storage/sdcard1
     export EXTERNAL_STORAGE4 /storage/usbdisk
     export EXTERNAL_STORAGE5 /storage/usbdisk
 
@@ -69,7 +69,7 @@ on init
     symlink /storage/emulated/legacy /mnt/sdcard
     symlink /storage/emulated/legacy /storage/sdcard0
     symlink /mnt/shell/emulated/0 /storage/emulated/legacy
-    symlink /storage/ext_sd /sdcard2
+    symlink /storage/sdcard1 /sdcard1
     symlink /storage/usbdisk /mnt/usbdisk
 
     export PATH ${PATH}:/vendor/bin
@@ -638,7 +638,7 @@ service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emul
     class late_start
 
 # fusewrapped external sdcard daemon running as media_rw (1023)
-service fuse_ext_sd /system/bin/sdcard -u 1023 -g 1023 -w 1023 -d /mnt/media_rw/ext_sd /storage/ext_sd
+service fuse_sdcard1 /system/bin/sdcard -u 1023 -g 1023 -w 1023 -d /mnt/media_rw/sdcard1 /storage/sdcard1
     class late_start
     disabled
 

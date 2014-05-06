@@ -158,5 +158,5 @@ BOARD_USES_MMCUTILS := true
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_HAS_NO_MISC_PARTITION := true
 BOARD_HAS_NO_SELECT_BUTTON := true
-TARGET_RECOVERY_FSTAB := device/htc/m8/rootdir/fstab.recovery
+TARGET_RECOVERY_FSTAB := device/htc/m8/rootdir/fstab.qcom
 BOARD_RECOVERY_SWIPE := true

@@ -2,8 +2,8 @@
 
 set -e
 
+export DEVICE=m8
 export VENDOR=htc
-export VENDOR_COMMON=m8-common
 
 if [ $# -eq 0 ]; then
   SRC=adb
@@ -24,8 +24,8 @@ fi
 BASE=../../../vendor/$VENDOR/$DEVICE/proprietary
 rm -rf $BASE/*
 
-if [ -f ../$DEVICE_COMMON/device-proprietary-files.txt ]; then
-  for FILE in `egrep -v '(^#|^$)' ../$DEVICE_COMMON/device-proprietary-files.txt`; do
+if [ -f ../$DEVICE/proprietary-files.txt ]; then
+  for FILE in `egrep -v '(^#|^$)' ../$DEVICE/proprietary-files.txt`; do
     echo "Extracting /system/$FILE ..."
     DIR=`dirname $FILE`
     if [ ! -d $BASE/$DIR ]; then
@@ -39,18 +39,6 @@ if [ -f ../$DEVICE_COMMON/device-proprietary-files.txt ]; then
   done
 fi
 
-BASE=../../../vendor/$VENDOR/$VENDOR_COMMON/proprietary
-for FILE in `egrep -v '(^#|^$)' ../$DEVICE_COMMON/common-proprietary-files.txt`; do
-  echo "Extracting /system/$FILE ..."
-  DIR=`dirname $FILE`
-  if [ ! -d $BASE/$DIR ]; then
-    mkdir -p $BASE/$DIR
-  fi
-  if [ "$SRC" = "adb" ]; then
-    adb pull /system/$FILE $BASE/$FILE
-  else
-    cp $SRC/system/$FILE $BASE/$FILE
-  fi
-done
+chmod 755 $BASE/blobs/*/bin/*
 
-./../$DEVICE_COMMON/setup-makefiles.sh
+../$DEVICE/setup-makefiles.sh

@@ -55,7 +55,7 @@ BOARD_KERNEL_PAGESIZE := 2048
 BOARD_MKBOOTIMG_ARGS := --kernel_offset 0x00008000 --ramdisk_offset 0x02008000 --tags_offset 0x01e00000
 TARGET_KERNEL_SOURCE := kernel/htc/msm8974
 BOARD_KERNEL_SEPARATED_DT := true
-BOARD_CUSTOM_BOOTIMG_MK := device/htc/msm8974-common/mkbootimg.mk
+BOARD_CUSTOM_BOOTIMG_MK := device/htc/m8/mkbootimg.mk
 TARGET_KERNEL_CONFIG := cm_m8_defconfig
 
 BOARD_BOOTIMAGE_PARTITION_SIZE := 0x105c0000
@@ -78,7 +78,7 @@ BOARD_USES_ALSA_AUDIO := true
 AUDIO_FEATURE_DISABLED_MULTI_VOICE_SESSIONS := true
 AUDIO_FEATURE_SEPARATE_SPKR_BACKEND := true
 # TODO amp broken
-BOARD_AUDIO_AMPLIFIER := device/htc/msm8974-common/libaudioamp
+BOARD_AUDIO_AMPLIFIER := device/htc/m8/libaudioamp
 
 # Bluetooth
 BOARD_HAVE_BLUETOOTH := true
@@ -95,7 +95,7 @@ USE_OPENGL_RENDERER := true
 TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_OVERLAY := true
-BOARD_EGL_CFG := device/htc/msm8974-common/configs/egl.cfg
+BOARD_EGL_CFG := device/htc/m8/configs/egl.cfg
 
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
@@ -123,7 +123,7 @@ WIFI_DRIVER_FW_PATH_AP := "ap"
 
 # SELinux
 BOARD_SEPOLICY_DIRS += \
-    device/htc/msm8974-common/sepolicy
+    device/htc/m8/sepolicy
 
 BOARD_SEPOLICY_UNION += \
     app.te \
@@ -158,5 +158,5 @@ BOARD_USES_MMCUTILS := true
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_HAS_NO_MISC_PARTITION := true
 BOARD_HAS_NO_SELECT_BUTTON := true
-TARGET_RECOVERY_FSTAB := device/htc/msm8974-common/rootdir/fstab.recovery
+TARGET_RECOVERY_FSTAB := device/htc/m8/rootdir/fstab.recovery
 BOARD_RECOVERY_SWIPE := true

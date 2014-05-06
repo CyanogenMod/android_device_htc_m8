@@ -25,8 +25,6 @@ TARGET_SCREEN_WIDTH := 1080
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
-$(call inherit-product, vendor/cm/config/common_full_phone.mk)
-$(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
 $(call inherit-product, frameworks/native/build/phone-xxhdpi-2048-dalvik-heap.mk)
 $(call inherit-product-if-exists, frameworks/native/build/phone-xxhdpi-2048-hwui-memory.mk)
 
@@ -49,7 +47,7 @@ PRODUCT_COPY_FILES += \
 $(call inherit-product-if-exists, vendor/htc/m8-common/m8-common-vendor.mk)
 
 ## overlays
-DEVICE_PACKAGE_OVERLAYS += device/htc/msm8974-common/overlay
+DEVICE_PACKAGE_OVERLAYS += device/htc/m8/overlay
 
 # Ramdisk
 PRODUCT_PACKAGES += \
@@ -144,9 +142,9 @@ PRODUCT_PACKAGES += \
 
 # Nfc
 ifeq ($(TARGET_BUILD_VARIANT),user)
-    NFCEE_ACCESS_PATH := device/htc/msm8974-common/configs/nfcee_access.xml
+    NFCEE_ACCESS_PATH := device/htc/m8/configs/nfcee_access.xml
 else
-    NFCEE_ACCESS_PATH := device/htc/msm8974-common/configs/nfcee_access_debug.xml
+    NFCEE_ACCESS_PATH := device/htc/m8/configs/nfcee_access_debug.xml
 endif
 PRODUCT_COPY_FILES += \
     $(NFCEE_ACCESS_PATH):system/etc/nfcee_access.xml

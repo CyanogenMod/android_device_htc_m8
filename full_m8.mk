@@ -25,7 +25,7 @@
 $(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
 
 # Inherit from m8
-$(call inherit-product, device/htc/m8/msm8974.mk)
+$(call inherit-product, device/htc/m8/device.mk)
 
 PRODUCT_NAME := full_m8
 PRODUCT_DEVICE := m8

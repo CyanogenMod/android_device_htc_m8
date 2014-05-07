@@ -497,6 +497,11 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
+service pnpmgr /system/bin/pnpmgr
+    class core
+    user system
+    group system
+
 service ptt_socket_app /system/bin/ptt_socket_app
     class main
     user system
@@ -526,6 +531,11 @@ service qseecomd /system/bin/qseecomd
 service rmt_storage /system/bin/rmt_storage modem_st1 modem_st2 fsc recovery radio_config cdma_record
     class core
     user root
+
+service thermal-engine /system/bin/thermal-engine
+   class main
+   user root
+   group root
 
 service time_daemon /system/bin/time_daemon
    class late_start

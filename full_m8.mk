@@ -32,6 +32,3 @@ PRODUCT_DEVICE := m8
 PRODUCT_BRAND := htc
 PRODUCT_MANUFACTURER := htc
 PRODUCT_MODEL := m8
-
-# Variant linking script
-PRODUCT_PACKAGES += makelinks.sh

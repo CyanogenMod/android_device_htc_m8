@@ -243,6 +243,10 @@ PRODUCT_PROPERTY_OVERRIDES += \
 PRODUCT_PACKAGES += \
     Torch
 
+# Variant linking script
+PRODUCT_PACKAGES += \
+    makelinks.sh
+
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.sys.usb.config=mtp
 
@@ -297,5 +301,3 @@ PRODUCT_PROPERTY_OVERRIDES += \
     audio.offload.buffer.size.kb=32 \
     audio.offload.gapless.enabled=false \
     ro.opengles.version=196608
-
-$(call inherit-product-if-exists, hardware/qcom/msm8x74/msm8x74.mk)

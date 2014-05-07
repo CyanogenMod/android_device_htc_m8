@@ -871,6 +871,16 @@ service qrngd /system/bin/qrngd -f
    user root
    group root
 
+service qrngp /system/bin/qrngp
+    class main
+    user root
+    group root
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start qrngp
+
 service qseecomd /system/bin/qseecomd
    class main
    user root

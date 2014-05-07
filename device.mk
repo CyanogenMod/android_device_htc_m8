@@ -176,7 +176,8 @@ PRODUCT_PACKAGES += \
 
 # QCOM rngd
 PRODUCT_PACKAGES += \
-    qrngd
+    qrngd \
+    qrngp
 
 # Touchscreen
 PRODUCT_PROPERTY_OVERRIDES += \

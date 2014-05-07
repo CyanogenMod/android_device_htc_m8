@@ -124,6 +124,11 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/sec_config:system/etc/sec_config
 
+# Power and Thermal
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/qosmgr_rules.xml:system/etc/qosmgr_rules.xml \
+    $(LOCAL_PATH)/configs/thermal-engine.conf:system/etc/thermal-engine.conf
+
 # Input device config
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/idc/projector_input.idc:system/usr/idc/projector_input.idc \

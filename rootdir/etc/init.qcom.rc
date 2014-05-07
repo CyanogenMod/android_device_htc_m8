@@ -484,7 +484,7 @@ service map1_del /system/bin/sdptool del 0x1ff17
     disabled
     oneshot
 
-service mpdecision /system/bin/mpdecision --no_sleep --avg_comp
+service mpdecision /system/bin/mpdecision --avg_comp
     class core
     user root
     disabled

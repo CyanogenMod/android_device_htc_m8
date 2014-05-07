@@ -96,7 +96,6 @@ void vendor_load_properties()
         property_set("telephony.lteOnGsmDevice", "1");
     }
 
-    property_set("ro.product.model", "One M8");
     property_get("ro.product.device", device);
     ERROR("Found bootmid %s setting build properties for %s device\n", bootmid, device);
 }
@@ -114,12 +113,10 @@ void cdma_properties(char default_cdma_sub[], char default_network[],
     property_set("gsm.operator.alpha", operator_numeric);
 
     property_set("telephony.lteOnCdmaDevice", "1");
-    property_set("ril.subscription.types", "NV,RUIM");
     property_set("ro.cdma.subscribe_on_ruim_ready", "true");
     property_set("ro.ril.svdo", "true");
     property_set("ro.ril.disable.fd.plmn.prefix", "23402,23410,23411,23420");
     property_set("ro.ril.enable.sdr", "0");
-    property_set("ro.gps.agps_provider", "1");
     property_set("persist.radio.snapshot_enabled", "1");
     property_set("persist.radio.snapshot_timer", "22");
 }

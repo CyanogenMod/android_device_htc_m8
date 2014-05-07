@@ -69,7 +69,8 @@ PRODUCT_PACKAGES += \
 # Qcom init scripts for /etc
 PRODUCT_COPY_FILES += \
    $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.bluedroid.sh:system/etc/init.qcom.bt.bluedroid.sh \
-   $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.sh:system/etc/init.qcom.bt.sh
+   $(LOCAL_PATH)/rootdir/etc/init.qcom.bt.sh:system/etc/init.qcom.bt.sh \
+   $(LOCAL_PATH)/rootdir/etc/init.qcom.fm.sh:system/etc/init.qcom.fm.sh
 
 # Permissions
 PRODUCT_COPY_FILES += \

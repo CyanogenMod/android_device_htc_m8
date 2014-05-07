@@ -45,7 +45,7 @@
 #permissions for CSVT
 /dev/smd11                0660   radio      radio
 
-/dev/radio0               0640   fm_radio   fm_radio
+/dev/radio0               0660   radio      radio
 /dev/rfcomm0              0660   bluetooth  bluetooth
 /dev/smdcntl0             0640   radio      radio
 /dev/smdcntl1             0640   radio      radio

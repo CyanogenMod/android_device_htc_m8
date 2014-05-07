@@ -7,9 +7,11 @@ bin/irsc_util
 bin/mm-qcamera-app
 bin/mm-qcamera-daemon
 bin/mpdecision
+bin/pnpmgr
 bin/ptt_socket_app
 bin/qseecomd
 bin/rmt_storage
+bin/thermal-engine
 bin/time_daemon
 blobs/gsm/bin/netmgrd
 blobs/gsm/bin/qmuxd

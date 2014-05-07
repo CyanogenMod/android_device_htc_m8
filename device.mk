@@ -186,7 +186,8 @@ PRODUCT_PACKAGES += \
 
 # QCOM rngd
 PRODUCT_PACKAGES += \
-    qrngd
+    qrngd \
+    qrngp
 
 # Thermal
 PRODUCT_COPY_FILES += \

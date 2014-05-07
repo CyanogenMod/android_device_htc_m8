@@ -523,6 +523,13 @@ service qrngd /system/bin/qrngd -f
    user root
    group root
 
+service qrngp /system/bin/qrngp
+    class main
+    user root
+    group root
+    oneshot
+    disabled
+
 service qseecomd /system/bin/qseecomd
    class main
    user root
@@ -612,6 +619,9 @@ on property:ro.use_data_netmgrd=false
 
 on property:service.adb.root=1
     write /sys/class/android_usb/android0/restart_adbd 1
+
+on property:sys.boot_completed=1
+    start qrngp
 
 # Performance
 on property:service.bootanim.exit=1

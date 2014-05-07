@@ -21,6 +21,15 @@
 # lines, full and maguro, hence its name.
 #
 
+# Extra Apps and files
+PRODUCT_COPY_FILES += \
+    vendor/htc/m8/Alert-SonarMerge.mp3:system/media/audio/notifications/Alert-SonarMerge.mp3 \
+    vendor/htc/m8/CyanPing.ogg:system/media/audio/notifications/CyanPing.ogg \
+    vendor/htc/m8/CyanMessage.ogg:system/media/audio/notifications/CyanMessage.ogg \
+    vendor/htc/m8/apple_smsreceived.ogg:system/media/audio/notifications/apple_smsreceived.ogg \
+    vendor/htc/m8/IphoneCellSoundMerge.mp3:system/media/audio/ringtones/IphoneCellSoundMerge.mp3 \
+    vendor/aokp/prebuilt/common/app/NovaLauncher.apk:system/app/NovaLauncher.apk
+
 # Inherit m8-specific vendor tree
 $(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
 

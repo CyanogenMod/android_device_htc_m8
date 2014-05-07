@@ -113,6 +113,7 @@ etc/firmware/widevine.b03
 etc/firmware/widevine.mdt
 etc/General_cal.acdb
 etc/Global_cal.acdb
+etc/gps.conf
 etc/Handset_cal.acdb
 etc/Hdmi_cal.acdb
 etc/Headset_cal.acdb
@@ -177,6 +178,7 @@ etc/tfa/voip_l.preset
 etc/tfa/voip.preset
 lib/hw/camera.vendor.msm8974.so
 lib/hw/consumerir.default.so
+lib/hw/gps.default.so
 lib/hw/sensors.msm8974.so
 lib/libalDE_REC.so
 lib/libalDE_SDE_TWO.so
@@ -191,9 +193,13 @@ lib/libcamera_af.so
 lib/libcamera_awb.so
 lib/libcamera_metadata.so
 lib/libcamerapp.so
+lib/libgps.utils.so
 lib/libhtccamera_yushaniiproc.so
 lib/libhtc_depthmap.so
 lib/libloc_api_v02.so
+lib/libloc_core.so
+lib/libloc_ds_api.so
+lib/libloc_eng.so
 lib/libmmcamera_interface.so
 lib/libmmcamera_rubik.so
 lib/libmmjpeg_interface.so
@@ -283,6 +289,7 @@ vendor/lib/libI420colorconvert.so
 vendor/lib/libizat_core.so
 vendor/lib/libjpegdhw.so
 vendor/lib/libjpegehw.so
+vendor/lib/liblbs_core.so
 vendor/lib/libllvm-qcom.so
 vendor/lib/libmmcamera2_c2d_module.so
 vendor/lib/libmmcamera2_cpp_module.so

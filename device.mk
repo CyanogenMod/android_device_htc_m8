@@ -216,6 +216,13 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/sec_config:system/etc/sec_config
 
+# Power and Thermal
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/pnp.xml:system/etc/pnp.xml \
+    $(LOCAL_PATH)/configs/qosmgr_rules.xml:system/etc/qosmgr_rules.xml \
+    $(LOCAL_PATH)/configs/thermal-engine.conf:system/etc/thermal-engine.conf \
+    $(LOCAL_PATH)/configs/thermal-engine-8974.conf:system/etc/thermal-engine-8974.conf \
+
 # Keylayouts and Keychars
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/keylayout/keypad_8974.kl:system/usr/keylayout/keypad_8974.kl \

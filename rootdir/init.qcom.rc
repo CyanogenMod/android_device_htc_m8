@@ -805,6 +805,10 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
+service pnpmgr /system/bin/pnpmgr
+    class core
+    user root
+
 service port-bridge /system/bin/port-bridge /dev/smd0 /dev/ttyGS0
     class late_start
     user system
@@ -918,6 +922,11 @@ service sensors /system/bin/sensors.qcom
     user root
     group root
     disabled
+
+service thermal-engine /system/bin/thermal-engine
+    class main
+    user root
+    group root
 
 service time_daemon /system/bin/time_daemon
    class late_start

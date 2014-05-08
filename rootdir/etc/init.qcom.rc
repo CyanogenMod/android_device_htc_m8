@@ -115,22 +115,7 @@ on fs
     mkdir /vendor 0771 system system
     mkdir /vendor/firmware 0771 system system
 
-    # Link vendor/lib by QCT original design
-    symlink /system/vendor/lib /vendor/lib
-
     mount_all /fstab.qcom
-
-    # Mount radio image and link to /vendor/firmware
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/radio /vendor/firmware "modem* mba*"
-
-    # Mount adsp image and link to /vendor/firmware
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/adsp/image /vendor/firmware "adsp*"
-
-    # Mount wcnss image and link to /vendor/firmware
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/wcnss /vendor/firmware "wcnss*"
-
-    # QSEE secure application : keymaster
-    exec /system/bin/sh /init.qcom.firmware_links.sh /system/vendor/firmware /vendor/firmware "keymaster.*"
 
 # msm specific files that need to be created on /data
 on post-fs-data

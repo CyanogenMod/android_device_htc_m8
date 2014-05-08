@@ -67,16 +67,6 @@ on init
     export PATH ${PATH}:/vendor/bin
     export LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/vendor/lib
 
-    # htc cir
-    chown irda irda /sys/class/htc_cir/cir/reset_cir
-    chmod 0660 /sys/class/htc_cir/cir/reset_cir
-    chown irda irda /sys/class/htc_cir/cir/enable_cir
-    chmod 0660 /sys/class/htc_cir/cir/enable_cir
-
-    # HTC camera
-    chown system camera /dev/rawchip0
-    chmod 0660 /dev/rawchip0
-
 # init PnPMgr node
     chmod 664 /sys/power/pnpmgr/apps/media_mode
     chown media system /sys/power/pnpmgr/apps/media_mode

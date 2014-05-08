@@ -34,22 +34,12 @@ PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \
-    init.network.sh \
-    init.qcom.audio.sh \
-    init.qcom.class_core.sh \
-    init.qcom.early_boot.sh \
-    init.qcom.factory.sh \
     init.qcom.firmware_links.sh \
     init.qcom.post_boot.sh \
     init.qcom.rc \
-    init.qcom.ril.sh \
-    init.qcom.sh \
     init.qcom.ssr.sh \
-    init.qcom.syspart_fixup.sh \
     init.qcom.usb.rc \
     init.qcom.wifi.sh \
-    init.ril.rc \
-    init.usbdiag.sh \
     ueventd.qcom.rc
 
 # Qcom init scripts for /etc

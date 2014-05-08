@@ -121,7 +121,6 @@ on fs
 
     mount_all /fstab.qcom
 
-# msm specific files that need to be created on /data
 on post-fs-data
     mkdir /data/tombstones 0771 system system
     symlink /data/tombstones /tombstones
@@ -236,15 +235,6 @@ on boot
     mkdir /dev/socket/qmux_bluetooth 0770 bluetooth bluetooth
     mkdir /dev/socket/qmux_gps 0770 gps gps
 
-    #Set SUID bit for usbhub
-    chmod 4755 /system/bin/usbhub
-    chmod 755 /system/bin/usbhub_init
-
-    #Remove SUID bit for iproute2 ip tool
-    chmod 0755 /system/bin/ip
-
-    start imsqmidaemon
-
     chown system system /sys/class/leds/green/brightness
     chown system system /sys/class/leds/green/blink
     chown system system /sys/class/leds/green/off_timer
@@ -329,7 +319,6 @@ on boot
 
 # load ADSP
     write /sys/kernel/boot_adsp/boot 1
-    exec /system/bin/sh /init.htc.audio.sh
 
 ## Service start here
 service adsprpcd /system/bin/adsprpcd

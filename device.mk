@@ -34,7 +34,6 @@ PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \
-    init.qcom.firmware_links.sh \
     init.qcom.post_boot.sh \
     init.qcom.rc \
     init.qcom.ssr.sh \

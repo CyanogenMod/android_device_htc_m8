@@ -212,8 +212,6 @@ on post-fs-data
     chown nfc nfc /dev/pn544
     chown nfc nfc /sys/class/NFC_sensor/comn/nxp_uicc_swp
     chmod 0664 /sys/class/NFC_sensor/comn/nxp_uicc_swp
-    setprop debug.nfc.fw_download "true"
-    setprop debug.nfc.fw_boot_download "false"
 
     # we will remap this as /mnt/sdcard with the sdcard fuse tool
     mkdir /data/media 0770 media_rw media_rw

@@ -25,7 +25,6 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-# Not include QCOM USB combinations
 import init.qcom.usb.rc
 
 on early-init
@@ -37,11 +36,6 @@ on early-init
 on init
     # Set permissions for persist partition
     mkdir /persist 0771 system system
-
-    # Set the property to indicate type of virtual display to 0
-    # 0 indicates that virtual display is not a Wifi display and that the
-    # session is not exercised through RemoteDisplay in the android framework
-    setprop persist.sys.wfd.virtual 0
 
     # See storage config details at http://source.android.com/tech/storage/
     mkdir /mnt/shell/emulated 0700 shell shell
@@ -63,9 +57,6 @@ on init
     symlink /mnt/shell/emulated/0 /storage/emulated/legacy
     symlink /storage/sdcard1 /sdcard1
     symlink /storage/usbdisk /mnt/usbdisk
-
-    export PATH ${PATH}:/vendor/bin
-    export LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/vendor/lib
 
 # init PnPMgr node
     chmod 664 /sys/power/pnpmgr/apps/media_mode
@@ -194,7 +185,6 @@ on post-fs-data
 
     #Create the symlink to qcn wpa_supplicant folder for ar6000 wpa_supplicant
     mkdir /data/system 0775 system system
-    #symlink /data/misc/wifi/wpa_supplicant /data/system/wpa_supplicant
 
     #Create directories for gpsone_daemon services
     mkdir /data/misc/gpsone_d 0770 system gps
@@ -252,15 +242,10 @@ on boot
     chmod 0660 /sys/module/hci_smd/parameters/hcismd_set
     chmod 0660 /sys/class/rfkill/rfkill0/state
     chmod 0660 /proc/bluetooth/sleep/proto
-#SSD_BT remove    chown bluetooth bluetooth /dev/ttyHS0
     chmod 0660 /sys/module/hci_uart/parameters/ath_lpm
     chmod 0660 /sys/module/hci_uart/parameters/ath_btwrite
-#SSD_BT remove    chmod 0660 /dev/ttyHS0
     chown bluetooth bluetooth /sys/devices/platform/msm_serial_hs.0/clock
     chmod 0660 /sys/devices/platform/msm_serial_hs.0/clock
-
-#SSD_BT remove    chmod 0660 /dev/ttyHS2
-#SSD_BT remove    chown bluetooth bluetooth /dev/ttyHS2
 
     #Create QMUX deamon socket area
     mkdir /dev/socket/qmux_radio 0770 radio radio
@@ -373,101 +358,21 @@ service adsprpcd /system/bin/adsprpcd
    user media
    group media
 
-service amp_init /system/bin/amploader -i
-    class late_start
-    user root
-    disabled
-    oneshot
-
-service amp_load /system/bin/amploader -l 7000
-    class late_start
-    user root
-    disabled
-    oneshot
-
-service amp_unload /system/bin/amploader -u
-    class late_start
-    user root
-    disabled
-    oneshot
-
 service audiod /system/bin/audiod
    class late_start
    user system
    group system
-
-service bt_hsic_control /system/bin/sh /system/etc/hsic.control.bt.sh
-    user root
-    disabled
-
-service battery_monitor /system/bin/battery_monitor
-    user system
-    group system
-    disabled
-
-service bluetoothd /system/bin/logwrapper /system/bin/bluetoothd -n
-    class main
-    socket bluetooth stream 660 bluetooth bluetooth
-    socket dbus_bluetooth stream 660 bluetooth bluetooth
-    group bluetooth net_bt_admin misc net_bt_stack
-    disabled
-
-service bridgemgrd /system/bin/bridgemgrd
-    class late_start
-    user radio
-    group radio qcom_diag
-    disabled
-
-service bt-dun /system/bin/dun-server /dev/smd7 /dev/rfcomm0
-    class late_start
-    user bluetooth
-    group bluetooth net_bt_admin inet
-    disabled
-    oneshot
-
-service bt-sap /system/bin/sapd 15
-    user bluetooth
-    group bluetooth net_bt_admin
-    class late_start
-    disabled
-    oneshot
-
-service btwlancoex /system/bin/sh /system/etc/init.qcom.coex.sh
-    class late_start
-    user bluetooth
-    group bluetooth net_bt_admin inet net_admin net_raw
-    disabled
-    oneshot
-
-service cand /system/bin/cand
-    class main
-    user root
 
 service config_bluetooth /system/bin/sh /system/etc/init.qcom.bt.sh "onboot"
     class core
     user root
     oneshot
 
-service charger /charger
-    class charger
-
-service charger_monitor /system/bin/charger_monitor
-    user system
-    group system
-    disabled
-
 service cir_fw_update /system/bin/cir_fw_update -u cir.img
     class main
     user root
     group root
     oneshot
-
-service dbus /system/bin/dbus-daemon --system --nofork
-    class main
-    socket dbus stream 660 bluetooth bluetooth
-    user bluetooth
-    group bluetooth net_bt_admin
-    disabled
 
 service dhcpcd_bnep0 /system/bin/dhcpcd -BKLG
     disabled
@@ -504,51 +409,6 @@ service dhcpcd_wlan0 /system/bin/dhcpcd -ABKLG
     disabled
     oneshot
 
-service diag_mdlog_start /system/bin/diag_mdlog
-    class late_start
-    user sdcard_rw
-    group system qcom_diag sdcard_rw sdcard_r media_rw
-    disabled
-    oneshot
-
-service diag_mdlog_stop /system/bin/diag_mdlog -k
-    class late_start
-    user sdcard_rw
-    group system qcom_diag sdcard_rw sdcard_r media_rw
-    disabled
-    oneshot
-
-service drmdiag /system/bin/drmdiagapp
-    class late_start
-     user root
-     disabled
-     oneshot
-
-service ds_fmc_appd /system/bin/ds_fmc_appd -p "rmnet0" -D
-    class late_start
-    group radio wifi inet
-    disabled
-    oneshot
-
-service fastmmi /system/bin/mmi
-    user root
-    group root
-    disabled
-
-service fm_dl /system/bin/sh /system/etc/init.qcom.fm.sh
-    class late_start
-    user root
-    group system fm_radio
-    disabled
-    oneshot
-
-service ftmd /system/bin/logwrapper /system/bin/ftmdaemon
-    class late_start
-    user root
-    group bluetooth net_bt_admin misc net_bt_stack qcom_diag
-    disabled
-    oneshot
-
 service ftp /system/bin/sdptool add --handle=0x1ff20 --psm=5257 --channel=20 FTP
     user bluetooth
     group bluetooth net_bt_admin
@@ -574,15 +434,6 @@ service fuse_usb /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usbdisk /st
     class late_start
     disabled
 
-on property:ro.fuse_sdcard=true
-    start sdcard
-
-service gpsone_daemon /system/bin/gpsone_daemon
-    class late_start
-    user gps
-    group gps inet net_raw
-    disabled
-
 service hcheck /system/bin/hcheck
     class late_start
     user system
@@ -596,64 +447,11 @@ service hciattach /system/bin/sh /system/etc/init.qcom.bt.bluedroid.sh
     disabled
     oneshot
 
-service hciattach_ath3k /system/bin/sh /system/etc/init.ath3k.bt.sh
-     class late_start
-     user bluetooth
-     group system bluetooth net_bt_admin misc
-     disabled
-     oneshot
-
-service hcidump /system/bin/sh /system/etc/hcidump.sh
-    user bluetooth
-    group bluetooth system net_bt_admin net_admin
-    disabled
-    oneshot
-
-service hdmid /system/bin/hdmid
-    class late_start
-    socket hdmid stream 0660 root system graphics
-    disabled
-
 service hostapd /system/bin/hostapd -dddd /data/hostapd/hostapd.conf
     class late_start
     user root
     group root
     oneshot
-    disabled
-
-service htc_ebdlogd /system/bin/htc_ebdlogd -s -k -P 7
-    user root
-    disabled
-    oneshot
-    ioprio idle 0
-
-service htc_ebdlogd_rel /system/bin/htc_ebdlogd -s -k
-    user root
-    disabled
-    oneshot
-    ioprio idle 0
-
-service ims_regmanager /system/bin/exe-ims-regmanagerprocessnative
-    class late_start
-    group net_bt_admin inet radio wifi
-    disabled
-
-service ims_rtp_daemon /system/bin/ims_rtp_daemon
-   class main
-   user system
-   group radio net_raw diag qcom_diag log
-   disabled
-
-service imsdatadaemon /system/bin/imsdatadaemon
-    class main
-    user root
-    group system wifi radio net_raw log qcom_diag net_admin
-    disabled
-
-service imsqmidaemon /system/bin/imsqmidaemon
-    class main
-    user system
-    group radio net_raw log qcom_diag
     disabled
 
 service iprenew_bt-pan /system/bin/dhcpcd -n
@@ -675,12 +473,6 @@ service irsc_util /system/bin/logwrapper /system/bin/irsc_util "/etc/sec_config"
     class main
     user root
     oneshot
-
-service location_mq /system/bin/location-mq
-    class late_start
-    user gps
-    group gps
-    disabled
 
 service lowi-server /system/bin/lowi-server
     class late_start
@@ -732,28 +524,10 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
-service port-bridge /system/bin/port-bridge /dev/smd0 /dev/ttyGS0
-    class late_start
-    user system
-    group system inet
-    disabled
-
-service profiler_daemon /system/bin/profiler_daemon
-    class late_start
-    user root
-    group root
-    disabled
-
 service ptt_socket_app /system/bin/ptt_socket_app
     class main
     user system
     group system
-    oneshot
-
-service qb_offmode_alarm /system/bin/qb_offmode_alarm
-    class main
-    user root
-    disabled
     oneshot
 
 service qcamerasvr /system/bin/mm-qcamera-daemon
@@ -767,26 +541,10 @@ service qcom-post-boot /system/bin/sh /init.qcom.post_boot.sh
     disabled
     oneshot
 
-service qcom-sh /system/bin/sh /init.qcom.sh
-    class late_start
-    user root
-    oneshot
-
-service qmiproxy /system/bin/qmiproxy
-    class main
-    user radio
-    group radio qcom_diag
-    disabled
-
 service qmuxd /system/bin/qmuxd
     class core
     user radio
     group radio audio bluetooth gps qcom_diag
-
-service qosmgrd /system/bin/qosmgr /system/etc/qosmgr_rules.xml
-   user system
-   group system
-   disabled
 
 service qrngd /system/bin/qrngd -f
    class main
@@ -798,112 +556,19 @@ service qseecomd /system/bin/qseecomd
    user root
    group root
 
-service quipc_igsn /system/bin/quipc_igsn
-    class late_start
-    user gps
-    group inet gps qcom_diag
-    disabled
-
-service quipc_main /system/bin/quipc_main
-    class late_start
-    user gps
-    group gps net_admin wifi inet qcom_diag
-    disabled
-
-service read_dap_cert /system/bin/readDapCert
-    class main
-    oneshot
-
-service ril-daemon1 /system/bin/rild -c 1
-    class main
-    socket rild1 stream 660 root radio
-    socket rild-debug1 stream 660 radio system
-    user root
-    disabled
-    group radio cache inet misc audio sdcard_r sdcard_rw diag qcom_diag log
-
-service ril-daemon2 /system/bin/rild -c 2
-    class main
-    socket rild2 stream 660 root radio
-    socket rild-debug2 stream 660 radio system
-    user root
-    disabled
-    group radio cache inet misc audio sdcard_r sdcard_rw diag qcom_diag log
-
 service rmt_storage /system/bin/rmt_storage modem_st1 modem_st2 fsc recovery radio_config cdma_record
     class core
     user root
-#    disabled
-
-service sensors /system/bin/sensors.qcom
-    class late_start
-    user root
-    group root
-    disabled
 
 service time_daemon /system/bin/time_daemon
    class late_start
    user root
    group root
 
-service usbhub_init /system/bin/usbhub_init
-   class late_start
-   user root
-   disabled
-   oneshot
-
-service usf_epos /system/bin/usf_epos
-    user system
-    group system inet
-    disabled
-
-service usf_gesture /system/bin/usf_gesture
-    user system
-    group system inet
-    disabled
-
-service usf_hovering /system/bin/usf_hovering
-    user system
-    group system inet
-    disabled
-
-service usf_p2p /system/bin/usf_p2p
-    user system
-    group system inet
-    disabled
-
-service usf-post-boot /system/bin/sh /system/etc/usf_post_boot.sh
-    class late_start
-    user root
-    disabled
-    oneshot
-
-service usf_proximity /system/bin/usf_proximity
-    user system
-    group system inet
-    disabled
-
-service usf_tester /system/bin/usf_tester
-    user system
-    group system inet
-    disabled
-
 service wcnss-service /system/bin/wcnss_service
     class late_start
     user system
     group system wifi
-    disabled
-    oneshot
-
-service wifi-crda /system/bin/sh /system/etc/init.crda.sh
-   class late_start
-   user root
-   disabled
-   oneshot
-
-service wifi-sdio-on /system/bin/sh /system/etc/init.qcom.sdio.sh
-    class late_start
-    group wifi inet
     disabled
     oneshot
 
@@ -917,24 +582,6 @@ service wpa_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
-service xtwifi_client /system/bin/xtwifi-client
-    class late_start
-    user gps
-    group net_admin wifi inet gps
-    disabled
-
-service xtwifi_inet /system/bin/xtwifi-inet-agent
-    class late_start
-    user gps
-    group inet gps
-    disabled
-
-service zchgd_offmode /system/bin/zchgd -pseudooffmode -autostop -poffmodewarn
-    user root
-    group root graphics
-    disabled
-
-
 ## Properties start here
 on property:bluetooth.hciattach=true
     start hciattach
@@ -942,14 +589,7 @@ on property:bluetooth.hciattach=true
 on property:bluetooth.hciattach=false
     setprop bluetooth.status off
 
-on property:bluetooth.hsic_ctrl=load_wlan
-    start bt_hsic_control
-
-on property:bluetooth.hsic_ctrl=unbind_hsic
-    start bt_hsic_control
-
 on property:bluetooth.isEnabled=true
-    start btwlancoex
     write /sys/class/bluetooth/hci0/idle_timeout 7000
 
 on property:bluetooth.sap.status=running
@@ -966,20 +606,12 @@ on property:crypto.driver.load=0
      exec /system/bin/rmmod qcedev.ko
      exec /system/bin/rmmod qce.ko
 
-on property:drmdiag.load=1
-    start drmdiag
-
-on property:drmdiag.load=0
-    stop drmdiag
-
 on property:init.svc.bootanim=stopped
-    start usf-post-boot
     # Overwrite ActivityManager's low memory killer settings
     write /sys/module/lowmemorykiller/parameters/adj "2,4,7,8,9,12"
     write /sys/module/lowmemorykiller/parameters/minfree "15360,18432,21504,23040,24576,30720"
 
 on property:init.svc.surfaceflinger=stopped
-    stop ppd
     stop hdmid
 
 on property:init.svc.thermald=stopped
@@ -1000,12 +632,6 @@ on property:sys.boot_completed=1
     start qcom-post-boot
     write /sys/block/mmcblk0/queue/scheduler row
 
-on property:persist.data.ds_fmc_app.mode=1
-    start ds_fmc_appd
-
-on property:persist.ims.regmanager.mode=1
-    start ims_regmanager
-
 # SSR setting
 on property:persist.sys.ssr.restart_level=*
     exec /system/bin/sh /init.qcom.ssr.sh ${persist.sys.ssr.restart_level}
@@ -1017,30 +643,9 @@ on property:persist.usb.chgdisabled=1
 on property:persist.usb.chgdisabled=0
     write /sys/class/power_supply/battery/charging_enabled 1
 
-on property:ro.bluetooth.ftm_enabled=true
-    start ftmd
-
-on property:ro.board.platform=msm7630_fusion
-    start usbhub_init
-
-on property:ro.build.tags=test-keys
-    start htc_ebdlogd
-
-on property:ro.build.tags=release-keys
-    start htc_ebdlogd_rel
-
 on property:ro.data.large_tcp_window_size=true
     # Adjust socket buffer to enlarge TCP receive window for high bandwidth (e.g. DO-RevB)
     write /proc/sys/net/ipv4/tcp_adv_win_scale  2
-
-#on property:ro.boot.emmc=true
-#    start rmt_storage
-
-on property:ro.fuse_sdcard=true
-    start sdcard
-
-on property:ro.qc.bluetooth.stack=bluez
-    start dbus
 
 on property:ro.use_data_netmgrd=true
    start netmgrd
@@ -1049,15 +654,7 @@ on property:ro.use_data_netmgrd=false
     # netmgr not supported on specific target
     stop netmgrd
 
-on property:sys.ims.QMI_DAEMON_STATUS=1
-    start imsdatadaemon
-
-on property:sys.ims.DATA_DAEMON_STATUS=1
-    start ims_rtp_daemon
-
 on property:vold.decrypt=trigger_restart_framework
-    setprop ro.fuse_sdcard ${persist.fuse_sdcard}
-    start qcom-c_main-sh
     start config_bluetooth
 
 on property:wlan.driver.ath=0
@@ -1065,7 +662,3 @@ on property:wlan.driver.ath=0
 
 on property:service.adb.root=1
     write /sys/class/android_usb/android0/restart_adbd 1
-
-# This will make sure that sdcard service starts as late_start.
-on nonencrypted
-    setprop ro.fuse_sdcard ${persist.fuse_sdcard}

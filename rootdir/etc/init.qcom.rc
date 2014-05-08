@@ -141,16 +141,6 @@ on fs
     # QSEE secure application : keymaster
     exec /system/bin/sh /init.qcom.firmware_links.sh /system/vendor/firmware /vendor/firmware "keymaster.*"
 
-    # exfat
-    insmod /system/lib/modules/texfat.ko
-
-    # Load Mocana FIPS module. Add here since it can make sure system is mounted
-        insmod /system/lib/modules/moc_platform_mod.ko
-        insmod /system/lib/modules/moc_crypto.ko
-        insmod /system/lib/modules/dm-crypt.ko
-    # Load ecryptfs module
-    insmod /system/lib/modules/ecryptfs.ko
-
 # msm specific files that need to be created on /data
 on post-fs-data
     mkdir /data/tombstones 0771 system system
@@ -286,7 +276,6 @@ on boot
     chmod 0755 /system/bin/ip
 
     start imsqmidaemon
-    insmod /system/lib/modules/adsprpc.ko
 
     chown system system /sys/class/leds/green/brightness
     chown system system /sys/class/leds/green/blink

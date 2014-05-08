@@ -36,7 +36,6 @@ PRODUCT_PACKAGES += \
     fstab.qcom \
     init.qcom.post_boot.sh \
     init.qcom.rc \
-    init.qcom.ssr.sh \
     init.qcom.usb.rc \
     init.qcom.wifi.sh \
     ueventd.qcom.rc

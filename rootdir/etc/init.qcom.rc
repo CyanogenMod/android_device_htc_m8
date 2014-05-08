@@ -216,27 +216,15 @@ on boot
     write /sys/devices/system/cpu/cpu3/online 1
     write /sys/module/msm_thermal/core_control/enabled 1
 
-    # 4.3+ requires this
-    chmod 0644 /proc/cmdline
+    # bluetooth
+    chown bluetooth bluetooth /sys/module/hci_smd/parameters/hcismd_set
+    chmod 0660 /sys/module/hci_smd/parameters/hcismd_set
 
-    chown bluetooth bluetooth /sys/module/bluetooth_power/parameters/power
     chown bluetooth bluetooth /sys/class/rfkill/rfkill0/type
     chown bluetooth bluetooth /sys/class/rfkill/rfkill0/state
-    chown bluetooth bluetooth /proc/bluetooth/sleep/proto
-    chown bluetooth bluetooth /sys/module/hci_uart/parameters/ath_lpm
-    chown bluetooth bluetooth /sys/module/hci_uart/parameters/ath_btwrite
-    chown system system /sys/module/sco/parameters/disable_esco
-    chown bluetooth bluetooth /sys/module/hci_smd/parameters/hcismd_set
-    chmod 0660 /sys/module/bluetooth_power/parameters/power
-    chmod 0660 /sys/module/hci_smd/parameters/hcismd_set
     chmod 0660 /sys/class/rfkill/rfkill0/state
-    chmod 0660 /proc/bluetooth/sleep/proto
-    chmod 0660 /sys/module/hci_uart/parameters/ath_lpm
-    chmod 0660 /sys/module/hci_uart/parameters/ath_btwrite
-    chown bluetooth bluetooth /sys/devices/platform/msm_serial_hs.0/clock
-    chmod 0660 /sys/devices/platform/msm_serial_hs.0/clock
 
-    #Create QMUX deamon socket area
+    # Create QMUX deamon socket area
     mkdir /dev/socket/qmux_radio 0770 radio radio
     mkdir /dev/socket/qmux_audio 0770 media audio
     mkdir /dev/socket/qmux_bluetooth 0770 bluetooth bluetooth
@@ -277,22 +265,17 @@ on boot
     chown system graphics /sys/class/graphics/fb1/hpd
     chown system graphics /sys/class/graphics/fb1/vendor_name
     chown system graphics /sys/class/graphics/fb1/product_description
-    chmod 0664 /sys/devices/virtual/graphics/fb1/hpd
-    chmod 0664 /sys/devices/virtual/graphics/fb1/vendor_name
-    chmod 0664 /sys/devices/virtual/graphics/fb1/product_description
-
     chmod 0664 /sys/class/graphics/fb1/hpd
     chmod 0664 /sys/class/graphics/fb1/vendor_name
     chmod 0664 /sys/class/graphics/fb1/product_description
 
+    chmod 0664 /sys/devices/virtual/graphics/fb1/hpd
+    chmod 0664 /sys/devices/virtual/graphics/fb1/vendor_name
+    chmod 0664 /sys/devices/virtual/graphics/fb1/product_description
+
     # create symlink for fb1 as HDMI
     symlink /sys/class/graphics/fb1 /dev/graphics/hdmi
 #SSD_HDMI end
-
-    chmod 0444 /sys/devices/platform/msm_hsusb/gadget/usb_state
-
-    #For bridgemgr daemon to inform the USB driver of the correct transport
-    chown radio radio /sys/class/android_usb/f_rmnet_smd_sdio/transport
 
     #To allow interfaces to get v6 address when tethering is enabled
     write /proc/sys/net/ipv6/conf/rmnet0/accept_ra 2
@@ -449,12 +432,6 @@ service irsc_util /system/bin/logwrapper /system/bin/irsc_util "/etc/sec_config"
     user root
     oneshot
 
-service lowi-server /system/bin/lowi-server
-    class late_start
-    user gps
-    group gps net_admin wifi inet qcom_diag
-    disabled
-
 service map0 /system/bin/sdptool add --handle=0x1ff16 --channel=16 MAS0
     user bluetooth
     group bluetooth net_bt_admin
@@ -558,9 +535,6 @@ on property:bluetooth.hciattach=true
 on property:bluetooth.hciattach=false
     setprop bluetooth.status off
 
-on property:bluetooth.isEnabled=true
-    write /sys/class/bluetooth/hci0/idle_timeout 7000
-
 on property:bluetooth.sap.status=running
     start bt-sap
 
@@ -579,9 +553,6 @@ on property:init.svc.bootanim=stopped
     # Overwrite ActivityManager's low memory killer settings
     write /sys/module/lowmemorykiller/parameters/adj "2,4,7,8,9,12"
     write /sys/module/lowmemorykiller/parameters/minfree "15360,18432,21504,23040,24576,30720"
-
-on property:init.svc.surfaceflinger=stopped
-    stop hdmid
 
 on property:init.svc.thermald=stopped
     write /sys/power/pnpmgr/thermal/thermal_final 9999999

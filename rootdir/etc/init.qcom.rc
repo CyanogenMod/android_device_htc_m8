@@ -26,7 +26,6 @@
 #
 
 # Not include QCOM USB combinations
-
 import init.qcom.usb.rc
 
 on early-init
@@ -133,20 +132,170 @@ on init
     chmod 0220 /sys/class/power_supply/battery/disable_limit_chg
 # HTC SSD Battery - END
 
+on fs
+    mount_all fstab.qcom
+
+    # Keeping following partitions outside fstab file. As user may not have
+    # these partition flashed on the device. Failure to mount any partition in fstab file
+    # results in failure to launch late-start class.
+
+    mkdir /devlog 0700 root root
+    wait /dev/block/platform/msm_sdcc.1/by-name/devlog
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/devlog /devlog nosuid nodev barrier=1,errors=continue
+
+    mkdir /fataldevlog 0700 root root
+    wait /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
+
+    mkdir /ramdump 0700 root root
+    wait /dev/block/platform/msm_sdcc.1/by-name/reserve
+    mount vfat emmc@reserve /ramdump rw
+
+    # mount carrier partition
+    mkdir /carrier 0770 system carrier
+    wait /dev/block/platform/msm_sdcc.1/by-name/carrier
+    mount ext4 emmc@carrier /carrier nosuid nodev noatime barrier=1,grpid
+
+    # Mount radio image and link to /vendor/firmware
+    mkdir /firmware/radio 0771 system system
+    wait /dev/block/platform/msm_sdcc.1/by-name/radio
+    mount vfat /dev/block/platform/msm_sdcc.1/by-name/radio /firmware/radio ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
+    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/radio /vendor/firmware "modem* mba*"
+
+    # Mount adsp image and link to /vendor/firmware
+    mkdir /firmware/adsp 0771 system system
+    wait /dev/block/platform/msm_sdcc.1/by-name/adsp
+    mount vfat /dev/block/platform/msm_sdcc.1/by-name/adsp /firmware/adsp ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
+    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/adsp/image /vendor/firmware "adsp*"
+
+    # Mount wcnss image and link to /vendor/firmware
+    mkdir /firmware/wcnss 0771 system system
+    wait /dev/block/platform/msm_sdcc.1/by-name/wcnss
+    mount vfat /dev/block/platform/msm_sdcc.1/by-name/wcnss /firmware/wcnss ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
+    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/wcnss /vendor/firmware "wcnss*"
+
+    # QSEE secure application : keymaster
+    exec /system/bin/sh /init.qcom.firmware_links.sh /system/vendor/firmware /vendor/firmware "keymaster.*"
+
+    mkdir /custdata 0771 system system
+    wait /dev/block/platform/msm_sdcc.1/by-name/custdata
+    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/custdata /custdata nosuid nodev barrier=1
+
+    # Link vendor/lib by QCT original design
+    symlink /system/vendor/lib /vendor/lib
+
+    # exfat
+    insmod /system/lib/modules/texfat.ko
+
+    # Load Mocana FIPS module. Add here since it can make sure system is mounted
+        insmod /system/lib/modules/moc_platform_mod.ko
+        insmod /system/lib/modules/moc_crypto.ko
+        insmod /system/lib/modules/dm-crypt.ko
+    # Load ecryptfs module
+    insmod /system/lib/modules/ecryptfs.ko
+
 on post-fs
     chown system carrier /carrier
     chmod 0770 /carrier
 
+# msm specific files that need to be created on /data
+on post-fs-data
+    mkdir /data/tombstones 0771 system system
+    symlink /data/tombstones /tombstones
+    mkdir /tombstones/modem 0771 system system
+    mkdir /tombstones/lpass 0771 system system
+    mkdir /tombstones/wcnss 0771 system system
+    mkdir /tombstones/dsps 0771 system system
+
+    # permissions for NFC
+    chmod 0600 /dev/pn544
+    chown nfc nfc /dev/pn544
+    chown nfc nfc /sys/class/NFC_sensor/comn/nxp_uicc_swp
+    chmod 0664 /sys/class/NFC_sensor/comn/nxp_uicc_swp
+    setprop debug.nfc.fw_download "true"
+    setprop debug.nfc.fw_boot_download "false"
+
+    # we will remap this as /mnt/sdcard with the sdcard fuse tool
+    mkdir /data/media 0770 media_rw media_rw
+    setprop ro.crypto.fuse_sdcard true
+
+    mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
+
+    # Create the directories used by the Wireless subsystem
+    mkdir /data/misc/wifi 0771 wifi wifi
+    mkdir /data/misc/wifi/hostapd 0770 wifi wifi
+    mkdir /data/misc/wifi/sockets 0770 wifi wifi
+    mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
+    mkdir /data/misc/dhcp 0770 dhcp dhcp
+    chown dhcp dhcp /data/misc/dhcp
+
+    # Create the directory used by CnE subsystem
+    mkdir /data/connectivity 0771 system system
+    chown system system /data/connectivity
+
+    # Create directory used by audio subsystem
+    mkdir /data/misc/audio 0770 audio audio
+
+    # Mounting of persist is moved to 'on emmc-fs' and 'on fs' sections
+    # We chown/chmod /persist again so because mount is run as root + defaults
+    chown system system /persist
+    chmod 0771 /persist
+    chmod 0664 /sys/devices/platform/msm_sdcc.1/polling
+    chmod 0664 /sys/devices/platform/msm_sdcc.2/polling
+    chmod 0664 /sys/devices/platform/msm_sdcc.3/polling
+    chmod 0664 /sys/devices/platform/msm_sdcc.4/polling
+
+    # Chown polling nodes as needed from UI running on system server
+    chown system system /sys/devices/platform/msm_sdcc.1/polling
+    chown system system /sys/devices/platform/msm_sdcc.2/polling
+    chown system system /sys/devices/platform/msm_sdcc.3/polling
+    chown system system /sys/devices/platform/msm_sdcc.4/polling
+
+    #Create the symlink to qcn wpa_supplicant folder for ar6000 wpa_supplicant
+    mkdir /data/system 0775 system system
+    #symlink /data/misc/wifi/wpa_supplicant /data/system/wpa_supplicant
+
+    #Create directories for gpsone_daemon services
+    mkdir /data/misc/gpsone_d 0770 system gps
+
+    #Create directories for QuIPS
+    mkdir /data/misc/quipc 0770 gps system
+
+    #Create directories for Location services
+    mkdir /data/misc/location 0770 gps gps
+    mkdir /data/misc/location/mq 0770 gps gps
+    mkdir /data/misc/location/xtwifi 0770 gps gps
+
+    #Create directory from IMS services
+    mkdir /data/shared 0755 system system
+
+    #Create directory for FOTA
+    mkdir /data/fota 0771 system system
+
+    #Create directory for hostapd
+    mkdir /data/hostapd 0770 system wifi
+
+    # Create /data/time folder for time-services
+    mkdir /data/time/ 0700 system system
+
+    mkdir /data/audio/ 0775 media audio
+    # Enable the setgid bit on the directory
+    chmod 2775 /data/audio
+
+    mkdir /data/misc/radio 0770 system radio
+    mkdir /data/misc/sms 0770 system radio
+
+    setprop vold.post_fs_data_done 1
+
+    #Create a folder for SRS to be able to create a usercfg file
+    mkdir /data/data/media 0770 media media
+
 on early-boot
     # set RLIMIT_MEMLOCK to 64MB
     setrlimit 8 67108864 67108864
-    # Allow subsystem (modem etc) debugging
-    # write /sys/module/subsystem_restart/parameters/enable_debug ${persist.sys.ssr.enable_debug}
-    # exec /system/bin/sh /init.qcom.syspart_fixup.sh ${ro.board.platform} ${ro.serialno}
     exec /system/bin/sh /init.qcom.wifi.sh msm8974 123456789012
 
 on boot
-
     # 4.3+ requires this
     chmod 0644 /proc/cmdline
 
@@ -277,160 +426,6 @@ on boot
 # load ADSP
     write /sys/kernel/boot_adsp/boot 1
     exec /system/bin/sh /init.htc.audio.sh
-
-# msm specific files that need to be created on /data
-on post-fs-data
-    mkdir /data/tombstones 0771 system system
-    symlink /data/tombstones /tombstones
-    mkdir /tombstones/modem 0771 system system
-    mkdir /tombstones/lpass 0771 system system
-    mkdir /tombstones/wcnss 0771 system system
-    mkdir /tombstones/dsps 0771 system system
-
-    # permissions for NFC
-    chmod 0600 /dev/pn544
-    chown nfc nfc /dev/pn544
-    chown nfc nfc /sys/class/NFC_sensor/comn/nxp_uicc_swp
-    chmod 0664 /sys/class/NFC_sensor/comn/nxp_uicc_swp
-	setprop debug.nfc.fw_download "true"
-	setprop debug.nfc.fw_boot_download "false"
-
-    # we will remap this as /mnt/sdcard with the sdcard fuse tool
-    mkdir /data/media 0770 media_rw media_rw
-    setprop ro.crypto.fuse_sdcard true
-
-    mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
-
-    # Create the directories used by the Wireless subsystem
-    mkdir /data/misc/wifi 0771 wifi wifi
-    mkdir /data/misc/wifi/hostapd 0770 wifi wifi
-    mkdir /data/misc/wifi/sockets 0770 wifi wifi
-    mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
-    mkdir /data/misc/dhcp 0770 dhcp dhcp
-    chown dhcp dhcp /data/misc/dhcp
-
-    # Create the directory used by CnE subsystem
-    mkdir /data/connectivity 0771 system system
-    chown system system /data/connectivity
-
-    # Create directory used by audio subsystem
-    mkdir /data/misc/audio 0770 audio audio
-
-    # Mounting of persist is moved to 'on emmc-fs' and 'on fs' sections
-    # We chown/chmod /persist again so because mount is run as root + defaults
-    chown system system /persist
-    chmod 0771 /persist
-    chmod 0664 /sys/devices/platform/msm_sdcc.1/polling
-    chmod 0664 /sys/devices/platform/msm_sdcc.2/polling
-    chmod 0664 /sys/devices/platform/msm_sdcc.3/polling
-    chmod 0664 /sys/devices/platform/msm_sdcc.4/polling
-
-    # Chown polling nodes as needed from UI running on system server
-    chown system system /sys/devices/platform/msm_sdcc.1/polling
-    chown system system /sys/devices/platform/msm_sdcc.2/polling
-    chown system system /sys/devices/platform/msm_sdcc.3/polling
-    chown system system /sys/devices/platform/msm_sdcc.4/polling
-
-    #Create the symlink to qcn wpa_supplicant folder for ar6000 wpa_supplicant
-    mkdir /data/system 0775 system system
-    #symlink /data/misc/wifi/wpa_supplicant /data/system/wpa_supplicant
-
-    #Create directories for gpsone_daemon services
-    mkdir /data/misc/gpsone_d 0770 system gps
-
-    #Create directories for QuIPS
-    mkdir /data/misc/quipc 0770 gps system
-
-    #Create directories for Location services
-    mkdir /data/misc/location 0770 gps gps
-    mkdir /data/misc/location/mq 0770 gps gps
-    mkdir /data/misc/location/xtwifi 0770 gps gps
-
-    #Create directory from IMS services
-    mkdir /data/shared 0755 system system
-
-    #Create directory for FOTA
-    mkdir /data/fota 0771 system system
-
-    #Create directory for hostapd
-    mkdir /data/hostapd 0770 system wifi
-
-    # Create /data/time folder for time-services
-    mkdir /data/time/ 0700 system system
-
-    mkdir /data/audio/ 0775 media audio
-    # Enable the setgid bit on the directory
-    chmod 2775 /data/audio
-
-    mkdir /data/misc/radio 0770 system radio
-    mkdir /data/misc/sms 0770 system radio
-
-    setprop vold.post_fs_data_done 1
-
-    #Create a folder for SRS to be able to create a usercfg file
-    mkdir /data/data/media 0770 media media
-
-on fs
-    mount_all fstab.qcom
-
-    # Keeping following partitions outside fstab file. As user may not have
-    # these partition flashed on the device. Failure to mount any partition in fstab file
-    # results in failure to launch late-start class.
-
-    mkdir /devlog 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/devlog
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/devlog /devlog nosuid nodev barrier=1,errors=continue
-
-    mkdir /fataldevlog 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
-
-    mkdir /ramdump 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/reserve
-    mount vfat emmc@reserve /ramdump rw
-
-    # mount carrier partition
-    mkdir /carrier 0770 system carrier
-    wait /dev/block/platform/msm_sdcc.1/by-name/carrier
-    mount ext4 emmc@carrier /carrier nosuid nodev noatime barrier=1,grpid
-
-    # Mount radio image and link to /vendor/firmware
-    mkdir /firmware/radio 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/radio
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/radio /firmware/radio ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/radio /vendor/firmware "modem* mba*"
-
-    # Mount adsp image and link to /vendor/firmware
-    mkdir /firmware/adsp 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/adsp
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/adsp /firmware/adsp ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/adsp/image /vendor/firmware "adsp*"
-
-    # Mount wcnss image and link to /vendor/firmware
-    mkdir /firmware/wcnss 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/wcnss
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/wcnss /firmware/wcnss ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
-    exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/wcnss /vendor/firmware "wcnss*"
-
-    # QSEE secure application : keymaster
-    exec /system/bin/sh /init.qcom.firmware_links.sh /system/vendor/firmware /vendor/firmware "keymaster.*"
-
-    mkdir /custdata 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/custdata
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/custdata /custdata nosuid nodev barrier=1
-
-    # Link vendor/lib by QCT original design
-    symlink /system/vendor/lib /vendor/lib
-
-    # exfat
-    insmod /system/lib/modules/texfat.ko
-
-    # Load Mocana FIPS module. Add here since it can make sure system is mounted
-        insmod /system/lib/modules/moc_platform_mod.ko
-        insmod /system/lib/modules/moc_crypto.ko
-        insmod /system/lib/modules/dm-crypt.ko
-    # Load ecryptfs module
-    insmod /system/lib/modules/ecryptfs.ko
 
 ## Service start here
 service adsprpcd /system/bin/adsprpcd

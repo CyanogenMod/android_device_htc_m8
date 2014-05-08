@@ -26,7 +26,12 @@
 #
 
 # the DIAG device node is not world writable/readable.
-/dev/diag                 0660   radio      qcom_diag
+/dev/diag                 0660   radio      radio
+/dev/diag_mdm             0660   radio      radio
+/dev/htcdiag              0660   radio      radio
+/dev/diag_arm9            0660   radio      radio
+/dev/btdiag               0660   radio      radio
+/dev/diag_qsc             0660   radio      radio
 
 /dev/genlock              0666   system     system
 /dev/kgsl                 0666   system     system

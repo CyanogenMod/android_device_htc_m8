@@ -31,10 +31,8 @@ import init.qcom.usb.rc
 on early-init
     write /sys/block/mmcblk0/queue/scheduler noop
 
-    mkdir /firmware 0771 system system
-    mkdir /vendor 0771 system system
-    mkdir /vendor/firmware 0771 system system
     mount debugfs debugfs /sys/kernel/debug
+    chown system system /sys/kernel/debug/kgsl/proc
 
 on init
     # Set permissions for persist partition
@@ -83,12 +81,6 @@ on init
     chown system camera /dev/rawchip0
     chmod 0660 /dev/rawchip0
 
-    # HTC Embedded Log
-    chown root root /devlog
-    chmod 0700 /devlog
-    chown root root /fataldevlog
-    chmod 0700 /fataldevlog
-
 # init PnPMgr node
     chmod 664 /sys/power/pnpmgr/apps/media_mode
     chown media system /sys/power/pnpmgr/apps/media_mode
@@ -133,56 +125,35 @@ on init
 # HTC SSD Battery - END
 
 on fs
-    mount_all fstab.qcom
-
-    # Keeping following partitions outside fstab file. As user may not have
-    # these partition flashed on the device. Failure to mount any partition in fstab file
-    # results in failure to launch late-start class.
-
     mkdir /devlog 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/devlog
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/devlog /devlog nosuid nodev barrier=1,errors=continue
-
     mkdir /fataldevlog 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/fataldevlog
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/fataldevlog /fataldevlog nosuid nodev barrier=1,errors=continue
-
     mkdir /ramdump 0700 root root
-    wait /dev/block/platform/msm_sdcc.1/by-name/reserve
-    mount vfat emmc@reserve /ramdump rw
-
-    # mount carrier partition
     mkdir /carrier 0770 system carrier
-    wait /dev/block/platform/msm_sdcc.1/by-name/carrier
-    mount ext4 emmc@carrier /carrier nosuid nodev noatime barrier=1,grpid
+    mkdir /custdata 0771 system system
+
+    mkdir /firmware 0771 system system
+    mkdir /firmware/radio 0771 system system
+    mkdir /firmware/adsp 0771 system system
+    mkdir /firmware/wcnss 0771 system system
+    mkdir /vendor 0771 system system
+    mkdir /vendor/firmware 0771 system system
+
+    # Link vendor/lib by QCT original design
+    symlink /system/vendor/lib /vendor/lib
+
+    mount_all /fstab.qcom
 
     # Mount radio image and link to /vendor/firmware
-    mkdir /firmware/radio 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/radio
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/radio /firmware/radio ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
     exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/radio /vendor/firmware "modem* mba*"
 
     # Mount adsp image and link to /vendor/firmware
-    mkdir /firmware/adsp 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/adsp
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/adsp /firmware/adsp ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
     exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/adsp/image /vendor/firmware "adsp*"
 
     # Mount wcnss image and link to /vendor/firmware
-    mkdir /firmware/wcnss 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/wcnss
-    mount vfat /dev/block/platform/msm_sdcc.1/by-name/wcnss /firmware/wcnss ro shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
     exec /system/bin/sh /init.qcom.firmware_links.sh /firmware/wcnss /vendor/firmware "wcnss*"
 
     # QSEE secure application : keymaster
     exec /system/bin/sh /init.qcom.firmware_links.sh /system/vendor/firmware /vendor/firmware "keymaster.*"
-
-    mkdir /custdata 0771 system system
-    wait /dev/block/platform/msm_sdcc.1/by-name/custdata
-    mount ext4 /dev/block/platform/msm_sdcc.1/by-name/custdata /custdata nosuid nodev barrier=1
-
-    # Link vendor/lib by QCT original design
-    symlink /system/vendor/lib /vendor/lib
 
     # exfat
     insmod /system/lib/modules/texfat.ko
@@ -193,10 +164,6 @@ on fs
         insmod /system/lib/modules/dm-crypt.ko
     # Load ecryptfs module
     insmod /system/lib/modules/ecryptfs.ko
-
-on post-fs
-    chown system carrier /carrier
-    chmod 0770 /carrier
 
 # msm specific files that need to be created on /data
 on post-fs-data

@@ -1,5 +1,7 @@
 #!/sbin/sh
 
+set -e
+
 modelid=`getprop ro.boot.mid`
 
 case $modelid in
@@ -9,6 +11,5 @@ case $modelid in
 esac
 
 basedir="/system/blobs/$variant/"
-cd $basedir
-chmod 755 bin/*
-find . -type f | while read file; do ln -s $basedir$file /system/$file ; done
+chmod 755 $basedir/bin/*
+find $basedir -type f -print0 | while read file; do ln -s $basedir$file /system/$file ; done

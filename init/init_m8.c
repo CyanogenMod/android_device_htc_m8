@@ -63,15 +63,12 @@ void vendor_load_properties()
         property_set("ro.ril.vzw.feature", "1");
         property_set("ro.ril.oem.ecclist", "911,*911,#911");
         property_set("ro.ril.enable.a52", "0");
-        property_set("ro.ril.enable.a53", "1");
         property_set("ro.ril.enable.dtm", "0");
         property_set("ro.ril.gprsclass", "12");
         property_set("ro.ril.att.feature", "0");
         property_set("ro.ril.enable.managed.roaming", "1");
         property_set("ro.ril.oem.show.act", "0");
-        property_set("ro.ril.enable.gea3", "1");
         property_set("ro.ril.set.mtusize", "1428");
-        property_set("ro.ril.enable.r8fd", "1");
         property_set("ro.ril.air.enabled", "1");
         property_set("ro.ril.wp.feature", "1");
         property_set("ro.cdma.data_retry_config", "max_retries=infinite,0,0,60000,120000,480000,900000");
@@ -86,6 +83,8 @@ void vendor_load_properties()
         property_set("ro.build.product", "m8spr");
         property_set("telephony.sms.pseudo_multipart", "1");
         property_set("ro.ril.oem.ecclist", "911");
+        property_set("ro.ril.enable.pre_r8fd", "1");
+        property_set("ro.ril.enable.sdr", "0");
         property_set("ro.ril.set.mtusize", "1422");
     } else {
         /* m8 */

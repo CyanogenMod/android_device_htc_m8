@@ -388,6 +388,13 @@ service dhcpcd_wlan0 /system/bin/dhcpcd -ABKLG
     disabled
     oneshot
 
+service fm_dl /system/bin/setprop hw.fm.init 1
+    class late_start
+    user root
+    group system fm_radio
+    disabled
+    oneshot
+
 service ftp /system/bin/sdptool add --handle=0x1ff20 --psm=5257 --channel=20 FTP
     user bluetooth
     group bluetooth net_bt_admin

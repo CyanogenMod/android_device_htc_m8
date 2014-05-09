@@ -46,6 +46,7 @@ tunnel.audio.encode=true
 # AV
 media.aac_51_output_enabled=true
 mm.enable.smoothstreaming=true
+mm.enable.qcom_parser=37491
 
 # GPS
 persist.gps.qc_nlp_in_use=0

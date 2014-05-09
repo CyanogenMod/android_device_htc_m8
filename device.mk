@@ -95,6 +95,10 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/audio/soundimage/srsfx_trumedia_int.cfg:system/etc/soundimage/srsfx_trumedia_int.cfg \
     $(LOCAL_PATH)/audio/soundimage/srsmodels.lic:system/etc/soundimage/srsmodels.lic
 
+# Bluetooth
+PRODUCT_PACKAGES += \
+    hci_qcom_init
+
 # Camera
 PRODUCT_PACKAGES += \
     camera.msm8974

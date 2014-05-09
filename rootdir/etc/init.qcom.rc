@@ -37,13 +37,15 @@ on init
     # Set permissions for persist partition
     mkdir /persist 0771 system system
 
-    # See storage config details at http://source.android.com/tech/storage/
+    # See storage config details at http://source.android.com/devices/tech/storage/
     mkdir /mnt/shell/emulated 0700 shell shell
     mkdir /storage/emulated 0555 root root
-    mkdir /storage/sdcard1 0700 root root
+
     mkdir /mnt/media_rw/sdcard1 0700 media_rw media_rw
-    mkdir /storage/usbdisk 0700 root root
+    mkdir /storage/sdcard1 0700 root root
+
     mkdir /mnt/media_rw/usbdisk 0700 media_rw media_rw
+    mkdir /storage/usbdisk 0700 root root
 
     export EXTERNAL_STORAGE /storage/emulated/legacy
     export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
@@ -55,7 +57,9 @@ on init
     symlink /storage/emulated/legacy /mnt/sdcard
     symlink /storage/emulated/legacy /storage/sdcard0
     symlink /mnt/shell/emulated/0 /storage/emulated/legacy
-    symlink /storage/sdcard1 /sdcard1
+    symlink /storage/sdcard1 /external_sd
+    symlink /storage/sdcard1 /mnt/external_sd
+    symlink /storage/usbdisk /usbdisk
     symlink /storage/usbdisk /mnt/usbdisk
 
 # init PnPMgr node
@@ -121,6 +125,8 @@ on fs
 
     mount_all /fstab.qcom
 
+    setprop ro.crypto.fuse_sdcard true
+
 on post-fs-data
     mkdir /data/tombstones 0771 system system
     symlink /data/tombstones /tombstones
@@ -129,9 +135,8 @@ on post-fs-data
     mkdir /tombstones/wcnss 0771 system system
     mkdir /tombstones/dsps 0771 system system
 
-    # we will remap this as /mnt/sdcard with the sdcard fuse tool
+    # We will remap this as /mnt/sdcard with the sdcard fuse tool
     mkdir /data/media 0770 media_rw media_rw
-    setprop ro.crypto.fuse_sdcard true
 
     mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
 
@@ -379,18 +384,18 @@ service ftp_del /system/bin/sdptool del 0x1ff20
     disabled
     oneshot
 
+# FUSE
 service sdcard /system/bin/sdcard -u 1023 -g 1023 -l /data/media /mnt/shell/emulated
     class late_start
 
-# fusewrapped external sdcard daemon running as media_rw (1023)
 service fuse_sdcard1 /system/bin/sdcard -u 1023 -g 1023 -w 1023 -d /mnt/media_rw/sdcard1 /storage/sdcard1
     class late_start
     disabled
 
-# fusewrapped external sdcard daemon running as media_rw (1023)
-service fuse_usb /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usbdisk /storage/usbdisk
+service fuse_usbdisk /system/bin/sdcard -u 1023 -g 1023 -d /mnt/media_rw/usbdisk /storage/usbdisk
     class late_start
     disabled
+# End FUSE
 
 service hcheck /system/bin/hcheck
     class late_start

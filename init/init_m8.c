@@ -86,6 +86,11 @@ void vendor_load_properties()
         property_set("ro.build.product", "m8spr");
         property_set("telephony.sms.pseudo_multipart", "1");
         property_set("ro.ril.oem.ecclist", "911");
+        property_set("ro.ril.enable.a53", "1");
+        property_set("ro.ril.enable.gea3", "1");
+        property_set("ro.ril.enable.pre_r8fd=1", "1");
+        property_set("ro.ril.enable.r8fd=1", "1");
+        property_set("ro.ril.enable.sdr", "0");
         property_set("ro.ril.set.mtusize", "1422");
     } else {
         /* m8 */

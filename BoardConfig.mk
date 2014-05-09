@@ -32,6 +32,8 @@ TARGET_OTA_ASSERT_DEVICE := m8,m8wl,m8wlv,m8vzw,m8whl,m8spr
 
 BOARD_VENDOR := htc
 
+TARGET_SPECIFIC_HEADER_PATH := device/htc/m8/include
+
 # Bootloader
 TARGET_BOOTLOADER_BOARD_NAME := MSM8974
 TARGET_NO_BOOTLOADER := true

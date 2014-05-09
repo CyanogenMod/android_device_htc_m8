@@ -327,7 +327,7 @@ service audiod /system/bin/audiod
     group system
 
 service config_bluetooth /system/bin/sh /system/etc/init.qcom.bt.sh "onboot"
-    class core
+    class late_start
     user root
     oneshot
 
@@ -583,9 +583,6 @@ on property:ro.use_data_netmgrd=true
 on property:ro.use_data_netmgrd=false
     # netmgr not supported on specific target
     stop netmgrd
-
-on property:vold.decrypt=trigger_restart_framework
-    start config_bluetooth
 
 on property:wlan.driver.ath=0
     start wcnss-service

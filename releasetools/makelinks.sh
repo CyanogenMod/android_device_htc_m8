@@ -1,5 +1,7 @@
 #!/sbin/sh
 
+set -e
+
 modelid=`getprop ro.boot.mid`
 
 case $modelid in

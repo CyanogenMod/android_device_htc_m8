@@ -36,7 +36,6 @@ PRODUCT_PACKAGES += \
     fstab.qcom \
     init.qcom.rc \
     init.qcom.usb.rc \
-    init.qcom.wifi.sh \
     ueventd.qcom.rc
 
 # Qcom init scripts for /etc

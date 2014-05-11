@@ -31,6 +31,10 @@ TARGET_SCREEN_WIDTH := 1080
 PRODUCT_AAPT_CONFIG := hdpi xhdpi xxhdpi
 PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 
+# EasyAccessService - for gesture/tap-to-wake
+PRODUCT_PACKAGES += \
+    EasyAccessService
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \

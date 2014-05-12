@@ -1,3 +1,8 @@
+#!/bin/sh
+
+export DEVICE=m8
+export VENDOR=htc
+
 OUTDIR=vendor/$VENDOR/$DEVICE
 MAKEFILE=../../../$OUTDIR/$DEVICE-vendor-blobs.mk
 

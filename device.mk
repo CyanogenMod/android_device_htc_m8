@@ -180,10 +180,6 @@ PRODUCT_PACKAGES += \
     libstagefrighthw \
     libdashplayer
 
-# Pnpmgr
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/pnp.xml:system/etc/pnp.xml
-
 # Power
 PRODUCT_PACKAGES += \
     power.msm8974

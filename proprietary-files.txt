@@ -182,6 +182,7 @@ etc/tfa/voip.preset
 lib/hw/camera.vendor.msm8974.so
 lib/hw/consumerir.default.so
 lib/hw/gps.default.so
+lib/hw/keystore.msm8974.so
 lib/hw/sensors.msm8974.so
 lib/libalDE_REC.so
 lib/libalDE_SDE_TWO.so

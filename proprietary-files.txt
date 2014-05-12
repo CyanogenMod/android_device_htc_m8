@@ -122,6 +122,7 @@ etc/Headset_cal.acdb
 etc/hldm.bin
 etc/hltof.bin
 etc/hltrd.bin
+etc/pnp.bin
 etc/RT5501
 etc/sound_mfg_DMIC.txt
 etc/sound_mfg.txt

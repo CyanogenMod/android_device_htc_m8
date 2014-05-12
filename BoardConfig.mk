@@ -98,6 +98,9 @@ USE_OPENGL_RENDERER := true
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
 
+# Time services
+BOARD_USES_QC_TIME_SERVICES := true
+
 # NFC
 BOARD_NFC_HAL_SUFFIX := msm8974
 

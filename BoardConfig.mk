@@ -107,6 +107,9 @@ TARGET_POWERHAL_VARIANT := qcom
 # RIL
 BOARD_PROVIDES_LIBRIL := true
 
+# Time services
+BOARD_USES_QC_TIME_SERVICES := true
+
 # Enables Adreno RS driver
 OVERRIDE_RS_DRIVER := libRSDriver_adreno.so
 

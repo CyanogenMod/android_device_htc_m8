@@ -113,6 +113,9 @@ BOARD_PROVIDES_LIBRIL := true
 # Time services
 BOARD_USES_QC_TIME_SERVICES := true
 
+# RPC
+TARGET_NO_RPC := true
+
 # Wifi
 BOARD_HAS_QCOM_WLAN := true
 BOARD_WLAN_DEVICE := qcwcn

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -26,6 +26,7 @@ rm -rf $BASE/*
 
 if [ -f ../$DEVICE/proprietary-files.txt ]; then
   for FILE in `egrep -v '(^#|^$)' ../$DEVICE/proprietary-files.txt`; do
+    FILE=`echo ${FILE[0]} | sed -e "s/^-//g"`
     echo "Extracting /system/$FILE ..."
     DIR=`dirname $FILE`
     if [ ! -d $BASE/$DIR ]; then

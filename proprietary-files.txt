@@ -33,7 +33,6 @@ blobs/gsm/vendor/lib/libqmiservices.so
 blobs/gsm/vendor/lib/libqmi.so
 blobs/gsm/vendor/lib/libril-qc-qmi-1.so
 blobs/gsm/vendor/lib/libril-qcril-hook-oem.so
-blobs/gsm/vendor/lib/libtime_genoff.so
 blobs/spr/bin/netmgrd
 blobs/spr/bin/qmuxd
 blobs/spr/vendor/lib/libdiag.so
@@ -55,7 +54,6 @@ blobs/spr/vendor/lib/libqmiservices.so
 blobs/spr/vendor/lib/libqmi.so
 blobs/spr/vendor/lib/libril-qc-qmi-1.so
 blobs/spr/vendor/lib/libril-qcril-hook-oem.so
-blobs/spr/vendor/lib/libtime_genoff.so
 blobs/vzw/bin/netmgrd
 blobs/vzw/bin/qmuxd
 blobs/vzw/vendor/lib/libdiag.so
@@ -77,7 +75,6 @@ blobs/vzw/vendor/lib/libqmiservices.so
 blobs/vzw/vendor/lib/libqmi.so
 blobs/vzw/vendor/lib/libril-qc-qmi-1.so
 blobs/vzw/vendor/lib/libril-qcril-hook-oem.so
-blobs/vzw/vendor/lib/libtime_genoff.so
 etc/Bluetooth_cal.acdb
 etc/Bluetooth_cal_recovery.acdb
 etc/cir.img
@@ -352,6 +349,7 @@ vendor/lib/libsc-a3xx.so
 vendor/lib/libscve.so
 vendor/lib/libscve_stub.so
 vendor/lib/libssd.so
+-vendor/lib/libtime_genoff.so
 vendor/lib/libwvm.so
 vendor/lib/libWVStreamControlAPI_L1.so
 vendor/lib/rfsa/adsp/libdspCV_skel.so

@@ -50,7 +50,7 @@
 #permissions for CSVT
 /dev/smd11                0660   radio      radio
 
-/dev/radio0               0640   fm_radio   fm_radio
+/dev/radio0               0640   system     system
 /dev/rfcomm0              0660   bluetooth  bluetooth
 /dev/smdcntl0             0640   radio      radio
 /dev/smdcntl1             0640   radio      radio
@@ -169,7 +169,6 @@
 /dev/snd/pcmC0D0p         0660   system     audio
 /dev/snd/pcmC0D12p        0660   system     audio
 /dev/snd/pcmC0D2c         0660   media      media
-/dev/radio0               0640   fm_radio   fm_radio
 /dev/smd3                 0660   bluetooth  net_bt_stack
 /dev/smd2                 0660   bluetooth  net_bt_stack
 /dev/ttyHSL1              0660   system     system

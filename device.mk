@@ -107,8 +107,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     qcom.fmradio \
     libqcomfm_jni \
-    FM2 \
-    FMRecord
+    FM2
 
 # Graphics
 PRODUCT_PACKAGES += \

@@ -32,6 +32,7 @@ on early-init
     chown system system /sys/kernel/debug/kgsl/proc
     write /sys/block/mmcblk0/queue/scheduler noop
     write /sys/block/mmcblk0/bdi/read_ahead_kb 512
+    write /sys/block/mmcblk1/bdi/read_ahead_kb 512
 
 on init
     # Set permissions for persist partition

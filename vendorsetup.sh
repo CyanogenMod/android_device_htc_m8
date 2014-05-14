@@ -1,1 +1,1 @@
-add_lunch_combo carbon_m8-userdebug
+add_lunch_combo cm_m8-userdebug

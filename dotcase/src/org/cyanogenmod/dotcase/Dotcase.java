@@ -21,6 +21,7 @@
 package org.cyanogenmod.dotcase;
 
 import android.app.Activity;
+import android.app.INotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -29,8 +30,7 @@ import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.ServiceManager;
 import android.os.SystemClock;
-import android.util.Log;
-import android.telephony.TelephonyManager;
+import android.service.notification.StatusBarNotification;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -44,26 +44,27 @@ import java.io.FileReader;
 
 public class Dotcase extends Activity
 {
-    private static final String TAG = "Dotcase";
     private static final String COVER_NODE = "/sys/android_touch/cover";
     private final IntentFilter filter = new IntentFilter();
-    private ITelephony telephonyService;
     private GestureDetector mDetector;
     private PowerManager manager;
-    private Context mContext;
-    private volatile boolean running = true;
+    private static Context mContext;
+    private static boolean running = true;
 
-    public static final String ACTION_DONE_RINGING = "org.cyanogenmod.dotcase.DONE_RINGING";
-    public static final String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
-    public static final String ACTION_PHONE_RINGING = "org.cyanogenmod.dotcase.PHONE_RINGING";
-    public static final String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
+    public static boolean reset_timer = false;
 
-    public static final String NOTIFICATION_GMAIL = "org.cyanogenmod.dotcase.notification.GMAIL";
-    public static final String NOTIFICATION_HANGOUTS = "org.cyanogenmod.dotcase.notification.HANGOUTS";
-    public static final String NOTIFICATION_MISSED_CALL = "org.cyanogenmod.dotcase.notification.MISSED_CALL";
-    public static final String NOTIFICATION_GMAIL_CANCEL = "org.cyanogenmod.dotcase.notification.GMAIL_CANCEL";
-    public static final String NOTIFICATION_HANGOUTS_CANCEL = "org.cyanogenmod.dotcase.notification.HANGOUTS_CANCEL";
-    public static final String NOTIFICATION_MISSED_CALL_CANCEL = "org.cyanogenmod.dotcase.notification.MISSED_CALL_CANCEL";
+    public static boolean ringing = false;
+    public static int ringCounter = 0;
+    public static String phoneNumber = "";
+
+    public static boolean gmail = false;
+    public static boolean hangouts = false;
+    public static boolean twitter = false;
+    public static boolean missed_call = false;
+    public static boolean mms = false;
+    public static boolean voicemail = false;
+
+    public static boolean alarm_clock = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -72,7 +73,7 @@ public class Dotcase extends Activity
 
         mContext = this;
 
-        filter.addAction(Dotcase.ACTION_KILL_ACTIVITY);
+        filter.addAction(DotcaseConstants.ACTION_KILL_ACTIVITY);
         mContext.getApplicationContext().registerReceiver(receiver, filter);
 
         getWindow().addFlags(
@@ -113,6 +114,11 @@ public class Dotcase extends Activity
                     }
 
                     for (int i = 0; i <= timeout; i++) {
+                        if (reset_timer) {
+                            i = 0;
+                            reset_timer = false;
+                        }
+
                         if (!running) {
                             return;
                         }
@@ -134,10 +140,42 @@ public class Dotcase extends Activity
                         } catch (Exception ex) {}
 
                         Intent intent = new Intent();
-                        intent.setAction(Dotcase.ACTION_REDRAW);
+                        intent.setAction(DotcaseConstants.ACTION_REDRAW);
                         mContext.sendBroadcast(intent);
                     }
                     manager.goToSleep(SystemClock.uptimeMillis());
+                }
+            }
+        }
+    }
+
+    public static void checkNotifications() {
+        StatusBarNotification[] nots = null;
+        gmail = false;
+        hangouts = false;
+        twitter = false;
+        missed_call = false;
+        mms = false;
+        try {
+            INotificationManager mNoMan = INotificationManager.Stub.asInterface(
+                    ServiceManager.getService(Context.NOTIFICATION_SERVICE));
+            nots = mNoMan.getActiveNotifications(mContext.getPackageName());
+        } catch (Exception ex) {}
+        if (nots != null) {
+            for (StatusBarNotification not : nots) {
+                if (not.getPackageName().equals("com.google.android.gm") && !gmail) {
+                    gmail = true;
+                } else if (not.getPackageName().equals("com.google.android.talk") && !hangouts) {
+                    hangouts = true;
+                } else if (not.getPackageName().equals("com.twitter.android") && !twitter) {
+                    twitter = true;
+                } else if (not.getPackageName().equals("com.android.phone") && !missed_call) {
+                    missed_call = true;
+                } else if (not.getPackageName().equals("com.android.mms") && !mms) {
+                    mms = true;
+                } else if (not.getPackageName().equals("com.google.android.apps.googlevoice") && !voicemail) {
+                    // add other voicemail apps here (t-mo, vzw?, etc...)
+                    voicemail = true;
                 }
             }
         }
@@ -166,16 +204,36 @@ public class Dotcase extends Activity
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (Math.abs(distanceY) > 60) {
-                try {
-                    ITelephony telephonyService = ITelephony.Stub.asInterface(
-                                        ServiceManager.checkService(Context.TELEPHONY_SERVICE));
-                    if (distanceY < 60) {
-                        telephonyService.endCall();
-                    } else if (distanceY > 60) {
-                        telephonyService.answerRingingCall();
+                if (ringing) {
+                    try {
+                        ITelephony telephonyService = ITelephony.Stub.asInterface(
+                                ServiceManager.checkService(Context.TELEPHONY_SERVICE));
+                        if (distanceY < 60) {
+                            telephonyService.endCall();
+                        } else if (distanceY > 60) {
+                            telephonyService.answerRingingCall();
+                        }
+                    } catch (Exception ex) {
                     }
-                } catch (Exception ex) {}
+                } else if (alarm_clock) {
+                    Intent i = new Intent();
+                    if (distanceY < 60) {
+                        i.setAction("com.android.deskclock.ALARM_DISMISS");
+                        mContext.sendBroadcast(i);
+                        alarm_clock = false;
+                    } else if (distanceY > 60) {
+                        i.setAction("com.android.deskclock.ALARM_SNOOZE");
+                        mContext.sendBroadcast(i);
+                        alarm_clock = false;
+                    }
+                }
             }
+            return true;
+        }
+
+        @Override
+        public boolean onSingleTapConfirmed (MotionEvent e) {
+            reset_timer = true;
             return true;
         }
     }
@@ -183,7 +241,7 @@ public class Dotcase extends Activity
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (intent.getAction().equals(Dotcase.ACTION_KILL_ACTIVITY)) {
+            if (intent.getAction().equals(DotcaseConstants.ACTION_KILL_ACTIVITY)) {
                 try {
                     context.getApplicationContext().unregisterReceiver(receiver);
                 } catch (Exception ex) {}

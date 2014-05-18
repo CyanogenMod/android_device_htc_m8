@@ -26,15 +26,12 @@ import android.content.Intent;
 import android.provider.Settings;
 
 public class BootCompletedReceiver extends BroadcastReceiver {
-    private static final String TAG = "DotcaseBootCompletedReceiver";
-
     @Override
     public void onReceive(Context context, Intent intent) {
         Settings.Secure.putString(context.getContentResolver(),
                                   Settings.Secure.IMMERSIVE_MODE_CONFIRMATIONS,
                                   "org.cyanogenmod.dotcase");
 
-        CoverObserver coverObserver = new CoverObserver(context);
-        coverObserver.init();
+        new CoverObserver(context).init();
     }
 }

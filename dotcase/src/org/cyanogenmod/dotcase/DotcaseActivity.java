@@ -37,21 +37,31 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.View;
 import android.view.WindowManager;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+
 public class DotcaseActivity extends Activity
 {
     private static final String TAG = "DotcaseActivity";
+    private static final String COVER_NODE = "/sys/android_touch/cover";
     private final IntentFilter filter = new IntentFilter();
     private GestureDetectorCompat mDetector;
+    private PowerManager manager;
+    private Context mContext;
+    private volatile boolean running = true;
 
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
 
+        mContext = this;
+
         filter.addAction("org.cyanogenmod.dotcase.KILL_ACTIVITY");
-        this.getApplicationContext().registerReceiver(receiver, filter);
+        mContext.getApplicationContext().registerReceiver(receiver, filter);
 
         getWindow().addFlags(
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON|
                     WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED|
                     WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         getWindow().getDecorView().setSystemUiVisibility(
@@ -62,10 +72,57 @@ public class DotcaseActivity extends Activity
                     View.SYSTEM_UI_FLAG_FULLSCREEN |
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
 
-        final DrawView drawView = new DrawView(this);
+        final DrawView drawView = new DrawView(mContext);
         setContentView(drawView);
 
-        mDetector = new GestureDetectorCompat(this, new DotcaseGestureListener());
+        manager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+        mDetector = new GestureDetectorCompat(mContext, new DotcaseGestureListener());
+        running = true;
+        new Thread(new Service()).start();
+    }
+
+    class Service implements Runnable {
+        @Override
+        public void run() {
+            while (running) {
+                Intent batteryIntent = mContext.getApplicationContext().registerReceiver(null,
+                                             new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                int timeout;
+
+                if(batteryIntent.getIntExtra("plugged", -1) > 0) {
+                    timeout = 20;
+                } else {
+                    timeout = 10;
+                }
+
+                for (int i = 0; i <= timeout; i++) {
+                    try {
+                        BufferedReader br = new BufferedReader(new FileReader(COVER_NODE));
+                        String value = br.readLine();
+                        br.close();
+
+                        if (value.equals("0")) {
+                            finish();
+                            overridePendingTransition(0, 0);
+                            running = false;
+                        }
+                    } catch (Exception ex) {
+                        Log.e(TAG, ex.toString());
+                    }
+
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception ex) {
+                        Log.e(TAG, ex.toString());
+                    }
+
+                    Intent intent = new Intent();
+                    intent.setAction("org.cyanogenmod.dotcase.REDRAW");
+                    mContext.sendBroadcast(intent);
+                }
+                manager.goToSleep(SystemClock.uptimeMillis());
+            }
+        }
     }
 
     @Override
@@ -85,7 +142,6 @@ public class DotcaseActivity extends Activity
         public boolean onDoubleTap(MotionEvent event)
         {
             Log.d(TAG, "onDoubleTap event");
-            PowerManager manager = (PowerManager) getSystemService(Context.POWER_SERVICE);
             manager.goToSleep(SystemClock.uptimeMillis());
             return true;
         }

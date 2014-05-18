@@ -54,9 +54,58 @@ public class DrawView extends View {
     public void onDraw(Canvas canvas) {
         drawTime(canvas);
         drawBattery(canvas);
-
+        // TODO: kick off some sort of loop that will rotate between different notifications
+        // OR    new idea: smaller icons that will show based on notification status
+//        drawGmail(canvas);
+//        drawHangouts(canvas);
+//        drawWeather(canvas);
         filter.addAction("org.cyanogenmod.dotcase.REDRAW");
         mContext.getApplicationContext().registerReceiver(receiver, filter);
+    }
+
+    private void drawHangouts(Canvas canvas) {
+        int[][] hangoutsSprite = {
+                               {0, 3, 3, 3, 3, 3, 0},
+                               {3, 3, 1, 3, 1, 3, 3},
+                               {3, 3, 1, 3, 1, 3, 3},
+                               {0, 3, 3, 3, 3, 3, 0},
+                               {0, 0, 0, 3, 3, 0, 0},
+                               {0, 0, 0, 3, 0, 0, 0}};
+
+        dotcaseDrawSprite(hangoutsSprite, 10, 29, canvas);
+    }
+
+    private void drawGmail(Canvas canvas) {
+/* this was probably a bad idea....i'll leave it for now because it took me like 10 minutes to make lol
+        int[][] gmailSprite = {
+                               {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+                               {2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2},
+                               {2, 2, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2},
+                               {2, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
+                               {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};
+*/
+        int[][] gmailSprite = {
+                               {2, 1, 1, 1, 1, 1, 2},
+                               {2, 2, 1, 1, 1, 2, 2},
+                               {2, 1, 2, 1, 2, 1, 2},
+                               {2, 1, 1, 2, 1, 1, 2},
+                               {2, 1, 1, 1, 1, 1, 2},
+                               {2, 1, 1, 1, 1, 1, 2}};
+
+        dotcaseDrawSprite(gmailSprite, 1, 29, canvas);
     }
 
     private void drawBattery(Canvas canvas) {
@@ -70,60 +119,57 @@ public class DrawView extends View {
             level = rawlevel / scale;
         }
 
-        paint.setARGB(255, 255, 255, 255);
-        dotcaseDrawRect(1, 35, 25, 36, paint, canvas);   // top line
-        dotcaseDrawRect(24, 35, 25, 39, paint, canvas);  // upper right line
-        dotcaseDrawRect(25, 38, 26, 44, paint, canvas);  // nub right
-        dotcaseDrawRect(24, 43, 25, 47, paint, canvas);  // lower right line
-        dotcaseDrawRect(1, 46, 25, 47, paint, canvas);   // bottom line
-        dotcaseDrawRect(1, 35, 2, 47, paint, canvas);    // left line
+        dotcaseDrawRect(1, 35, 25, 36, 1, canvas);   // top line
+        dotcaseDrawRect(24, 35, 25, 39, 1, canvas);  // upper right line
+        dotcaseDrawRect(25, 38, 26, 44, 1, canvas);  // nub right
+        dotcaseDrawRect(24, 43, 25, 47, 1, canvas);  // lower right line
+        dotcaseDrawRect(1, 46, 25, 47, 1, canvas);   // bottom line
+        dotcaseDrawRect(1, 35, 2, 47, 1, canvas);    // left line
 
         // 4.34 percents per dot
         int fillDots = (int)Math.round((level*100)/4.34);
+        int color;
 
         if (level >= .50) {
-            paint.setARGB(255, 0, 255, 0);
+            color = 3;
         } else if (level >= .25) {
-            paint.setARGB(255, 255, 165, 0);
+            color = 5;
         } else {
-            paint.setARGB(255, 255, 0, 0);
+            color = 2;
         }
 
         for (int i = 0; i < fillDots; i++) {
             if (i == 22) {
-                dotcaseDrawRect(2 + i, 39, 3 + i, 43, paint, canvas);
+                dotcaseDrawRect(2 + i, 39, 3 + i, 43, color, canvas);
             } else {
-                dotcaseDrawRect(2 + i, 36, 3 + i, 46, paint, canvas);
+                dotcaseDrawRect(2 + i, 36, 3 + i, 46, color, canvas);
             }
         }
 
         if (plugged > 0) {
-
-            paint.setARGB(255, 0, 0, 0);
             int[][] blackSprite = {
-                               {0, 0, 0, 0, 1, 1, 0, 0},
-                               {0, 0, 0, 1, 0, 1, 0, 0},
-                               {0, 0, 1, 0, 0, 1, 0, 0},
-                               {0, 1, 0, 0, 0, 1, 0, 0},
-                               {1, 0, 0, 0, 0, 1, 1, 1},
-                               {1, 1, 1, 0, 0, 0, 0, 1},
-                               {0, 0, 1, 0, 0, 0, 1, 0},
-                               {0, 0, 1, 0, 0, 1, 0, 0},
-                               {0, 0, 1, 0, 1, 0, 0, 0},
-                               {0, 0, 1, 1, 0, 0, 0, 0}};
-            dotcaseDrawSprite(blackSprite, 9, 36, paint, canvas);
+                               {-1, -1, -1, -1,  0,  0, -1, -1},
+                               {-1, -1, -1,  0, -1,  0, -1, -1},
+                               {-1, -1,  0, -1, -1,  0, -1, -1},
+                               {-1,  0, -1, -1, -1,  0, -1, -1},
+                               { 0, -1, -1, -1, -1,  0,  0,  0},
+                               { 0,  0,  0, -1, -1, -1, -1,  0},
+                               {-1, -1,  0, -1, -1, -1,  0, -1},
+                               {-1, -1,  0, -1, -1,  0, -1, -1},
+                               {-1, -1,  0, -1,  0, -1, -1, -1},
+                               {-1, -1,  0,  0, -1, -1, -1, -1}};
+            dotcaseDrawSprite(blackSprite, 9, 36, canvas);
 
-            paint.setARGB(255, 255, 255, 0);
             int[][] lightningSprite = {
-                               {0, 0, 0, 1, 0, 0},
-                               {0, 0, 1, 1, 0, 0},
-                               {0, 1, 1, 1, 0, 0},
-                               {1, 1, 1, 1, 0, 0},
-                               {0, 0, 1, 1, 1, 1},
-                               {0, 0, 1, 1, 1, 0},
-                               {0, 0, 1, 1, 0, 0},
-                               {0, 0, 1, 0, 0, 0}};
-            dotcaseDrawSprite(lightningSprite, 10, 37, paint, canvas);
+                               {-1, -1, -1,  7, -1, -1},
+                               {-1, -1,  7,  7, -1, -1},
+                               {-1,  7,  7,  7, -1, -1},
+                               { 7,  7,  7,  7, -1, -1},
+                               {-1, -1,  7,  7,  7,  7},
+                               {-1, -1,  7,  7,  7, -1},
+                               {-1, -1,  7,  7, -1, -1},
+                               {-1, -1,  7, -1, -1, -1}};
+            dotcaseDrawSprite(lightningSprite, 10, 37, canvas);
         }
     }
 
@@ -158,9 +204,8 @@ public class DrawView extends View {
             starter = 0;
         }
 
-        paint.setARGB(255, 51, 181, 229);
-        dotcaseDrawPixel(starter + 10, 9, paint, canvas);
-        dotcaseDrawPixel(starter + 10, 12, paint, canvas);
+        dotcaseDrawPixel(starter + 10, 9, 9, canvas);
+        dotcaseDrawPixel(starter + 10, 12, 9, canvas);
 
         for (int i = 0; i < time.length(); i++) {
             sprite = getSprite(time.charAt(i));
@@ -177,7 +222,7 @@ public class DrawView extends View {
                 x = starter + 17;
             }
 
-            dotcaseDrawSprite(sprite, x, y, paint, canvas);
+            dotcaseDrawSprite(sprite, x, y, canvas);
 
         }
     }
@@ -186,147 +231,147 @@ public class DrawView extends View {
         int[][] sprite;
         switch (c) {
             case '0': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             case '1': sprite = new int[][]
-                               {{0, 0, 1, 0},
-                                {0, 1, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 1, 1, 1}};
+                               {{-1, -1,  9, -1},
+                                {-1,  9,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1,  9,  9,  9}};
                       break;
             case '2': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 1, 0},
-                                {0, 0, 1, 0},
-                                {0, 1, 0, 0},
-                                {0, 1, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 1, 1, 1}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1,  9, -1},
+                                {-1, -1,  9, -1},
+                                {-1,  9, -1, -1},
+                                {-1,  9, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9,  9,  9,  9}};
                       break;
             case '3': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 1, 1, 0},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1,  9,  9, -1},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             case '4': sprite = new int[][]
-                               {{1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 1, 1, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1}};
+                               {{ 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9,  9,  9,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9}};
                       break;
             case '5': sprite = new int[][]
-                               {{1, 1, 1, 1},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 1, 1, 0},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{ 9,  9,  9,  9},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9,  9,  9, -1},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             case '6': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 0, 0, 0},
-                                {1, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9, -1, -1, -1},
+                                { 9,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             case '7': sprite = new int[][]
-                               {{1, 1, 1, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1}};
+                               {{ 9,  9,  9,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9}};
                       break;
             case '8': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             case '9': sprite = new int[][]
-                               {{0, 1, 1, 0},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {0, 0, 0, 1},
-                                {1, 0, 0, 1},
-                                {0, 1, 1, 0}};
+                               {{-1,  9,  9, -1},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                {-1, -1, -1,  9},
+                                { 9, -1, -1,  9},
+                                {-1,  9,  9, -1}};
                       break;
             default: sprite = new int[][]
-                               {{0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0},
-                                {0, 0, 0, 0}};
+                               {{-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1},
+                                {-1, -1, -1, -1}};
                      break;
         }
 
@@ -341,22 +386,68 @@ public class DrawView extends View {
                         paint);
     }
 
-    private void dotcaseDrawRect(int left, int top, int right, int bottom, Paint paint, Canvas canvas) {
+    private void dotcaseDrawPixel(int x, int y, int color, Canvas canvas) {
+        dotcaseDrawPixel(x, y, getPaintFromNumber(color), canvas);
+    }
+
+    private void dotcaseDrawRect(int left, int top, int right, int bottom, int color, Canvas canvas) {
         for (int x=left; x < right; x++) {
             for (int y=top; y < bottom; y++) {
-                dotcaseDrawPixel(x, y, paint, canvas);
+                dotcaseDrawPixel(x, y, getPaintFromNumber(color), canvas);
             }
         }
     }
 
-    private void dotcaseDrawSprite(int[][] sprite, int x, int y, Paint paint, Canvas canvas) {
+    private void dotcaseDrawSprite(int[][] sprite, int x, int y, Canvas canvas) {
         for (int i=0; i < sprite.length; i++) {
             for (int j=0; j < sprite[0].length; j++) {
-                if(sprite[i][j] == 1) {
-                    dotcaseDrawPixel(x + j, y + i, paint, canvas);
-                }
+                dotcaseDrawPixel(x + j, y + i, getPaintFromNumber(sprite[i][j]), canvas);
             }
         }
+    }
+
+    private Paint getPaintFromNumber(int color) {
+        Paint p = new Paint();
+        switch (color) {
+            case -1: // transparent
+                     paint.setARGB(0, 0, 0, 0);
+                     break;
+            case 0:  // black
+                     paint.setARGB(255, 0, 0, 0);
+                     break;
+            case 1:  // white
+                     paint.setARGB(255, 255, 255, 255);
+                     break;
+            case 2:  // red
+                     paint.setARGB(255, 255, 0, 0);
+                     break;
+            case 3:  // green
+                     paint.setARGB(255, 0, 255, 0);
+                     break;
+            case 4:  // blue
+                     paint.setARGB(255, 0, 0, 255);
+                     break;
+            case 5:  // orange
+                     paint.setARGB(255, 255, 165, 0);
+                     break;
+            case 6:  // purple
+                     paint.setARGB(255, 160, 32, 240);
+                     break;
+            case 7:  // yellow
+                     paint.setARGB(255, 255, 255, 0);
+                     break;
+            case 8:  // grey
+                     paint.setARGB(255, 69, 69, 69);
+                     break;
+            case 9:  // cyan
+                     paint.setARGB(255, 51, 181, 229);
+                     break;
+            default: // black
+                     paint.setARGB(255, 0, 0, 0);
+                     break;
+        }
+
+        return paint;
     }
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {

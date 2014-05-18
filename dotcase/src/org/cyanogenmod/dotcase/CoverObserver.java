@@ -68,8 +68,6 @@ class CoverObserver extends UEventObserver {
         }
 
         filter.addAction(Intent.ACTION_SCREEN_ON);
-        filter.addAction(Intent.ACTION_POWER_CONNECTED);
-        filter.addAction(Intent.ACTION_POWER_DISCONNECTED);
 
         manager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         startObserving(COVER_UEVENT_MATCH);
@@ -127,11 +125,6 @@ class CoverObserver extends UEventObserver {
                 i.setClassName("org.cyanogenmod.dotcase", "org.cyanogenmod.dotcase.DotcaseActivity");
                 i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivity(i);
-            } else if (intent.getAction() == "android.intent.action.ACTION_POWER_CONNECTED" ||
-                    intent.getAction() == "android.intent.action.ACTION_POWER_DISCONNECTED") {
-                intent.setAction("org.cyanogenmod.dotcase.REDRAW");
-                mContext.sendBroadcast(intent);
-            } else {
                 return;
             }
         }
@@ -158,7 +151,7 @@ class CoverObserver extends UEventObserver {
                 Settings.System.SCREEN_BRIGHTNESS, 255);
     }
 
-    private void killActivity() {
+    public void killActivity() {
         if (oldBrightnessMode != -1 && oldBrightness != -1 && needStoreOldBrightness == false) {
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS_MODE,

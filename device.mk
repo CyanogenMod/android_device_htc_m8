@@ -31,6 +31,9 @@ TARGET_SCREEN_WIDTH := 1080
 PRODUCT_AAPT_CONFIG := hdpi xhdpi xxhdpi
 PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 
+# Dot View Case
+PRODUCT_PACKAGES += Dotcase
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \

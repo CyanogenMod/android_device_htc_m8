@@ -26,7 +26,7 @@ import android.content.Intent;
 import android.provider.Settings;
 
 public class BootCompletedReceiver extends BroadcastReceiver {
-    private static final String TAG = "BootCompletedReceiver";
+    private static final String TAG = "DotcaseBootCompletedReceiver";
 
     @Override
     public void onReceive(Context context, Intent intent) {

@@ -20,6 +20,7 @@
 
 package org.cyanogenmod.dotcase;
 
+import android.app.INotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -29,15 +30,19 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
+import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.UEventObserver;
+import android.service.notification.NotificationListenerService;
+import android.service.notification.StatusBarNotification;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 
 class CoverObserver extends UEventObserver {
-    private static final String TAG = "CoverObserver";
+    private static final String TAG = "DotcaseCoverObserver";
     private static final String COVER_UEVENT_MATCH = "DEVPATH=/devices/virtual/switch/cover";
     private static final String COVER_STATE_PATH = "/sys/class/switch/cover/state";
 
@@ -45,6 +50,7 @@ class CoverObserver extends UEventObserver {
     private final WakeLock mWakeLock;
     private final IntentFilter filter = new IntentFilter();
     private PowerManager manager;
+    private INotificationManager mNoMan;
 
     private int oldBrightness = -1;
     private int oldBrightnessMode = -1;
@@ -63,11 +69,10 @@ class CoverObserver extends UEventObserver {
             BufferedReader closed = new BufferedReader(new FileReader(COVER_STATE_PATH));
             String value = closed.readLine();
             closed.close();
-        } catch (Exception e) {
-            Log.e(TAG, e.toString());
-        }
+        } catch (Exception e) {}
 
         filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
 
         manager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         startObserving(COVER_UEVENT_MATCH);
@@ -92,9 +97,7 @@ class CoverObserver extends UEventObserver {
 
             mWakeLock.acquire();
             mHandler.sendMessageDelayed(mHandler.obtainMessage(state), 0);
-        } catch (Exception e) {
-            Log.e(TAG, e.toString());
-        }
+        } catch (Exception e) {}
     }
 
     private final Handler mHandler = new Handler() {
@@ -105,9 +108,7 @@ class CoverObserver extends UEventObserver {
             } else {
                 try {
                     mContext.getApplicationContext().unregisterReceiver(receiver);
-                } catch (Exception ex) {
-                    Log.e(TAG, ex.toString());
-                }
+                } catch (Exception ex) {}
             }
             mWakeLock.release();
         }
@@ -117,18 +118,73 @@ class CoverObserver extends UEventObserver {
         @Override
         public void onReceive(Context context, Intent intent) {
             Intent i = new Intent();
-
-            if (intent.getAction() == "android.intent.action.SCREEN_ON") {
+            if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
+                String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                if (state.equals("RINGING")) {
+                    intent.setAction(Dotcase.ACTION_PHONE_RINGING);
+                    mContext.sendBroadcast(intent);
+                } else {
+                    intent.setAction(Dotcase.ACTION_DONE_RINGING);
+                    mContext.sendBroadcast(intent);
+                }
+            } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
                 crankUpBrightness();
-                intent.setAction("org.cyanogenmod.dotcase.REDRAW");
+                checkNotifications();
+                intent.setAction(Dotcase.ACTION_REDRAW);
                 mContext.sendBroadcast(intent);
-                i.setClassName("org.cyanogenmod.dotcase", "org.cyanogenmod.dotcase.DotcaseActivity");
+                i.setClassName("org.cyanogenmod.dotcase", "org.cyanogenmod.dotcase.Dotcase");
                 i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivity(i);
                 return;
             }
         }
     };
+
+    private void checkNotifications() {
+        StatusBarNotification[] nots = null;
+        try {
+            mNoMan = INotificationManager.Stub.asInterface(
+                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
+            nots = mNoMan.getActiveNotifications(mContext.getPackageName());
+        } catch (Exception ex) {}
+        if (nots != null) {
+            Intent intent = new Intent();
+            boolean gmail = false;
+            boolean hangouts = false;
+            boolean missed_call = false;
+            for (int i = 0; i < nots.length; i++) {
+                if (nots[i].getPackageName().equals("com.google.android.gm") && gmail == false) {
+                    gmail = true;
+                    intent.setAction(Dotcase.NOTIFICATION_GMAIL);
+                    mContext.sendBroadcast(intent);
+                } else if (nots[i].getPackageName().equals("com.google.android.talk") && hangouts == false) {
+                    hangouts = true;
+                    intent.setAction(Dotcase.NOTIFICATION_HANGOUTS);
+                    mContext.sendBroadcast(intent);
+                } else if (nots[i].getPackageName().equals("com.android.phone") && missed_call == false) {
+                    missed_call = true;
+                    intent.setAction(Dotcase.NOTIFICATION_MISSED_CALL);
+                    mContext.sendBroadcast(intent);
+                }
+            }
+
+            if (gmail == false) {
+                intent.setAction(Dotcase.NOTIFICATION_GMAIL_CANCEL);
+                mContext.sendBroadcast(intent);
+            }
+
+            if (hangouts == false) {
+                intent.setAction(Dotcase.NOTIFICATION_HANGOUTS_CANCEL);
+                mContext.sendBroadcast(intent);
+            }
+
+            if (missed_call == false) {
+                intent.setAction(Dotcase.NOTIFICATION_MISSED_CALL_CANCEL);
+                mContext.sendBroadcast(intent);
+            }
+
+        }
+    }
 
     private void crankUpBrightness() {
         if (needStoreOldBrightness) {
@@ -137,9 +193,7 @@ class CoverObserver extends UEventObserver {
                         Settings.System.SCREEN_BRIGHTNESS);
                 oldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS_MODE);
-            } catch (Exception ex) {
-                Log.e(TAG, ex.toString());
-            }
+            } catch (Exception ex) {}
 
             needStoreOldBrightness = false;
         }
@@ -164,10 +218,8 @@ class CoverObserver extends UEventObserver {
 
         try {
             Intent i = new Intent();
-            i.setAction("org.cyanogenmod.dotcase.KILL_ACTIVITY");
+            i.setAction(Dotcase.ACTION_KILL_ACTIVITY);
             mContext.sendBroadcast(i);
-        } catch (Exception ex) {
-            Log.e(TAG, ex.toString());
-        }
+        } catch (Exception ex) {}
     }
 }

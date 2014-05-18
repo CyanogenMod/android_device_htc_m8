@@ -25,24 +25,29 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
-import android.os.BatteryManager;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 
 public class DrawView extends View {
-    // 1080 wide (27 dots)
-    // 1920 high (48 dots)
-    // 40pixels per dot
-    private static final String TAG = "Dotcase";
+    // 1920x1080 = 48 x 27 dots @ 40 pixels per dot
+    private static final String TAG = "DotcaseDrawView";
     private final Context mContext;
     private float dotratio = 40;
     private Paint paint = new Paint();
     private final IntentFilter filter = new IntentFilter();
+    private static boolean ringing = false;
+    private static int ringCounter = 0;
+    private static boolean ringerSwitcher = false;
+    private static boolean gmail = false;
+    private static boolean hangouts = false;
+    private static boolean missed_call = false;
+    private int heartbeat = 0;
 
     public DrawView(Context context) {
         super(context);
@@ -53,50 +58,147 @@ public class DrawView extends View {
     @Override
     public void onDraw(Canvas canvas) {
         drawTime(canvas);
-        drawBattery(canvas);
-        // TODO: kick off some sort of loop that will rotate between different notifications
-        // OR    new idea: smaller icons that will show based on notification status
-//        drawGmail(canvas);
-//        drawHangouts(canvas);
-//        drawWeather(canvas);
-        filter.addAction("org.cyanogenmod.dotcase.REDRAW");
+        if (!ringing) {
+            if (gmail == true || hangouts == true || missed_call == true) {
+                if (heartbeat < 3) {
+                    drawNotifications(canvas);
+                } else {
+                    drawBattery(canvas);
+                }
+                heartbeat++;
+                if (heartbeat > 5) {
+                    heartbeat = 0;
+                }
+            } else {
+                drawBattery(canvas);
+                heartbeat = 0;
+            }
+        } else {
+            drawRinger(canvas);
+        }
+
+        filter.addAction(Dotcase.ACTION_DONE_RINGING);
+        filter.addAction(Dotcase.ACTION_PHONE_RINGING);
+        filter.addAction(Dotcase.ACTION_REDRAW);
+        filter.addAction(Dotcase.NOTIFICATION_HANGOUTS);
+        filter.addAction(Dotcase.NOTIFICATION_HANGOUTS_CANCEL);
+        filter.addAction(Dotcase.NOTIFICATION_GMAIL);
+        filter.addAction(Dotcase.NOTIFICATION_GMAIL_CANCEL);
+        filter.addAction(Dotcase.NOTIFICATION_MISSED_CALL);
+        filter.addAction(Dotcase.NOTIFICATION_MISSED_CALL_CANCEL);
         mContext.getApplicationContext().registerReceiver(receiver, filter);
     }
 
-    private void drawHangouts(Canvas canvas) {
-        int[][] hangoutsSprite = {
-                               {0, 3, 3, 3, 3, 3, 0},
-                               {3, 3, 1, 3, 1, 3, 3},
-                               {3, 3, 1, 3, 1, 3, 3},
-                               {0, 3, 3, 3, 3, 3, 0},
-                               {0, 0, 0, 3, 3, 0, 0},
-                               {0, 0, 0, 3, 0, 0, 0}};
+    private void drawNotifications(Canvas canvas) {
+        int count = 0;
+        int x = 1;
+        int y = 34;
 
-        dotcaseDrawSprite(hangoutsSprite, 10, 29, canvas);
+        if (gmail) {
+            drawGmail(canvas, x + (count * 9), y);
+            count++;
+        }
+
+        if (hangouts) {
+            drawHangouts(canvas, x + (count * 9), y);
+            count++;
+        }
+
+        if (missed_call) {
+            drawMissedCall(canvas, x + (count * 9), y);
+            count++;
+        }
     }
 
-    private void drawGmail(Canvas canvas) {
-/* this was probably a bad idea....i'll leave it for now because it took me like 10 minutes to make lol
-        int[][] gmailSprite = {
-                               {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-                               {2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2},
-                               {2, 2, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2},
-                               {2, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2},
-                               {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}};
-*/
+    private void drawRinger(Canvas canvas) {
+        int light = 3;
+        int dark = 10;
+
+        int[][] handsetSprite = {
+                                {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},
+                                {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},
+                                {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},
+                                {0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0},
+                                {0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0}};
+
+        int[][] ringerSprite = {
+                                {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0},
+                                {0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0},
+                                {0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0},
+                                {0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0},
+                                {0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0},
+                                {0, 1, 1, 1, 0, 0, 2, 0, 0, 1, 1, 1, 0},
+                                {1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 1, 1, 1},
+                                {0, 1, 0, 0, 2, 2, 2, 2, 2, 0, 0, 1, 0},
+                                {0, 0, 0, 2, 2, 2, 0, 2, 2, 2, 0, 0, 0},
+                                {0, 0, 2, 2, 2, 0, 0, 0, 2, 2, 2, 0, 0},
+                                {0, 2, 2, 2, 0, 0, 3, 0, 0, 2, 2, 2, 0},
+                                {2, 2, 2, 0, 0, 3, 3, 3, 0, 0, 2, 2, 2},
+                                {0, 2, 0, 0, 3, 3, 3, 3, 3, 0, 0, 2, 0},
+                                {0, 0, 0, 3, 3, 3, 0, 3, 3, 3, 0, 0, 0},
+                                {0, 0, 3, 3, 3, 0, 0, 0, 3, 3, 3, 0, 0},
+                                {0, 3, 3, 3, 0, 0, 0, 0, 0, 3, 3, 3, 0},
+                                {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},
+                                {0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0}};
+
+        if (ringerSwitcher) {
+            Collections.reverse(Arrays.asList(ringerSprite));
+            Collections.reverse(Arrays.asList(handsetSprite));
+            light = 2;
+            dark = 11;
+            for (int i = 0; i < handsetSprite.length; i++) {
+                for (int j = 0; j < handsetSprite[0].length; j++) {
+                    handsetSprite[i][j] = handsetSprite[i][j] > 0 ? light : 0;
+                }
+            }
+        }
+
+        for (int i = 0; i < ringerSprite.length; i++) {
+            for (int j = 0; j < ringerSprite[0].length; j++) {
+                if (ringerSprite[i][j] > 0) {
+                    ringerSprite[i][j] =
+                          ringerSprite[i][j] == 3 - ringCounter ? light : dark;
+                }
+            }
+        }
+
+        dotcaseDrawSprite(handsetSprite, 6, 21, canvas);
+        dotcaseDrawSprite(ringerSprite, 7, 28, canvas);
+
+        ringCounter++;
+        if (ringCounter > 2) {
+            ringerSwitcher = ringerSwitcher ? false : true;
+            ringCounter = 0;
+        }
+
+        return;
+    }
+
+    private void drawHangouts(Canvas canvas, int x, int y) {
+        int[][] hangoutsSprite = {
+                                  {0, 3, 3, 3, 3, 3, 0},
+                                  {3, 3, 1, 3, 1, 3, 3},
+                                  {3, 3, 1, 3, 1, 3, 3},
+                                  {0, 3, 3, 3, 3, 3, 0},
+                                  {0, 0, 0, 3, 3, 0, 0},
+                                  {0, 0, 0, 3, 0, 0, 0}};
+
+        dotcaseDrawSprite(hangoutsSprite, x, y, canvas);
+    }
+
+    private void drawMissedCall(Canvas canvas, int x, int y) {
+        int[][] missedCallSprite = {
+                                  {0, 1, 0, 0, 0, 1, 0},
+                                  {0, 0, 1, 0, 1, 0, 0},
+                                  {0, 0, 0, 1, 0, 0, 0},
+                                  {0, 7, 7, 7, 7, 7, 0},
+                                  {7, 7, 7, 7, 7, 7, 7},
+                                  {7, 7, 0, 0, 0, 7, 7}};
+
+        dotcaseDrawSprite(missedCallSprite, x, y, canvas);
+    }
+
+    private void drawGmail(Canvas canvas, int x, int y) {
         int[][] gmailSprite = {
                                {2, 1, 1, 1, 1, 1, 2},
                                {2, 2, 1, 1, 1, 2, 2},
@@ -105,7 +207,7 @@ public class DrawView extends View {
                                {2, 1, 1, 1, 1, 1, 2},
                                {2, 1, 1, 1, 1, 1, 2}};
 
-        dotcaseDrawSprite(gmailSprite, 1, 29, canvas);
+        dotcaseDrawSprite(gmailSprite, x, y, canvas);
     }
 
     private void drawBattery(Canvas canvas) {
@@ -407,7 +509,6 @@ public class DrawView extends View {
     }
 
     private Paint getPaintFromNumber(int color) {
-        Paint p = new Paint();
         switch (color) {
             case -1: // transparent
                      paint.setARGB(0, 0, 0, 0);
@@ -442,6 +543,12 @@ public class DrawView extends View {
             case 9:  // cyan
                      paint.setARGB(255, 51, 181, 229);
                      break;
+            case 10: // dark green
+                     paint.setARGB(255, 0, 128, 0);
+                     break;
+            case 11: // dark red
+                     paint.setARGB(255, 128, 0, 0);
+                     break;
             default: // black
                      paint.setARGB(255, 0, 0, 0);
                      break;
@@ -453,7 +560,32 @@ public class DrawView extends View {
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            postInvalidate();
+            if (intent.getAction().equals(Dotcase.ACTION_PHONE_RINGING)) {
+                phoneRinging(TelephonyManager.EXTRA_INCOMING_NUMBER);
+            } else if (intent.getAction().equals(Dotcase.ACTION_DONE_RINGING)) {
+                ringing = false;
+            } else if (intent.getAction().equals(Dotcase.ACTION_REDRAW)) {
+                postInvalidate();
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_HANGOUTS)) {
+                hangouts = true;
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_HANGOUTS_CANCEL)) {
+                hangouts = false;
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_GMAIL)) {
+                gmail = true;
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_GMAIL_CANCEL)) {
+                gmail = false;
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_MISSED_CALL)) {
+                missed_call = true;
+            } else if (intent.getAction().equals(Dotcase.NOTIFICATION_MISSED_CALL_CANCEL)) {
+                missed_call = false;
+            }
         }
     };
+
+    private void phoneRinging(String number) {
+        ringing = true;
+        ringCounter = 0;
+        ringerSwitcher = false;
+        Log.e(TAG, "Phone Number: " + number);
+    }
 }

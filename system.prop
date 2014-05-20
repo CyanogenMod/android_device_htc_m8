@@ -28,6 +28,14 @@ persist.rild.nitz_short_ons_2=
 persist.rild.nitz_short_ons_3=
 DEVICE_PROVISIONED=1
 
+# hardware info
+ro.device.chipset=Qualcomm Snapdragon 801 MSM8974AB
+ro.device.cpu=2.3GHz quad-core Krait
+ro.device.gpu=Qualcomm Adreno 330
+ro.device.rear_cam=Dual 4 MP
+ro.device.front_cam=5 MP
+ro.device.screen_res=1080x1920
+
 # QCOM
 com.qc.hardware=true
 persist.thermal.monitor=true

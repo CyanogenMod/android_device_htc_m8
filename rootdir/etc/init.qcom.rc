@@ -629,9 +629,7 @@ on property:service.adb.root=1
 
 on property:sys.boot_completed=1
     start qrngp
-
 # Performance
-on property:service.bootanim.exit=1
     write /sys/module/lpm_resources/enable_low_power/l2 "2"
     write /sys/module/lpm_resources/enable_low_power/pxo "1"
     write /sys/module/lpm_resources/enable_low_power/vdd_dig "1"

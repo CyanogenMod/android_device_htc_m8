@@ -51,7 +51,7 @@ TARGET_CPU_VARIANT := krait
 TARGET_USE_KRAIT_BIONIC_OPTIMIZATION := true
 
 # Flags
-COMMON_GLOBAL_CFLAGS += -DHTCLOG
+COMMON_GLOBAL_CFLAGS += -DHTCLOG -DNO_COMPAT_GRALLOC_PERFORM
 
 # Kernel
 BOARD_KERNEL_CMDLINE := console=ttyHSL0,115200,n8 androidboot.hardware=qcom user_debug=31 ehci-hcd.park=3 androidboot.selinux=permissive

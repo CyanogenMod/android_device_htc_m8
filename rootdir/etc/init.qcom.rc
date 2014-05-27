@@ -505,11 +505,6 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
-service pnpmgr /system/bin/pnpmgr -c /system/etc/pnp.bin
-    class core
-    user system
-    group system
-
 service ptt_socket_app /system/bin/ptt_socket_app
     class main
     user system

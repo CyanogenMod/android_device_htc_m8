@@ -7,7 +7,6 @@ bin/irsc_util
 bin/mm-qcamera-app
 bin/mm-qcamera-daemon
 bin/mpdecision
-bin/pnpmgr
 bin/ptt_socket_app
 bin/qseecomd
 bin/rmt_storage
@@ -119,7 +118,6 @@ etc/Headset_cal.acdb
 etc/hldm.bin
 etc/hltof.bin
 etc/hltrd.bin
-etc/pnp.bin
 etc/RT5501
 etc/sound_mfg_DMIC.txt
 etc/sound_mfg.txt

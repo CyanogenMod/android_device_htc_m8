@@ -334,6 +334,7 @@ vendor/lib/libmmqjpeg_codec.so
 vendor/lib/liboemcamera.so
 vendor/lib/libOpenCL.so
 vendor/lib/libOpenVG.so
+vendor/lib/libplayback_adreno.so
 vendor/lib/libqcgesture.so
 vendor/lib/libqc-opt.so
 vendor/lib/libqomx_jpegdec.so

@@ -9,7 +9,7 @@
 /dev/block/platform/msm_sdcc.1/by-name/boot         /boot            emmc    defaults                                                                    defaults
 /dev/block/platform/msm_sdcc.1/by-name/recovery     /recovery        emmc    defaults                                                                    defaults
 /dev/block/platform/msm_sdcc.1/by-name/system       /system          ext4    ro,seclabel,noatime,data=ordered                                            wait
-/dev/block/platform/msm_sdcc.1/by-name/userdata     /data            ext4    noatime,nosuid,nodev,barrier=1,data=ordered,noauto_da_alloc,journal_async_commit,errors=panic wait,encryptable=/dev/block/platform/msm_sdcc.1/by-name/extra
+/dev/block/platform/msm_sdcc.1/by-name/userdata     /data            ext4    noatime,nosuid,nodev,barrier=1,data=ordered,noauto_da_alloc,journal_async_commit,errors=panic wait,check,encryptable=/dev/block/platform/msm_sdcc.1/by-name/extra
 /dev/block/platform/msm_sdcc.1/by-name/cache        /cache           ext4    noatime,nosuid,nodev,barrier=1,data=ordered,noauto_da_alloc,journal_async_commit,errors=panic wait,check
 
 /dev/block/platform/msm_sdcc.1/by-name/radio        /firmware/radio  vfat    ro,shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337                    wait

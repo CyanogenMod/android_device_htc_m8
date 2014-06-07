@@ -245,6 +245,7 @@ vendor/lib/egl/eglsubAndroid.so
 vendor/lib/egl/libEGL_adreno.so
 vendor/lib/egl/libGLESv1_CM_adreno.so
 vendor/lib/egl/libGLESv2_adreno.so
+vendor/lib/egl/libplayback_adreno.so
 vendor/lib/egl/libq3dtools_adreno.so
 vendor/lib/libacdbloader.so
 vendor/lib/libacdbmapper.so
@@ -334,7 +335,6 @@ vendor/lib/libmmqjpeg_codec.so
 vendor/lib/liboemcamera.so
 vendor/lib/libOpenCL.so
 vendor/lib/libOpenVG.so
-vendor/lib/libplayback_adreno.so
 vendor/lib/libqcgesture.so
 vendor/lib/libqc-opt.so
 vendor/lib/libqomx_jpegdec.so

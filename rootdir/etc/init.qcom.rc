@@ -221,15 +221,6 @@ on early-boot
     chown system system /sys/bus/platform/drivers/msm_hsic_host/unbind
     chmod 0200 /sys/bus/platform/drivers/msm_hsic_host/unbind
 
-    setprop wlan.driver.config /data/misc/wifi/WCNSS_qcom_cfg.ini
-
-    # Trigger WCNSS for firmware download
-    write /dev/wcnss_wlan 1
-
-    write /sys/devices/fb000000.qcom,wcnss-wlan/serial_number ${ro.serialno}
-
-    start wcnss-service
-
 on boot
     # bring CPUs online
     write /sys/module/msm_thermal/core_control/enabled 0
@@ -558,10 +549,9 @@ service time_daemon /system/bin/time_daemon
    group root
 
 service wcnss-service /system/bin/wcnss_service
-    class late_start
+    class main
     user system
-    group system wifi
-    disabled
+    group system wifi qcom_diag radio
     oneshot
 
 service wpa_supplicant /system/bin/wpa_supplicant \

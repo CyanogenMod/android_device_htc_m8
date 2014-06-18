@@ -64,7 +64,6 @@ ro.qc.sdk.izat.premium_enabled=0
 ro.qc.sdk.izat.service_mask=0x0
 
 # Graphics
-debug.composition.type=gpu
 debug.egl.hw=1
 debug.mdpcomp.logs=0
 debug.sf.hw=1

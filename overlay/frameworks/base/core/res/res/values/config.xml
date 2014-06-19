@@ -41,11 +41,15 @@
 
          Must be overridden in platform specific overlays -->
     <integer-array name="config_autoBrightnessLevels">
-        <item>40</item>
-        <item>200</item>
-        <item>450</item>
-        <item>1400</item>
-        <item>2000</item>
+        <item>8</item>
+        <item>14</item>
+        <item>46</item>
+        <item>113</item>
+        <item>576</item>
+        <item>1251</item>
+        <item>2101</item>
+        <item>3201</item>
+        <item>4201</item>
     </integer-array>
 
     <!-- Array of output values for LCD backlight corresponding to the LUX values
@@ -53,11 +57,15 @@
          than the size of the config_autoBrightnessLevels array.
          This must be overridden in platform specific overlays -->
     <integer-array name="config_autoBrightnessLcdBacklightValues">
-        <item>15</item>
-        <item>30</item>
-        <item>55</item>
+        <item>38</item>
+        <item>64</item>
+        <item>64</item>
         <item>90</item>
-        <item>255</item>
+        <item>116</item>
+        <item>142</item>
+        <item>170</item>
+        <item>199</item>
+        <item>227</item>
         <item>255</item>
     </integer-array>
 

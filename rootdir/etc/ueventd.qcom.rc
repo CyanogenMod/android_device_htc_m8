@@ -208,5 +208,6 @@
 /dev/rawchip0             0660   system     camera
 
 # IR
-/sys/class/htc_cir/cir/reset_cir    0660    irda    irda
-/sys/class/htc_cir/cir/enable_cir   0660    irda    irda
+/sys/class/htc_cir/cir/reset_cir    0660    system    system
+/sys/class/htc_cir/cir/enable_cir   0660    system    system
+/dev/ttyHSL2                        0660    system    system

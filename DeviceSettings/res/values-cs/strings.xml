@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2012-2013 The CyanogenMod Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name">Pokročilé nastavení</string>
+    <string name="defaults_button">Obnovit výchozí</string>
+    <string name="category_haptic_title">Hmatová odezva</string>
+    <string name="vibrator_title">Vibrace</string>
+    <string name="vibrator_tuning_title">Síla vibrací</string>
+    <string name="vibrator_tuning_summary_head">Upravení síly vibrací zpětné vazby</string>
+    <string name="vibrator_warning">Hodnoty větší než %1$d nejsou doporučovány</string>
+    <string name="category_touchscreen_title">Dotyková obrazovka</string>
+    <string name="logo2menu_title">Logo jako Nabídka</string>
+    <string name="logo2menu_switch_title_head">Povolit</string>
+    <string name="logo2menu_switch_summary_head">Horní část loga firmy HTC se bude chovat jako hardwarové tlačítko Nabídka.</string>
+    <string name="longtaplogosleep_switch_title_head">Uspat dlouhým dotykem</string>
+    <string name="longtaplogosleep_switch_summary_head">Dlouhým dotykem horní části loga firmy HTC dojde k uspání telefonu. Tato funkce potlačí nastavení systémových/hardwarových tlačítek - nastavení dlouhého dotyku tlačítka Nabídka.</string>
+    <string name="wake_title">Probuzení</string>
+    <string name="wake_method_title_head">Metoda probuzení</string>
+    <string name="wake_method_summary_head">Zvolte, jaké klávesy či jejich přejetí, provede probuzení telefonu.</string>
+    <string name="category_sensors_title">Senzory</string>
+    <string name="proximity_subcat_title">Senzor přiblížení</string>
+    <string name="proximity_calibration_title">Kalibrace</string>
+    <string name="proximity_calibration_summary">Zvolte hodnotu kalibrace. Vyšší hodnoty znamenají nižší citlivost.</string>
+</resources>

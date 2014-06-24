@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2012-2013 The CyanogenMod Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name">高级设置</string>
+
+    <string name="defaults_button">还原为默认值</string>
+
+    <string name="category_haptic_title">振动</string>
+
+    <string name="vibrator_title">振动器</string>
+    <string name="vibrator_tuning_title">振动强度</string>
+    <string name="vibrator_tuning_summary_head">调整振动反馈的强度</string>
+    <string name="vibrator_warning">不建议使用超过 %1$d 的值</string>
+
+    <string name="category_touchscreen_title">触摸屏</string>
+    <string name="logo2menu_title">标志为菜单键</string>
+    <string name="logo2menu_switch_title_head">启用</string>
+    <string name="logo2menu_switch_summary_head">把 HTC 标志的上部设为物理菜单键</string>
+    <string name="longtaplogosleep_switch_title_head">长按休眠</string>
+    <string name="longtaplogosleep_switch_summary_head">长按 HTC 标志的上部将使手机进入休眠 (如选定，此选项将覆盖系统/物理按键 - 长按菜单键所设的功能)</string>
+
+    <string name="wake_title">唤醒</string>
+    <string name="wake_method_title_head">唤醒方式</string>
+    <string name="wake_method_summary_head">选择您想使用的屏幕唤醒方式</string>
+
+    <string name="category_sensors_title">感应器</string>
+
+    <string name="proximity_subcat_title">距离感应器</string>
+    <string name="proximity_calibration_title">校准</string>
+    <string name="proximity_calibration_summary">设定校准值 (更高的值代表着更低的敏感度)</string>
+</resources>

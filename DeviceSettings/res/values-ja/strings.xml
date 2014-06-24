@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2012-2013 The CyanogenMod Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <string name="app_name">デバイス設定</string>
+
+    <string name="defaults_button">リセット</string>
+
+    <!-- Haptic Preference -->
+    <string name="category_haptic_title">振動フィードバック</string>
+
+    <!-- VibratorTuning -->
+    <string name="vibrator_title">バイブレーター</string>
+    <string name="vibrator_tuning_title">バイブレーター強度</string>
+    <string name="vibrator_tuning_summary_head">バイブレーション強度を調整する</string>
+    <string name="vibrator_warning">%1$d を超える値は推奨しません</string>
+
+    <!-- Touchscreen Preference -->
+    <string name="category_touchscreen_title">タッチスクリーン</string>
+    <string name="logo2menu_title">ロゴメニュー</string>
+    <string name="logo2menu_switch_title_head">有効</string>
+    <string name="logo2menu_switch_summary_head">HTCロゴの上部をハードウェアメニューボタンとして使用する</string>
+    <string name="longtaplogosleep_switch_title_head">長押しスリープ</string>
+    <string name="longtaplogosleep_switch_summary_head">HTCロゴの上部を長押しすることで電話をスリープする (システムのメニューボタン長押し設定動作は無効)</string>
+
+    <string name="wake_title">ウェイク</string>
+    <string name="wake_method_title_head">ウェイク方法</string>
+    <string name="wake_method_summary_head">タッチパッドウェイク方法を選択する</string>
+
+    <!-- Sensors Preference -->
+    <string name="category_sensors_title">センサー</string>
+
+    <!-- Proximity Calibration -->
+    <string name="proximity_subcat_title">近接センサー</string>
+    <string name="proximity_calibration_title">キャリブレーション</string>
+    <string name="proximity_calibration_summary">キャリブレーション値を設定する (大きい値ほど低感度)</string>
+</resources>

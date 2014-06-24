@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2012-2013 The CyanogenMod Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_name">Ajustes avanzados</string>
+    <string name="defaults_button">Restablecer</string>
+    <string name="category_haptic_title">Háptica</string>
+    <string name="vibrator_title">Vibración</string>
+    <string name="vibrator_tuning_title">Intensidad de vibración</string>
+    <string name="vibrator_tuning_summary_head">Establecer la intensidad de vibración</string>
+    <string name="vibrator_warning">No son recomendables valores mayores de %1$d</string>
+    <string name="category_touchscreen_title">Pantalla táctil</string>
+    <string name="logo2menu_title">Logotipo a Menú</string>
+    <string name="logo2menu_switch_title_head">Activado</string>
+    <string name="logo2menu_switch_summary_head">Permitir que la parte superior del logotipo de HTC actue como el botón Menú</string>
+    <string name="longtaplogosleep_switch_title_head">Modo de espera</string>
+    <string name="longtaplogosleep_switch_summary_head">Permitir que una pulsación prolongada sobre la parte superior del logotipo de HTC ponga el dispositivo en modo de espera. Este ajuste prevalecerá sobre el existente en Sistema/Teclas físicas - Tecla Menú (pulsación larga)</string>
+    <string name="wake_title">Despertar</string>
+    <string name="wake_method_title_head">Método para despertar</string>
+    <string name="wake_method_summary_head">Elegir el método a utilizar para despertar el dispositivo</string>
+    <string name="category_sensors_title">Sensores</string>
+    <string name="proximity_subcat_title">Proximidad</string>
+    <string name="proximity_calibration_title">Calibración</string>
+    <string name="proximity_calibration_summary">Establecer el valor de calibración. A valores más altos, menor sensibilidad.</string>
+</resources>

@@ -35,6 +35,8 @@ on early-init
     write /sys/block/mmcblk1/bdi/read_ahead_kb 512
 
 on init
+    export BOOTCLASSPATH ${BOOTCLASSPATH}:/system/framework/htcirlibs.jar
+
     # Set permissions for persist partition
     mkdir /persist 0771 system system
 

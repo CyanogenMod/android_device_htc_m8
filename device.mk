@@ -34,6 +34,11 @@ PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 # Dot View Case
 PRODUCT_PACKAGES += Dotcase
 
+# HTC IR Libs (required for learning functionality)
+PRODUCT_PACKAGES += \
+    HTC_CIR \
+    htcirlibs
+
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \

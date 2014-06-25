@@ -1,4 +1,5 @@
--app/EasyAccessService.apk
+app/CIRModule.apk
+app/EasyAccessService.apk
 bin/adsprpcd
 bin/ATFWD-daemon
 bin/cir_fw_update
@@ -175,6 +176,7 @@ etc/tfa/voip_l.drc
 etc/tfa/voip_l.eq
 etc/tfa/voip_l.preset
 etc/tfa/voip.preset
+framework/htcirlibs.jar
 lib/hw/camera.vendor.msm8974.so
 lib/hw/consumerir.default.so
 lib/hw/gps.default.so
@@ -195,6 +197,7 @@ lib/libcamerapp.so
 lib/libgps.utils.so
 lib/libhtccamera_yushaniiproc.so
 lib/libhtc_depthmap.so
+lib/libhtcirinterface_jni.so
 lib/libloc_api_v02.so
 lib/libloc_core.so
 lib/libloc_ds_api.so

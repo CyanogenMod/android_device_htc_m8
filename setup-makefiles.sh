@@ -111,6 +111,24 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 include \$(BUILD_PREBUILT)
 
 include \$(CLEAR_VARS)
+LOCAL_MODULE := htcirlibs
+LOCAL_SRC_FILES := proprietary/framework/htcirlibs.jar
+LOCAL_MODULE_CLASS := JAVA_LIBRARIES
+LOCAL_MODULE_TAGS := optional
+LOCAL_CERTIFICATE := platform
+LOCAL_MODULE_SUFFIX := .jar
+include \$(BUILD_PREBUILT)
+
+include \$(CLEAR_VARS)
+LOCAL_MODULE := HTC_CIR
+LOCAL_SRC_FILES := proprietary/app/HTC_CIR.apk
+LOCAL_MODULE_CLASS := APPS
+LOCAL_MODULE_TAGS := optional
+LOCAL_CERTIFICATE := platform
+LOCAL_MODULE_SUFFIX := \$(COMMON_ANDROID_PACKAGE_SUFFIX)
+include \$(BUILD_PREBUILT)
+
+include \$(CLEAR_VARS)
 LOCAL_MODULE := EasyAccessService
 LOCAL_MODULE_OWNER := htc
 LOCAL_SRC_FILES := proprietary/app/EasyAccessService.apk

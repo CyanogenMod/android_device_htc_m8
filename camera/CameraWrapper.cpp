@@ -194,6 +194,10 @@ static char *camera_fixup_setparams(int id, const char *settings)
     params.dump();
 #endif
 
+    if (strcmp(params.get("raw-size"), "2576x1936") == 0) {
+        params.set(android::CameraParameters::KEY_PREVIEW_SIZE, "2688x1520");
+    }
+
     if (params.get(android::CameraParameters::KEY_RECORDING_HINT)) {
         isVideo = !strcmp(params.get(android::CameraParameters::KEY_RECORDING_HINT), "true");
     }

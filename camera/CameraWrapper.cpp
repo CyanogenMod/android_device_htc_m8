@@ -21,7 +21,7 @@
 *
 */
 
-//#define LOG_DEBUG 1
+#define LOG_DEBUG 1
 
 #define LOG_TAG "CameraWrapper"
 #include <cutils/log.h>

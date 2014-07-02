@@ -34,10 +34,6 @@ PRODUCT_AAPT_PREF_CONFIG := xxhdpi
 # Dot View Case
 PRODUCT_PACKAGES += Dotcase
 
-# EasyAccessService - for gesture/tap-to-wake
-PRODUCT_PACKAGES += \
-    EasyAccessService
-
 # Ramdisk
 PRODUCT_PACKAGES += \
     fstab.qcom \

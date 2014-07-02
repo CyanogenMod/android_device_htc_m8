@@ -63,36 +63,6 @@ on init
     symlink /storage/usbdisk /usbdisk
     symlink /storage/usbdisk /mnt/usbdisk
 
-# init PnPMgr node
-    chmod 664 /sys/power/pnpmgr/apps/media_mode
-    chown media system /sys/power/pnpmgr/apps/media_mode
-    chown system /sys/power/pnpmgr/apps/activity_trigger
-    chown system /sys/power/pnpmgr/apps/non_activity_trigger
-    chown system /sys/power/perflock
-    chown system /sys/power/launch_event
-    chown system /sys/power/powersave
-    chown system /sys/power/cpufreq_ceiling
-    chown system /sys/power/cpunum_floor
-    chown system /sys/power/cpunum_ceiling
-    chown root system /sys/module/lowmemorykiller/parameters/adj
-    chmod 0664 /sys/module/lowmemorykiller/parameters/adj
-    chown root system /sys/module/lowmemorykiller/parameters/minfree
-    chmod 0664 /sys/module/lowmemorykiller/parameters/minfree
-    chown system /sys/power/wait_for_fb_status
-
-    write /sys/power/pnpmgr/hotplug/mp_decision_ms 50
-    write /sys/power/pnpmgr/hotplug/mp_max_cpus 4
-    write /sys/power/pnpmgr/hotplug/mp_min_cpus 1
-    write /sys/power/pnpmgr/hotplug/mp_ns "0 1.1 2.1 3.1"
-    write /sys/power/pnpmgr/hotplug/mp_nw "0 1.9 2.7 3.5"
-    write /sys/power/pnpmgr/hotplug/mp_ts "0 190 240 240"
-    write /sys/power/pnpmgr/hotplug/mp_tw "0 140 90 90"
-    write /sys/power/pnpmgr/hotplug/mp_util_high_and "0 35 0 0"
-    write /sys/power/pnpmgr/hotplug/mp_util_high_or "0 75 400 400"
-    write /sys/power/pnpmgr/hotplug/mp_util_low_and "0 30 400 400"
-    write /sys/power/pnpmgr/hotplug/mp_util_low_or "0 20 0 0"
-    write /sys/power/pnpmgr/apps/activity_trigger "booting"
-
 # HTC SSD Battery - BEGIN
     chown system system /sys/class/power_supply/battery/full_level_dis_batt_chg
     chmod 0220 /sys/class/power_supply/battery/full_level_dis_batt_chg
@@ -507,11 +477,6 @@ service p2p_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
-service pnpmgr /system/bin/pnpmgr -c /system/etc/pnp.bin
-    class core
-    user system
-    group system
-
 service ptt_socket_app /system/bin/ptt_socket_app
     class main
     user system
@@ -600,17 +565,6 @@ on property:init.svc.bootanim=stopped
     # Overwrite ActivityManager's low memory killer settings
     write /sys/module/lowmemorykiller/parameters/adj "2,4,7,8,9,12"
     write /sys/module/lowmemorykiller/parameters/minfree "15360,18432,21504,23040,24576,30720"
-
-on property:init.svc.thermald=stopped
-    write /sys/power/pnpmgr/thermal/thermal_final 9999999
-    write /sys/power/pnpmgr/thermal/thermal_final_cpu 9999999
-    write /sys/power/pnpmgr/thermal/thermal_c0 9999999
-    write /sys/power/pnpmgr/thermal/thermal_c1 9999999
-    write /sys/power/pnpmgr/thermal/thermal_c2 9999999
-    write /sys/power/pnpmgr/thermal/thermal_c3 9999999
-    write /sys/power/pnpmgr/thermal/thermal_g0 999999999
-    write /sys/power/pnpmgr/thermal/thermal_final_gpu 999999999
-    write /sys/power/pnpmgr/thermal/thermal_batt 0
 
 on property:init.svc.wpa_supplicant=stopped
     stop dhcpcd

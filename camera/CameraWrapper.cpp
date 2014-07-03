@@ -22,6 +22,8 @@
 */
 
 #define LOG_DEBUG 1
+#define LOG_NDEBUG 0
+#define LOG_PARAMETERS
 
 #define LOG_TAG "CameraWrapper"
 #include <cutils/log.h>
@@ -465,6 +467,10 @@ static int camera_set_parameters(struct camera_device *device,
     char *tmp = NULL;
     tmp = camera_fixup_setparams(CAMERA_ID(device), params);
 
+#ifdef LOG_PARAMETERS
+    __android_log_write(ANDROID_LOG_VERBOSE, LOG_TAG, tmp);
+#endif
+
     int ret = VENDOR_CALL(device, set_parameters, tmp);
     return ret;
 }
@@ -479,9 +485,17 @@ static char *camera_get_parameters(struct camera_device *device)
 
     char *params = VENDOR_CALL(device, get_parameters);
 
+#ifdef LOG_PARAMETERS
+    __android_log_write(ANDROID_LOG_VERBOSE, LOG_TAG, params);
+#endif
+
     char *tmp = camera_fixup_getparams(CAMERA_ID(device), params);
     VENDOR_CALL(device, put_parameters, params);
     params = tmp;
+
+#ifdef LOG_PARAMETERS
+    __android_log_write(ANDROID_LOG_VERBOSE, LOG_TAG, params);
+#endif
 
     return params;
 }

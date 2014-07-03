@@ -26,6 +26,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.text.format.DateFormat;
 import android.view.View;
 
 import java.util.Arrays;
@@ -88,16 +89,21 @@ public class DrawView extends View {
         timeObj.hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         timeObj.min = Calendar.getInstance().get(Calendar.MINUTE);
 
-        if (timeObj.hour > 11) {
-            if (timeObj.hour > 12) {
-                timeObj.hour = timeObj.hour - 12;
-            }
-            timeObj.am = false;
+        if (DateFormat.is24HourFormat(mContext)) {
+            timeObj.is24Hour = true;
         } else {
-            if (timeObj.hour == 0) {
-                timeObj.hour = 12;
+            timeObj.is24Hour = false;
+            if (timeObj.hour > 11) {
+                if (timeObj.hour > 12) {
+                    timeObj.hour = timeObj.hour - 12;
+                }
+                timeObj.am = false;
+            } else {
+                if (timeObj.hour == 0) {
+                    timeObj.hour = 12;
+                }
+                timeObj.am = true;
             }
-            timeObj.am = true;
         }
 
         timeObj.timeString = (timeObj.hour < 10
@@ -147,10 +153,12 @@ public class DrawView extends View {
                 time.timeString.charAt(3)), 15, 0, canvas);
         dotcaseDrawSprite(mClockSprite, 7, 7, canvas);
 
-        if (time.am) {
-            dotcaseDrawSprite(DotcaseConstants.amSprite, 18, 0, canvas);
-        } else {
-            dotcaseDrawSprite(DotcaseConstants.pmSprite, 18, 0, canvas);
+        if (!time.is24Hour) {
+            if (time.am) {
+                dotcaseDrawSprite(DotcaseConstants.amSprite, 18, 0, canvas);
+            } else {
+                dotcaseDrawSprite(DotcaseConstants.pmSprite, 18, 0, canvas);
+            }
         }
 
         if (ringCounter / 6 > 0) {
@@ -306,10 +314,12 @@ public class DrawView extends View {
             starter = 3;
         }
 
-        if (time.am) {
-            dotcaseDrawSprite(DotcaseConstants.amSprite, 3, 18, canvas);
-        } else {
-            dotcaseDrawSprite(DotcaseConstants.pmSprite, 3, 18, canvas);
+        if (!time.is24Hour) {
+            if (time.am) {
+                dotcaseDrawSprite(DotcaseConstants.amSprite, 3, 18, canvas);
+            } else {
+                dotcaseDrawSprite(DotcaseConstants.pmSprite, 3, 18, canvas);
+            }
         }
 
         dotcaseDrawSprite(DotcaseConstants.timeColon, starter + 10, 5 + 4, canvas);
@@ -373,6 +383,7 @@ public class DrawView extends View {
         String timeString;
         int hour;
         int min;
+        boolean is24Hour;
         boolean am;
     }
 }

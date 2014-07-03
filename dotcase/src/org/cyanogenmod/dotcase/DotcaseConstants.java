@@ -25,18 +25,6 @@ import android.graphics.Paint;
 public class DotcaseConstants {
     static String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
     static String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
-    public static int dotratio = 40;
-
-    static int[][] torchSprite = {
-        {0, 7, 7, 7, 7, 0},
-        {7, 7, 7, 7, 7, 7},
-        {7, 7, 7, 7, 7, 7},
-        {7, 7, 7, 7, 7, 7},
-        {7, 7, 7, 7, 7, 7},
-        {0, 7, 7, 7, 7, 0},
-        {0, 8, 8, 8, 8, 0},
-        {0, 8, 8, 8, 8, 0},
-        {0, 8, 8, 8, 8, 0}};
 
     static int[][] handsetSprite = {
         {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},

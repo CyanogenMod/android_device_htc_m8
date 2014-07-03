@@ -37,7 +37,6 @@ import android.view.View;
 import android.view.WindowManager;
 
 import com.android.internal.telephony.ITelephony;
-import com.android.internal.util.cm.TorchConstants;
 
 import java.lang.Math;
 import java.io.BufferedReader;
@@ -57,7 +56,6 @@ public class Dotcase extends Activity
     public static boolean ringing = false;
     public static int ringCounter = 0;
     public static String phoneNumber = "";
-    public static boolean torchStatus = false;
 
     public static boolean gmail = false;
     public static boolean hangouts = false;
@@ -76,7 +74,6 @@ public class Dotcase extends Activity
         mContext = this;
 
         filter.addAction(DotcaseConstants.ACTION_KILL_ACTIVITY);
-        filter.addAction(TorchConstants.ACTION_STATE_CHANGED);
         mContext.getApplicationContext().registerReceiver(receiver, filter);
 
         getWindow().addFlags(
@@ -199,13 +196,6 @@ public class Dotcase extends Activity
 
     class DotcaseGestureListener extends GestureDetector.SimpleOnGestureListener
     {
-
-        @Override
-        public void onLongPress(MotionEvent event) {
-            Intent i = new Intent(TorchConstants.ACTION_TOGGLE_STATE);
-            mContext.sendBroadcast(i);
-        }
-
         @Override
         public boolean onDoubleTap(MotionEvent event) {
             manager.goToSleep(SystemClock.uptimeMillis());
@@ -246,16 +236,7 @@ public class Dotcase extends Activity
         }
 
         @Override
-        public boolean onSingleTapUp (MotionEvent e) {
-            if (Dotcase.torchStatus) {
-                if (e.getX() >19 * DotcaseConstants.dotratio
-                        && e.getX() < 26 * DotcaseConstants.dotratio
-                        && e.getY() > 22 * DotcaseConstants.dotratio
-                        && e.getY() < 32 * DotcaseConstants.dotratio){
-                    Intent i = new Intent(TorchConstants.ACTION_TOGGLE_STATE);
-                    mContext.sendBroadcast(i);
-                }
-            }
+        public boolean onSingleTapConfirmed (MotionEvent e) {
             reset_timer = true;
             return true;
         }
@@ -271,8 +252,6 @@ public class Dotcase extends Activity
                 running = false;
                 finish();
                 overridePendingTransition(0, 0);
-            } else if (intent.getAction().equals(TorchConstants.ACTION_STATE_CHANGED)) {
-                torchStatus = intent.getIntExtra(TorchConstants.EXTRA_CURRENT_STATE, 0) != 0;
             }
         }
     };

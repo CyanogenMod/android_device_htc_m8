@@ -144,13 +144,14 @@ class CoverObserver extends UEventObserver {
     private void crankUpBrightness() {
         if (needStoreOldBrightness) {
             try {
+                needStoreOldBrightness = false;
                 oldBrightness = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS);
                 oldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS_MODE);
-            } catch (Exception ex) {}
-
-            needStoreOldBrightness = false;
+            } catch (Exception ex) {
+                needStoreOldBrightness = true;
+            }
         }
 
         Settings.System.putInt(mContext.getContentResolver(),

@@ -115,6 +115,7 @@ public class Dotcase extends Activity implements SensorEventListener
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+            Log.d(TAG, "Proximity changed to " + event.values[0] + " max " + event.sensor.getMaximumRange());
             if (event.values[0] < event.sensor.getMaximumRange() && pocketed) {
                 pocketed = false;
             } else if (!pocketed) {
@@ -129,6 +130,7 @@ public class Dotcase extends Activity implements SensorEventListener
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d(TAG, "Registering SensorEventListener");
         sensorManager.registerListener(this,
                 sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
                 SensorManager.SENSOR_DELAY_NORMAL);
@@ -138,6 +140,7 @@ public class Dotcase extends Activity implements SensorEventListener
     protected void onPause() {
         super.onPause();
         try {
+            Log.d(TAG, "Unregistering SensorEventListener");
             sensorManager.unregisterListener(this);
         } catch (IllegalArgumentException e) {
             Log.e(TAG, "Failed to unregister listener", e);
@@ -211,22 +214,26 @@ public class Dotcase extends Activity implements SensorEventListener
         mms = false;
         voicemail = false;
 
+        Log.d(TAG, "Checking notifications");
+
         try {
             INotificationManager mNoMan = INotificationManager.Stub.asInterface(
                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
             nots = mNoMan.getActiveNotifications(mContext.getPackageName());
             for (StatusBarNotification not : nots) {
-                if (not.getPackageName().equals("com.google.android.gm") && !gmail) {
+                String pName = not.getPackageName();
+                Log.d(TAG, "Found notification from " + pName);
+                if (pName.equals("com.google.android.gm") && !gmail) {
                     gmail = true;
-                } else if (not.getPackageName().equals("com.google.android.talk") && !hangouts) {
+                } else if (pName.equals("com.google.android.talk") && !hangouts) {
                     hangouts = true;
-                } else if (not.getPackageName().equals("com.twitter.android") && !twitter) {
+                } else if (pName.equals("com.twitter.android") && !twitter) {
                     twitter = true;
-                } else if (not.getPackageName().equals("com.android.phone") && !missed_call) {
+                } else if (pName.equals("com.android.phone") && !missed_call) {
                     missed_call = true;
-                } else if (not.getPackageName().equals("com.android.mms") && !mms) {
+                } else if (pName.equals("com.android.mms") && !mms) {
                     mms = true;
-                } else if (not.getPackageName().equals("com.google.android.apps.googlevoice")
+                } else if (pName.equals("com.google.android.apps.googlevoice")
                            && !voicemail) {
                     voicemail = true;
                 }
@@ -250,6 +257,7 @@ public class Dotcase extends Activity implements SensorEventListener
             this.mDetector.onTouchEvent(event);
             return super.onTouchEvent(event);
         } else {
+            Log.d(TAG, "Ignoring touch event due to proximity sensor");
             // Say that we handled this event so nobody else does
             return true;
         }
@@ -260,12 +268,14 @@ public class Dotcase extends Activity implements SensorEventListener
 
         @Override
         public void onLongPress(MotionEvent event) {
+            Log.d(TAG, "Long press, toggling torch");
             Intent i = new Intent(TorchConstants.ACTION_TOGGLE_STATE);
             mContext.sendBroadcast(i);
         }
 
         @Override
         public boolean onDoubleTap(MotionEvent event) {
+            Log.d(TAG, "Double tap, going to sleep");
             powerManager.goToSleep(SystemClock.uptimeMillis());
             return true;
         }
@@ -273,17 +283,20 @@ public class Dotcase extends Activity implements SensorEventListener
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (Math.abs(distanceY) > 60) {
+                Log.d(TAG, "Vertical scroll detected");
                 if (ringing) {
                     CoverObserver.topActivityKeeper = false;
                     ITelephony telephonyService = ITelephony.Stub.asInterface(
                             ServiceManager.checkService(Context.TELEPHONY_SERVICE));
                     if (distanceY < 60) {
+                        Log.d(TAG, "Ignoring call");
                         try {
                             telephonyService.endCall();
                         } catch (RemoteException e) {
                             Log.e(TAG, "Error ignoring call", e);
                         }
                     } else if (distanceY > 60) {
+                        Log.d(TAG, "Answering call");
                         try {
                             telephonyService.answerRingingCall();
                         } catch (RemoteException e) {
@@ -293,11 +306,13 @@ public class Dotcase extends Activity implements SensorEventListener
                 } else if (alarm_clock) {
                     Intent i = new Intent();
                     if (distanceY < 60) {
+                        Log.d(TAG, "Dismissing alarm");
                         i.setAction("com.android.deskclock.ALARM_DISMISS");
                         CoverObserver.topActivityKeeper = false;
                         mContext.sendBroadcast(i);
                         alarm_clock = false;
                     } else if (distanceY > 60) {
+                        Log.d(TAG, "Snoozing alarm");
                         i.setAction("com.android.deskclock.ALARM_SNOOZE");
                         CoverObserver.topActivityKeeper = false;
                         mContext.sendBroadcast(i);
@@ -314,7 +329,8 @@ public class Dotcase extends Activity implements SensorEventListener
                 if (e.getX() >19 * DotcaseConstants.dotratio
                         && e.getX() < 26 * DotcaseConstants.dotratio
                         && e.getY() > 22 * DotcaseConstants.dotratio
-                        && e.getY() < 32 * DotcaseConstants.dotratio){
+                        && e.getY() < 32 * DotcaseConstants.dotratio) {
+                    Log.d(TAG, "Torch tapped, disabling torch");
                     Intent i = new Intent(TorchConstants.ACTION_TOGGLE_STATE);
                     mContext.sendBroadcast(i);
                 }

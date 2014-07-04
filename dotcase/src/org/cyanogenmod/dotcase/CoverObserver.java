@@ -34,9 +34,12 @@ import android.os.PowerManager.WakeLock;
 import android.os.SystemClock;
 import android.os.UEventObserver;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 class CoverObserver extends UEventObserver {
     private static final String COVER_UEVENT_MATCH = "DEVPATH=/devices/virtual/switch/cover";
+
+    private static final String TAG = "Dotcase";
 
     private final Context mContext;
     private final WakeLock mWakeLock;
@@ -73,6 +76,8 @@ class CoverObserver extends UEventObserver {
             switchState = Integer.parseInt(event.get("SWITCH_STATE"));
             boolean screenOn = manager.isScreenOn();
             topActivityKeeper = false;
+            Log.d(TAG, "Case event received, case " + (switchState == 1 ? "closed" : "opened") +
+                    "with screen " + (screenOn ? "on" : "off"));
 
             if (switchState == 1) {
                 if (screenOn) {
@@ -111,6 +116,7 @@ class CoverObserver extends UEventObserver {
             if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
+                    Log.d(TAG, "Starting Dotcase phone");
                     Dotcase.ringing = true;
                     Dotcase.reset_timer = true;
                     topActivityKeeper = true;
@@ -125,6 +131,7 @@ class CoverObserver extends UEventObserver {
                 }
             } else if(intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
+                Log.d(TAG, "Starting Dotcase alarm");
                 Dotcase.alarm_clock = true;
                 Dotcase.reset_timer = true;
                 topActivityKeeper = true;
@@ -132,8 +139,10 @@ class CoverObserver extends UEventObserver {
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
                 // If the case is open, don't try to start any of this
                 if (switchState == 0) {
+                    Log.d(TAG, "Case open, not starting Dotcase");
                     return;
                 }
+                Log.d(TAG, "Starting Dotcase");
                 crankUpBrightness();
                 Dotcase.checkNotifications();
                 Dotcase.reset_timer = true;
@@ -166,6 +175,7 @@ class CoverObserver extends UEventObserver {
     }
 
     public void killActivity() {
+        Log.d(TAG, "Shutting down Dotcase");
         Dotcase.ringing = false;
         Dotcase.alarm_clock = false;
         topActivityKeeper = false;

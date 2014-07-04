@@ -46,6 +46,7 @@ class CoverObserver extends UEventObserver {
     private int oldBrightness = -1;
     private int oldBrightnessMode = -1;
     private boolean needStoreOldBrightness = true;
+    private int switchState = 0;
 
     public static boolean topActivityKeeper = false;
 
@@ -69,11 +70,11 @@ class CoverObserver extends UEventObserver {
     @Override
     public void onUEvent(UEventObserver.UEvent event) {
         try {
-            int state = Integer.parseInt(event.get("SWITCH_STATE"));
+            switchState = Integer.parseInt(event.get("SWITCH_STATE"));
             boolean screenOn = manager.isScreenOn();
             topActivityKeeper = false;
 
-            if (state == 1) {
+            if (switchState == 1) {
                 if (screenOn) {
                     manager.goToSleep(SystemClock.uptimeMillis());
                 }
@@ -85,7 +86,7 @@ class CoverObserver extends UEventObserver {
             }
 
             mWakeLock.acquire();
-            mHandler.sendMessageDelayed(mHandler.obtainMessage(state), 0);
+            mHandler.sendMessageDelayed(mHandler.obtainMessage(switchState), 0);
         } catch (Exception e) {}
     }
 
@@ -129,6 +130,10 @@ class CoverObserver extends UEventObserver {
                 topActivityKeeper = true;
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                // If the case is open, don't try to start any of this
+                if (switchState == 0) {
+                    return;
+                }
                 crankUpBrightness();
                 Dotcase.checkNotifications();
                 Dotcase.reset_timer = true;

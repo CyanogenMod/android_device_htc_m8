@@ -34,9 +34,12 @@ import android.os.PowerManager.WakeLock;
 import android.os.SystemClock;
 import android.os.UEventObserver;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 class CoverObserver extends UEventObserver {
     private static final String COVER_UEVENT_MATCH = "DEVPATH=/devices/virtual/switch/cover";
+
+    private static final String TAG = "Dotcase";
 
     private final Context mContext;
     private final WakeLock mWakeLock;
@@ -87,7 +90,9 @@ class CoverObserver extends UEventObserver {
 
             mWakeLock.acquire();
             mHandler.sendMessageDelayed(mHandler.obtainMessage(switchState), 0);
-        } catch (Exception e) {}
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "Error parsing SWITCH_STATE event", e);
+        }
     }
 
     private final Handler mHandler = new Handler() {
@@ -96,9 +101,7 @@ class CoverObserver extends UEventObserver {
             if (msg.what == 1) {
                 mContext.getApplicationContext().registerReceiver(receiver, filter);
             } else {
-                try {
-                    mContext.getApplicationContext().unregisterReceiver(receiver);
-                } catch (Exception ex) {}
+                mContext.getApplicationContext().unregisterReceiver(receiver);
             }
             mWakeLock.release();
         }
@@ -153,7 +156,9 @@ class CoverObserver extends UEventObserver {
                         Settings.System.SCREEN_BRIGHTNESS);
                 oldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS_MODE);
-            } catch (Exception ex) {}
+            } catch (Settings.SettingNotFoundException e) {
+                Log.e(TAG, "Error retrieving brightness settings", e);
+            }
 
             needStoreOldBrightness = false;
         }
@@ -179,11 +184,9 @@ class CoverObserver extends UEventObserver {
             needStoreOldBrightness = true;
         }
 
-        try {
-            Intent i = new Intent();
-            i.setAction(DotcaseConstants.ACTION_KILL_ACTIVITY);
-            mContext.sendBroadcast(i);
-        } catch (Exception ex) {}
+        Intent i = new Intent();
+        i.setAction(DotcaseConstants.ACTION_KILL_ACTIVITY);
+        mContext.sendBroadcast(i);
     }
 
     private class ensureTopActivity implements Runnable {
@@ -202,7 +205,11 @@ class CoverObserver extends UEventObserver {
                 }
                 try {
                     Thread.sleep(100);
-                } catch (Exception ex) {}
+                } catch (IllegalArgumentException e) {
+                    // This isn't going to happen
+                } catch (InterruptedException e) {
+                    Log.i(TAG, "Sleep interrupted", e);
+                }
             }
         }
     }

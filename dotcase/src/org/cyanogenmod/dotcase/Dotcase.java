@@ -28,9 +28,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.service.notification.StatusBarNotification;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -42,9 +44,12 @@ import com.android.internal.util.cm.TorchConstants;
 import java.lang.Math;
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 
 public class Dotcase extends Activity
 {
+    private static final String TAG = "Dotcase";
+
     private static final String COVER_NODE = "/sys/android_touch/cover";
     private final IntentFilter filter = new IntentFilter();
     private GestureDetector mDetector;
@@ -136,11 +141,17 @@ public class Dotcase extends Activity
                                 finish();
                                 overridePendingTransition(0, 0);
                             }
-                        } catch (Exception ex) {}
+                        } catch (IOException e) {
+                            Log.e(TAG, "Error reading cover device", e);
+                        }
 
                         try {
                             Thread.sleep(500);
-                        } catch (Exception ex) {}
+                        } catch (IllegalArgumentException e) {
+                            // This isn't going to happen
+                        } catch (InterruptedException e) {
+                            Log.i(TAG, "Sleep interrupted", e);
+                        }
 
                         Intent intent = new Intent();
                         intent.setAction(DotcaseConstants.ACTION_REDRAW);
@@ -160,12 +171,11 @@ public class Dotcase extends Activity
         missed_call = false;
         mms = false;
         voicemail = false;
+
         try {
             INotificationManager mNoMan = INotificationManager.Stub.asInterface(
                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
             nots = mNoMan.getActiveNotifications(mContext.getPackageName());
-        } catch (Exception ex) {}
-        if (nots != null) {
             for (StatusBarNotification not : nots) {
                 if (not.getPackageName().equals("com.google.android.gm") && !gmail) {
                     gmail = true;
@@ -182,6 +192,10 @@ public class Dotcase extends Activity
                     voicemail = true;
                 }
             }
+        } catch (NullPointerException e) {
+            Log.e(TAG, "Error retrieving notifications", e);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error retrieving notifications", e);
         }
     }
 
@@ -216,16 +230,21 @@ public class Dotcase extends Activity
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (Math.abs(distanceY) > 60) {
                 if (ringing) {
-                    try {
-                        CoverObserver.topActivityKeeper = false;
-                        ITelephony telephonyService = ITelephony.Stub.asInterface(
-                                ServiceManager.checkService(Context.TELEPHONY_SERVICE));
-                        if (distanceY < 60) {
+                    CoverObserver.topActivityKeeper = false;
+                    ITelephony telephonyService = ITelephony.Stub.asInterface(
+                            ServiceManager.checkService(Context.TELEPHONY_SERVICE));
+                    if (distanceY < 60) {
+                        try {
                             telephonyService.endCall();
-                        } else if (distanceY > 60) {
-                            telephonyService.answerRingingCall();
+                        } catch (RemoteException e) {
+                            Log.e(TAG, "Error ignoring call", e);
                         }
-                    } catch (Exception ex) {
+                    } else if (distanceY > 60) {
+                        try {
+                            telephonyService.answerRingingCall();
+                        } catch (RemoteException e) {
+                            Log.e(TAG, "Error answering call", e);
+                        }
                     }
                 } else if (alarm_clock) {
                     Intent i = new Intent();
@@ -265,9 +284,7 @@ public class Dotcase extends Activity
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(DotcaseConstants.ACTION_KILL_ACTIVITY)) {
-                try {
-                    context.getApplicationContext().unregisterReceiver(receiver);
-                } catch (Exception ex) {}
+                context.getApplicationContext().unregisterReceiver(receiver);
                 running = false;
                 finish();
                 overridePendingTransition(0, 0);

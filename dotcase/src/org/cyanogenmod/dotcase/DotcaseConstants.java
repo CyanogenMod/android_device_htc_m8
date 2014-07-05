@@ -27,6 +27,38 @@ public class DotcaseConstants {
     static String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
     public static int dotratio = 40;
 
+    static Paint pTrans = new Paint();
+    static Paint pBlack = new Paint();
+    static Paint pWhite = new Paint();
+    static Paint pRed = new Paint();
+    static Paint pGreen = new Paint();
+    static Paint pBlue = new Paint();
+    static Paint pOrange = new Paint();
+    static Paint pPurple = new Paint();
+    static Paint pYellow = new Paint();
+    static Paint pGrey = new Paint();
+    static Paint pCyan = new Paint();
+    static Paint pDGreen = new Paint();
+    static Paint pDRed = new Paint();
+    static Paint pFYellow = new Paint();
+
+    static {
+        pTrans.setARGB(0, 0, 0, 0);
+        pBlack.setARGB(255, 0, 0, 0);
+        pWhite.setARGB(255, 255, 255, 255);
+        pRed.setARGB(255, 255, 0, 0);
+        pGreen.setARGB(255, 0, 255, 0);
+        pBlue.setARGB(255, 0, 0, 255);
+        pOrange.setARGB(255, 255, 165, 0);
+        pPurple.setARGB(255, 160, 32, 240);
+        pYellow.setARGB(255, 255, 255, 0);
+        pGrey.setARGB(255, 69, 69, 69);
+        pCyan.setARGB(255, 51, 181, 229);
+        pDGreen.setARGB(255, 0, 128, 0);
+        pDRed.setARGB(255, 128, 0, 0);
+        pFYellow.setARGB(255, 255, 255, 153);
+    }
+
     static int[][] torchSprite = {
         {0, 7, 7, 7, 7, 0},
         {7, 7, 7, 7, 7, 7},
@@ -486,54 +518,37 @@ public class DotcaseConstants {
     }
 
     static Paint getPaintFromNumber(int color) {
-        Paint paint = new Paint();
         switch (color) {
-            case -1: // transparent
-                paint.setARGB(0, 0, 0, 0);
-                break;
-            case 0:  // black
-                paint.setARGB(255, 0, 0, 0);
-                break;
-            case 1:  // white
-                paint.setARGB(255, 255, 255, 255);
-                break;
-            case 2:  // red
-                paint.setARGB(255, 255, 0, 0);
-                break;
-            case 3:  // green
-                paint.setARGB(255, 0, 255, 0);
-                break;
-            case 4:  // blue
-                paint.setARGB(255, 0, 0, 255);
-                break;
-            case 5:  // orange
-                paint.setARGB(255, 255, 165, 0);
-                break;
-            case 6:  // purple
-                paint.setARGB(255, 160, 32, 240);
-                break;
-            case 7:  // yellow
-                paint.setARGB(255, 255, 255, 0);
-                break;
-            case 8:  // grey
-                paint.setARGB(255, 69, 69, 69);
-                break;
-            case 9:  // cyan
-                paint.setARGB(255, 51, 181, 229);
-                break;
-            case 10: // dark green
-                paint.setARGB(255, 0, 128, 0);
-                break;
-            case 11: // dark red
-                paint.setARGB(255, 128, 0, 0);
-                break;
-            case 12: // faded yellow
-                paint.setARGB(255, 255, 255, 153);
-                break;
-            default: // black
-                paint.setARGB(255, 0, 0, 0);
-                break;
+            case -1:
+                return pTrans;
+            case 0:
+                return pBlack;
+            case 1:
+                return pWhite;
+            case 2:
+                return pRed;
+            case 3:
+                return pGreen;
+            case 4:
+                return pBlue;
+            case 5:
+                return pOrange;
+            case 6:
+                return pPurple;
+            case 7:
+                return pYellow;
+            case 8:
+                return pGrey;
+            case 9:
+                return pCyan;
+            case 10:
+                return pDGreen;
+            case 11:
+                return pDRed;
+            case 12:
+                return pFYellow;
+            default:
+                return pBlack;
         }
-        return paint;
     }
 }

@@ -57,7 +57,12 @@ public class DrawView extends View {
             drawRinger(canvas);
         } else {
             drawTime(canvas);
-            Dotcase.checkNotifications();
+
+            // Check notifications each cycle before displaying them
+            if (heartbeat == 0) {
+                Dotcase.checkNotifications();
+            }
+
             if (Dotcase.gmail || Dotcase.hangouts || Dotcase.mms || Dotcase.missed_call
                               || Dotcase.twitter || Dotcase.voicemail) {
                 if (heartbeat < 3) {

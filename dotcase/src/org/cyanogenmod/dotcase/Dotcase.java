@@ -284,7 +284,11 @@ public class Dotcase extends Activity
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(DotcaseConstants.ACTION_KILL_ACTIVITY)) {
-                context.getApplicationContext().unregisterReceiver(receiver);
+                try {
+                    context.getApplicationContext().unregisterReceiver(receiver);
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Failed to unregister receiver", e);
+                }
                 running = false;
                 finish();
                 overridePendingTransition(0, 0);

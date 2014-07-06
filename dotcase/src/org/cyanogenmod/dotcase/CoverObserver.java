@@ -101,7 +101,11 @@ class CoverObserver extends UEventObserver {
             if (msg.what == 1) {
                 mContext.getApplicationContext().registerReceiver(receiver, filter);
             } else {
-                mContext.getApplicationContext().unregisterReceiver(receiver);
+                try {
+                    mContext.getApplicationContext().unregisterReceiver(receiver);
+                } catch (IllegalArgumentException e) {
+                    Log.e(TAG, "Failed to unregister receiver", e);
+                }
             }
             mWakeLock.release();
         }

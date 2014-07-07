@@ -26,6 +26,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.RemoteException;
@@ -46,16 +50,18 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class Dotcase extends Activity
+public class Dotcase extends Activity implements SensorEventListener
 {
     private static final String TAG = "Dotcase";
 
     private static final String COVER_NODE = "/sys/android_touch/cover";
     private final IntentFilter filter = new IntentFilter();
     private GestureDetector mDetector;
-    private PowerManager manager;
+    private PowerManager powerManager;
+    private SensorManager sensorManager;
     private static Context mContext;
     private static boolean running = true;
+    private static boolean pocketed = false;
 
     public static boolean reset_timer = false;
 
@@ -99,10 +105,43 @@ public class Dotcase extends Activity
         final DrawView drawView = new DrawView(mContext);
         setContentView(drawView);
 
-        manager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+        powerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+        sensorManager = (SensorManager) mContext.getSystemService(Context.SENSOR_SERVICE);
         mDetector = new GestureDetector(mContext, new DotcaseGestureListener());
         running = false;
         new Thread(new Service()).start();
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_PROXIMITY) {
+            if (event.values[0] < event.sensor.getMaximumRange() && !pocketed) {
+                pocketed = true;
+            } else if (pocketed) {
+                pocketed = false;
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) { }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        sensorManager.registerListener(this,
+                sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY),
+                SensorManager.SENSOR_DELAY_NORMAL);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            sensorManager.unregisterListener(this);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Failed to unregister listener", e);
+        }
     }
 
     class Service implements Runnable {
@@ -157,7 +196,7 @@ public class Dotcase extends Activity
                         intent.setAction(DotcaseConstants.ACTION_REDRAW);
                         mContext.sendBroadcast(intent);
                     }
-                    manager.goToSleep(SystemClock.uptimeMillis());
+                    powerManager.goToSleep(SystemClock.uptimeMillis());
                 }
             }
         }
@@ -207,8 +246,13 @@ public class Dotcase extends Activity
 
     @Override
     public boolean onTouchEvent(MotionEvent event){
-        this.mDetector.onTouchEvent(event);
-        return super.onTouchEvent(event);
+        if (!pocketed) {
+            this.mDetector.onTouchEvent(event);
+            return super.onTouchEvent(event);
+        } else {
+            // Say that we handled this event so nobody else does
+            return true;
+        }
     }
 
     class DotcaseGestureListener extends GestureDetector.SimpleOnGestureListener
@@ -222,7 +266,7 @@ public class Dotcase extends Activity
 
         @Override
         public boolean onDoubleTap(MotionEvent event) {
-            manager.goToSleep(SystemClock.uptimeMillis());
+            powerManager.goToSleep(SystemClock.uptimeMillis());
             return true;
         }
 

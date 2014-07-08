@@ -22,10 +22,29 @@ package org.cyanogenmod.dotcase;
 
 import android.graphics.Paint;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 public class DotcaseConstants {
     static String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
     static String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
     public static int dotratio = 40;
+
+    static final Set<String> GMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.google.android.gm"}));
+    static final Set<String> HANGOUTS_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.google.android.talk"}));
+    static final Set<String> TWITTER_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.twitter.android",
+        "com.klinker.android.twitter"}));
+    static final Set<String> MISSED_CALL_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.android.phone"}));
+    static final Set<String> MMS_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.android.mms",
+        "com.klinker.android.evolve_SMS"}));
+    static final Set<String> VOICEMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.google.android.apps.googlevoice"}));
 
     static Paint pTrans = new Paint();
     static Paint pBlack = new Paint();

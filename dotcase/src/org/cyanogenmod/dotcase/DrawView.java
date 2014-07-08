@@ -29,6 +29,7 @@ import android.content.IntentFilter;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.text.format.DateFormat;
+import android.util.Log;
 import android.view.View;
 
 import java.util.Arrays;
@@ -37,6 +38,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class DrawView extends View {
+    private static final String TAG = "Dotcase";
+
     // 1920x1080 = 48 x 27 dots @ 40 pixels per dot
     private final Context mContext;
     private final IntentFilter filter = new IntentFilter();
@@ -132,6 +135,8 @@ public class DrawView extends View {
         int[][] mClockSprite = new int[clockLength][clockElementLength];
         int[][] mRingerSprite = new int[ringerLength][ringerElementLength];
 
+        Log.i(TAG, "Drawing alarm");
+
         for (int i = 0; i < ringerLength; i++) {
             for (int j = 0; j < ringerElementLength; j++) {
                 if (DotcaseConstants.ringerSprite[i][j] > 0) {
@@ -189,6 +194,8 @@ public class DrawView extends View {
         int x = 1;
         int y = 30;
 
+        Log.i(TAG, "Drawing notifications");
+
         List<Notification> notifications = Dotcase.status.getNotifications();
         for (Notification notification : notifications) {
             int[][] sprite = DotcaseConstants.getNotificationSprite(notification);
@@ -208,6 +215,8 @@ public class DrawView extends View {
 
         int[][] mHandsetSprite = new int[handsetLength][handsetElementLength];
         int[][] mRingerSprite = new int[ringerLength][ringerElementLength];
+
+        Log.i(TAG, "Drawing ringer");
 
         if (Dotcase.status.ringCounter() / 3 > 0) {
             light = 2;
@@ -260,6 +269,8 @@ public class DrawView extends View {
             level = rawlevel / scale;
         }
 
+        Log.i(TAG, "Drawing battery");
+
         dotcaseDrawSprite(DotcaseConstants.batteryOutlineSprite, 1, 35, canvas);
 
         // 4.34 percents per dot
@@ -290,6 +301,8 @@ public class DrawView extends View {
     private void drawTime(Canvas canvas) {
         timeObject time = getTimeObject();
         int starter;
+
+        Log.i(TAG, "Drawing time");
 
         if (time.hour < 10) {
             starter = 0;
@@ -360,6 +373,8 @@ public class DrawView extends View {
             String name = Dotcase.status.getCallerName();
             String correctedName = "";
 
+            Log.i(TAG, "Drawing caller name: " + name);
+
             // We can fit 7 characters, and the last two are spaces
             if (name.length() <= 9) {
                 // Name is short enough to be drawn completely, cut off spaces at end
@@ -373,6 +388,8 @@ public class DrawView extends View {
                 correctedName = name.substring(nameOffset, nameOffset + 7);
             }
 
+            Log.i(TAG, "Caller name adjusted as: " + correctedName);
+
             for (int i = 0; i < correctedName.length(); i++) {
                 sprite = DotcaseConstants.getSmallNumSprite(correctedName.charAt(i));
                 dotcaseDrawSprite(sprite, x + i * 4, y, canvas);
@@ -385,6 +402,7 @@ public class DrawView extends View {
     private void drawNumber(Canvas canvas) {
         int[][] sprite;
         int x = 0, y = 8;
+        Log.i(TAG, "Drawing caller number: " + Dotcase.status.getCallerNumber());
         if (Dotcase.status.isRinging()) {
             for (int i = 3; i < Dotcase.status.getCallerNumber().length() && i < 10; i++) {
                 sprite = DotcaseConstants.getSmallNumSprite(

@@ -182,13 +182,16 @@ public class DotcaseStatus {
         StatusBarNotification[] statusNotes = null;
         notifications.clear();
 
+        Log.d(TAG, "Checking notifications");
+
         try {
             INotificationManager notificationManager = INotificationManager.Stub.asInterface(
                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
             statusNotes = notificationManager.getActiveNotifications(context.getPackageName());
             for (StatusBarNotification statusNote : statusNotes) {
-                Notification notification = DotcaseConstants.notificationMap.get(
-                        statusNote.getPackageName());
+                String pName = statusNote.getPackageName();
+                Log.d(TAG, "Found notification from " + pName);
+                Notification notification = DotcaseConstants.notificationMap.get(pName);
                 if (notification != null && !notifications.contains(notification)) {
                     notifications.add(notification);
                 }

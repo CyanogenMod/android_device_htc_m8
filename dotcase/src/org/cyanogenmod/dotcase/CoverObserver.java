@@ -79,6 +79,8 @@ class CoverObserver extends UEventObserver {
             switchState = Integer.parseInt(event.get("SWITCH_STATE"));
             boolean screenOn = manager.isScreenOn();
             Dotcase.status.setOnTop(false);
+            Log.d(TAG, "Case event received, case " + (switchState == 1 ? "closed" : "opened") +
+                    " with screen " + (screenOn ? "on" : "off"));
 
             if (switchState == 1) {
                 if (screenOn) {
@@ -119,6 +121,7 @@ class CoverObserver extends UEventObserver {
         public void onReceive(Context context, Intent intent) {
             // If the case is open, don't try to do any of this
             if (switchState == 0) {
+                Log.d(TAG, "Case open, not starting Dotcase");
                 return;
             }
             Intent i = new Intent();
@@ -126,7 +129,9 @@ class CoverObserver extends UEventObserver {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
 
+                    Log.d(TAG, "Starting Dotcase phone");
                     String number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    Log.d(TAG, "Caller number: " + number);
                     Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
                             Uri.encode(number));
                     Cursor cursor = context.getContentResolver().query(uri,
@@ -136,8 +141,10 @@ class CoverObserver extends UEventObserver {
                     if (cursor.moveToFirst()) {
                         name = cursor.getString(cursor.getColumnIndex(
                                 ContactsContract.PhoneLookup.DISPLAY_NAME));
+                        Log.d(TAG, "Caller name: " + name);
                     } else {
                         name = "";
+                        Log.d(TAG, "No caller name found");
                     }
                     cursor.close();
 
@@ -145,25 +152,30 @@ class CoverObserver extends UEventObserver {
                         // If call is restricted, don't show a number
                         name = number;
                         number = "";
+                        Log.d(TAG, "Restricted call detected");
                     }
 
                     name = normalize(name);
                     name = name + "  "; // Add spaces so the scroll effect looks good
+                    Log.d(TAG, "Normalized caller name: " + name);
 
                     Dotcase.status.startRinging(number, name);
                     Dotcase.status.setOnTop(true);
                     new Thread(new ensureTopActivity()).start();
 
                 } else {
+                    Log.d(TAG, "Phone no longer ringing");
                     Dotcase.status.setOnTop(false);
                     Dotcase.status.stopRinging();
                 }
             } else if (intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
+                Log.d(TAG, "Starting Dotcase alarm");
                 Dotcase.status.startAlarm();
                 Dotcase.status.setOnTop(true);
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                Log.d(TAG, "Starting Dotcase");
                 crankUpBrightness();
                 Dotcase.status.resetTimer();
                 intent.setAction(DotcaseConstants.ACTION_REDRAW);
@@ -211,6 +223,7 @@ class CoverObserver extends UEventObserver {
     }
 
     public void killActivity() {
+        Log.d(TAG, "Shutting down Dotcase");
         Dotcase.status.stopRinging();
         Dotcase.status.stopAlarm();
         Dotcase.status.setOnTop(false);

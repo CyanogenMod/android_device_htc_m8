@@ -177,17 +177,18 @@ public class Dotcase extends Activity
                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
             nots = mNoMan.getActiveNotifications(mContext.getPackageName());
             for (StatusBarNotification not : nots) {
-                if (not.getPackageName().equals("com.google.android.gm") && !gmail) {
+                String pName = not.getPackageName();
+                if (pName.equals("com.google.android.gm") && !gmail) {
                     gmail = true;
-                } else if (not.getPackageName().equals("com.google.android.talk") && !hangouts) {
+                } else if (pName.equals("com.google.android.talk") && !hangouts) {
                     hangouts = true;
-                } else if (not.getPackageName().equals("com.twitter.android") && !twitter) {
+                } else if (pName.equals("com.twitter.android") && !twitter) {
                     twitter = true;
-                } else if (not.getPackageName().equals("com.android.phone") && !missed_call) {
+                } else if (pName.equals("com.android.phone") && !missed_call) {
                     missed_call = true;
-                } else if (not.getPackageName().equals("com.android.mms") && !mms) {
+                } else if (pName.equals("com.android.mms") && !mms) {
                     mms = true;
-                } else if (not.getPackageName().equals("com.google.android.apps.googlevoice")
+                } else if (pName.equals("com.google.android.apps.googlevoice")
                            && !voicemail) {
                     voicemail = true;
                 }

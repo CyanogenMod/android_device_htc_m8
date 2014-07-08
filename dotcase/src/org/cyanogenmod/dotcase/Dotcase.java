@@ -122,7 +122,7 @@ public class Dotcase extends Activity
                     }
 
                     for (int i = 0; i <= timeout; i++) {
-                        if (reset_timer) {
+                        if (reset_timer || ringing || alarm_clock) {
                             i = 0;
                             reset_timer = false;
                         }

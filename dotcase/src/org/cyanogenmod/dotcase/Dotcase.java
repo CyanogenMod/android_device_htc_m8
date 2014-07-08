@@ -181,11 +181,11 @@ public class Dotcase extends Activity
                     gmail = true;
                 } else if (not.getPackageName().equals("com.google.android.talk") && !hangouts) {
                     hangouts = true;
-                } else if (not.getPackageName().equals("com.twitter.android") && !twitter) {
+                } else if (DotcaseConstants.TWITTER_APPS.contains(not.getPackageName()) && !twitter) {
                     twitter = true;
                 } else if (not.getPackageName().equals("com.android.phone") && !missed_call) {
                     missed_call = true;
-                } else if (not.getPackageName().equals("com.android.mms") && !mms) {
+                } else if (DotcaseConstants.MMS_APPS.contains(not.getPackageName()) && !mms) {
                     mms = true;
                 } else if (not.getPackageName().equals("com.google.android.apps.googlevoice")
                            && !voicemail) {

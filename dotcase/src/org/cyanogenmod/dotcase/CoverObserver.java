@@ -74,6 +74,8 @@ class CoverObserver extends UEventObserver {
             switchState = Integer.parseInt(event.get("SWITCH_STATE"));
             boolean screenOn = manager.isScreenOn();
             Dotcase.status.setOnTop(false);
+            Log.d(TAG, "Case event received, case " + (switchState == 1 ? "closed" : "opened") +
+                    " with screen " + (screenOn ? "on" : "off"));
 
             if (switchState == 1) {
                 if (screenOn) {
@@ -114,12 +116,14 @@ class CoverObserver extends UEventObserver {
         public void onReceive(Context context, Intent intent) {
             // If the case is open, don't try to do any of this
             if (switchState == 0) {
+                Log.d(TAG, "Case open, not starting Dotcase");
                 return;
             }
             Intent i = new Intent();
             if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
+                    Log.d(TAG, "Starting Dotcase phone");
                     Dotcase.status.startRinging(
                             intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER));
                     Dotcase.status.setOnTop(true);
@@ -130,10 +134,12 @@ class CoverObserver extends UEventObserver {
                 }
             } else if(intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
+                Log.d(TAG, "Starting Dotcase alarm");
                 Dotcase.status.startAlarm();
                 Dotcase.status.setOnTop(true);
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                Log.d(TAG, "Starting Dotcase");
                 crankUpBrightness();
                 Dotcase.status.resetTimer();
                 intent.setAction(DotcaseConstants.ACTION_REDRAW);
@@ -167,6 +173,7 @@ class CoverObserver extends UEventObserver {
     }
 
     public void killActivity() {
+        Log.d(TAG, "Shutting down Dotcase");
         Dotcase.status.stopRinging();
         Dotcase.status.stopAlarm();
         Dotcase.status.setOnTop(false);

@@ -74,12 +74,15 @@ public class Dotcase extends Activity implements SensorEventListener
     public static boolean alarm_clock = false;
 
     public enum Notification {
+        EMAIL,
         GMAIL,
         HANGOUTS,
         TWITTER,
         MISSED_CALL,
         MMS,
         VOICEMAIL,
+        SNAPCHAT,
+        FACEBOOK,
         DOTS
     }
 

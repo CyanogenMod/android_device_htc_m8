@@ -197,6 +197,8 @@ public class DrawView extends View {
 
     private int[][] getSprite(Dotcase.Notification notification) {
         switch (notification) {
+            case EMAIL:
+                return DotcaseConstants.emailSprite;
             case GMAIL:
                 return DotcaseConstants.gmailSprite;
             case HANGOUTS:
@@ -209,6 +211,10 @@ public class DrawView extends View {
                 return DotcaseConstants.mmsSprite;
             case VOICEMAIL:
                 return DotcaseConstants.voicemailSprite;
+            case SNAPCHAT:
+                return DotcaseConstants.snapchatSprite;
+            case FACEBOOK:
+                return DotcaseConstants.facebookSprite;
             case DOTS:
                 return DotcaseConstants.dotsSprite;
             default:

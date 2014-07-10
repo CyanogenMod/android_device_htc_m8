@@ -36,6 +36,16 @@ public class DotcaseConstants {
     static {
         notificationMap = new HashMap<String, Notification>();
 
+        // Email apps
+        notificationMap.put("com.android.email", Notification.EMAIL);
+        notificationMap.put("com.google.android.email", Notification.EMAIL);
+        notificationMap.put("com.mailboxapp", Notification.EMAIL);
+        notificationMap.put("com.yahoo.mobile.client.android.mail", Notification.EMAIL);
+        notificationMap.put("com.outlook.Z7", Notification.EMAIL);
+        notificationMap.put("com.maildroid", Notification.EMAIL);
+        notificationMap.put("com.maildroid.pro", Notification.EMAIL);
+        notificationMap.put("com.fsck.k9", Notification.EMAIL);
+
         // Gmail apps
         notificationMap.put("com.google.android.gm", Notification.GMAIL);
 
@@ -44,15 +54,30 @@ public class DotcaseConstants {
 
         // Twitter apps
         notificationMap.put("com.twitter.android", Notification.TWITTER);
+        notificationMap.put("com.dotsandlines.carbon", Notification.TWITTER);
+        notificationMap.put("com.levelup.touiteur", Notification.TWITTER); // Plume
+        notificationMap.put("com.klinker.android.twitter", Notification.TWITTER); // Talon
+        notificationMap.put("com.handmark.tweetcaster", Notification.TWITTER);
+        notificationMap.put("com.handmark.tweetcaster.premium", Notification.TWITTER);
 
         // Missed call apps
         notificationMap.put("com.android.phone", Notification.MISSED_CALL);
 
         // MMS apps
         notificationMap.put("com.android.mms", Notification.MMS);
+        notificationMap.put("com.p1.chompsms", Notification.MMS);
+        notificationMap.put("com.handcent.nextsms", Notification.MMS);
+        notificationMap.put("com.klinker.android.evolve_sms", Notification.MMS);
 
         // Voicemail apps
         notificationMap.put("com.google.android.apps.googlevoice", Notification.VOICEMAIL);
+
+        // Snapchat
+        notificationMap.put("com.snapchat.android", Notification.SNAPCHAT);
+
+        // Facebook apps
+        notificationMap.put("com.facebook.katana", Notification.FACEBOOK);
+        notificationMap.put("com.facebook.orca", Notification.FACEBOOK);
     }
 
     static Paint pTrans = new Paint();
@@ -69,6 +94,7 @@ public class DotcaseConstants {
     static Paint pDGreen = new Paint();
     static Paint pDRed = new Paint();
     static Paint pFYellow = new Paint();
+    static Paint pFbBlue = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -85,6 +111,7 @@ public class DotcaseConstants {
         pDGreen.setARGB(255, 0, 128, 0);
         pDRed.setARGB(255, 128, 0, 0);
         pFYellow.setARGB(255, 255, 255, 153);
+        pFbBlue.setARGB(255, 59, 89, 152);
     }
 
     static int[][] torchSprite = {
@@ -216,6 +243,16 @@ public class DotcaseConstants {
         {7, 7, 0, 0, 0, 7, 7},
         {0, 0, 0, 0, 0, 0, 0}};
 
+    static int[][] emailSprite = {
+        {0, 0, 1, 1, 1, 1, 0},
+        {0, 1, 0, 0, 0, 0, 1},
+        {1, 0, 0, 1, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0, 1},
+        {1, 0, 0, 1, 1, 1, 0},
+        {0, 1, 0, 0, 0, 0, 0},
+        {0, 0, 1, 1, 1, 1, 0}};
+
     static int[][] gmailSprite = {
         {0, 0, 0, 0, 0, 0, 0},
         {2, 1, 1, 1, 1, 1, 2},
@@ -225,6 +262,26 @@ public class DotcaseConstants {
         {2, 1, 1, 1, 1, 1, 2},
         {2, 1, 1, 1, 1, 1, 2},
         {0, 0, 0, 0, 0, 0, 0}};
+
+    static int[][] snapchatSprite = {
+        {0, 0, 7, 7, 7, 0, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {7, 7, 7, 7, 7, 7, 7},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 0, 7, 0, 7, 0}};
+
+    static int[][] facebookSprite = {
+        { 0, 14, 14, 14, 14, 14,  0},
+        {14, 14, 14, 14, 14,  1, 14},
+        {14, 14, 14, 14,  1, 14, 14},
+        {14, 14, 14, 14,  1, 14, 14},
+        {14, 14, 14,  1,  1,  1, 14},
+        {14, 14, 14, 14,  1, 14, 14},
+        {14, 14, 14, 14,  1, 14, 14},
+        { 0, 14, 14, 14,  1, 14,  0}};
 
     static int[][] dotsSprite = {
         {0, 0, 0, 0, 0, 0, 0},
@@ -585,6 +642,8 @@ public class DotcaseConstants {
                 return pDRed;
             case 12:
                 return pFYellow;
+            case 14:
+                return pFbBlue;
             default:
                 return pBlack;
         }

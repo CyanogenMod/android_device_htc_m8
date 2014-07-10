@@ -20,12 +20,40 @@
 
 package org.cyanogenmod.dotcase;
 
+import org.cyanogenmod.dotcase.Dotcase.Notification;
+
 import android.graphics.Paint;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class DotcaseConstants {
     static String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
     static String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
     public static int dotratio = 40;
+
+    static final Map<String, Notification> notificationMap;
+    static {
+        notificationMap = new HashMap<String, Notification>();
+
+        // Gmail apps
+        notificationMap.put("com.google.android.gm", Notification.GMAIL);
+
+        // Hangouts apps
+        notificationMap.put("com.google.android.talk", Notification.HANGOUTS);
+
+        // Twitter apps
+        notificationMap.put("com.twitter.android", Notification.TWITTER);
+
+        // Missed call apps
+        notificationMap.put("com.android.phone", Notification.MISSED_CALL);
+
+        // MMS apps
+        notificationMap.put("com.android.mms", Notification.MMS);
+
+        // Voicemail apps
+        notificationMap.put("com.google.android.apps.googlevoice", Notification.VOICEMAIL);
+    }
 
     static Paint pTrans = new Paint();
     static Paint pBlack = new Paint();
@@ -196,6 +224,16 @@ public class DotcaseConstants {
         {2, 1, 1, 2, 1, 1, 2},
         {2, 1, 1, 1, 1, 1, 2},
         {2, 1, 1, 1, 1, 1, 2},
+        {0, 0, 0, 0, 0, 0, 0}};
+
+    static int[][] dotsSprite = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 1, 0, 1, 0, 1, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0}};
 
     static int[][] timeColon = {

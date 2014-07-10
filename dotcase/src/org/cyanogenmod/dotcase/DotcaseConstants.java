@@ -31,18 +31,37 @@ public class DotcaseConstants {
     static String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
     public static int dotratio = 40;
 
+    static final Set<String> EMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.android.email",
+        "com.google.android.email",
+        "com.mailboxapp",
+        "com.yahoo.mobile.client.android.mail",
+        "com.outlook.Z7",
+        "com.maildroid",
+        "com.maildroid.pro",
+        "com.fsck.k9"}));
     static final Set<String> GMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.google.android.gm"}));
     static final Set<String> HANGOUTS_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.google.android.talk"}));
     static final Set<String> TWITTER_APPS = new HashSet<String>(Arrays.asList(new String[] {
-        "com.twitter.android"}));
+        "com.twitter.android",
+        "com.dotsandlines.carbon",
+        "com.levelup.touiteur", // Plume
+        "com.klinker.android.twitter", // Talon
+        "com.handmark.tweetcaster",
+        "com.handmark.tweetcaster.premium"}));
     static final Set<String> MISSED_CALL_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.android.phone"}));
     static final Set<String> MMS_APPS = new HashSet<String>(Arrays.asList(new String[] {
-        "com.android.mms"}));
+        "com.android.mms",
+        "com.p1.chompsms",
+        "com.handcent.nextsms",
+        "com.klinker.android.evolve_sms"}));
     static final Set<String> VOICEMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.google.android.apps.googlevoice"}));
+    static final Set<String> SNAPCHAT_APPS = new HashSet<String>(Arrays.asList(new String[] {
+        "com.snapchat.android"}));
 
     static Paint pTrans = new Paint();
     static Paint pBlack = new Paint();
@@ -205,6 +224,16 @@ public class DotcaseConstants {
         {7, 7, 0, 0, 0, 7, 7},
         {0, 0, 0, 0, 0, 0, 0}};
 
+    static int[][] emailSprite = {
+        {0, 0, 1, 1, 1, 1, 0},
+        {0, 1, 0, 0, 0, 0, 1},
+        {1, 0, 0, 1, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0, 1},
+        {1, 0, 1, 0, 1, 0, 1},
+        {1, 0, 0, 1, 1, 1, 0},
+        {0, 1, 0, 0, 0, 0, 0},
+        {0, 0, 1, 1, 1, 1, 0}};
+
     static int[][] gmailSprite = {
         {0, 0, 0, 0, 0, 0, 0},
         {2, 1, 1, 1, 1, 1, 2},
@@ -214,6 +243,16 @@ public class DotcaseConstants {
         {2, 1, 1, 1, 1, 1, 2},
         {2, 1, 1, 1, 1, 1, 2},
         {0, 0, 0, 0, 0, 0, 0}};
+
+    static int[][] snapchatSprite = {
+        {0, 0, 7, 7, 7, 0, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {7, 7, 7, 7, 7, 7, 7},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 7, 7, 7, 7, 0},
+        {0, 7, 0, 7, 0, 7, 0}};
 
     static int[][] dotsSprite = {
         {0, 0, 0, 0, 0, 0, 0},

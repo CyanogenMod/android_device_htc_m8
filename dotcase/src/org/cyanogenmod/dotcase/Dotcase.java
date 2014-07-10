@@ -74,12 +74,14 @@ public class Dotcase extends Activity implements SensorEventListener
     public static boolean alarm_clock = false;
 
     public enum Notification {
+        EMAIL,
         GMAIL,
         HANGOUTS,
         TWITTER,
         MISSED_CALL,
         MMS,
         VOICEMAIL,
+        SNAPCHAT,
         DOTS
     }
 
@@ -243,7 +245,9 @@ public class Dotcase extends Activity implements SensorEventListener
     }
 
     static Notification getNotificationByPackage(String pName) {
-        if (DotcaseConstants.GMAIL_APPS.contains(pName)) {
+        if (DotcaseConstants.EMAIL_APPS.contains(pName)) {
+            return Notification.EMAIL;
+        } else if (DotcaseConstants.GMAIL_APPS.contains(pName)) {
             return Notification.GMAIL;
         } else if (DotcaseConstants.HANGOUTS_APPS.contains(pName)) {
             return Notification.HANGOUTS;
@@ -255,6 +259,8 @@ public class Dotcase extends Activity implements SensorEventListener
             return Notification.MMS;
         } else if (DotcaseConstants.VOICEMAIL_APPS.contains(pName)) {
             return Notification.VOICEMAIL;
+        } else if (DotcaseConstants.SNAPCHAT_APPS.contains(pName)) {
+            return Notification.SNAPCHAT;
         } else {
             return null;
         }

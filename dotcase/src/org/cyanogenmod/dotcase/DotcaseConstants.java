@@ -36,11 +36,13 @@ public class DotcaseConstants {
     static final Set<String> HANGOUTS_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.google.android.talk"}));
     static final Set<String> TWITTER_APPS = new HashSet<String>(Arrays.asList(new String[] {
-        "com.twitter.android"}));
+        "com.twitter.android",
+        "com.klinker.android.twitter"}));
     static final Set<String> MISSED_CALL_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.android.phone"}));
     static final Set<String> MMS_APPS = new HashSet<String>(Arrays.asList(new String[] {
-        "com.android.mms"}));
+        "com.android.mms",
+        "com.klinker.android.evolve_SMS"}));
     static final Set<String> VOICEMAIL_APPS = new HashSet<String>(Arrays.asList(new String[] {
         "com.google.android.apps.googlevoice"}));
 

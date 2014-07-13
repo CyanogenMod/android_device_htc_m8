@@ -68,6 +68,7 @@ public class DotcaseConstants {
     static Paint pDGreen = new Paint();
     static Paint pDRed = new Paint();
     static Paint pFYellow = new Paint();
+    static Paint pTBlue = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -84,6 +85,7 @@ public class DotcaseConstants {
         pDGreen.setARGB(255, 0, 128, 0);
         pDRed.setARGB(255, 128, 0, 0);
         pFYellow.setARGB(255, 255, 255, 153);
+        pTBlue.setARGB(255, 85, 172, 238);
     }
 
     static int[][] handsetSprite = {
@@ -175,14 +177,14 @@ public class DotcaseConstants {
         {0, 3, 0, 0, 0, 0, 0}};
 
     static int[][] twitterSprite = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 9, 9, 0, 0, 0},
-        {0, 0, 9, 9, 9, 9, 0},
-        {0, 0, 9, 9, 9, 9, 0},
-        {0, 0, 9, 9, 0, 0, 0},
-        {0, 0, 9, 9, 9, 9, 0},
-        {0, 0, 0, 9, 9, 9, 0},
-        {0, 0, 0, 0, 0, 0, 0}};
+        {0, 0,  0,  0,  0,  0, 0},
+        {0, 0, 13, 13,  0,  0, 0},
+        {0, 0, 13, 13, 13, 13, 0},
+        {0, 0, 13, 13, 13, 13, 0},
+        {0, 0, 13, 13,  0,  0, 0},
+        {0, 0, 13, 13, 13, 13, 0},
+        {0, 0,  0, 13, 13, 13, 0},
+        {0, 0,  0,  0,  0,  0, 0}};
 
     static int[][] voicemailSprite = { // this icon is shit
         {0, 0, 0, 0, 0, 0, 0},
@@ -573,6 +575,8 @@ public class DotcaseConstants {
                 return pDRed;
             case 12:
                 return pFYellow;
+            case 13:
+                return pTBlue;
             default:
                 return pBlack;
         }

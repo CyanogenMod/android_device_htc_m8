@@ -20,6 +20,8 @@
 
 package org.cyanogenmod.dotcase;
 
+import org.cyanogenmod.dotcase.DotcaseConstants.Notification;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -146,14 +148,14 @@ public class DrawView extends View {
             }
         }
 
-        dotcaseDrawSprite(DotcaseConstants.getSmallSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
                 time.timeString.charAt(0)), 0, 0, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
                 time.timeString.charAt(1)), 4, 0, canvas);
         dotcaseDrawSprite(DotcaseConstants.smallTimeColon, 8, 1, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
                 time.timeString.charAt(2)), 11, 0, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
                 time.timeString.charAt(3)), 15, 0, canvas);
         dotcaseDrawSprite(mClockSprite, 7, 7, canvas);
 
@@ -186,39 +188,12 @@ public class DrawView extends View {
         int x = 1;
         int y = 30;
 
-        for (Dotcase.Notification notification : Dotcase.notifications) {
-            int[][] sprite = getSprite(notification);
+        for (Notification notification : Dotcase.notifications) {
+            int[][] sprite = DotcaseConstants.getNotificationSprite(notification);
             if (sprite != null) {
                 dotcaseDrawSprite(sprite, x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
                 count++;
             }
-        }
-    }
-
-    private int[][] getSprite(Dotcase.Notification notification) {
-        switch (notification) {
-            case EMAIL:
-                return DotcaseConstants.emailSprite;
-            case GMAIL:
-                return DotcaseConstants.gmailSprite;
-            case HANGOUTS:
-                return DotcaseConstants.hangoutsSprite;
-            case TWITTER:
-                return DotcaseConstants.twitterSprite;
-            case MISSED_CALL:
-                return DotcaseConstants.missedCallSprite;
-            case MMS:
-                return DotcaseConstants.mmsSprite;
-            case VOICEMAIL:
-                return DotcaseConstants.voicemailSprite;
-            case SNAPCHAT:
-                return DotcaseConstants.snapchatSprite;
-            case FACEBOOK:
-                return DotcaseConstants.facebookSprite;
-            case DOTS:
-                return DotcaseConstants.dotsSprite;
-            default:
-                return null;
         }
     }
 
@@ -328,13 +303,13 @@ public class DrawView extends View {
         }
 
         dotcaseDrawSprite(DotcaseConstants.timeColon, starter + 10, 5 + 4, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSprite(time.timeString.charAt(0)),
+        dotcaseDrawSprite(DotcaseConstants.getNumSprite(time.timeString.charAt(0)),
                 starter, 5, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSprite(time.timeString.charAt(1)),
+        dotcaseDrawSprite(DotcaseConstants.getNumSprite(time.timeString.charAt(1)),
                 starter + 5, 5, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSprite(time.timeString.charAt(2)),
+        dotcaseDrawSprite(DotcaseConstants.getNumSprite(time.timeString.charAt(2)),
                 starter + 12, 5, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSprite(time.timeString.charAt(3)),
+        dotcaseDrawSprite(DotcaseConstants.getNumSprite(time.timeString.charAt(3)),
                 starter + 17, 5, canvas);
     }
 
@@ -378,7 +353,7 @@ public class DrawView extends View {
         int x = 0, y = 5;
         if (Dotcase.ringing) {
             for (int i = 3; i < Dotcase.phoneNumber.length(); i++) {
-                sprite = DotcaseConstants.getSmallSprite(Dotcase.phoneNumber.charAt(i));
+                sprite = DotcaseConstants.getSmallNumSprite(Dotcase.phoneNumber.charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

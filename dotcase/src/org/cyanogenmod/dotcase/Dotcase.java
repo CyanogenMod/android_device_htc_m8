@@ -20,6 +20,8 @@
 
 package org.cyanogenmod.dotcase;
 
+import org.cyanogenmod.dotcase.DotcaseConstants.Notification;
+
 import android.app.Activity;
 import android.app.INotificationManager;
 import android.content.BroadcastReceiver;
@@ -72,19 +74,6 @@ public class Dotcase extends Activity implements SensorEventListener
     public static String phoneNumber = "";
     public static boolean torchStatus = false;
     public static boolean alarm_clock = false;
-
-    public enum Notification {
-        EMAIL,
-        GMAIL,
-        HANGOUTS,
-        TWITTER,
-        MISSED_CALL,
-        MMS,
-        VOICEMAIL,
-        SNAPCHAT,
-        FACEBOOK,
-        DOTS
-    }
 
     public static List<Notification> notifications = new Vector<Notification>();
 

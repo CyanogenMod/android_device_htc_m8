@@ -34,14 +34,13 @@ import android.view.View;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.List;
 
 public class DrawView extends View {
     // 1920x1080 = 48 x 27 dots @ 40 pixels per dot
     private final Context mContext;
     private final IntentFilter filter = new IntentFilter();
     private int heartbeat = 0;
-
-    public static int ringCounter;
 
     public DrawView(Context context) {
         super(context);
@@ -52,23 +51,23 @@ public class DrawView extends View {
 
     @Override
     public void onDraw(Canvas canvas) {
-        if (Dotcase.alarm_clock) {
+        if (Dotcase.status.isAlarm()) {
             drawAlarm(canvas);
-        } else if (Dotcase.ringing) {
+        } else if (Dotcase.status.isRinging()) {
             drawNumber(canvas);
             drawRinger(canvas);
         } else {
-            if (Dotcase.torchStatus) {
+            if (Dotcase.status.isTorch()) {
                 dotcaseDrawSprite(DotcaseConstants.torchSprite, 19, 22, canvas);
             }
             drawTime(canvas);
 
             // Check notifications each cycle before displaying them
             if (heartbeat == 0) {
-                Dotcase.checkNotifications();
+                Dotcase.status.checkNotifications(mContext);
             }
 
-            if (!Dotcase.notifications.isEmpty()) {
+            if (!Dotcase.status.hasNotifications()) {
                 if (heartbeat < 3) {
                     drawNotifications(canvas);
                 } else {
@@ -136,8 +135,9 @@ public class DrawView extends View {
             for (int j = 0; j < ringerElementLength; j++) {
                 if (DotcaseConstants.ringerSprite[i][j] > 0) {
                     mRingerSprite[i][j] =
-                            DotcaseConstants.ringerSprite[i][j] == 3 - (ringCounter % 3)
-                                    ? light : dark;
+                            DotcaseConstants.ringerSprite[i][j] ==
+                                    3 - (Dotcase.status.ringCounter() % 3)
+                                            ? light : dark;
                 }
             }
         }
@@ -167,7 +167,7 @@ public class DrawView extends View {
             }
         }
 
-        if (ringCounter / 6 > 0) {
+        if (Dotcase.status.ringCounter() / 6 > 0) {
             dotcaseDrawSprite(DotcaseConstants.alarmCancelArray, 2, 21, canvas);
             Collections.reverse(Arrays.asList(mRingerSprite));
         } else {
@@ -176,10 +176,10 @@ public class DrawView extends View {
 
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
-        if (ringCounter > 10) {
-            ringCounter = 0;
+        if (Dotcase.status.ringCounter() > 10) {
+            Dotcase.status.resetRingCounter();
         } else {
-            ringCounter++;
+            Dotcase.status.incrementRingCounter();
         }
     }
 
@@ -188,7 +188,8 @@ public class DrawView extends View {
         int x = 1;
         int y = 30;
 
-        for (Notification notification : Dotcase.notifications) {
+        List<Notification> notifications = Dotcase.status.getNotifications();
+        for (Notification notification : notifications) {
             int[][] sprite = DotcaseConstants.getNotificationSprite(notification);
             if (sprite != null) {
                 dotcaseDrawSprite(sprite, x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
@@ -207,7 +208,7 @@ public class DrawView extends View {
         int[][] mHandsetSprite = new int[handsetLength][handsetElementLength];
         int[][] mRingerSprite = new int[ringerLength][ringerElementLength];
 
-        if (ringCounter /3 > 0) {
+        if (Dotcase.status.ringCounter() / 3 > 0) {
             light = 2;
             dark = 11;
         } else {
@@ -219,8 +220,9 @@ public class DrawView extends View {
             for (int j = 0; j < ringerElementLength; j++) {
                 if (DotcaseConstants.ringerSprite[i][j] > 0) {
                     mRingerSprite[i][j] =
-                            DotcaseConstants.ringerSprite[i][j] == 3 - (ringCounter % 3)
-                                    ? light : dark;
+                            DotcaseConstants.ringerSprite[i][j] ==
+                                    3 - (Dotcase.status.ringCounter() % 3)
+                                            ? light : dark;
                 }
             }
         }
@@ -231,7 +233,7 @@ public class DrawView extends View {
             }
         }
 
-        if (ringCounter / 3 > 0) {
+        if (Dotcase.status.ringCounter() / 3 > 0) {
             Collections.reverse(Arrays.asList(mRingerSprite));
             Collections.reverse(Arrays.asList(mHandsetSprite));
         }
@@ -239,10 +241,10 @@ public class DrawView extends View {
         dotcaseDrawSprite(mHandsetSprite, 6, 21, canvas);
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
-        if (ringCounter > 4) {
-            ringCounter = 0;
+        if (Dotcase.status.ringCounter() > 4) {
+            Dotcase.status.resetRingCounter();
         } else {
-            ringCounter++;
+            Dotcase.status.incrementRingCounter();
         }
     }
 
@@ -351,9 +353,10 @@ public class DrawView extends View {
     private void drawNumber(Canvas canvas) {
         int[][] sprite;
         int x = 0, y = 5;
-        if (Dotcase.ringing) {
-            for (int i = 3; i < Dotcase.phoneNumber.length(); i++) {
-                sprite = DotcaseConstants.getSmallNumSprite(Dotcase.phoneNumber.charAt(i));
+        if (Dotcase.status.isRinging()) {
+            for (int i = 3; i < Dotcase.status.getPhoneNumber().length(); i++) {
+                sprite = DotcaseConstants.getSmallNumSprite(
+                        Dotcase.status.getPhoneNumber().charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

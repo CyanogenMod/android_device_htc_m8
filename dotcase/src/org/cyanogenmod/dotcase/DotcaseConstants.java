@@ -32,7 +32,7 @@ public class DotcaseConstants {
     /**
      * Notification types
      */
-    public enum Notification {
+    enum Notification {
         EMAIL,
         GMAIL,
         HANGOUTS,

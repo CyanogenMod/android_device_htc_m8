@@ -66,8 +66,7 @@ public class DrawView extends View {
                 Dotcase.checkNotifications();
             }
 
-            if (Dotcase.gmail || Dotcase.hangouts || Dotcase.mms || Dotcase.missed_call
-                              || Dotcase.twitter || Dotcase.voicemail) {
+            if (!Dotcase.notifications.isEmpty()) {
                 if (heartbeat < 3) {
                     drawNotifications(canvas);
                 } else {
@@ -186,39 +185,34 @@ public class DrawView extends View {
         int count = 0;
         int x = 1;
         int y = 30;
-        if (Dotcase.missed_call) {
-            dotcaseDrawSprite(DotcaseConstants.missedCallSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
-            count++;
-        }
 
-        if (Dotcase.voicemail) {
-            dotcaseDrawSprite(DotcaseConstants.voicemailSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
-            count++;
+        for (Dotcase.Notification notification : Dotcase.notifications) {
+            int[][] sprite = getSprite(notification);
+            if (sprite != null) {
+                dotcaseDrawSprite(sprite, x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
+                count++;
+            }
         }
+    }
 
-        if (Dotcase.gmail) {
-            dotcaseDrawSprite(DotcaseConstants.gmailSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
-            count++;
-        }
-
-        if (Dotcase.hangouts) {
-            dotcaseDrawSprite(DotcaseConstants.hangoutsSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
-            count++;
-        }
-
-        if (Dotcase.mms) {
-            dotcaseDrawSprite(DotcaseConstants.mmsSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
-            count++;
-        }
-
-        if (Dotcase.twitter) {
-            dotcaseDrawSprite(DotcaseConstants.twitterSprite,
-                    x + ((count % 3) * 9), y + ((count / 3) * 9), canvas);
+    private int[][] getSprite(Dotcase.Notification notification) {
+        switch (notification) {
+            case GMAIL:
+                return DotcaseConstants.gmailSprite;
+            case HANGOUTS:
+                return DotcaseConstants.hangoutsSprite;
+            case TWITTER:
+                return DotcaseConstants.twitterSprite;
+            case MISSED_CALL:
+                return DotcaseConstants.missedCallSprite;
+            case MMS:
+                return DotcaseConstants.mmsSprite;
+            case VOICEMAIL:
+                return DotcaseConstants.voicemailSprite;
+            case DOTS:
+                return DotcaseConstants.dotsSprite;
+            default:
+                return null;
         }
     }
 

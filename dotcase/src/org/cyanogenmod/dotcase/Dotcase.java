@@ -49,6 +49,8 @@ import java.lang.Math;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
+import java.util.Vector;
 
 public class Dotcase extends Activity implements SensorEventListener
 {
@@ -69,15 +71,19 @@ public class Dotcase extends Activity implements SensorEventListener
     public static int ringCounter = 0;
     public static String phoneNumber = "";
     public static boolean torchStatus = false;
-
-    public static boolean gmail = false;
-    public static boolean hangouts = false;
-    public static boolean twitter = false;
-    public static boolean missed_call = false;
-    public static boolean mms = false;
-    public static boolean voicemail = false;
-
     public static boolean alarm_clock = false;
+
+    public enum Notification {
+        GMAIL,
+        HANGOUTS,
+        TWITTER,
+        MISSED_CALL,
+        MMS,
+        VOICEMAIL,
+        DOTS
+    }
+
+    public static List<Notification> notifications = new Vector<Notification>();
 
     @Override
     public void onCreate(Bundle savedInstanceState)
@@ -203,38 +209,37 @@ public class Dotcase extends Activity implements SensorEventListener
     }
 
     public static void checkNotifications() {
-        StatusBarNotification[] nots = null;
-        gmail = false;
-        hangouts = false;
-        twitter = false;
-        missed_call = false;
-        mms = false;
-        voicemail = false;
+        StatusBarNotification[] statusNotes = null;
+        notifications.clear();
 
         try {
-            INotificationManager mNoMan = INotificationManager.Stub.asInterface(
+            INotificationManager notificationManager = INotificationManager.Stub.asInterface(
                     ServiceManager.getService(Context.NOTIFICATION_SERVICE));
-            nots = mNoMan.getActiveNotifications(mContext.getPackageName());
-            for (StatusBarNotification not : nots) {
-                if (not.getPackageName().equals("com.google.android.gm") && !gmail) {
-                    gmail = true;
-                } else if (not.getPackageName().equals("com.google.android.talk") && !hangouts) {
-                    hangouts = true;
-                } else if (not.getPackageName().equals("com.twitter.android") && !twitter) {
-                    twitter = true;
-                } else if (not.getPackageName().equals("com.android.phone") && !missed_call) {
-                    missed_call = true;
-                } else if (not.getPackageName().equals("com.android.mms") && !mms) {
-                    mms = true;
-                } else if (not.getPackageName().equals("com.google.android.apps.googlevoice")
-                           && !voicemail) {
-                    voicemail = true;
+            statusNotes = notificationManager.getActiveNotifications(mContext.getPackageName());
+            for (StatusBarNotification statusNote : statusNotes) {
+                Notification notification = DotcaseConstants.notificationMap.get(
+                        statusNote.getPackageName());
+                if (notification != null && !notifications.contains(notification)) {
+                    notifications.add(notification);
                 }
             }
         } catch (NullPointerException e) {
             Log.e(TAG, "Error retrieving notifications", e);
+            notifications.clear();
         } catch (RemoteException e) {
             Log.e(TAG, "Error retrieving notifications", e);
+            notifications.clear();
+        }
+
+        try {
+            if (notifications.size() > 6) {
+                notifications.subList(5, notifications.size()).clear();
+                notifications.add(Notification.DOTS);
+            }
+        } catch (IndexOutOfBoundsException e) {
+            // This should never happen...
+            Log.e(TAG, "Error sublisting notifications, clearing to be safe", e);
+            notifications.clear();
         }
     }
 

@@ -657,22 +657,24 @@ on property:sys.perf.profile=0
 
 on property:sys.perf.profile=1
     write /sys/class/devfreq/qcom,cpubw.42/governor "msm_cpufreq"
-    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor "ondemand"
-    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor "ondemand"
-    write /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor "ondemand"
-    write /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor "ondemand"
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor "interactive"
+    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor "interactive"
+    write /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor "interactive"
+    write /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor "interactive"
 
-    write /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate "50000"
-    write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold "90"
-    write /sys/devices/system/cpu/cpufreq/ondemand/io_is_busy "1"
-    write /sys/devices/system/cpu/cpufreq/ondemand/sampling_down_factor "2"
-    write /sys/devices/system/cpu/cpufreq/ondemand/down_differential "10"
-    write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold_multi_core "70"
-    write /sys/devices/system/cpu/cpufreq/ondemand/down_differential_multi_core "3"
-    write /sys/devices/system/cpu/cpufreq/ondemand/optimal_freq "960000"
-    write /sys/devices/system/cpu/cpufreq/ondemand/sync_freq "960000"
-    write /sys/devices/system/cpu/cpufreq/ondemand/input_boost "1190400"
-    write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold_any_cpu_load "80"
+    write /sys/devices/system/cpu/cpufreq/interactive/above_hispeed_delay "20000 1400000:40000 1700000:20000"
+    write /sys/devices/system/cpu/cpufreq/interactive/go_hispeed_load 90
+    write /sys/devices/system/cpu/cpufreq/interactive/hispeed_freq 1190400
+    write /sys/devices/system/cpu/cpufreq/interactive/io_is_busy 1
+    write /sys/devices/system/cpu/cpufreq/interactive/target_loads "85 1500000:90 1800000:70"
+    write /sys/devices/system/cpu/cpufreq/interactive/min_sample_time 40000
+    write /sys/devices/system/cpu/cpufreq/interactive/timer_rate 30000
+    write /sys/devices/system/cpu/cpufreq/interactive/sampling_down_factor 100000
+    write /sys/devices/system/cpu/cpufreq/interactive/timer_slack 30000
+    write /sys/devices/system/cpu/cpufreq/interactive/up_threshold_any_cpu_load 50
+    write /sys/devices/system/cpu/cpufreq/interactive/sync_freq 1036800
+    write /sys/devices/system/cpu/cpufreq/interactive/up_threshold_any_cpu_freq 1190400
+
     write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
     start mpdecision
 

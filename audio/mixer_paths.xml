@@ -381,6 +381,10 @@
         <path name="low-latency-playback speaker" />
     </path>
 
+    <path name="low-latency-playback voice-speaker">
+        <path name="low-latency-playback speaker" />
+    </path>
+
     <path name="compress-offload-playback speaker">
         <ctl name="QUAT_MI2S_RX Audio Mixer MultiMedia4" value="1" />
     </path>
@@ -906,7 +910,7 @@
     </path>
 
     <path name="speaker-mic">
-        <path name="dmic1" />
+        <path name="dmic-endfire" />
     </path>
 
     <path name="handset">
@@ -951,11 +955,11 @@
     </path>
 
     <path name="voice-speaker">
-        <path name="voice-call voice-speaker" />
+        <path name="speaker" />
     </path>
 
     <path name="voice-speaker-mic">
-        <path name="speaker-dmic-endfire" />
+        <path name="line-vr" />
     </path>
 
     <path name="voice-headphones">

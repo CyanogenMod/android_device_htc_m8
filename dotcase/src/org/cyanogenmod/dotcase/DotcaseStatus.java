@@ -43,6 +43,7 @@ public class DotcaseStatus {
     private boolean ringing = false;
     private int ringCounter = 0;
     private String phoneNumber = "";
+    private String phoneName = "";
     private boolean torchStatus = false;
     private boolean alarmClock = false;
 
@@ -100,6 +101,11 @@ public class DotcaseStatus {
         ringCounter++;
     }
 
+    synchronized void startRinging(String number, String name) {
+        phoneName = name;
+        startRinging(number);
+    }
+
     synchronized void startRinging(String number) {
         ringing = true;
         resetTimer = true;
@@ -110,6 +116,7 @@ public class DotcaseStatus {
     synchronized void stopRinging() {
         ringing = false;
         phoneNumber = "";
+        phoneName = "";
     }
 
     synchronized void startAlarm() {
@@ -140,6 +147,10 @@ public class DotcaseStatus {
 
     synchronized boolean hasNotifications() {
         return notifications.isEmpty();
+    }
+
+    synchronized String getPhoneName() {
+        return phoneName;
     }
 
     synchronized String getPhoneNumber() {

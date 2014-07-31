@@ -41,6 +41,7 @@ public class DrawView extends View {
     private final Context mContext;
     private final IntentFilter filter = new IntentFilter();
     private int heartbeat = 0;
+    private int phoneNameTicker = 0;
 
     public DrawView(Context context) {
         super(context);
@@ -54,7 +55,10 @@ public class DrawView extends View {
         if (Dotcase.status.isAlarm()) {
             drawAlarm(canvas);
         } else if (Dotcase.status.isRinging()) {
+
+            drawName(canvas);
             drawNumber(canvas);
+
             drawRinger(canvas);
         } else {
             if (Dotcase.status.isTorch()) {
@@ -350,13 +354,51 @@ public class DrawView extends View {
         }
     };
 
+
+    private void drawName(Canvas canvas) {
+        int[][] sprite;
+        int x = 0, y = 2;
+        if (Dotcase.status.isRinging()) {
+
+            int nameOffset = phoneNameTicker % Dotcase.status.getPhoneName().length();
+
+            String correctedName = "";
+
+            if (Dotcase.status.getPhoneName().length()<=7) {
+                // Name is short enough to be drawn completely
+                correctedName = Dotcase.status.getPhoneName();
+            } else if ((nameOffset+7) > Dotcase.status.getPhoneName().length()) {
+                // At the end of a scroll; name will be looped
+                int overflow = (nameOffset+7) % Dotcase.status.getPhoneName().length();
+                correctedName = Dotcase.status.getPhoneName().substring(nameOffset) +
+                        Dotcase.status.getPhoneName().substring(0,overflow);
+            } else if ((nameOffset+7) <= Dotcase.status.getPhoneName().length()) {
+                // Draw a consecutive portion of the name
+                correctedName = Dotcase.status.getPhoneName().substring(nameOffset, nameOffset+7);
+            }
+
+
+            for (int i = 0; i < correctedName.length(); i++) {
+                sprite = DotcaseConstants.getSmallNumSprite(
+                                 correctedName.toLowerCase().charAt(i));
+                dotcaseDrawSprite(sprite, x + (i) * 4, y, canvas);
+            }
+
+            if (phoneNameTicker > 500) { // reset after a while
+                phoneNameTicker = 0;
+            } else {
+                phoneNameTicker++;
+            }
+        }
+    }
+
     private void drawNumber(Canvas canvas) {
         int[][] sprite;
-        int x = 0, y = 5;
+        int x = 0, y = 8;
         if (Dotcase.status.isRinging()) {
-            for (int i = 3; i < Dotcase.status.getPhoneNumber().length(); i++) {
+            for (int i = 3; i < Dotcase.status.getPhoneNumber().length() && i < 10; i++) {
                 sprite = DotcaseConstants.getSmallNumSprite(
-                        Dotcase.status.getPhoneNumber().charAt(i));
+                        Dotcase.status.getPhoneNumber().toLowerCase().charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

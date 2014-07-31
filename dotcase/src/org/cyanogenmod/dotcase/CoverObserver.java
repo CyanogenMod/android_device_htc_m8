@@ -36,6 +36,10 @@ import android.os.UEventObserver;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.ContactsContract;
+
 class CoverObserver extends UEventObserver {
     private static final String COVER_UEVENT_MATCH = "DEVPATH=/devices/virtual/switch/cover";
 
@@ -120,8 +124,28 @@ class CoverObserver extends UEventObserver {
             if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
-                    Dotcase.status.startRinging(
-                            intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER));
+
+                    String number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number));
+                    Cursor cursor = context.getContentResolver().query(uri, new String[]{ContactsContract.PhoneLookup.DISPLAY_NAME}, number, null, null );
+                    String name;                    
+                    if(cursor.moveToFirst()){
+                          name = cursor.getString(cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME));
+                    }else{
+                          name = "";
+                    }
+                    cursor.close();
+
+		    
+					if(number.equalsIgnoreCase("restricted")){
+						// if call is restricted don't show a number
+						name = number;
+						number = "";
+					}
+					
+					name = name+" "; //add a space so the scroll effect looks good
+					
+                    Dotcase.status.startRinging(number, name);
                     Dotcase.status.setOnTop(true);
                     new Thread(new ensureTopActivity()).start();
                 } else {

@@ -517,8 +517,8 @@ public class DotcaseConstants {
         { 9,  9,  9}};
 
     static final int[][] small1 = {
-        { 9,  9, -1},
         {-1,  9, -1},
+        { 9,  9, -1},
         {-1,  9, -1},
         {-1,  9, -1},
         { 9,  9,  9}};
@@ -561,9 +561,9 @@ public class DotcaseConstants {
     static final int[][] small7 = {
         { 9,  9,  9},
         {-1, -1,  9},
-        {-1, -1,  9},
-        {-1, -1,  9},
-        {-1, -1,  9}};
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
 
     static final int[][] small8 = {
         { 9,  9,  9},
@@ -577,6 +577,188 @@ public class DotcaseConstants {
         { 9, -1,  9},
         { 9,  9,  9},
         {-1, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallA = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallB = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallC = {
+        {-1,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        {-1,  9,  9}};
+
+    static final int[][] smallD = {
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9, -1}};
+
+    static final int[][] smallE = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallF = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1}};
+
+    static final int[][] smallG = {
+        {-1,  9,  9},
+        { 9, -1, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9,  9}};
+
+    static final int[][] smallH = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallI = {
+        { 9,  9,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallJ = {
+        {-1,  9,  9},
+        {-1, -1,  9},
+        {-1, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1}};
+
+    static final int[][] smallK = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallL = {
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallM = {
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallN = {
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallO = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallP = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1}};
+
+    static final int[][] smallQ = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        {-1, -1,  9}};
+
+    static final int[][] smallR = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallS = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        {-1, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallT = {
+        { 9,  9,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
+
+    static final int[][] smallU = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallV = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1}};
+
+    static final int[][] smallW = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallX = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallY = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
+
+    static final int[][] smallZ = {
+        { 9,  9,  9},
+        {-1, -1,  9},
+        {-1,  9, -1},
+        { 9, -1, -1},
         { 9,  9,  9}};
 
     static final int[][] smallNull = {
@@ -608,6 +790,58 @@ public class DotcaseConstants {
                 return small8;
             case '9':
                 return small9;
+            case 'a':
+                return smallA;
+            case 'b':
+                return smallB;
+            case 'c':
+                return smallC;
+            case 'd':
+                return smallD;
+            case 'e':
+                return smallE;
+            case 'f':
+                return smallF;
+            case 'g':
+                return smallG;
+            case 'h':
+                return smallH;
+            case 'i':
+                return smallI;
+            case 'j':
+                return smallJ;
+            case 'k':
+                return smallK;
+            case 'l':
+                return smallL;
+            case 'm':
+                return smallM;
+            case 'n':
+                return smallN;
+            case 'o':
+                return smallO;
+            case 'p':
+                return smallP;
+            case 'q':
+                return smallQ;
+            case 'r':
+                return smallR;
+            case 's':
+                return smallS;
+            case 't':
+                return smallT;
+            case 'u':
+                return smallU;
+            case 'v':
+                return smallV;
+            case 'w':
+                return smallW;
+            case 'x':
+                return smallX;
+            case 'y':
+                return smallY;
+            case 'z':
+                return smallZ;
             default:
                 return smallNull;
         }

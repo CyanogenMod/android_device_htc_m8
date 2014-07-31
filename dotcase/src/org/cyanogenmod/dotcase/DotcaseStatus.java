@@ -42,7 +42,9 @@ public class DotcaseStatus {
 
     private boolean ringing = false;
     private int ringCounter = 0;
-    private String phoneNumber = "";
+    private String callerNumber = "";
+    private String callerName = "";
+    private int callerTicker = 0;
     private boolean torchStatus = false;
     private boolean alarmClock = false;
 
@@ -100,16 +102,31 @@ public class DotcaseStatus {
         ringCounter++;
     }
 
+    synchronized void startRinging(String number, String name) {
+        callerName = name;
+        startRinging(number);
+    }
+
     synchronized void startRinging(String number) {
         ringing = true;
         resetTimer = true;
         ringCounter = 0;
-        phoneNumber = number;
+        callerNumber = number;
+        callerTicker = 0;
     }
 
     synchronized void stopRinging() {
         ringing = false;
-        phoneNumber = "";
+        callerNumber = "";
+        callerName = "";
+    }
+
+    synchronized int callerTicker() {
+        return callerTicker;
+    }
+
+    synchronized void incrementCallerTicker() {
+        callerTicker = (callerTicker + 1) % callerName.length();
     }
 
     synchronized void startAlarm() {
@@ -142,8 +159,12 @@ public class DotcaseStatus {
         return notifications.isEmpty();
     }
 
-    synchronized String getPhoneNumber() {
-        return phoneNumber;
+    synchronized String getCallerName() {
+        return callerName;
+    }
+
+    synchronized String getCallerNumber() {
+        return callerNumber;
     }
 
     synchronized List<Notification> getNotifications() {

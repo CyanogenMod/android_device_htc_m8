@@ -51,8 +51,6 @@ class CoverObserver extends UEventObserver {
     private boolean needStoreOldBrightness = true;
     private int switchState = 0;
 
-    public static boolean topActivityKeeper = false;
-
     public CoverObserver(Context context) {
         mContext = context;
         PowerManager pm = (PowerManager)context.getSystemService(Context.POWER_SERVICE);
@@ -75,7 +73,7 @@ class CoverObserver extends UEventObserver {
         try {
             switchState = Integer.parseInt(event.get("SWITCH_STATE"));
             boolean screenOn = manager.isScreenOn();
-            topActivityKeeper = false;
+            Dotcase.status.setOnTop(false);
 
             if (switchState == 1) {
                 if (screenOn) {
@@ -122,28 +120,22 @@ class CoverObserver extends UEventObserver {
             if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
-                    Dotcase.ringing = true;
-                    Dotcase.reset_timer = true;
-                    topActivityKeeper = true;
-                    Dotcase.ringCounter = 0;
-                    Dotcase.phoneNumber =
-                            intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    Dotcase.status.startRinging(
+                            intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER));
+                    Dotcase.status.setOnTop(true);
                     new Thread(new ensureTopActivity()).start();
                 } else {
-                    topActivityKeeper = false;
-                    Dotcase.ringing = false;
-                    Dotcase.phoneNumber = "";
+                    Dotcase.status.setOnTop(false);
+                    Dotcase.status.stopRinging();
                 }
             } else if(intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
-                Dotcase.alarm_clock = true;
-                Dotcase.reset_timer = true;
-                topActivityKeeper = true;
+                Dotcase.status.startAlarm();
+                Dotcase.status.setOnTop(true);
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
                 crankUpBrightness();
-                Dotcase.checkNotifications();
-                Dotcase.reset_timer = true;
+                Dotcase.status.resetTimer();
                 intent.setAction(DotcaseConstants.ACTION_REDRAW);
                 mContext.sendBroadcast(intent);
                 i.setClassName("org.cyanogenmod.dotcase", "org.cyanogenmod.dotcase.Dotcase");
@@ -175,9 +167,9 @@ class CoverObserver extends UEventObserver {
     }
 
     public void killActivity() {
-        Dotcase.ringing = false;
-        Dotcase.alarm_clock = false;
-        topActivityKeeper = false;
+        Dotcase.status.stopRinging();
+        Dotcase.status.stopAlarm();
+        Dotcase.status.setOnTop(false);
         if (oldBrightnessMode != -1 && oldBrightness != -1 && !needStoreOldBrightness) {
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS_MODE,
@@ -198,7 +190,8 @@ class CoverObserver extends UEventObserver {
 
         @Override
         public void run() {
-            while ((Dotcase.ringing || Dotcase.alarm_clock) && topActivityKeeper) {
+            while ((Dotcase.status.isRinging() || Dotcase.status.isAlarm())
+                    && Dotcase.status.isOnTop()) {
                 ActivityManager am =
                         (ActivityManager) mContext.getSystemService(Activity.ACTIVITY_SERVICE);
                 if (!am.getRunningTasks(1).get(0).topActivity.getPackageName().equals(

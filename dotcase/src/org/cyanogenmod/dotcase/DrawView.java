@@ -54,6 +54,7 @@ public class DrawView extends View {
         if (Dotcase.status.isAlarm()) {
             drawAlarm(canvas);
         } else if (Dotcase.status.isRinging()) {
+            drawName(canvas);
             drawNumber(canvas);
             drawRinger(canvas);
         } else {
@@ -350,13 +351,44 @@ public class DrawView extends View {
         }
     };
 
+    private void drawName(Canvas canvas) {
+        int[][] sprite;
+        int x = 0, y = 2;
+        if (Dotcase.status.isRinging()) {
+            int nameOffset = Dotcase.status.callerTicker();
+
+            String name = Dotcase.status.getCallerName();
+            String correctedName = "";
+
+            // We can fit 7 characters, and the last two are spaces
+            if (name.length() <= 9) {
+                // Name is short enough to be drawn completely, cut off spaces at end
+                correctedName = name.substring(0, name.length() - 2);
+            } else if ((nameOffset + 7) > name.length()) {
+                // Looping: end and beginning of the name are visible together
+                int overflow = (nameOffset + 7) % name.length();
+                correctedName = name.substring(nameOffset) + name.substring(0, overflow);
+            } else if ((nameOffset + 7) <= name.length()) {
+                // Draw a consecutive portion of the name
+                correctedName = name.substring(nameOffset, nameOffset + 7);
+            }
+
+            for (int i = 0; i < correctedName.length(); i++) {
+                sprite = DotcaseConstants.getSmallNumSprite(correctedName.charAt(i));
+                dotcaseDrawSprite(sprite, x + i * 4, y, canvas);
+            }
+
+            Dotcase.status.incrementCallerTicker();
+        }
+    }
+
     private void drawNumber(Canvas canvas) {
         int[][] sprite;
-        int x = 0, y = 5;
+        int x = 0, y = 8;
         if (Dotcase.status.isRinging()) {
-            for (int i = 3; i < Dotcase.status.getPhoneNumber().length(); i++) {
+            for (int i = 3; i < Dotcase.status.getCallerNumber().length() && i < 10; i++) {
                 sprite = DotcaseConstants.getSmallNumSprite(
-                        Dotcase.status.getPhoneNumber().charAt(i));
+                        Dotcase.status.getCallerNumber().charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

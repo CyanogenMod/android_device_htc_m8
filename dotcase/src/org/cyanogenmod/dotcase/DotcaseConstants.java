@@ -43,6 +43,7 @@ public class DotcaseConstants {
         VOICEMAIL,
         SNAPCHAT,
         FACEBOOK,
+        COUPLES,
         DOTS
     }
 
@@ -66,6 +67,7 @@ public class DotcaseConstants {
     static final Paint pFYellow = new Paint();
     static final Paint pTBlue = new Paint();
     static final Paint pFbBlue = new Paint();
+    static final Paint pPink = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -84,6 +86,7 @@ public class DotcaseConstants {
         pFYellow.setARGB(255, 255, 255, 153);
         pTBlue.setARGB(255, 85, 172, 238);
         pFbBlue.setARGB(255, 59, 89, 152);
+        pPink.setARGB(255, 255, 100, 200);
     }
 
     static Paint getPaintFromNumber(int color) {
@@ -120,6 +123,8 @@ public class DotcaseConstants {
                 return pTBlue;
             case 14:
                 return pFbBlue;
+            case 15:
+                return pPink;
             default:
                 return pBlack;
         }
@@ -176,6 +181,11 @@ public class DotcaseConstants {
         // Facebook apps
         notificationMap.put("com.facebook.katana", Notification.FACEBOOK);
         notificationMap.put("com.facebook.orca", Notification.FACEBOOK);
+
+        // Couples apps
+        notificationMap.put("com.tenthbit.juliet", Notification.COUPLES); // Couple
+        notificationMap.put("io.avocado.android", Notification.COUPLES);
+        notificationMap.put("kr.co.vcnc.android.couple", Notification.COUPLES); // Between
     }
 
     /**
@@ -272,6 +282,16 @@ public class DotcaseConstants {
         {14, 14, 14, 14,  1, 14, 14},
         { 0, 14, 14, 14,  1, 14,  0}};
 
+    static final int[][] couplesSprite = {
+        { 0, 15,  0, 15,  0,  0,  0},
+        {15, 15, 15, 15, 15,  0,  0},
+        {15, 15, 15, 15, 15,  0,  0},
+        { 0, 15, 15, 15,  2,  0,  0},
+        { 0,  0, 15,  2,  2,  2,  0},
+        { 0,  0,  2,  2,  2,  2,  2},
+        { 0,  0,  2,  2,  2,  2,  2},
+        { 0,  0,  0,  2,  0,  2,  0}};
+
     static final int[][] dotsSprite = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0},
@@ -302,6 +322,8 @@ public class DotcaseConstants {
                 return snapchatSprite;
             case FACEBOOK:
                 return facebookSprite;
+            case COUPLES:
+                return couplesSprite;
             case DOTS:
                 return dotsSprite;
             default:

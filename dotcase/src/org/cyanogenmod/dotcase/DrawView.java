@@ -150,14 +150,14 @@ public class DrawView extends View {
             }
         }
 
-        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallCharSprite(
                 time.timeString.charAt(0)), 0, 0, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallCharSprite(
                 time.timeString.charAt(1)), 4, 0, canvas);
         dotcaseDrawSprite(DotcaseConstants.smallTimeColon, 8, 1, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallCharSprite(
                 time.timeString.charAt(2)), 11, 0, canvas);
-        dotcaseDrawSprite(DotcaseConstants.getSmallNumSprite(
+        dotcaseDrawSprite(DotcaseConstants.getSmallCharSprite(
                 time.timeString.charAt(3)), 15, 0, canvas);
         dotcaseDrawSprite(mClockSprite, 7, 7, canvas);
 
@@ -376,7 +376,7 @@ public class DrawView extends View {
             }
 
             for (int i = 0; i < correctedName.length(); i++) {
-                sprite = DotcaseConstants.getSmallNumSprite(correctedName.charAt(i));
+                sprite = DotcaseConstants.getSmallCharSprite(correctedName.charAt(i));
                 dotcaseDrawSprite(sprite, x + i * 4, y, canvas);
             }
 
@@ -390,7 +390,7 @@ public class DrawView extends View {
         if (Dotcase.status.isRinging()) {
             String number = Dotcase.status.getCallerNumber();
             for (int i = 3; i < number.length() && i < 10; i++) {
-                sprite = DotcaseConstants.getSmallNumSprite(number.charAt(i));
+                sprite = DotcaseConstants.getSmallCharSprite(number.charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

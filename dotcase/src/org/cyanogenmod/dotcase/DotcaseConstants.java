@@ -768,7 +768,7 @@ public class DotcaseConstants {
         {-1, -1, -1},
         {-1, -1, -1}};
 
-    static int[][] getSmallNumSprite(char c) {
+    static int[][] getSmallCharSprite(char c) {
         switch (c) {
             case '0':
                 return small0;

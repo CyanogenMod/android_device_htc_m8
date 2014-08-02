@@ -57,6 +57,9 @@ public class DrawView extends View {
             drawNumber(canvas);
             drawRinger(canvas);
         } else {
+            if (Dotcase.status.isTorch()) {
+                dotcaseDrawSprite(DotcaseConstants.torchSprite, 19, 22, canvas);
+            }
             drawTime(canvas);
 
             // Check notifications each cycle before displaying them
@@ -313,11 +316,10 @@ public class DrawView extends View {
     }
 
     private void dotcaseDrawPixel(int x, int y, Paint paint, Canvas canvas) {
-        float dotratio = 40;
-        canvas.drawRect((x * dotratio + 5),
-                        (y * dotratio + 5),
-                        ((x + 1) * dotratio -5),
-                        ((y + 1) * dotratio -5),
+        canvas.drawRect((x * DotcaseConstants.dotratio + 5),
+                        (y * DotcaseConstants.dotratio + 5),
+                        ((x + 1) * DotcaseConstants.dotratio -5),
+                        ((y + 1) * DotcaseConstants.dotratio -5),
                         paint);
     }
 

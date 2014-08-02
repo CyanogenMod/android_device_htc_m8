@@ -28,6 +28,7 @@ import java.util.Map;
 public class DotcaseConstants {
     static final String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
     static final String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
+    static final int dotratio = 40;
 
     /**
      * Notification types
@@ -615,6 +616,17 @@ public class DotcaseConstants {
     /**
      * Various sprites
      */
+
+    static final int[][] torchSprite = {
+        {0, 7, 7, 7, 7, 0},
+        {7, 7, 7, 7, 7, 7},
+        {7, 7, 7, 7, 7, 7},
+        {7, 7, 7, 7, 7, 7},
+        {7, 7, 7, 7, 7, 7},
+        {0, 7, 7, 7, 7, 0},
+        {0, 8, 8, 8, 8, 0},
+        {0, 8, 8, 8, 8, 0},
+        {0, 8, 8, 8, 8, 0}};
 
     static final int[][] handsetSprite = {
         {3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3},

@@ -43,6 +43,7 @@ import android.view.View;
 import android.view.WindowManager;
 
 import com.android.internal.telephony.ITelephony;
+import com.android.internal.util.aokp.AwesomeConstants;
 
 import java.lang.Math;
 import java.io.BufferedReader;
@@ -70,6 +71,7 @@ public class Dotcase extends Activity implements SensorEventListener
         mContext = this;
 
         filter.addAction(DotcaseConstants.ACTION_KILL_ACTIVITY);
+        filter.addAction(AwesomeConstants.ACTION_TORCH);
         mContext.getApplicationContext().registerReceiver(receiver, filter);
 
         getWindow().addFlags(
@@ -202,6 +204,13 @@ public class Dotcase extends Activity implements SensorEventListener
 
     class DotcaseGestureListener extends GestureDetector.SimpleOnGestureListener
     {
+
+        @Override
+        public void onLongPress(MotionEvent event) {
+            Intent i = new Intent(AwesomeConstants.ACTION_TORCH);
+            mContext.sendBroadcast(i);
+        }
+
         @Override
         public boolean onDoubleTap(MotionEvent event) {
             powerManager.goToSleep(SystemClock.uptimeMillis());
@@ -248,6 +257,15 @@ public class Dotcase extends Activity implements SensorEventListener
 
         @Override
         public boolean onSingleTapUp (MotionEvent e) {
+            if (status.isTorch()) {
+                if (e.getX() >19 * DotcaseConstants.dotratio
+                        && e.getX() < 26 * DotcaseConstants.dotratio
+                        && e.getY() > 22 * DotcaseConstants.dotratio
+                        && e.getY() < 32 * DotcaseConstants.dotratio){
+                    Intent i = new Intent(AwesomeConstants.ACTION_TORCH);
+                    mContext.sendBroadcast(i);
+                }
+            }
             status.resetTimer();
             return true;
         }
@@ -265,6 +283,8 @@ public class Dotcase extends Activity implements SensorEventListener
                 status.stopRunning();
                 finish();
                 overridePendingTransition(0, 0);
+            } else if (intent.getAction().equals(AwesomeConstants.ACTION_TORCH)) {
+                status.setTorch(intent.getIntExtra(TorchConstants.EXTRA_CURRENT_STATE, 0) != 0);
             }
         }
     };

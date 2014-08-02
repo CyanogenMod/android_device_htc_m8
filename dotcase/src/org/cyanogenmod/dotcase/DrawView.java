@@ -123,28 +123,29 @@ public class DrawView extends View {
 
     private void drawAlarm(Canvas canvas) {
         int light = 7, dark = 12;
-        int clockLength = DotcaseConstants.clockSprite.length;
-        int clockElementLength = DotcaseConstants.clockSprite[0].length;
-        int ringerLength = DotcaseConstants.ringerSprite.length;
-        int ringerElementLength = DotcaseConstants.ringerSprite[0].length;
+        int clockHeight = DotcaseConstants.clockSprite.length;
+        int clockWidth = DotcaseConstants.clockSprite[0].length;
+        int ringerHeight = DotcaseConstants.ringerSprite.length;
+        int ringerWidth = DotcaseConstants.ringerSprite[0].length;
         timeObject time = getTimeObject();
 
-        int[][] mClockSprite = new int[clockLength][clockElementLength];
-        int[][] mRingerSprite = new int[ringerLength][ringerElementLength];
+        int[][] mClockSprite = new int[clockHeight][clockWidth];
+        int[][] mRingerSprite = new int[ringerHeight][ringerWidth];
 
-        for (int i = 0; i < ringerLength; i++) {
-            for (int j = 0; j < ringerElementLength; j++) {
+        int ringCounter = Dotcase.status.ringCounter();
+
+        for (int i = 0; i < ringerHeight; i++) {
+            for (int j = 0; j < ringerWidth; j++) {
                 if (DotcaseConstants.ringerSprite[i][j] > 0) {
                     mRingerSprite[i][j] =
-                            DotcaseConstants.ringerSprite[i][j] ==
-                                    3 - (Dotcase.status.ringCounter() % 3)
-                                            ? light : dark;
+                            DotcaseConstants.ringerSprite[i][j] == 3 - (ringCounter % 3)
+                                    ? light : dark;
                 }
             }
         }
 
-        for (int i = 0; i < clockLength; i++) {
-            for (int j = 0; j < clockElementLength; j++) {
+        for (int i = 0; i < clockHeight; i++) {
+            for (int j = 0; j < clockWidth; j++) {
                 mClockSprite[i][j] = DotcaseConstants.clockSprite[i][j] > 0 ? light : 0;
             }
         }
@@ -168,7 +169,7 @@ public class DrawView extends View {
             }
         }
 
-        if (Dotcase.status.ringCounter() / 6 > 0) {
+        if (ringCounter / 6 > 0) {
             dotcaseDrawSprite(DotcaseConstants.alarmCancelArray, 2, 21, canvas);
             Collections.reverse(Arrays.asList(mRingerSprite));
         } else {
@@ -177,7 +178,7 @@ public class DrawView extends View {
 
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
-        if (Dotcase.status.ringCounter() > 10) {
+        if (ringCounter > 10) {
             Dotcase.status.resetRingCounter();
         } else {
             Dotcase.status.incrementRingCounter();
@@ -201,15 +202,17 @@ public class DrawView extends View {
 
     private void drawRinger(Canvas canvas) {
         int light, dark;
-        int handsetLength = DotcaseConstants.handsetSprite.length;
-        int handsetElementLength = DotcaseConstants.handsetSprite[0].length;
-        int ringerLength = DotcaseConstants.ringerSprite.length;
-        int ringerElementLength = DotcaseConstants.ringerSprite[0].length;
+        int handsetHeight = DotcaseConstants.handsetSprite.length;
+        int handsetWidth = DotcaseConstants.handsetSprite[0].length;
+        int ringerHeight = DotcaseConstants.ringerSprite.length;
+        int ringerWidth = DotcaseConstants.ringerSprite[0].length;
 
-        int[][] mHandsetSprite = new int[handsetLength][handsetElementLength];
-        int[][] mRingerSprite = new int[ringerLength][ringerElementLength];
+        int[][] mHandsetSprite = new int[handsetHeight][handsetWidth];
+        int[][] mRingerSprite = new int[ringerHeight][ringerWidth];
 
-        if (Dotcase.status.ringCounter() / 3 > 0) {
+        int ringCounter = Dotcase.status.ringCounter();
+
+        if (ringCounter / 3 > 0) {
             light = 2;
             dark = 11;
         } else {
@@ -217,24 +220,23 @@ public class DrawView extends View {
             dark = 10;
         }
 
-        for (int i = 0; i < ringerLength; i++) {
-            for (int j = 0; j < ringerElementLength; j++) {
+        for (int i = 0; i < ringerHeight; i++) {
+            for (int j = 0; j < ringerWidth; j++) {
                 if (DotcaseConstants.ringerSprite[i][j] > 0) {
                     mRingerSprite[i][j] =
-                            DotcaseConstants.ringerSprite[i][j] ==
-                                    3 - (Dotcase.status.ringCounter() % 3)
-                                            ? light : dark;
+                            DotcaseConstants.ringerSprite[i][j] == 3 - (ringCounter % 3)
+                                    ? light : dark;
                 }
             }
         }
 
-        for (int i = 0; i < handsetLength; i++) {
-            for (int j = 0; j < handsetElementLength; j++) {
+        for (int i = 0; i < handsetHeight; i++) {
+            for (int j = 0; j < handsetWidth; j++) {
                 mHandsetSprite[i][j] = DotcaseConstants.handsetSprite[i][j] > 0 ? light : 0;
             }
         }
 
-        if (Dotcase.status.ringCounter() / 3 > 0) {
+        if (ringCounter / 3 > 0) {
             Collections.reverse(Arrays.asList(mRingerSprite));
             Collections.reverse(Arrays.asList(mHandsetSprite));
         }
@@ -242,7 +244,7 @@ public class DrawView extends View {
         dotcaseDrawSprite(mHandsetSprite, 6, 21, canvas);
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
-        if (Dotcase.status.ringCounter() > 4) {
+        if (ringCounter > 4) {
             Dotcase.status.resetRingCounter();
         } else {
             Dotcase.status.incrementRingCounter();
@@ -386,9 +388,9 @@ public class DrawView extends View {
         int[][] sprite;
         int x = 0, y = 8;
         if (Dotcase.status.isRinging()) {
-            for (int i = 3; i < Dotcase.status.getCallerNumber().length() && i < 10; i++) {
-                sprite = DotcaseConstants.getSmallNumSprite(
-                        Dotcase.status.getCallerNumber().charAt(i));
+            String number = Dotcase.status.getCallerNumber();
+            for (int i = 3; i < number.length() && i < 10; i++) {
+                sprite = DotcaseConstants.getSmallNumSprite(number.charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);
             }
         }

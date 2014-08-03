@@ -20,19 +20,24 @@
 
 package org.cyanogenmod.dotcase;
 
+import java.text.Normalizer;
+
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.provider.Settings;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.SystemClock;
 import android.os.UEventObserver;
+import android.provider.ContactsContract;
+import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -120,15 +125,40 @@ class CoverObserver extends UEventObserver {
             if (intent.getAction().equals(TelephonyManager.ACTION_PHONE_STATE_CHANGED)) {
                 String state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
                 if (state.equals("RINGING")) {
-                    Dotcase.status.startRinging(
-                            intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER));
+
+                    String number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER);
+                    Uri uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                            Uri.encode(number));
+                    Cursor cursor = context.getContentResolver().query(uri,
+                            new String[] {ContactsContract.PhoneLookup.DISPLAY_NAME},
+                            number, null, null);
+                    String name;
+                    if (cursor.moveToFirst()) {
+                        name = cursor.getString(cursor.getColumnIndex(
+                                ContactsContract.PhoneLookup.DISPLAY_NAME));
+                    } else {
+                        name = "";
+                    }
+                    cursor.close();
+
+                    if (number.equalsIgnoreCase("restricted")) {
+                        // If call is restricted, don't show a number
+                        name = number;
+                        number = "";
+                    }
+
+                    name = normalize(name);
+                    name = name + "  "; // Add spaces so the scroll effect looks good
+
+                    Dotcase.status.startRinging(number, name);
                     Dotcase.status.setOnTop(true);
                     new Thread(new ensureTopActivity()).start();
+
                 } else {
                     Dotcase.status.setOnTop(false);
                     Dotcase.status.stopRinging();
                 }
-            } else if(intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
+            } else if (intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
                 Dotcase.status.startAlarm();
                 Dotcase.status.setOnTop(true);
@@ -144,6 +174,20 @@ class CoverObserver extends UEventObserver {
             }
         }
     };
+
+    /**
+     * Normalizes a string to lowercase without diacritics
+     */
+    private static String normalize(String str) {
+        return Normalizer.normalize(str.toLowerCase(), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
+                .replaceAll("æ", "ae")
+                .replaceAll("ð", "d")
+                .replaceAll("ø", "o")
+                .replaceAll("þ", "th")
+                .replaceAll("ß", "ss")
+                .replaceAll("œ", "oe");
+    }
 
     private void crankUpBrightness() {
         if (needStoreOldBrightness) {

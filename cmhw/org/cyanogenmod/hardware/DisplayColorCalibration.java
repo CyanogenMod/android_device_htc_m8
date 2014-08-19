@@ -26,7 +26,8 @@ public class DisplayColorCalibration {
     private static final String COLOR_MIN = "/sys/devices/platform/kcal_ctrl.0/kcal_min";
 
     public static boolean isSupported() {
-        return true;
+        File f = new File(COLOR_FILE);
+        return f.exists();
     }
 
     public static int getMaxValue()  {

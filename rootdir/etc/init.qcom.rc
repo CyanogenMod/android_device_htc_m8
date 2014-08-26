@@ -460,6 +460,7 @@ service map1_del /system/bin/sdptool del 0x1ff17
 service mpdecision /system/bin/mpdecision --avg_comp
     class core
     user root
+    group root system
     disabled
 
 service netmgrd /system/bin/netmgrd

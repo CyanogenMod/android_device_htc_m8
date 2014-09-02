@@ -36,151 +36,151 @@ public class DotcaseStatus {
 
     private static final String TAG = "Dotcase";
 
-    private boolean running = true;
-    private boolean pocketed = false;
-    private boolean resetTimer = false;
+    private boolean mRunning = true;
+    private boolean mPocketed = false;
+    private boolean mResetTimer = false;
 
-    private boolean ringing = false;
-    private int ringCounter = 0;
-    private String callerNumber = "";
-    private String callerName = "";
-    private int callerTicker = 0;
-    private boolean torchStatus = false;
-    private boolean alarmClock = false;
+    private boolean mRinging = false;
+    private int mRingCounter = 0;
+    private String mCallerNumber = "";
+    private String mCallerName = "";
+    private int mCallerTicker = 0;
+    private boolean mTorchStatus = false;
+    private boolean mAlarmClock = false;
 
-    private boolean stayOnTop = false;
+    private boolean mStayOnTop = false;
 
-    private List<Notification> notifications = new Vector<Notification>();
+    private List<Notification> mNotifications = new Vector<Notification>();
 
     synchronized boolean isRunning() {
-        return running;
+        return mRunning;
     }
 
     synchronized void startRunning() {
-        running = true;
+        mRunning = true;
     }
 
     synchronized void stopRunning() {
-        running = false;
+        mRunning = false;
     }
 
     synchronized boolean isPocketed() {
-        return pocketed;
+        return mPocketed;
     }
 
     synchronized void setPocketed(boolean val) {
-        pocketed = val;
+        mPocketed = val;
     }
 
     synchronized void resetTimer() {
-        resetTimer = true;
+        mResetTimer = true;
     }
 
     synchronized boolean isResetTimer() {
-        boolean ret = resetTimer;
-        resetTimer = false;
+        boolean ret = mResetTimer;
+        mResetTimer = false;
         return ret;
     }
 
     synchronized boolean isOnTop() {
-        return stayOnTop;
+        return mStayOnTop;
     }
 
     synchronized void setOnTop(boolean val) {
-        stayOnTop = val;
+        mStayOnTop = val;
     }
 
     synchronized int ringCounter() {
-        return ringCounter;
+        return mRingCounter;
     }
 
     synchronized void resetRingCounter() {
-        ringCounter = 0;
+        mRingCounter = 0;
     }
 
     synchronized void incrementRingCounter() {
-        ringCounter++;
+        mRingCounter++;
     }
 
     synchronized void startRinging(String number, String name) {
-        callerName = name;
+        mCallerName = name;
         startRinging(number);
     }
 
     synchronized void startRinging(String number) {
-        ringing = true;
-        resetTimer = true;
-        ringCounter = 0;
-        callerNumber = number;
-        callerTicker = -6;
+        mRinging = true;
+        mResetTimer = true;
+        mRingCounter = 0;
+        mCallerNumber = number;
+        mCallerTicker = -6;
     }
 
     synchronized void stopRinging() {
-        ringing = false;
-        callerNumber = "";
-        callerName = "";
+        mRinging = false;
+        mCallerNumber = "";
+        mCallerName = "";
     }
 
     synchronized int callerTicker() {
-        if (callerTicker <= 0) {
+        if (mCallerTicker <= 0) {
             return 0;
         } else {
-            return callerTicker;
+            return mCallerTicker;
         }
     }
 
     synchronized void incrementCallerTicker() {
-        callerTicker++;
-        if (callerTicker >= callerName.length()) {
-            callerTicker = -3;
+        mCallerTicker++;
+        if (mCallerTicker >= mCallerName.length()) {
+            mCallerTicker = -3;
         }
     }
 
     synchronized void startAlarm() {
-        alarmClock = true;
-        ringCounter = 0;
-        resetTimer = true;
+        mAlarmClock = true;
+        mRingCounter = 0;
+        mResetTimer = true;
     }
 
     synchronized void stopAlarm() {
-        alarmClock = false;
+        mAlarmClock = false;
     }
 
     synchronized boolean isRinging() {
-        return ringing;
+        return mRinging;
     }
 
     synchronized boolean isAlarm() {
-        return alarmClock;
+        return mAlarmClock;
     }
 
     synchronized boolean isTorch() {
-        return torchStatus;
+        return mTorchStatus;
     }
 
     synchronized void setTorch(boolean val) {
-        torchStatus = val;
+        mTorchStatus = val;
     }
 
     synchronized boolean hasNotifications() {
-        return notifications.isEmpty();
+        return mNotifications.isEmpty();
     }
 
     synchronized String getCallerName() {
-        return callerName;
+        return mCallerName;
     }
 
     synchronized String getCallerNumber() {
-        return callerNumber;
+        return mCallerNumber;
     }
 
     synchronized List<Notification> getNotifications() {
-        return notifications;
+        return mNotifications;
     }
 
     synchronized void checkNotifications(Context context) {
         StatusBarNotification[] statusNotes = null;
-        notifications.clear();
+        mNotifications.clear();
 
         try {
             INotificationManager notificationManager = INotificationManager.Stub.asInterface(
@@ -189,27 +189,27 @@ public class DotcaseStatus {
             for (StatusBarNotification statusNote : statusNotes) {
                 Notification notification = DotcaseConstants.notificationMap.get(
                         statusNote.getPackageName());
-                if (notification != null && !notifications.contains(notification)) {
-                    notifications.add(notification);
+                if (notification != null && !mNotifications.contains(notification)) {
+                    mNotifications.add(notification);
                 }
             }
         } catch (NullPointerException e) {
             Log.e(TAG, "Error retrieving notifications", e);
-            notifications.clear();
+            mNotifications.clear();
         } catch (RemoteException e) {
             Log.e(TAG, "Error retrieving notifications", e);
-            notifications.clear();
+            mNotifications.clear();
         }
 
         try {
-            if (notifications.size() > 6) {
-                notifications.subList(5, notifications.size()).clear();
-                notifications.add(Notification.DOTS);
+            if (mNotifications.size() > 6) {
+                mNotifications.subList(5, mNotifications.size()).clear();
+                mNotifications.add(Notification.DOTS);
             }
         } catch (IndexOutOfBoundsException e) {
             // This should never happen...
             Log.e(TAG, "Error sublisting notifications, clearing to be safe", e);
-            notifications.clear();
+            mNotifications.clear();
         }
     }
 }

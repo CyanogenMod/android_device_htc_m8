@@ -14,7 +14,8 @@
 # limitations under the License.
 #
 
-""" Custom OTA commands for d2 devices """
+""" Custom OTA commands for m8 devices """
 
 def FullOTA_InstallEnd(info):
   info.script.AppendExtra('assert(run_program("/system/bin/makelinks.sh") == 0);')
+  info.script.AppendExtra('ifelse(is_substring("0P6B20000", getprop("ro.boot.mid")), run_program("/sbin/sh", "-c", "busybox sed -i \'s/ro.com.google.clientidbase=android-google/ro.com.google.clientidbase=android-verizon/g\' /system/build.prop"));')

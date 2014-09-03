@@ -33,7 +33,7 @@ public class DotcaseConstants {
     /**
      * Notification types
      */
-    public enum Notification {
+    enum Notification {
         EMAIL,
         GMAIL,
         HANGOUTS,
@@ -43,6 +43,7 @@ public class DotcaseConstants {
         VOICEMAIL,
         SNAPCHAT,
         FACEBOOK,
+        COUPLES,
         DOTS
     }
 
@@ -66,6 +67,7 @@ public class DotcaseConstants {
     static final Paint pFYellow = new Paint();
     static final Paint pTBlue = new Paint();
     static final Paint pFbBlue = new Paint();
+    static final Paint pPink = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -84,6 +86,7 @@ public class DotcaseConstants {
         pFYellow.setARGB(255, 255, 255, 153);
         pTBlue.setARGB(255, 85, 172, 238);
         pFbBlue.setARGB(255, 59, 89, 152);
+        pPink.setARGB(255, 255, 100, 200);
     }
 
     static Paint getPaintFromNumber(int color) {
@@ -120,6 +123,8 @@ public class DotcaseConstants {
                 return pTBlue;
             case 14:
                 return pFbBlue;
+            case 15:
+                return pPink;
             default:
                 return pBlack;
         }
@@ -176,6 +181,11 @@ public class DotcaseConstants {
         // Facebook apps
         notificationMap.put("com.facebook.katana", Notification.FACEBOOK);
         notificationMap.put("com.facebook.orca", Notification.FACEBOOK);
+
+        // Couples apps
+        notificationMap.put("com.tenthbit.juliet", Notification.COUPLES); // Couple
+        notificationMap.put("io.avocado.android", Notification.COUPLES);
+        notificationMap.put("kr.co.vcnc.android.couple", Notification.COUPLES); // Between
     }
 
     /**
@@ -183,14 +193,14 @@ public class DotcaseConstants {
      */
 
     static final int[][] hangoutsSprite = {
-        {0, 0, 0, 0, 0, 0, 0},
         {0, 3, 3, 3, 3, 3, 0},
+        {3, 3, 3, 3, 3, 3, 3},
         {3, 3, 1, 3, 1, 3, 3},
         {3, 3, 1, 3, 1, 3, 3},
+        {3, 3, 3, 3, 3, 3, 3},
         {0, 3, 3, 3, 3, 3, 0},
         {0, 0, 0, 3, 3, 0, 0},
-        {0, 0, 0, 3, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0}};
+        {0, 0, 0, 3, 0, 0, 0}};
 
     static final int[][] mmsSprite = {
         {0, 0, 0, 0, 0, 0, 0},
@@ -272,6 +282,16 @@ public class DotcaseConstants {
         {14, 14, 14, 14,  1, 14, 14},
         { 0, 14, 14, 14,  1, 14,  0}};
 
+    static final int[][] couplesSprite = {
+        { 0, 15,  0, 15,  0,  0,  0},
+        {15, 15, 15, 15, 15,  0,  0},
+        {15, 15, 15, 15, 15,  0,  0},
+        { 0, 15, 15, 15,  2,  0,  0},
+        { 0,  0, 15,  2,  2,  2,  0},
+        { 0,  0,  2,  2,  2,  2,  2},
+        { 0,  0,  2,  2,  2,  2,  2},
+        { 0,  0,  0,  2,  0,  2,  0}};
+
     static final int[][] dotsSprite = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0},
@@ -302,6 +322,8 @@ public class DotcaseConstants {
                 return snapchatSprite;
             case FACEBOOK:
                 return facebookSprite;
+            case COUPLES:
+                return couplesSprite;
             case DOTS:
                 return dotsSprite;
             default:
@@ -495,8 +517,8 @@ public class DotcaseConstants {
         { 9,  9,  9}};
 
     static final int[][] small1 = {
-        { 9,  9, -1},
         {-1,  9, -1},
+        { 9,  9, -1},
         {-1,  9, -1},
         {-1,  9, -1},
         { 9,  9,  9}};
@@ -539,9 +561,9 @@ public class DotcaseConstants {
     static final int[][] small7 = {
         { 9,  9,  9},
         {-1, -1,  9},
-        {-1, -1,  9},
-        {-1, -1,  9},
-        {-1, -1,  9}};
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
 
     static final int[][] small8 = {
         { 9,  9,  9},
@@ -557,6 +579,188 @@ public class DotcaseConstants {
         {-1, -1,  9},
         { 9,  9,  9}};
 
+    static final int[][] smallA = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallB = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallC = {
+        {-1,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        {-1,  9,  9}};
+
+    static final int[][] smallD = {
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9, -1}};
+
+    static final int[][] smallE = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallF = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1}};
+
+    static final int[][] smallG = {
+        {-1,  9,  9},
+        { 9, -1, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9,  9}};
+
+    static final int[][] smallH = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallI = {
+        { 9,  9,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallJ = {
+        {-1,  9,  9},
+        {-1, -1,  9},
+        {-1, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1}};
+
+    static final int[][] smallK = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallL = {
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9, -1, -1},
+        { 9,  9,  9}};
+
+    static final int[][] smallM = {
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallN = {
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallO = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallP = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9, -1, -1}};
+
+    static final int[][] smallQ = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        {-1, -1,  9}};
+
+    static final int[][] smallR = {
+        { 9,  9,  9},
+        { 9, -1,  9},
+        { 9,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallS = {
+        { 9,  9,  9},
+        { 9, -1, -1},
+        { 9,  9,  9},
+        {-1, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallT = {
+        { 9,  9,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
+
+    static final int[][] smallU = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9}};
+
+    static final int[][] smallV = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1}};
+
+    static final int[][] smallW = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9, -1,  9},
+        { 9,  9,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallX = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1},
+        { 9, -1,  9},
+        { 9, -1,  9}};
+
+    static final int[][] smallY = {
+        { 9, -1,  9},
+        { 9, -1,  9},
+        {-1,  9, -1},
+        {-1,  9, -1},
+        {-1,  9, -1}};
+
+    static final int[][] smallZ = {
+        { 9,  9,  9},
+        {-1, -1,  9},
+        {-1,  9, -1},
+        { 9, -1, -1},
+        { 9,  9,  9}};
+
     static final int[][] smallNull = {
         {-1, -1, -1},
         {-1, -1, -1},
@@ -564,7 +768,7 @@ public class DotcaseConstants {
         {-1, -1, -1},
         {-1, -1, -1}};
 
-    static int[][] getSmallNumSprite(char c) {
+    static int[][] getSmallCharSprite(char c) {
         switch (c) {
             case '0':
                 return small0;
@@ -586,6 +790,58 @@ public class DotcaseConstants {
                 return small8;
             case '9':
                 return small9;
+            case 'a':
+                return smallA;
+            case 'b':
+                return smallB;
+            case 'c':
+                return smallC;
+            case 'd':
+                return smallD;
+            case 'e':
+                return smallE;
+            case 'f':
+                return smallF;
+            case 'g':
+                return smallG;
+            case 'h':
+                return smallH;
+            case 'i':
+                return smallI;
+            case 'j':
+                return smallJ;
+            case 'k':
+                return smallK;
+            case 'l':
+                return smallL;
+            case 'm':
+                return smallM;
+            case 'n':
+                return smallN;
+            case 'o':
+                return smallO;
+            case 'p':
+                return smallP;
+            case 'q':
+                return smallQ;
+            case 'r':
+                return smallR;
+            case 's':
+                return smallS;
+            case 't':
+                return smallT;
+            case 'u':
+                return smallU;
+            case 'v':
+                return smallV;
+            case 'w':
+                return smallW;
+            case 'x':
+                return smallX;
+            case 'y':
+                return smallY;
+            case 'z':
+                return smallZ;
             default:
                 return smallNull;
         }
@@ -661,18 +917,18 @@ public class DotcaseConstants {
         { 0,  0,  0, 12,  0,  0,  0,  0,  0, 12,  0,  0,  0}};
 
     static final int[][] snoozeArray = {
-        {12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12},
+        {12, 12, 12, 0, 12, 12,  0, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12},
         {12,  0,  0, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0,  0,  0, 12, 0, 12,  0,  0},
         {12, 12, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0,  0, 12,  0, 0, 12, 12, 12},
         { 0,  0, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0,  0, 0, 12,  0,  0},
         {12, 12, 12, 0, 12,  0, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12}};
 
     static final int[][] alarmCancelArray = {
-        {12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12,  0,  0},
+        { 0, 12, 12, 0, 12, 12, 12, 0, 12, 12,  0, 0,  0, 12, 12, 0, 12, 12, 12, 0, 12,  0,  0},
         {12,  0,  0, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0,  0, 0, 12,  0,  0, 0, 12,  0,  0},
         {12,  0,  0, 0, 12, 12, 12, 0, 12,  0, 12, 0, 12,  0,  0, 0, 12, 12, 12, 0, 12,  0,  0},
         {12,  0,  0, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12,  0,  0, 0, 12,  0,  0, 0, 12,  0,  0},
-        {12, 12, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0, 12, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12}};
+        { 0, 12, 12, 0, 12,  0, 12, 0, 12,  0, 12, 0,  0, 12, 12, 0, 12, 12, 12, 0, 12, 12, 12}};
 
     static final int[][] timeColon = {
         {9},

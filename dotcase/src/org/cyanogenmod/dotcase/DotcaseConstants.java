@@ -28,7 +28,7 @@ import java.util.Map;
 public class DotcaseConstants {
     static final String ACTION_KILL_ACTIVITY = "org.cyanogenmod.dotcase.KILL_ACTIVITY";
     static final String ACTION_REDRAW = "org.cyanogenmod.dotcase.REDRAW";
-    static final int dotratio = 40;
+    static final int DOT_RATIO = 40;
 
     /**
      * Notification types

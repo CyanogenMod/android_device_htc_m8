@@ -48,13 +48,13 @@ class CoverObserver extends UEventObserver {
 
     private final Context mContext;
     private final WakeLock mWakeLock;
-    private final IntentFilter filter = new IntentFilter();
-    private PowerManager manager;
+    private final IntentFilter mFilter = new IntentFilter();
+    private PowerManager mPowerManager;
 
-    private int oldBrightness = -1;
-    private int oldBrightnessMode = -1;
-    private boolean needStoreOldBrightness = true;
-    private int switchState = 0;
+    private int mOldBrightness = -1;
+    private int mOldBrightnessMode = -1;
+    private boolean mStoreOldBrightness = true;
+    private int mSwitchState = 0;
 
     public CoverObserver(Context context) {
         mContext = context;
@@ -64,35 +64,35 @@ class CoverObserver extends UEventObserver {
     }
 
     public synchronized final void init() {
-        filter.addAction(Intent.ACTION_SCREEN_ON);
-        filter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
-        filter.addAction("com.android.deskclock.ALARM_ALERT");
+        mFilter.addAction(Intent.ACTION_SCREEN_ON);
+        mFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+        mFilter.addAction("com.android.deskclock.ALARM_ALERT");
         // add other alarm apps here
 
-        manager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
+        mPowerManager = (PowerManager) mContext.getSystemService(Context.POWER_SERVICE);
         startObserving(COVER_UEVENT_MATCH);
     }
 
     @Override
     public void onUEvent(UEventObserver.UEvent event) {
         try {
-            switchState = Integer.parseInt(event.get("SWITCH_STATE"));
-            boolean screenOn = manager.isScreenOn();
-            Dotcase.status.setOnTop(false);
+            mSwitchState = Integer.parseInt(event.get("SWITCH_STATE"));
+            boolean screenOn = mPowerManager.isScreenOn();
+            Dotcase.sStatus.setOnTop(false);
 
-            if (switchState == 1) {
+            if (mSwitchState == 1) {
                 if (screenOn) {
-                    manager.goToSleep(SystemClock.uptimeMillis());
+                    mPowerManager.goToSleep(SystemClock.uptimeMillis());
                 }
             } else {
                 killActivity();
                 if (!screenOn) {
-                    manager.wakeUp(SystemClock.uptimeMillis());
+                    mPowerManager.wakeUp(SystemClock.uptimeMillis());
                 }
             }
 
             mWakeLock.acquire();
-            mHandler.sendMessageDelayed(mHandler.obtainMessage(switchState), 0);
+            mHandler.sendMessageDelayed(mHandler.obtainMessage(mSwitchState), 0);
         } catch (NumberFormatException e) {
             Log.e(TAG, "Error parsing SWITCH_STATE event", e);
         }
@@ -102,7 +102,7 @@ class CoverObserver extends UEventObserver {
         @Override
         public void handleMessage(Message msg) {
             if (msg.what == 1) {
-                mContext.getApplicationContext().registerReceiver(receiver, filter);
+                mContext.getApplicationContext().registerReceiver(receiver, mFilter);
             } else {
                 try {
                     mContext.getApplicationContext().unregisterReceiver(receiver);
@@ -118,7 +118,7 @@ class CoverObserver extends UEventObserver {
         @Override
         public void onReceive(Context context, Intent intent) {
             // If the case is open, don't try to do any of this
-            if (switchState == 0) {
+            if (mSwitchState == 0) {
                 return;
             }
             Intent i = new Intent();
@@ -150,22 +150,22 @@ class CoverObserver extends UEventObserver {
                     name = normalize(name);
                     name = name + "  "; // Add spaces so the scroll effect looks good
 
-                    Dotcase.status.startRinging(number, name);
-                    Dotcase.status.setOnTop(true);
+                    Dotcase.sStatus.startRinging(number, name);
+                    Dotcase.sStatus.setOnTop(true);
                     new Thread(new ensureTopActivity()).start();
 
                 } else {
-                    Dotcase.status.setOnTop(false);
-                    Dotcase.status.stopRinging();
+                    Dotcase.sStatus.setOnTop(false);
+                    Dotcase.sStatus.stopRinging();
                 }
             } else if (intent.getAction().equals("com.android.deskclock.ALARM_ALERT")) {
                 // add other alarm apps here
-                Dotcase.status.startAlarm();
-                Dotcase.status.setOnTop(true);
+                Dotcase.sStatus.startAlarm();
+                Dotcase.sStatus.setOnTop(true);
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
                 crankUpBrightness();
-                Dotcase.status.resetTimer();
+                Dotcase.sStatus.resetTimer();
                 intent.setAction(DotcaseConstants.ACTION_REDRAW);
                 mContext.sendBroadcast(intent);
                 i.setClassName("org.cyanogenmod.dotcase", "org.cyanogenmod.dotcase.Dotcase");
@@ -190,17 +190,17 @@ class CoverObserver extends UEventObserver {
     }
 
     private void crankUpBrightness() {
-        if (needStoreOldBrightness) {
+        if (mStoreOldBrightness) {
             try {
-                oldBrightness = Settings.System.getInt(mContext.getContentResolver(),
+                mOldBrightness = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS);
-                oldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
+                mOldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
                         Settings.System.SCREEN_BRIGHTNESS_MODE);
             } catch (Settings.SettingNotFoundException e) {
                 Log.e(TAG, "Error retrieving brightness settings", e);
             }
 
-            needStoreOldBrightness = false;
+            mStoreOldBrightness = false;
         }
 
         Settings.System.putInt(mContext.getContentResolver(),
@@ -211,17 +211,17 @@ class CoverObserver extends UEventObserver {
     }
 
     public void killActivity() {
-        Dotcase.status.stopRinging();
-        Dotcase.status.stopAlarm();
-        Dotcase.status.setOnTop(false);
-        if (oldBrightnessMode != -1 && oldBrightness != -1 && !needStoreOldBrightness) {
+        Dotcase.sStatus.stopRinging();
+        Dotcase.sStatus.stopAlarm();
+        Dotcase.sStatus.setOnTop(false);
+        if (mOldBrightnessMode != -1 && mOldBrightness != -1 && !mStoreOldBrightness) {
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS_MODE,
-                    oldBrightnessMode);
+                    mOldBrightnessMode);
             Settings.System.putInt(mContext.getContentResolver(),
                     Settings.System.SCREEN_BRIGHTNESS,
-                    oldBrightness);
-            needStoreOldBrightness = true;
+                    mOldBrightness);
+            mStoreOldBrightness = true;
         }
 
         Intent i = new Intent();
@@ -234,8 +234,8 @@ class CoverObserver extends UEventObserver {
 
         @Override
         public void run() {
-            while ((Dotcase.status.isRinging() || Dotcase.status.isAlarm())
-                    && Dotcase.status.isOnTop()) {
+            while ((Dotcase.sStatus.isRinging() || Dotcase.sStatus.isAlarm())
+                    && Dotcase.sStatus.isOnTop()) {
                 ActivityManager am =
                         (ActivityManager) mContext.getSystemService(Activity.ACTIVITY_SERVICE);
                 if (!am.getRunningTasks(1).get(0).topActivity.getPackageName().equals(

@@ -43,6 +43,8 @@ public class DotcaseConstants {
         VOICEMAIL,
         SNAPCHAT,
         FACEBOOK,
+        KIK,
+        MESSENGER,
         COUPLES,
         DOTS
     }
@@ -180,12 +182,15 @@ public class DotcaseConstants {
 
         // Facebook apps
         notificationMap.put("com.facebook.katana", Notification.FACEBOOK);
-        notificationMap.put("com.facebook.orca", Notification.FACEBOOK);
 
         // Couples apps
         notificationMap.put("com.tenthbit.juliet", Notification.COUPLES); // Couple
         notificationMap.put("io.avocado.android", Notification.COUPLES);
         notificationMap.put("kr.co.vcnc.android.couple", Notification.COUPLES); // Between
+
+        // Messaging apps
+        notificationMap.put("kik.android", Notification.KIK); // KIK
+        notificationMap.put("com.facebook.orca", Notification.MESSENGER); // Facebook Messenger
     }
 
     /**
@@ -292,6 +297,26 @@ public class DotcaseConstants {
         { 0,  0,  2,  2,  2,  2,  2},
         { 0,  0,  0,  2,  0,  2,  0}};
 
+    static final int[][] kikSprite = {
+        {0, 3, 0, 0, 0, 0, 0, 0},
+        {0, 3, 0, 0, 3, 0, 0, 0},
+        {0, 3, 0, 3, 0, 0, 0, 0},
+        {0, 3, 3, 0, 0, 4, 4, 0},
+        {0, 3, 3, 0, 0, 4, 4, 0},
+        {0, 3, 0, 3, 0, 0, 0, 0},
+        {0, 3, 0, 0, 3, 0, 0, 0},
+        {0, 3, 0, 0, 0, 3, 0, 0}};
+
+    static final int[][] messengerSprite = {
+        {0, 9, 9, 9, 9, 9, 0},
+        {9, 9, 9, 9, 9, 9, 9},
+        {9, 9, 1, 9, 9, 9, 9},
+        {9, 1, 9, 1, 9, 1, 9},
+        {9, 9, 9, 9, 1, 9, 9},
+        {0, 9, 9, 9, 9, 9, 0},
+        {0, 0, 9, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0}};
+
     static final int[][] dotsSprite = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0},
@@ -324,6 +349,10 @@ public class DotcaseConstants {
                 return facebookSprite;
             case COUPLES:
                 return couplesSprite;
+            case KIK:
+                return kikSprite;
+            case MESSENGER:
+                return messengerSprite;
             case DOTS:
                 return dotsSprite;
             default:

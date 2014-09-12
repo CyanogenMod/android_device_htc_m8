@@ -55,11 +55,11 @@ void vendor_load_properties()
 
     if (strstr(bootmid, "0P6B20000")) {
         /* m8vzw (m8wl) */
-        cdma_properties("0", "10", "311480", "Verizon");
-        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.2/KOT49H/315044.11:user/release-keys");
-        property_set("ro.build.description", "1.12.605.11 CL315044 release-keys");
-        property_set("ro.product.device", "m8vzw");
-        property_set("ro.build.product", "m8vzw");
+        cdma_properties("0", "10", "310012", "Verizon");
+        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.3/KTU84L/362279.2:user/release-keys");
+        property_set("ro.build.description", "2.21.605.2 CL362279 release-keys");
+        property_set("ro.product.device", "htc_m8wl");
+        property_set("ro.build.product", "htc_m8wl");
         property_set("ro.ril.vzw.feature", "1");
         property_set("ro.ril.oem.ecclist", "911,*911,#911");
         property_set("ro.ril.enable.a52", "0");
@@ -72,8 +72,11 @@ void vendor_load_properties()
         property_set("ro.ril.air.enabled", "1");
         property_set("ro.ril.wp.feature", "1");
         property_set("ro.cdma.data_retry_config", "max_retries=infinite,0,0,60000,120000,480000,900000");
+        property_set("ro.gsm.data_retry_config", "max_retries=infinite,0,0,60000,120000,480000,900000");
+        property_set("ro.gsm.2nd_data_retry_config", "max_retries=infinite,0,0,60000,120000,480000,900000");
         property_set("ro.ril.gsm.to.lte.blind.redir", "1");
         property_set("ro.config.svlte1x", "true");
+        property_set("ro.ril.def.agps.mode", "6");
     } else if (strstr(bootmid, "0P6B70000")) {
         /* m8spr (m8whl) */
         cdma_properties("1", "8", "310120", "Sprint");

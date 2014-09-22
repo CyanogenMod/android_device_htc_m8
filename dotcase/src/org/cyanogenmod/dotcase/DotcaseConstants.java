@@ -167,6 +167,7 @@ public class DotcaseConstants {
         notificationMap.put("com.p1.chompsms", Notification.MMS);
         notificationMap.put("com.handcent.nextsms", Notification.MMS);
         notificationMap.put("com.klinker.android.evolve_sms", Notification.MMS);
+	notificationMap.put("com.groupme.android", Notification.MMS);
 
         // Voicemail apps
         notificationMap.put("com.google.android.apps.googlevoice", Notification.VOICEMAIL);

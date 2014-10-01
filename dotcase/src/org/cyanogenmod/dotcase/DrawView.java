@@ -39,8 +39,8 @@ import java.util.List;
 public class DrawView extends View {
     // 1920x1080 = 48 x 27 dots @ 40 pixels per dot
     private final Context mContext;
-    private final IntentFilter filter = new IntentFilter();
-    private int heartbeat = 0;
+    private final IntentFilter mFilter = new IntentFilter();
+    private int mHeartbeat = 0;
 
     public DrawView(Context context) {
         super(context);
@@ -51,43 +51,43 @@ public class DrawView extends View {
 
     @Override
     public void onDraw(Canvas canvas) {
-        if (Dotcase.status.isAlarm()) {
+        if (Dotcase.sStatus.isAlarm()) {
             drawAlarm(canvas);
-        } else if (Dotcase.status.isRinging()) {
+        } else if (Dotcase.sStatus.isRinging()) {
             drawName(canvas);
             drawNumber(canvas);
             drawRinger(canvas);
         } else {
-            if (Dotcase.status.isTorch()) {
+            if (Dotcase.sStatus.isTorch()) {
                 dotcaseDrawSprite(DotcaseConstants.torchSprite, 19, 22, canvas);
             }
             drawTime(canvas);
 
             // Check notifications each cycle before displaying them
-            if (heartbeat == 0) {
-                Dotcase.status.checkNotifications(mContext);
+            if (mHeartbeat == 0) {
+                Dotcase.sStatus.checkNotifications(mContext);
             }
 
-            if (!Dotcase.status.hasNotifications()) {
-                if (heartbeat < 3) {
+            if (!Dotcase.sStatus.hasNotifications()) {
+                if (mHeartbeat < 3) {
                     drawNotifications(canvas);
                 } else {
                     drawBattery(canvas);
                 }
 
-                heartbeat++;
+                mHeartbeat++;
 
-                if (heartbeat > 5) {
-                    heartbeat = 0;
+                if (mHeartbeat > 5) {
+                    mHeartbeat = 0;
                 }
             } else {
                 drawBattery(canvas);
-                heartbeat = 0;
+                mHeartbeat = 0;
             }
         }
 
-        filter.addAction(DotcaseConstants.ACTION_REDRAW);
-        mContext.getApplicationContext().registerReceiver(receiver, filter);
+        mFilter.addAction(DotcaseConstants.ACTION_REDRAW);
+        mContext.getApplicationContext().registerReceiver(receiver, mFilter);
     }
 
     private timeObject getTimeObject() {
@@ -132,7 +132,7 @@ public class DrawView extends View {
         int[][] mClockSprite = new int[clockHeight][clockWidth];
         int[][] mRingerSprite = new int[ringerHeight][ringerWidth];
 
-        int ringCounter = Dotcase.status.ringCounter();
+        int ringCounter = Dotcase.sStatus.ringCounter();
 
         for (int i = 0; i < ringerHeight; i++) {
             for (int j = 0; j < ringerWidth; j++) {
@@ -179,9 +179,9 @@ public class DrawView extends View {
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
         if (ringCounter > 10) {
-            Dotcase.status.resetRingCounter();
+            Dotcase.sStatus.resetRingCounter();
         } else {
-            Dotcase.status.incrementRingCounter();
+            Dotcase.sStatus.incrementRingCounter();
         }
     }
 
@@ -190,7 +190,7 @@ public class DrawView extends View {
         int x = 1;
         int y = 30;
 
-        List<Notification> notifications = Dotcase.status.getNotifications();
+        List<Notification> notifications = Dotcase.sStatus.getNotifications();
         for (Notification notification : notifications) {
             int[][] sprite = DotcaseConstants.getNotificationSprite(notification);
             if (sprite != null) {
@@ -210,7 +210,7 @@ public class DrawView extends View {
         int[][] mHandsetSprite = new int[handsetHeight][handsetWidth];
         int[][] mRingerSprite = new int[ringerHeight][ringerWidth];
 
-        int ringCounter = Dotcase.status.ringCounter();
+        int ringCounter = Dotcase.sStatus.ringCounter();
 
         if (ringCounter / 3 > 0) {
             light = 2;
@@ -245,9 +245,9 @@ public class DrawView extends View {
         dotcaseDrawSprite(mRingerSprite, 7, 28, canvas);
 
         if (ringCounter > 4) {
-            Dotcase.status.resetRingCounter();
+            Dotcase.sStatus.resetRingCounter();
         } else {
-            Dotcase.status.incrementRingCounter();
+            Dotcase.sStatus.incrementRingCounter();
         }
     }
 
@@ -319,10 +319,10 @@ public class DrawView extends View {
     }
 
     private void dotcaseDrawPixel(int x, int y, Paint paint, Canvas canvas) {
-        canvas.drawRect((x * DotcaseConstants.dotratio + 5),
-                        (y * DotcaseConstants.dotratio + 5),
-                        ((x + 1) * DotcaseConstants.dotratio -5),
-                        ((y + 1) * DotcaseConstants.dotratio -5),
+        canvas.drawRect((x * DotcaseConstants.DOT_RATIO + 5),
+                        (y * DotcaseConstants.DOT_RATIO + 5),
+                        ((x + 1) * DotcaseConstants.DOT_RATIO - 5),
+                        ((y + 1) * DotcaseConstants.DOT_RATIO - 5),
                         paint);
     }
 
@@ -356,10 +356,10 @@ public class DrawView extends View {
     private void drawName(Canvas canvas) {
         int[][] sprite;
         int x = 0, y = 2;
-        if (Dotcase.status.isRinging()) {
-            int nameOffset = Dotcase.status.callerTicker();
+        if (Dotcase.sStatus.isRinging()) {
+            int nameOffset = Dotcase.sStatus.callerTicker();
 
-            String name = Dotcase.status.getCallerName();
+            String name = Dotcase.sStatus.getCallerName();
             String correctedName = "";
 
             // We can fit 7 characters, and the last two are spaces
@@ -380,15 +380,15 @@ public class DrawView extends View {
                 dotcaseDrawSprite(sprite, x + i * 4, y, canvas);
             }
 
-            Dotcase.status.incrementCallerTicker();
+            Dotcase.sStatus.incrementCallerTicker();
         }
     }
 
     private void drawNumber(Canvas canvas) {
         int[][] sprite;
         int x = 0, y = 8;
-        if (Dotcase.status.isRinging()) {
-            String number = Dotcase.status.getCallerNumber();
+        if (Dotcase.sStatus.isRinging()) {
+            String number = Dotcase.sStatus.getCallerNumber();
             for (int i = 3; i < number.length() && i < 10; i++) {
                 sprite = DotcaseConstants.getSmallCharSprite(number.charAt(i));
                 dotcaseDrawSprite(sprite, x + (i - 3) * 4, y, canvas);

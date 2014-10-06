@@ -583,6 +583,9 @@ on property:ro.use_data_netmgrd=false
 on property:service.adb.root=1
     write /sys/class/android_usb/android0/restart_adbd 1
 
+on property:service.adb.root=0
+    write /sys/class/android_usb/android0/restart_adbd 1
+
 on property:sys.boot_completed=1
     start qrngp
 

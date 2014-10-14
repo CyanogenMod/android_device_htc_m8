@@ -206,12 +206,6 @@ public class Dotcase extends Activity implements SensorEventListener
     {
 
         @Override
-        public void onLongPress(MotionEvent event) {
-            Intent i = new Intent(TorchConstants.ACTION_TOGGLE_STATE);
-            mContext.sendBroadcast(i);
-        }
-
-        @Override
         public boolean onDoubleTap(MotionEvent event) {
             mPowerManager.goToSleep(SystemClock.uptimeMillis());
             return true;

@@ -19,3 +19,5 @@
 def FullOTA_InstallEnd(info):
   info.script.AppendExtra('assert(run_program("/system/bin/makelinks.sh") == 0);')
   info.script.AppendExtra('ifelse(is_substring("0P6B20000", getprop("ro.boot.mid")), run_program("/sbin/sh", "-c", "busybox sed -i \'s/ro.com.google.clientidbase=android-google/ro.com.google.clientidbase=android-verizon/g\' /system/build.prop"));')
+  info.script.AppendExtra('ifelse(is_substring("0P6B20000", getprop("ro.boot.mid")), run_program("/sbin/sh", "-c", "busybox sed -i \'s/UMTS/CDMA/g\' /system/etc/gps.conf"));')
+  info.script.AppendExtra('ifelse(is_substring("0P6B70000", getprop("ro.boot.mid")), run_program("/sbin/sh", "-c", "busybox sed -i \'s/UMTS/CDMA/g\' /system/etc/gps.conf"));')

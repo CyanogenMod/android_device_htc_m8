@@ -163,6 +163,7 @@
 /dev/tpa6185              0660   system     audio
 /dev/rt5501               0660   system     audio
 /dev/aud_hs_amp           0660   system     audio
+/dev/tfa98xx              0666   system     audio
 /dev/tfa9887              0660   system     audio
 /dev/tfa9887l             0660   system     audio
 /dev/vdec                 0660   system     audio

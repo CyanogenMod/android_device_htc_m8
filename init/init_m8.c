@@ -56,8 +56,8 @@ void vendor_load_properties()
     if (strstr(bootmid, "0P6B20000")) {
         /* m8vzw (m8wl) */
         cdma_properties("0", "10", "310012", "Verizon");
-        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.3/KTU84L/362279.2:user/release-keys");
-        property_set("ro.build.description", "2.21.605.2 CL362279 release-keys");
+        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.4/KTU84P/390638.4:user/release-keys");
+        property_set("ro.build.description", "3.28.605.4 CL390638 release-keys");
         property_set("ro.product.device", "htc_m8wl");
         property_set("ro.build.product", "htc_m8wl");
         property_set("ro.ril.vzw.feature", "1");

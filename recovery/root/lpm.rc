@@ -34,7 +34,7 @@ on init
     write /sys/class/android_usb/android0/iSerial ${ro.serialno}
 
 on boot
-    # disable 3 CPUs to prevent heat for M7
+    # disable 3 CPUs to prevent heat
     write /sys/devices/system/cpu/cpu1/online 0
     write /sys/devices/system/cpu/cpu2/online 0
     write /sys/devices/system/cpu/cpu3/online 0

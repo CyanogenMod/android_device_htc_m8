@@ -25,4 +25,5 @@
     <feature name="com.htc.software.WWE" />
     <feature name="com.htc.software.PlayGroup1" />
     <feature name="com.htc.software.hdk" />
+    <feature name="com.htc.software.hdk2" />
 </permissions>

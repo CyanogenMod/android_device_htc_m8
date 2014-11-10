@@ -134,6 +134,11 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/idc/projector_input.idc:system/usr/idc/projector_input.idc \
     $(LOCAL_PATH)/idc/synaptics-rmi-touchscreen.idc:system/usr/idc/synaptics-rmi-touchscreen.idc
 
+# IPv6 tethering
+PRODUCT_PACKAGES += \
+    ebtables \
+    ethertypes
+
 # Keylayouts and Keychars
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/keylayout/keypad_8974.kl:system/usr/keylayout/keypad_8974.kl \

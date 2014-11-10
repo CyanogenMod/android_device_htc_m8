@@ -10,6 +10,7 @@ bin/mm-qcamera-daemon
 bin/mpdecision
 bin/ptt_socket_app
 bin/qseecomd
+bin/radish
 bin/rmt_storage
 bin/thermal-engine
 bin/time_daemon

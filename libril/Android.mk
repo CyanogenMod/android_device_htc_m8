@@ -1,5 +1,6 @@
 # Copyright 2006 The Android Open Source Project
 
+ifeq (0,1)
 ifeq ($(BOARD_PROVIDES_LIBRIL),true)
 ifeq ($(TARGET_BOARD_PLATFORM),msm8974)
 ifeq ($(BOARD_VENDOR),htc)
@@ -37,3 +38,4 @@ include $(BUILD_SHARED_LIBRARY)
 endif # BOARD_VENDOR
 endif # TARGET_BOARD_PLATFORM
 endif # BOARD_PROVIDES_LIBRIL
+endif

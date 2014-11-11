@@ -190,7 +190,6 @@ lib/libawb_calibration.so
 lib/libcamera_aec.so
 lib/libcamera_af.so
 lib/libcamera_awb.so
-lib/libcamera_metadata.so
 lib/libcamerapp.so
 lib/libgps.utils.so
 lib/libhtccamera_yushaniiproc.so

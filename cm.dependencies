@@ -10,20 +10,5 @@
   {
     "repository": "android_hardware_qcom_fm",
     "target_path": "hardware/qcom/fm"
-  },
-  {
-    "repository": "android_hardware_qcom_audio",
-    "target_path": "hardware/qcom/audio-caf/default",
-    "branch": "cm-12.0-caf-8974"
-  },
-  {
-    "repository": "android_hardware_qcom_display",
-    "target_path": "hardware/qcom/display-caf/msm8974",
-    "branch": "cm-12.0-caf-8974"
-  },
-  {
-    "repository": "android_hardware_qcom_media",
-    "target_path": "hardware/qcom/media-caf/msm8974",
-    "branch": "cm-12.0-caf-8974"
   }
 ]

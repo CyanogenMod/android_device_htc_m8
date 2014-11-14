@@ -1,1 +1,2 @@
+type smd_device;
 allow bluetooth smd_device:chr_file rw_file_perms;

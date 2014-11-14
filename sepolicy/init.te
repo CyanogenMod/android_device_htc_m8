@@ -1,1 +1,5 @@
-allow init wpa_socket:unix_dgram_socket { bind create };
+allow init shell_data_file:dir { write add_name };
+allow init shell_data_file:file { write create open };
+allow init su_exec:file execute_no_trans;
+allow init tee:blk_file { getattr ioctl open read write };
+allow init rmt_storage:blk_file { getattr ioctl read open };

@@ -8,6 +8,10 @@
     "target_path": "device/qcom/common"
   },
   {
+    "repository": "android_device_qcom_sepolicy",
+    "target_path": "device/qcom/sepolicy"
+  },
+  {
     "repository": "android_hardware_qcom_fm",
     "target_path": "hardware/qcom/fm"
   }

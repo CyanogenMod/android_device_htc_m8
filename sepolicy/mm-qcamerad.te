@@ -1,0 +1,4 @@
+allow mm-qcamerad camera_socket:chr_file { create ioctl open read write };
+allow mm-qcamerad system_data_file:sock_file { create unlink };
+allow mm-qcamerad property_socket:sock_file { write };
+allow mm-qcamerad init:unix_stream_socket { connectto };

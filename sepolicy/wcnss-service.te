@@ -1,0 +1,4 @@
+type wcnss-service, domain;
+type wcnss-service_exec, exec_type, file_type;
+init_daemon_domain(wcnss-service)
+

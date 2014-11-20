@@ -253,9 +253,6 @@
     <!-- Disable lockscreen translucent decor by default -->
     <bool name="config_enableLockScreenTranslucentDecor">true</bool>
 
-    <!-- Enable flashlight -->
-    <bool name="config_enableTorch">true</bool>
-
     <!-- Hardware 'face' keys present on the device, stored as a bit field.
          This integer should equal the sum of the corresponding value for each
          of the following keys present:
@@ -277,8 +274,8 @@
     <bool name="config_hotswapCapable">true</bool>
 
     <!-- Performance profiles -->
-    <string name="config_perf_profile_prop">sys.perf.profile</string>
-    <string name="config_perf_profile_default_entry">1</string>
+    <!--string name="config_perf_profile_prop">sys.perf.profile</string-->
+    <!--string name="config_perf_profile_default_entry">1</string-->
 
     <!-- SD card is hot-pluggable on this device -->
     <bool name="config_batterySdCardAccessibility">true</bool>

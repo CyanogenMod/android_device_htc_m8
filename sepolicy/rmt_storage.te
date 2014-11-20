@@ -1,0 +1,5 @@
+allow rmt_storage rmt_storage:blk_file r_file_perms;
+allow rmt_storage ssd_device:blk_file r_file_perms;
+allow rmt_storage tmpfs:filesystem { associate };
+allow rmt_storage mmc_block_device:blk_file rw_file_perms;
+allow rmt_storage ssd_device:blk_file rw_file_perms;

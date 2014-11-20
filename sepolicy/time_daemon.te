@@ -1,0 +1,1 @@
+allow time_daemon system_data_file:file open;

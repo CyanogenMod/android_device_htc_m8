@@ -1,0 +1,6 @@
+allow thermal-engine init:unix_stream_socket connectto;
+allow thermal-engine self:capability net_admin;
+allow thermal-engine self:netlink_kobject_uevent_socket { read bind create setopt };
+allow thermal-engine self:socket write;
+allow thermal-engine socket_device:dir { write add_name };
+allow thermal-engine socket_device:sock_file { create setattr };

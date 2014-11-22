@@ -1,0 +1,4 @@
+allow ueventd vfat:dir search;
+allow ueventd vfat:file { read getattr open };
+allow ueventd tap2wake_dev:file { getattr relabelto };
+allow ueventd camera_socket:chr_file { create setattr };

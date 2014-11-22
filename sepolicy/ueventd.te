@@ -1,0 +1,3 @@
+allow ueventd vfat:dir search;
+allow ueventd vfat:file { read getattr open };
+allow ueventd tap2wake_file:file { getattr relabelto };

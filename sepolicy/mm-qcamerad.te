@@ -1,0 +1,1 @@
+allow mm-qcamerad default_prop:property_service set;

@@ -167,9 +167,15 @@ BOARD_SEPOLICY_UNION += \
     cir_fw_update.te \
     file_contexts \
     hcheck.te \
+    init.te \
+    mediaserver.te \
+    mm-qcamerad.te \
     qrngd.te \
+    rmt_storage.te \
     su_daemon.te \
-    sysinit.te
+    sysinit.te \
+    ueventd.te \
+    vold.te
 
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true

@@ -1,0 +1,6 @@
+type cir_fw_update, domain;
+type cir_fw_update_exec, exec_type, file_type;
+init_daemon_domain(cir_fw_update)
+
+allow cir_fw_update cir_device:chr_file rw_file_perms;
+allow cir_fw_update self:capability dac_override;

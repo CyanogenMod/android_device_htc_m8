@@ -1,0 +1,3 @@
+type qrngd, domain;
+type qrngd_exec, exec_type, file_type;
+init_daemon_domain(qrngd)

@@ -160,6 +160,17 @@ BOARD_USES_MMCUTILS := true
 TARGET_RECOVERY_FSTAB := device/htc/m8/rootdir/etc/fstab.qcom
 TARGET_RECOVERY_PIXEL_FORMAT := "RGBX_8888"
 
+# SELinux
+BOARD_SEPOLICY_DIRS += device/htc/m8/sepolicy
+
+BOARD_SEPOLICY_UNION += \
+    cir_fw_update.te \
+    file_contexts \
+    hcheck.te \
+    qrngd.te \
+    su_daemon.te \
+    sysinit.te
+
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true
 TARGET_INIT_VENDOR_LIB := libinit_m8

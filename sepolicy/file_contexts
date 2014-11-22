@@ -1,0 +1,21 @@
+/system/bin/cir_fw_update	u:object_r:cir_fw_update_exec:s0
+/system/bin/hcheck		u:object_r:hcheck_exec:s0
+
+/system/blobs/gsm/bin/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/gsm/bin/qmuxd	u:object_r:qmuxd_exec:s0
+/system/blobs/spr/bin/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/spr/bin/qmuxd	u:object_r:qmuxd_exec:s0
+/system/blobs/vzw/bin/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/vzw/bin/qmuxd	u:object_r:qmuxd_exec:s0
+
+/dev/block/mmcblk0p(.*)		u:object_r:mmc_block_device:s0
+/dev/ttyHSL2			u:object_r:cir_device:s0
+
+/dev/rawchip(.*)		u:object_r:camera_socket:s0
+/data/cam_socket1		u:object_r:camera_socket:s0
+/data/cam_socket2		u:object_r:camera_socket:s0
+/data/cam_socket3		u:object_r:camera_socket:s0
+
+/data/system/default_values	u:object_r:mpctl_data_file:s0
+
+/sys/devices/virtual/htc_sensorhub/sensor_hub/tap2wake	 u:object_r:tap2wake_dev:s0

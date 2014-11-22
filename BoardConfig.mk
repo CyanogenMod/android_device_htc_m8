@@ -160,6 +160,29 @@ BOARD_USES_MMCUTILS := true
 TARGET_RECOVERY_FSTAB := device/htc/m8/rootdir/etc/fstab.qcom
 TARGET_RECOVERY_PIXEL_FORMAT := "RGBX_8888"
 
+# SELinux
+include device/qcom/sepolicy/sepolicy.mk
+BOARD_SEPOLICY_DIRS += device/htc/m8/sepolicy
+
+BOARD_SEPOLICY_UNION += \
+    cir_fw_update.te \
+    device.te \
+    file_contexts \
+    file.te \
+    hcheck.te \
+    init.te \
+    kernel.te \
+    mediaserver.te \
+    mm-qcamerad.te \
+    mpdecision.te \
+    platform_app.te \
+    rmt_storage.te \
+    system_app.te \
+    tap2wake_dev.te \
+    thermal-engine.te \
+    ueventd.te \
+    vold.te
+
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true
 TARGET_INIT_VENDOR_LIB := libinit_m8

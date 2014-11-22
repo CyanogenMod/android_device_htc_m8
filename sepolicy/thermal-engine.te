@@ -1,0 +1,3 @@
+allow thermal-engine self:netlink_kobject_uevent_socket create;
+allow thermal-engine self:socket write;
+allow thermal-engine socket_device:dir write;

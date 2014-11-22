@@ -1,0 +1,1 @@
+allow mpdecision socket_device:dir add_name;

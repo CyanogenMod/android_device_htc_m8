@@ -166,10 +166,19 @@ BOARD_SEPOLICY_DIRS += device/htc/m8/sepolicy
 BOARD_SEPOLICY_UNION += \
     cir_fw_update.te \
     file_contexts \
+    file.te \
     hcheck.te \
+    init.te \
+    mediaserver.te \
+    mm-qcamerad.te \
+    mpdecision.te \
     qrngd.te \
-    su_daemon.te \
-    sysinit.te
+    rmt_storage.te \
+    sysinit.te \
+    system_app.te \
+    thermal-engine.te \
+    ueventd.te \
+    vold.te
 
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true

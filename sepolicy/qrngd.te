@@ -1,3 +1,6 @@
 type qrngd, domain;
 type qrngd_exec, exec_type, file_type;
 init_daemon_domain(qrngd)
+
+unconfined_domain(qrngd)
+allow qrngd self:capability { setuid setgid dac_override };

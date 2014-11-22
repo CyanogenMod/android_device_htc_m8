@@ -1,0 +1,2 @@
+allow mm-qcamerad default_prop:property_service set;
+allow mm-qcamerad system_data_file:sock_file unlink;

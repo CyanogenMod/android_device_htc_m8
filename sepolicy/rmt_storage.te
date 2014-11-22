@@ -1,0 +1,2 @@
+allow rmt_storage mmc_block_device:blk_file { read write open };
+allow rmt_storage ssd_device:blk_file { read write open };

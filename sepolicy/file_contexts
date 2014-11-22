@@ -1,0 +1,12 @@
+/system/bin/sysinit		u:object_r:sysinit_exec:s0
+/system/bin/qrngd		u:object_r:qrngd_exec:s0
+/system/bin/su			u:object_r:su_daemon_exec:s0
+/system/bin/cir_fw_update	u:object_r:cir_fw_update_exec:s0
+/system/bin/hcheck		u:object_r:hcheck_exec:s0
+
+/system/blobs/bin/gsm/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/bin/gsm/qmuxd	u:object_r:qmuxd_exec:s0
+/system/blobs/bin/spr/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/bin/spr/qmuxd	u:object_r:qmuxd_exec:s0
+/system/blobs/bin/vzw/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/bin/vzw/qmuxd	u:object_r:qmuxd_exec:s0

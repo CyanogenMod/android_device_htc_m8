@@ -59,8 +59,8 @@ const char CameraParameters::KEY_GPU_EFFECT_PARAM_3[] = "GE-param3"; \
 const char CameraParameters::KEY_FORCE_USE_AUDIO_ENABLED[] = "forceuseaudio"; \
 const char CameraParameters::KEY_ZSL[] = "zsl"; \
 const char CameraParameters::KEY_CAMERA_MODE[] = "camera-mode"; \
-void CameraParameters::getBrightnessLumaTargetSet(int *magic, int *sauce) const{} \
-void CameraParameters::getRawSize(int *magic, int *sauce) const{}
+void CameraParameters::getBrightnessLumaTargetSet(int *magic, int *sauce) const{}; \
+void CameraParameters::getRawSize(int *magic, int *sauce) const{};
 
 
 #define CAMERA_PARAMETERS_EXTRA_H \

@@ -45,7 +45,6 @@ public class DotcaseStatus {
     private String mCallerNumber = "";
     private String mCallerName = "";
     private int mCallerTicker = 0;
-    private boolean mTorchStatus = false;
     private boolean mAlarmClock = false;
 
     private boolean mStayOnTop = false;
@@ -152,14 +151,6 @@ public class DotcaseStatus {
 
     synchronized boolean isAlarm() {
         return mAlarmClock;
-    }
-
-    synchronized boolean isTorch() {
-        return mTorchStatus;
-    }
-
-    synchronized void setTorch(boolean val) {
-        mTorchStatus = val;
     }
 
     synchronized boolean hasNotifications() {

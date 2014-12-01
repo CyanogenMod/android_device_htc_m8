@@ -47,7 +47,8 @@ public class DotcaseConstants {
         FB_MESSENGER,
         KIK,
         DOTS,
-        GROUPME
+        GROUPME,
+        INSTAGRAM
     }
 
     /**
@@ -72,6 +73,7 @@ public class DotcaseConstants {
     static final Paint pFbBlue = new Paint();
     static final Paint pPink = new Paint();
     static final Paint pGMEBlue = new Paint();
+    static final Paint pBrown = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -92,6 +94,7 @@ public class DotcaseConstants {
         pFbBlue.setARGB(255, 59, 89, 152);
         pPink.setARGB(255, 255, 100, 200);
         pGMEBlue.setARGB(255, 0, 175, 240);
+        pBrown.setARGB(181, 101, 29, 0);
     }
 
     static Paint getPaintFromNumber(int color) {
@@ -132,6 +135,8 @@ public class DotcaseConstants {
                 return pPink;
             case 16:
                 return pGMEBlue;
+            case 17:
+				return pBrown;
             default:
                 return pBlack;
         }
@@ -189,6 +194,7 @@ public class DotcaseConstants {
         notificationMap.put("com.facebook.orca", Notification.FB_MESSENGER);
         notificationMap.put("kik.android", Notification.KIK);
         notificationMap.put("com.groupme.android", Notification.GROUPME);
+        notificationMap.put("com.instagram.android", Notification.INSTAGRAM);
     }
 
     /**
@@ -334,6 +340,21 @@ public class DotcaseConstants {
         {16, 16,  1, 16,  1, 16, 16},
         {16, 16, 16, 16, 16, 16, 16},
         {0,   0,  0, 16,  0,  0,  0}};
+        
+	static final int[][] instagramSprite = {  // Don't know how this is going to turn out
+        {17, 2, 7, 4, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17}, 
+        {17, 2, 7, 4, 17, 17, 17, 17, 17, 17, 0, 0, 17, 17}, 
+        {17, 2, 7, 4, 17, 17, 17, 17, 17, 17, 0, 0, 17, 17},
+        {17, 2, 7, 4, 17, 17, 0, 0, 0, 17, 17, 17, 17, 17}, 
+        {1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1}, 
+        {1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1}, 
+        {1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1}, 
+        {1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+
 
     static int[][] getNotificationSprite(Notification notification) {
         switch (notification) {
@@ -365,6 +386,8 @@ public class DotcaseConstants {
                 return dotsSprite;
             case GROUPME:
                 return groupmeSprite;
+            case INSTAGRAM:
+				return instagramSprite;
             default:
                 return null;
         }

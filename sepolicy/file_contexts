@@ -11,6 +11,9 @@
 /dev/block/mmcblk0p(.*)		u:object_r:mmc_block_device:s0
 /dev/ttyHSL2			u:object_r:cir_device:s0
 
+/dev/rt5501			u:object_r:audio_device:s0
+/dev/tfa9887			u:object_r:audio_device:s0
+
 /dev/rawchip(.*)		u:object_r:camera_socket:s0
 /data/cam_socket1		u:object_r:camera_socket:s0
 /data/cam_socket2		u:object_r:camera_socket:s0

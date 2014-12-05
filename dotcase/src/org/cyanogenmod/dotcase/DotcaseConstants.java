@@ -34,6 +34,7 @@ public class DotcaseConstants {
      * Notification types
      */
     enum Notification {
+        DOTS,
         EMAIL,
         TWITTER,
         MISSED_CALL,
@@ -46,7 +47,6 @@ public class DotcaseConstants {
         FACEBOOK,
         FB_MESSENGER,
         KIK,
-        DOTS,
         GROUPME
     }
 
@@ -71,7 +71,7 @@ public class DotcaseConstants {
     static final Paint pTBlue = new Paint();
     static final Paint pFbBlue = new Paint();
     static final Paint pPink = new Paint();
-    static final Paint pGMEBlue = new Paint();
+    static final Paint pGmBlue = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -91,7 +91,7 @@ public class DotcaseConstants {
         pTBlue.setARGB(255, 85, 172, 238);
         pFbBlue.setARGB(255, 59, 89, 152);
         pPink.setARGB(255, 255, 100, 200);
-        pGMEBlue.setARGB(255, 0, 175, 240);
+        pGmBlue.setARGB(255, 0, 175, 240);
     }
 
     static Paint getPaintFromNumber(int color) {
@@ -131,7 +131,7 @@ public class DotcaseConstants {
             case 15:
                 return pPink;
             case 16:
-                return pGMEBlue;
+                return pGmBlue;
             default:
                 return pBlack;
         }
@@ -194,6 +194,16 @@ public class DotcaseConstants {
     /**
      * Notification sprites
      */
+
+    static final int[][] dotsSprite = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 1, 0, 1, 0, 1, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0}};
 
     static final int[][] hangoutsSprite = {
         {0, 3, 3, 3, 3, 3, 0},
@@ -315,17 +325,7 @@ public class DotcaseConstants {
         { 0, 14, 14, 14, 14, 14,  0},
         { 0,  0, 14,  0,  0,  0,  0}};
 
-    static final int[][] dotsSprite = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 1, 0, 1, 0, 1, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0}};
-
-    static final int[][] groupmeSprite = {  // I think this is going to suck
+    static final int[][] groupMeSprite = {
         {16, 16, 16, 16, 16, 16, 16},
         {16, 16,  1, 16,  1, 16, 16},
         {16,  1,  1,  1,  1,  1, 16},
@@ -333,10 +333,12 @@ public class DotcaseConstants {
         {16,  1,  1,  1,  1,  1, 16},
         {16, 16,  1, 16,  1, 16, 16},
         {16, 16, 16, 16, 16, 16, 16},
-        {0,   0,  0, 16,  0,  0,  0}};
+        { 0,  0,  0, 16,  0,  0,  0}};
 
     static int[][] getNotificationSprite(Notification notification) {
         switch (notification) {
+            case DOTS:
+                return dotsSprite;
             case EMAIL:
                 return emailSprite;
             case GMAIL:
@@ -361,10 +363,8 @@ public class DotcaseConstants {
                 return kikSprite;
             case FB_MESSENGER:
                 return facebookMessengerSprite;
-            case DOTS:
-                return dotsSprite;
             case GROUPME:
-                return groupmeSprite;
+                return groupMeSprite;
             default:
                 return null;
         }

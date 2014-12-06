@@ -46,7 +46,6 @@ persist.audio.fluence.voicecall=true
 persist.audio.fluence.speaker=true
 ro.qc.sdk.audio.fluencetype=fluence
 tunnel.audio.encode=true
-af.resampler.quality=4
 use.voice.path.for.pcm.voip=false
 
 # AV

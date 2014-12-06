@@ -190,7 +190,15 @@
         <item>"mobile_ia,14,0,2,-1,true"</item>
         <item>"bluetooth,7,7,2,-1,true"</item>
     </string-array>
+   
+    <!-- Screen brightness when dozing. -->
+    <integer name="config_screenBrightnessDoze">25</integer>
 
+    <!-- Dream of notifications -->
+    <string name="config_dozeComponent">com.android.systemui/com.android.systemui.doze.DozeService</string>
+    <bool name="config_dozeAfterScreenOff">true</bool>
+    <bool name="config_powerDecoupleInteractiveModeFromDisplay">true</bool>
+   
     <!-- This string array should be overridden by the device to present a list of radio
          attributes.  This is used by the connectivity manager to decide which networks can coexist
          based on the hardware -->

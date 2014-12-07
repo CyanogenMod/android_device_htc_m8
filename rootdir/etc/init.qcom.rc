@@ -82,6 +82,7 @@ on init
 
 # Vibrator permission
     chown system /sys/devices/virtual/timed_output/vibrator/voltage_level
+    restorecon /sys/devices/virtual/timed_output/vibrator/voltage_level
 
 on fs
     mkdir /devlog 0700 root root

@@ -1,1 +1,3 @@
+type kcal_dev, file_type;
 type tap2wake_dev, file_type;
+type vibe_dev, file_type;

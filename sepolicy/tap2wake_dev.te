@@ -1,1 +1,1 @@
-allow tap2wake_dev sysfs:filesystem associate; 
+allow tap2wake_dev sysfs:filesystem associate;

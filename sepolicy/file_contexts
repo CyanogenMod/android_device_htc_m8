@@ -13,6 +13,7 @@
 
 /dev/rt5501			u:object_r:audio_device:s0
 /dev/tfa9887			u:object_r:audio_device:s0
+/dev/tfa9887l			u:object_r:audio_device:s0
 
 /dev/rawchip(.*)		u:object_r:camera_socket:s0
 /data/cam_socket1		u:object_r:camera_socket:s0
@@ -21,4 +22,7 @@
 
 /data/system/default_values	u:object_r:mpctl_data_file:s0
 
+/sys/devices/platform/kcal_ctrl.0(/.*)?		u:object_r:kcal_dev:s0
+/sys/bus/platform/drivers/kcal_ctrl(/.*)?	u:object_r:kcal_dev:s0
 /sys/devices/virtual/htc_sensorhub/sensor_hub/tap2wake	 u:object_r:tap2wake_dev:s0
+/sys/devices/virtual/timed_output/vibrator/voltage_level u:object_r:vibe_dev:s0

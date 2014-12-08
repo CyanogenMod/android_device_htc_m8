@@ -86,6 +86,7 @@ etc/firmware/a300_pfp.fw
 etc/firmware/a300_pm4.fw
 etc/firmware/a330_pfp.fw
 etc/firmware/a330_pm4.fw
+etc/firmware/alIAF_InData_4M2M
 etc/firmware/cpp_firmware_v1_1_1.fw
 etc/firmware/cpp_firmware_v1_1_6.fw
 etc/firmware/cpp_firmware_v1_2_0.fw
@@ -189,10 +190,13 @@ lib/libalDynamicWarping_SDW_TWO.so
 lib/libalDynamicWarping.so
 lib/libalIAF.so
 lib/libawb_calibration.so
+lib/libBeautyChat.so
 lib/libcamera_aec.so
 lib/libcamera_af.so
 lib/libcamera_awb.so
 lib/libcamerapp.so
+lib/libcameraface.so
+lib/libdrmdecrypt.so
 lib/libgps.utils.so
 lib/libhtccamera_yushaniiproc.so
 lib/libhtc_depthmap.so
@@ -203,7 +207,7 @@ lib/libloc_eng.so
 lib/libmmcamera_interface.so
 lib/libmmcamera_rubik.so
 lib/libmmjpeg_interface.so
-lib/liboemcrypto.so
+lib/libposteffect.so
 lib/libqomx_core.so
 lib/libtuning_aec_ar1820_video.so
 lib/libtuning_aec_ar1820_zsl.so
@@ -230,9 +234,8 @@ lib/libtuning_aec_vd6869_videoHDR.so
 lib/libtuning_aec_vd6869_videoHFR.so
 lib/libtuning_aec_vd6869_video.so
 lib/libtuning_aec_vd6869_zsl.so
-lib/libtuning_af_0.so
-lib/libtuning_af_1.so
 lib/libtuning_af.so
+lib/libtuning_af_lc898212_ov4688_vd6869.so
 lib/libtuning_awb_ar1820.so
 lib/libtuning_awb_ov2722.so
 lib/libtuning_awb_ov2722_subcam.so
@@ -249,7 +252,6 @@ vendor/lib/egl/eglsubAndroid.so
 vendor/lib/egl/libEGL_adreno.so
 vendor/lib/egl/libGLESv1_CM_adreno.so
 vendor/lib/egl/libGLESv2_adreno.so
-vendor/lib/egl/libplayback_adreno.so
 vendor/lib/egl/libq3dtools_adreno.so
 vendor/lib/libacdbloader.so
 vendor/lib/libacdbmapper.so
@@ -283,7 +285,6 @@ vendor/lib/libchromatix_s5k5e_preview.so
 vendor/lib/libchromatix_vd6869_common.so
 vendor/lib/libchromatix_vd6869_default_video.so
 vendor/lib/libchromatix_vd6869_preview.so
-vendor/lib/libdrmdecrypt.so
 vendor/lib/libdrmfs.so
 vendor/lib/libfastcvadsp_stub.so
 vendor/lib/libfastcvopt.so
@@ -338,9 +339,9 @@ vendor/lib/libmmipl.so
 vendor/lib/libmmjpeg.so
 vendor/lib/libmmqjpeg_codec.so
 vendor/lib/liboemcamera.so
+vendor/lib/liboemcrypto.so
 vendor/lib/libOpenCL.so
 vendor/lib/libOpenVG.so
-vendor/lib/libqcgesture.so
 vendor/lib/libqc-opt.so
 vendor/lib/libqomx_jpegdec.so
 vendor/lib/libqomx_jpegenc.so
@@ -353,6 +354,7 @@ vendor/lib/libsc-a3xx.so
 vendor/lib/libscve.so
 vendor/lib/libscve_stub.so
 vendor/lib/libssd.so
+vendor/lib/libthermalclient.so
 -vendor/lib/libtime_genoff.so
 vendor/lib/libwvdrm_L1.so
 vendor/lib/libwvm.so

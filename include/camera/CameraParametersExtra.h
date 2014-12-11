@@ -59,9 +59,17 @@ const char CameraParameters::KEY_GPU_EFFECT_PARAM_3[] = "GE-param3"; \
 const char CameraParameters::KEY_FORCE_USE_AUDIO_ENABLED[] = "forceuseaudio"; \
 const char CameraParameters::KEY_ZSL[] = "zsl"; \
 const char CameraParameters::KEY_CAMERA_MODE[] = "camera-mode"; \
+const char CameraParameters::KEY_SMILEINFO_BYFACE_SUPPORTED[] = "smileinfo-byface-supported"; \
+const char CameraParameters::ZSL_OFF[] = "off"; \
 void CameraParameters::getBrightnessLumaTargetSet(int *magic, int *sauce) const{}; \
-void CameraParameters::getRawSize(int *magic, int *sauce) const{};
-
+void CameraParameters::setBrightnessLumaTargetSet(int brightness, int luma) { \
+    char str[32]; \
+    snprintf(str, sizeof(str),"%d,%d", brightness, luma); \
+    set("brightness-luma-target-set", str); \
+}; \
+void CameraParameters::getRawSize(int *magic, int *sauce) const{}; \
+void CameraParameters::setZsl(const char *sauce) { set("zsl",sauce);}; \
+const char *CameraParameters::getZsl() const { return get("zsl");};
 
 #define CAMERA_PARAMETERS_EXTRA_H \
     static const char KEY_TIME_CONS_POST_PROCESSING[]; \
@@ -108,5 +116,10 @@ void CameraParameters::getRawSize(int *magic, int *sauce) const{};
     static const char KEY_FORCE_USE_AUDIO_ENABLED[]; \
     static const char KEY_ZSL[]; \
     static const char KEY_CAMERA_MODE[]; \
+    static const char KEY_SMILEINFO_BYFACE_SUPPORTED[]; \
+    static const char ZSL_OFF[]; \
     void getRawSize(int *magic, int *sauce) const; \
-    void getBrightnessLumaTargetSet(int *magic, int *sauce) const;
+    void getBrightnessLumaTargetSet(int *magic, int *sauce) const; \
+    void setBrightnessLumaTargetSet(int brightness, int luma); \
+    void setZsl(const char *sauce); \
+    const char *getZsl() const;

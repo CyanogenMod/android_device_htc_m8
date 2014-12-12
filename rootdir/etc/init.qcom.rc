@@ -113,6 +113,8 @@ on post-fs-data
     # We will remap this as /mnt/sdcard with the sdcard fuse tool
     mkdir /data/media 0770 media_rw media_rw
 
+    restorecon /data/OTPData.dat
+
     mkdir /data/misc/bluetooth 0770 bluetooth bluetooth
 
     # Create the directories used by the Wireless subsystem

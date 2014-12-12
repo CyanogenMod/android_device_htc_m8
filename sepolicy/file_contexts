@@ -19,6 +19,7 @@
 /data/cam_socket1		u:object_r:camera_socket:s0
 /data/cam_socket2		u:object_r:camera_socket:s0
 /data/cam_socket3		u:object_r:camera_socket:s0
+/data/OTPData.dat		u:object_r:camera_data_file:s0
 
 /data/system/default_values	u:object_r:mpctl_data_file:s0
 

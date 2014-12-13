@@ -77,6 +77,7 @@ void vendor_load_properties()
         property_set("ro.ril.gsm.to.lte.blind.redir", "1");
         property_set("ro.config.svlte1x", "true");
         property_set("ro.ril.def.agps.mode", "6");
+        property_set("ro.telephony.get_imsi_from_sim", "true");
     } else if (strstr(bootmid, "0P6B70000")) {
         /* m8spr (m8whl) */
         cdma_properties("1", "8", "310120", "Sprint");

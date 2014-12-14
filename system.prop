@@ -37,11 +37,11 @@ ro.qualcomm.perf.cores_online=2
 
 # Audio
 audio.offload.buffer.size.kb=32
-audio.offload.gapless.enabled=false
+audio.offload.gapless.enabled=true
 av.offload.enable=true
 av.streaming.offload.enable=true
-audio.offload.24bit.enable=1
-audio.offload.pcm.enable=true
+audio.offload.pcm.16bit.enable=true
+audio.offload.pcm.24bit.enable=true
 persist.audio.fluence.voicecall=true
 persist.audio.fluence.speaker=true
 ro.qc.sdk.audio.fluencetype=fluence

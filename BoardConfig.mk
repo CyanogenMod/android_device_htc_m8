@@ -177,6 +177,7 @@ BOARD_SEPOLICY_UNION += \
     mm-qcamerad.te \
     mpdecision.te \
     platform_app.te \
+    property_contexts \
     rmt_storage.te \
     system_app.te \
     system_server.te \

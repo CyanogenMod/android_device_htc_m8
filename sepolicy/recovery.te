@@ -1,0 +1,3 @@
+allow recovery self:capability sys_boot;
+
+allow recovery input_device:chr_file write;

@@ -195,7 +195,8 @@ PRODUCT_PACKAGES += \
     qcmediaplayer
 
 PRODUCT_BOOT_JARS += \
-    qcmediaplayer
+    qcmediaplayer \
+    htcirlibs
 
 # Power
 PRODUCT_PACKAGES += \

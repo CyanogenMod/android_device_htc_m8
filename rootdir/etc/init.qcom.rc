@@ -314,7 +314,6 @@ service cir_fw_update /system/bin/cir_fw_update -u cir.img
     user root
     group root
     oneshot
-    seclabel u:r:cir_fw_update:s0
 
 service dhcpcd_bnep0 /system/bin/dhcpcd -BKLG
     disabled
@@ -388,7 +387,6 @@ service hcheck /system/bin/hcheck
     user system
     group system
     oneshot
-    seclabel u:r:hcheck:s0
 
 service hciattach /system/bin/sh /system/etc/init.qcom.bt.bluedroid.sh
     class late_start
@@ -455,7 +453,6 @@ service mpdecision /system/bin/mpdecision --avg_comp
 
 service netmgrd /system/bin/netmgrd
     class core
-    seclabel u:r:netmgrd:s0
 
 service p2p_supplicant /system/bin/wpa_supplicant \
     -iwlan0 -Dnl80211 -c/data/misc/wifi/wpa_supplicant.conf \
@@ -484,7 +481,6 @@ service qmuxd /system/bin/qmuxd
     class core
     user radio
     group radio audio bluetooth gps qcom_diag
-    seclabel u:r:qmuxd:s0
 
 service qseecomd /system/bin/qseecomd
    class main

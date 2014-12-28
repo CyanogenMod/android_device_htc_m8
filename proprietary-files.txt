@@ -1,5 +1,5 @@
--app/CIRModule.apk
--app/EasyAccessService.apk
+-app/CIRModule/CIRModule.apk:app/CIRModule.apk
+-app/EasyAccessService/EasyAccessService.apk:app/EasyAccessService.apk
 bin/adsprpcd
 bin/ATFWD-daemon
 bin/cir_fw_update
@@ -358,7 +358,7 @@ vendor/lib/libscve.so
 vendor/lib/libscve_stub.so
 vendor/lib/libssd.so
 vendor/lib/libthermalclient.so
--vendor/lib/libtime_genoff.so
+-lib/libtime_genoff.so:vendor/lib/libtime_genoff.so
 vendor/lib/libwvdrm_L1.so
 vendor/lib/libwvm.so
 vendor/lib/libWVphoneAPI.so

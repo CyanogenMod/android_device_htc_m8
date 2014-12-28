@@ -4,5 +4,3 @@ allow ueventd kcal_dev:file rw_file_perms;
 allow ueventd kcal_dev:lnk_file r_file_perms;
 allow ueventd tap2wake_dev:file { getattr relabelto };
 allow ueventd vibe_dev:file getattr;
-allow ueventd vfat:dir search;
-allow ueventd vfat:file r_file_perms;

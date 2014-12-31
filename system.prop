@@ -16,6 +16,7 @@ ro.ril.def.agps.mode=1
 ro.telephony.call_ring.multiple=false
 ro.use_data_netmgrd=true
 persist.data.netmgrd.qos.enable=true
+persist.radio.apm_sim_not_pwdn=1
 persist.radio.jbims=1
 persist.rild.nitz_plmn=
 persist.rild.nitz_long_ons_0=

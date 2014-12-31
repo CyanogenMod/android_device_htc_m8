@@ -290,8 +290,8 @@
     <bool name="config_hotswapCapable">true</bool>
 
     <!-- Performance profiles -->
-    <!--string name="config_perf_profile_prop">sys.perf.profile</string-->
-    <!--string name="config_perf_profile_default_entry">1</string-->
+    <string name="config_perf_profile_prop">sys.perf.profile</string>
+    <string name="config_perf_profile_default_entry">1</string>
 
     <!-- SD card is hot-pluggable on this device -->
     <bool name="config_batterySdCardAccessibility">true</bool>

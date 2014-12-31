@@ -51,6 +51,7 @@ use.voice.path.for.pcm.voip=false
 # AV
 media.aac_51_output_enabled=true
 mm.enable.smoothstreaming=true
+qcom.hw.aac.encoder=true
 
 # Camera
 persist.camera.maxopen=3

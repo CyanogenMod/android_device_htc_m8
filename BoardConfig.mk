@@ -75,7 +75,7 @@ TARGET_USES_QCOM_BSP := true
 
 # Audio
 AUDIO_FEATURE_DISABLED_MULTI_VOICE_SESSIONS := true
-BOARD_AUDIO_AMPLIFIER := device/htc/m8/libaudioamp
+# BOARD_AUDIO_AMPLIFIER := device/htc/m8/libaudioamp
 BOARD_USES_ALSA_AUDIO := true
 
 # Bluetooth

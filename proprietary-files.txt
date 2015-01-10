@@ -5,6 +5,7 @@ bin/ATFWD-daemon
 bin/cir_fw_update
 bin/hcheck
 bin/hci_qcomm_init
+bin/hvdcp
 bin/irsc_util
 bin/mm-qcamera-app
 bin/mm-qcamera-daemon

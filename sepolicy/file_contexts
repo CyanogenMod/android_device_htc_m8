@@ -29,3 +29,6 @@
 /sys/bus/platform/drivers/kcal_ctrl(/.*)?	u:object_r:kcal_dev:s0
 /sys/devices/virtual/htc_sensorhub/sensor_hub/tap2wake	 u:object_r:tap2wake_dev:s0
 /sys/devices/virtual/timed_output/vibrator/voltage_level u:object_r:vibe_dev:s0
+
+/sys/devices/platform/htc_battery/power_supply/battery(/.*)? u:object_r:sysfs_battery_supply:s0
+/sys/devices/platform/htc_battery/power_supply/usb(/.*)? u:object_r:sysfs_usb_supply:s0

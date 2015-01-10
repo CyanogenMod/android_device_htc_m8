@@ -1,0 +1,19 @@
+# Android fstab file.
+#<src>	<mnt_point>	<type>	<mnt_flags>	<fs_mgr_flags>
+# The filesystem that contains the filesystem checker binary (typically /system) cannot
+# specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+
+# Internal Storage
+/boot           emmc        /dev/block/platform/msm_sdcc.1/by-name/boot      flags=backup=1
+/system         ext4        /dev/block/platform/msm_sdcc.1/by-name/system    flags=backup=1;wipeingui;
+/cache          ext4        /dev/block/platform/msm_sdcc.1/by-name/cache     flags=backup=1;wipeingui;wipeduringfactoryreset;canencryptbackup=1
+/data           ext4        /dev/block/platform/msm_sdcc.1/by-name/userdata  flags=backup=1;wipeingui;wipeduringfactoryreset;canencryptbackup=1;userdataencryptbackup=1
+
+# because /proc/emmc is blank in recovery, we should add this here. Set backup to 0
+/misc           emmc        /dev/block/platform/msm_sdcc.1/by-name/misc  flags=backup=0
+
+# External Storage
+/external_sd    auto        /devices/msm_sdcc.2/mmc_host flags=display="Micro SDcard";storage;wipeingui;removable
+/usb-otg        auto        /devices/platform/xhci-hcd   flags=display="USB-OTG";storage;wipeingui;removable
+
+#Add logging partitions

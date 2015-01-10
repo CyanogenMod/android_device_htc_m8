@@ -84,6 +84,9 @@ on init
     chown system /sys/devices/virtual/timed_output/vibrator/voltage_level
     restorecon /sys/devices/virtual/timed_output/vibrator/voltage_level
 
+# Quick Charge 2.0 daemon
+    setprop persist.usb.hvdcp.detect "true"
+
 on fs
     mkdir /devlog 0700 root root
     mkdir /fataldevlog 0700 root root
@@ -402,6 +405,12 @@ service hostapd /system/bin/hostapd -dddd /data/hostapd/hostapd.conf
     oneshot
     disabled
 
+service hvdcp /system/bin/hvdcp
+    class core
+    user root
+    group root
+    disabled
+
 service iprenew_bt-pan /system/bin/dhcpcd -n
     class late_start
     disabled
@@ -561,6 +570,13 @@ on property:service.adb.root=1
 
 on property:sys.boot_completed=1
     start qrngp
+
+# Quick Charge 2.0
+on property:persist.usb.hvdcp.detect=true
+    start hvdcp
+
+on property:persist.usb.hvdcp.detect=false
+    stop hvdcp
 
 # Performance
 on property:service.bootanim.exit=1

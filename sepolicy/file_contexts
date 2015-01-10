@@ -31,3 +31,6 @@
 /sys/devices/virtual/timed_output/vibrator/voltage_level u:object_r:vibe_dev:s0
 
 /dev/block/platform/msm_sdcc\.1/by-name/ssd         u:object_r:ssd_device:s0
+
+/sys/devices/platform/htc_battery/power_supply/battery(/.*)? u:object_r:sysfs_battery_supply:s0
+/sys/devices/platform/htc_battery/power_supply/usb(/.*)? u:object_r:sysfs_usb_supply:s0

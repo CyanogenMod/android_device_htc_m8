@@ -29,3 +29,5 @@
 /sys/bus/platform/drivers/kcal_ctrl(/.*)?	u:object_r:kcal_dev:s0
 /sys/devices/virtual/htc_sensorhub/sensor_hub/tap2wake	 u:object_r:tap2wake_dev:s0
 /sys/devices/virtual/timed_output/vibrator/voltage_level u:object_r:vibe_dev:s0
+
+/dev/block/platform/msm_sdcc\.1/by-name/ssd         u:object_r:ssd_device:s0

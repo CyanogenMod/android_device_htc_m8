@@ -216,7 +216,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     com.android.future.usb.accessory
 
-# Variant linking script
+# Variant linking scripts
 PRODUCT_PACKAGES += \
     makelinks.sh
 

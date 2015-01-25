@@ -38,7 +38,7 @@ $(MODEM_SYMLINKS): $(LOCAL_INSTALLED_MODULE)
 ALL_DEFAULT_INSTALLED_MODULES += $(MODEM_SYMLINKS)
 
 MBA_IMAGES := \
-    mba.b00 mba.mdt
+    a7b40e1.b00 a7b40e1.mdt a7b80e1.b00 a7b80e1.mdt mba.b00 mba.mdt
 
 MBA_SYMLINKS := $(addprefix $(TARGET_OUT_VENDOR)/firmware/,$(notdir $(MBA_IMAGES)))
 $(MBA_SYMLINKS): $(LOCAL_INSTALLED_MODULE)

@@ -4463,14 +4463,15 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
           case RIL_UNSOL_CDMA_3G_INDICATOR: unsolResponseIndex = htc_base + 1; break;
           case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: unsolResponseIndex = htc_base + 2; break;
           case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: unsolResponseIndex = htc_base + 3; break;
-          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = htc_base + 4; break;
-          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = htc_base + 5; break;
-          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC: unsolResponseIndex = htc_base + 6; break;
+          case RIL_UNSOL_VOICE_SPEECH_CODEC: unsolResponseIndex = htc_base + 4; break;
+          case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: unsolResponseIndex = htc_base + 5; break;
+          case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: unsolResponseIndex = htc_base + 6; break;
+          case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC: unsolResponseIndex = htc_base + 7; break;
           case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED_M7:
             // remap 5757 to 48
             RLOGD("m7 supported unsolicited response code %d", unsolResponse);
             unsolResponse = RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED;
-          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = htc_base + 7; break;
+          case RIL_UNSOL_RESPONSE_DATA_NETWORK_STATE_CHANGED: unsolResponseIndex = htc_base + 8; break;
           case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE_M7:
             // remap 4802 to 2
             RLOGD("m7 supported unsolicited response code %d", unsolResponse);
@@ -4861,6 +4862,7 @@ requestToString(int request) {
         case RIL_UNSOL_CDMA_3G_INDICATOR: return "UNSOL_CDMA_3G_INDICATOR";
         case RIL_UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR: return "UNSOL_CDMA_ENHANCE_ROAMING_INDICATOR";
         case RIL_UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL: return "UNSOL_CDMA_NETWORK_BASE_PLUSCODE_DIAL";
+        case RIL_UNSOL_VOICE_SPEECH_CODEC: return "RIL_UNSOL_VOICE_SPEECH_CODEC";
         case RIL_UNSOL_RESPONSE_PHONE_MODE_CHANGE: return "UNSOL_RESPONSE_PHONE_MODE_CHANGE";
         case RIL_UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED: return "UNSOL_RESPONSE_VOICE_RADIO_TECH_CHANGED";
         case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED_HTC: return "UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED";

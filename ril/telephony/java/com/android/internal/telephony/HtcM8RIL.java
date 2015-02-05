@@ -16,6 +16,8 @@
 
 package com.android.internal.telephony;
 
+import static com.android.internal.telephony.RILConstants.*;
+
 import android.content.Context;
 //import android.os.AsyncResult;
 import android.os.Parcel;
@@ -53,6 +55,7 @@ public class HtcM8RIL extends RIL implements CommandsInterface {
 
         switch(response) {
             case RIL_UNSOL_VOICE_SPEECH_CODEC: ret = responseInts(p); break;
+            case RIL_UNSOL_RINGBACK_TONE: ret = responseInts(p); break;
             default:
                 // Rewind the Parcel
                 p.setDataPosition(dataPosition);

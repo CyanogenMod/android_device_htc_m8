@@ -89,6 +89,7 @@ void vendor_load_properties()
         property_set("ro.ril.enable.pre_r8fd=1", "1");
         property_set("ro.ril.oem.ecclist", "911");
         property_set("ro.ril.set.mtusize", "1422");
+        property_set("ro.telephony.ril_class", "m8sprRIL");
     } else {
         /* m8 */
         property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:5.1/LMY47O.H4/519376:user/release-keys");

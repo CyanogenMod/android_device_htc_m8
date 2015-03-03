@@ -98,6 +98,9 @@ void vendor_load_properties()
         property_set("telephony.lteOnGsmDevice", "1");
     }
 
+    /* Use custom RIL class for all */
+    property_set("ro.telephony.ril_class", "m8RIL");
+
     property_get("ro.product.device", device);
     ERROR("Found bootmid %s setting build properties for %s device\n", bootmid, device);
 }

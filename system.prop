@@ -28,6 +28,7 @@ persist.rild.nitz_short_ons_1=
 persist.rild.nitz_short_ons_2=
 persist.rild.nitz_short_ons_3=
 DEVICE_PROVISIONED=1
+ro.telephony.ril_class=m8RIL
 
 # QCOM
 com.qc.hardware=true

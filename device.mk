@@ -118,6 +118,13 @@ PRODUCT_PACKAGES += \
     FM2 \
     FMRecord
 
+# GPS
+PRODUCT_PACKAGES += \
+    gps.msm8974
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/gps/gps.conf:system/etc/gps.conf
+
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8974 \

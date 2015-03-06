@@ -28,6 +28,8 @@
 # 0P6B20000 - Verizon
 # 0P6B70000 - Sprint
 
+LOCAL_PATH := device/htc/m8
+
 TARGET_OTA_ASSERT_DEVICE := htc_m8,htc_m8whl,htc_m8wl,m8,m8wl,m8wlv,m8vzw,m8whl,m8spr
 TARGET_BOARD_INFO_FILE ?= device/htc/m8/board-info.txt
 
@@ -62,6 +64,7 @@ BOARD_MKBOOTIMG_ARGS := --kernel_offset 0x00008000 --ramdisk_offset 0x02008000 -
 BOARD_CUSTOM_BOOTIMG_MK := device/htc/m8/mkbootimg.mk
 TARGET_KERNEL_CONFIG := cm_m8_defconfig
 TARGET_KERNEL_SOURCE := kernel/htc/msm8974
+TARGET_SPECIFIC_HEADER_PATH := $(LOCAL_PATH)/include
 
 # QCOM hardware
 BOARD_USES_QCOM_HARDWARE := true

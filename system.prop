@@ -83,6 +83,7 @@ ro.cwm.enable_key_repeat=true
 ro.cwm.repeatable_keys=114,115
 
 # USB
+persist.sys.isUsbOtgEnabled=true
 persist.sys.usb.config=mtp
 
 # Wifi

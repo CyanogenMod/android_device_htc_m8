@@ -21,13 +21,14 @@ find . -type f | while read file; do ln -s $basedir$file /system/$file ; done
 mkdir -p /firmware/radio
 busybox mount -o shortname=lower -t vfat /dev/block/platform/msm_sdcc.1/by-name/radio /firmware/radio
 
-if [ -f "/firmware/radio/mba.mdt" ]; then
-  ln -s /firmware/radio/mba.mdt /system/vendor/firmware/mba.mdt
-  ln -s /firmware/radio/mba.b00 /system/vendor/firmware/mba.b00
-elif [ -f "/firmware/radio/a7b80e1.mdt" ]; then
-  ln -s /firmware/radio/a7b80e1.mdt /system/vendor/firmware/mba.mdt
-  ln -s /firmware/radio/a7b80e1.b00 /system/vendor/firmware/mba.b00
+if ls /firmware/radio/a7b*.mdt 1> /dev/null 2>&1; then
+  base=`ls /firmware/radio/a7b*.mdt | sort -r | head -1 | sed "s|.mdt||g"`
+elif [ -f "/firmware/radio/mba.mdt" ]; then
+  base="/firmware/radio/mba"
 fi
+
+ln -s $base.mdt /system/vendor/firmware/mba.mdt
+ln -s $base.b00 /system/vendor/firmware/mba.b00
 
 if [ ! -f "/system/vendor/firmware/mba.mdt" ]; then
   exit 1

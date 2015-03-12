@@ -94,7 +94,6 @@ EXTENDED_FONT_FOOTPRINT := true
 
 # Graphics
 BOARD_EGL_CFG := device/htc/m8/configs/egl.cfg
-TARGET_DISPLAY_USE_RETIRE_FENCE := true
 TARGET_USES_C2D_COMPOSITION := true
 TARGET_USES_ION := true
 TARGET_USES_OVERLAY := true

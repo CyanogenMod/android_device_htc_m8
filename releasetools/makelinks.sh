@@ -2,6 +2,8 @@
 
 set -e
 
+busybox mount /dev/block/platform/msm_sdcc.1/by-name/system /system
+
 # Detect variant and create symlinks to its specific-blobs
 modelid=`getprop ro.boot.mid`
 
@@ -39,5 +41,6 @@ if [ ! -f "/system/vendor/firmware/mba.mdt" ]; then
   exit 1
 fi
 
+busybox umount /system
 busybox umount /firmware/radio
 exit 0

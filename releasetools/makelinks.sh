@@ -20,6 +20,7 @@ find . -type f | while read file; do ln -s $basedir$file /system/$file ; done
 
 # Create modem firmware links based on the currently installed modem
 mkdir -p /firmware/radio
+busybox mount /dev/block/platform/msm_sdcc.1/by-name/system /system
 busybox mount -o shortname=lower -t vfat /dev/block/platform/msm_sdcc.1/by-name/radio /firmware/radio
 
 # Prefer an mba.* pair if one exists
@@ -39,5 +40,6 @@ if [ ! -f "/system/vendor/firmware/mba.mdt" ]; then
   exit 1
 fi
 
+busybox umount /system
 busybox umount /firmware/radio
 exit 0

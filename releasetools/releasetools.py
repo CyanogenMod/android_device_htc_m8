@@ -22,7 +22,7 @@ import os
 
 def FullOTA_InstallEnd(info):
   info.script.Mount("/system")
-  info.script.AppendExtra('assert(run_program("/system/bin/makelinks.sh") == 0);')
+  info.script.AppendExtra('assert(run_program("/tmp/install/bin/makelinks.sh") == 0);')
   info.script.AppendExtra('ifelse(is_substring("0P6B20000", getprop("ro.boot.mid")), run_program("/sbin/sh", "-c", "busybox sed -i \'s/ro.com.google.clientidbase=android-google/ro.com.google.clientidbase=android-verizon/g\' /system/build.prop"));')
   info.script.Unmount("/system")
 

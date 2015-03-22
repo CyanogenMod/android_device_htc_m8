@@ -29,7 +29,7 @@ if [ "$tmo" == "true" ] && [ -f "/firmware/radio/a7b80e1.mdt" ]; then
 elif [ -f "/firmware/radio/mba.mdt" ]; then
   base="/firmware/radio/mba"
 elif ls /firmware/radio/a7b*.mdt 1> /dev/null 2>&1; then
-  base=`ls /firmware/radio/a7b*.mdt | sort -r | head -1 | sed "s|.mdt||g"`
+  base=`ls /firmware/radio/a7b*.mdt | sort -r | head -n 1 | sed "s|.mdt||g"`
 fi
 
 ln -s $base.mdt /system/vendor/firmware/mba.mdt

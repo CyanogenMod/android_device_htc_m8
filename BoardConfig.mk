@@ -109,9 +109,6 @@ TARGET_SPECIFIC_HEADER_PATH := device/htc/m8/include
 # Lights
 TARGET_PROVIDES_LIBLIGHT := true
 
-# Logging
-TARGET_USES_LOGD := false
-
 # NFC
 BOARD_NFC_HAL_SUFFIX := msm8974
 

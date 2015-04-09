@@ -115,7 +115,6 @@ void cdma_properties(char default_cdma_sub[], char default_network[],
     property_set("gsm.operator.alpha", operator_numeric);
 
     property_set("telephony.lteOnCdmaDevice", "1");
-    property_set("ro.cdma.subscribe_on_ruim_ready", "true");
     property_set("ro.ril.svdo", "true");
     property_set("ro.ril.disable.fd.plmn.prefix", "23402,23410,23411,23420");
     property_set("ro.ril.enable.sdr", "0");

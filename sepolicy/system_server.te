@@ -1,6 +1,5 @@
 allow system_server cir_device:chr_file rw_file_perms;
-allow system_server kcal_dev:dir search;
-allow system_server kcal_dev:file rw_file_perms;
+allow system_server display_sysfs:file rw_file_perms;
 allow system_server tap2wake_dev:file rw_file_perms;
 allow system_server time_daemon:unix_stream_socket connectto;
 allow system_server vibe_dev:file rw_file_perms;

@@ -189,12 +189,8 @@ on post-fs-data
     mkdir /data/data/media 0770 media media
 
     # Hardware tunables
-    chown root system /sys/devices/platform/kcal_ctrl.0/kcal
-    chown root system /sys/devices/platform/kcal_ctrl.0/kcal_ctrl
-    chmod 0664 /sys/devices/platform/kcal_ctrl.0/kcal
-    chmod 0664 /sys/devices/platform/kcal_ctrl.0/kcal_ctrl
-    restorecon /sys/devices/platform/kcal_ctrl.0/kcal
-    restorecon /sys/devices/platform/kcal_ctrl.0/kcal_ctrl
+    chown system system /sys/devices/virtual/graphics/fb0/rgb
+    chmod 0660 /sys/devices/virtual/graphics/fb0/rgb
 
 on early-boot
     # set RLIMIT_MEMLOCK to 64MB

@@ -183,6 +183,7 @@ public class DotcaseConstants {
 
         // Other apps
         notificationMap.put("com.google.android.gm", Notification.GMAIL);
+        notificationMap.put("com.google.android.apps.inbox", Notification.GMAIL);
         notificationMap.put("com.google.android.talk", Notification.HANGOUTS);
         notificationMap.put("com.snapchat.android", Notification.SNAPCHAT);
         notificationMap.put("com.facebook.katana", Notification.FACEBOOK);

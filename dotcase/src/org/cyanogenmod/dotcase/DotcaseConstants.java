@@ -48,6 +48,11 @@ public class DotcaseConstants {
         FB_MESSENGER,
         KIK,
         GROUPME
+        INBOX
+        LMMS
+        INSTAGRAM
+        WHATSAPP
+        TAPA
     }
 
     /**
@@ -72,6 +77,15 @@ public class DotcaseConstants {
     static final Paint pFbBlue = new Paint();
     static final Paint pPink = new Paint();
     static final Paint pGmBlue = new Paint();
+    static final Paint pInBlue = new Paint();
+    static final Paint pInTeal = new Paint();
+    static final Paint pInSeaFoam = new Paint();
+    static final Paint pLmmsgreen = new Paint();
+    static final Paint pLmmsgrey = new Paint();
+    static final Paint pCream = new Paint();
+    static final Paint pBrown = new Paint();
+    static final Paint pWaGreen = new Paint();
+    static final Paint pTOrange = new Paint();
 
     static {
         pTrans.setARGB(0, 0, 0, 0);
@@ -92,6 +106,15 @@ public class DotcaseConstants {
         pFbBlue.setARGB(255, 59, 89, 152);
         pPink.setARGB(255, 255, 100, 200);
         pGmBlue.setARGB(255, 0, 175, 240);
+        pInBlue.setARGB(255, 50, 92, 204);
+        pInTeal.setARGB(255, 34, 183, 251);
+        pInSeaFoam.setARGB(255, 128, 211, 253);
+        pLmmsgreen.setARGB(255, 17, 169, 249);
+        pLmmsgrey.setARGB(255, 228, 226, 230);
+        pCream.setARGB(255, 235, 227, 216);
+        pBrown.setARGB(255, 147, 91, 72);
+        pWaGreen.setARGB(255, 53, 176, 36);
+        pTOrange.setARGB(255, 248, 105, 1);
     }
 
     static Paint getPaintFromNumber(int color) {
@@ -132,6 +155,24 @@ public class DotcaseConstants {
                 return pPink;
             case 16:
                 return pGmBlue;
+            case 17:
+                return pInBlue;
+            case 18:
+                return pInTeal;
+            case 19:
+                return pInSeaFoam;
+            case 20:
+                return pLmmsgreen;
+            case 21:
+                return pLmmsgrey;
+            case 22:
+                return pCream;
+            case 23:
+                return pBrown
+            case 24:
+                return pWaGreen
+            case 25:
+                return TOrange
             default:
                 return pBlack;
         }
@@ -146,7 +187,7 @@ public class DotcaseConstants {
         notificationMap = new HashMap<String, Notification>();
 
         // Email apps
-        notificationMap.put("com.android.email", Notification.EMAIL);
+        notificationMap.put("com.android.email", Notification.GMAIL);
         notificationMap.put("com.google.android.email", Notification.EMAIL);
         notificationMap.put("com.mailboxapp", Notification.EMAIL);
         notificationMap.put("com.yahoo.mobile.client.android.mail", Notification.EMAIL);
@@ -154,6 +195,7 @@ public class DotcaseConstants {
         notificationMap.put("com.maildroid", Notification.EMAIL);
         notificationMap.put("com.maildroid.pro", Notification.EMAIL);
         notificationMap.put("com.fsck.k9", Notification.EMAIL);
+        notificationMap.put("com.google.android.apps.inbox", Notification.INBOX);
 
         // Twitter apps
         notificationMap.put("com.twitter.android", Notification.TWITTER);
@@ -168,10 +210,11 @@ public class DotcaseConstants {
         notificationMap.put("com.android.phone", Notification.MISSED_CALL);
 
         // MMS apps
-        notificationMap.put("com.android.mms", Notification.MMS);
+        notificationMap.put("com.android.mms", Notification.LMMS);
         notificationMap.put("com.p1.chompsms", Notification.MMS);
         notificationMap.put("com.handcent.nextsms", Notification.MMS);
         notificationMap.put("com.klinker.android.evolve_sms", Notification.MMS);
+        notificationMap.put("com.whatsapp", Notification.WHATSAPP);
 
         // Voicemail apps
         notificationMap.put("com.google.android.apps.googlevoice", Notification.VOICEMAIL);
@@ -189,6 +232,8 @@ public class DotcaseConstants {
         notificationMap.put("com.facebook.orca", Notification.FB_MESSENGER);
         notificationMap.put("kik.android", Notification.KIK);
         notificationMap.put("com.groupme.android", Notification.GROUPME);
+        notficationnMap.put("com.instagram.android", Notifcation.INSTAGRAM);
+        notficationnMap.put("com.quoord.tapatalkpro.activity", Notifcation.TAPA);
     }
 
     /**
@@ -335,6 +380,56 @@ public class DotcaseConstants {
         {16, 16, 16, 16, 16, 16, 16},
         { 0,  0,  0, 16,  0,  0,  0}};
 
+    static final int[][] inboxSprite = {
+        { 0,  0,  0, 17,  0,  0,  1},
+        { 0,  0, 17, 17, 17,  1,  0},
+        { 0, 17,  1, 17,  1, 17,  0},
+        {17, 17, 17,  1, 17, 17, 19},
+        {18, 18, 18, 17, 19, 19, 19},
+        {18, 18, 18, 19, 19, 19, 19},
+        {18, 18, 19, 19, 19, 19, 19},
+        {18, 19, 19, 19, 19, 19, 19}};
+
+    static final int[][] lmmsSprite = {
+        { 0,  0,  0,  0,  0,  0,  0},
+        {20, 20, 20, 20, 21, 21, 21},
+        {20, 20, 20, 20, 21, 21, 21},
+        {20, 20, 20, 20, 21, 21, 21},
+        {20, 20, 20, 20, 21, 21, 21},
+        {20, 20, 20, 20, 21, 21, 21},
+        { 0, 20, 20,  0, 21, 21,  0},
+        { 0, 20,  0,  0,  0, 21,  0}};
+
+    static final int[][] instagramSprite = {
+        { 0, 23, 23, 23, 23, 23,  0},
+        { 0, 23, 23, 23, 23, 23,  0},
+        { 0,  0,  0,  0,  0,  0,  0},
+        { 0, 22, 22, 22, 22, 22,  0},
+        { 0, 22, 22,  0, 22, 22,  0},
+        { 0, 22,  0,  0,  0, 22,  0},
+        { 0, 22, 22,  0, 22, 22,  0},
+        { 0, 22, 22, 22, 22, 22,  0}};
+
+    static final int[][] whatsappSprite = {
+        { 0,  0,  0,  1,  0,  0,  0},
+        { 0,  0,  1, 24,  1,  0,  0},
+        { 0,  1, 24, 24, 24,  1,  0},
+        { 1, 24, 24, 24, 24, 24,  1},
+        { 0,  1, 24, 24, 24,  1,  0},
+        { 0,  0,  1, 24,  1,  0,  0},
+        { 0,  1, 24,  1,  0,  0,  0},
+        { 0,  0,  1,  0,  0,  0,  0}};
+
+    static final int[][] tapaSprite = {
+        { 0,  0, 25, 25, 25,  0,  0},
+        { 0, 25, 25, 25, 25, 25,  0},
+        { 0, 25, 25, 25, 25, 25,  0},
+        { 0, 25, 25, 25, 25, 25,  0},
+        { 0, 25, 25, 25, 25, 25,  0},
+        { 0, 25, 25, 25, 25,  0,  0},
+        {25,  0,  0,  0,  0,  0,  0},
+        { 0,  0,  0,  0,  0,  0,  0}};
+
     static int[][] getNotificationSprite(Notification notification) {
         switch (notification) {
             case DOTS:
@@ -365,6 +460,16 @@ public class DotcaseConstants {
                 return facebookMessengerSprite;
             case GROUPME:
                 return groupMeSprite;
+            case INBOX:
+                return inboxSprite;
+            case LMMS:
+                return lmmsSprite
+            case INSTAGRAM:
+                return instagramSprite;
+            case WHATSAPP:
+                return whatsappSprite;
+            case TAPA:
+                return tapaSprite;
             default:
                 return null;
         }

@@ -383,13 +383,6 @@ service hciattach /system/bin/sh /system/etc/init.qcom.bt.bluedroid.sh
     disabled
     oneshot
 
-service hostapd /system/bin/hostapd -dddd /data/hostapd/hostapd.conf
-    class late_start
-    user root
-    group root
-    oneshot
-    disabled
-
 service hvdcp /system/bin/hvdcp
     class core
     user root

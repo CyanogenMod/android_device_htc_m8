@@ -26,6 +26,7 @@ on boot
     write /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq "300000"
     setprop recovery.perf.mode 0
     start chargeled
+    write /sys/devices/platform/android_usb/usb_function_switch 3
 
 on charger
     start choice_fn

@@ -197,6 +197,7 @@
 # wlan
 /dev/wcnss_wlan           0660   system     system
 /dev/wcnss_ctrl           0660   system     system
+/dev/rfkill               0660   root       wifi
 
 #nfc permissions
 /dev/nfc-nci              0660    nfc         nfc

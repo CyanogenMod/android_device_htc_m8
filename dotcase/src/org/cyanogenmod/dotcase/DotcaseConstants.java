@@ -47,7 +47,8 @@ public class DotcaseConstants {
         FACEBOOK,
         FB_MESSENGER,
         KIK,
-        GROUPME
+        GROUPME,
+        GOOGLEPLUS
     }
 
     /**
@@ -182,6 +183,7 @@ public class DotcaseConstants {
         notificationMap.put("kr.co.vcnc.android.couple", Notification.COUPLES); // Between
 
         // Other apps
+        notificationMap.Put("com.google.android.apps.plus", Notification.GPLUS);
         notificationMap.put("com.google.android.gm", Notification.GMAIL);
         notificationMap.put("com.google.android.talk", Notification.HANGOUTS);
         notificationMap.put("com.snapchat.android", Notification.SNAPCHAT);
@@ -206,6 +208,17 @@ public class DotcaseConstants {
         {0, 0, 0, 0, 0, 0, 0}};
 
     static final int[][] hangoutsSprite = {
+        {0, 3, 3, 3, 3, 3, 0},
+        {3, 3, 3, 3, 3, 3, 3},
+        {3, 3, 1, 3, 1, 3, 3},
+        {3, 3, 1, 3, 1, 3, 3},
+        {3, 3, 3, 3, 3, 3, 3},
+        {0, 3, 3, 3, 3, 3, 0},
+        {0, 0, 0, 3, 3, 0, 0},
+        {0, 0, 0, 3, 0, 0, 0}};
+
+    //yes this is the hangouts sprite for now, i'm trying to think of a sprite
+    static final int[][] gplusSprite = {
         {0, 3, 3, 3, 3, 3, 0},
         {3, 3, 3, 3, 3, 3, 3},
         {3, 3, 1, 3, 1, 3, 3},

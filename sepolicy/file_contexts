@@ -15,6 +15,8 @@
 /dev/tfa9887			u:object_r:audio_device:s0
 /dev/tfa9887l			u:object_r:audio_device:s0
 
+/dev/rfkill			u:object_r:bluetooth_device:s0
+
 /dev/time_helper		u:object_r:time_helper_device:s0
 
 /dev/rawchip(.*)		u:object_r:camera_socket:s0

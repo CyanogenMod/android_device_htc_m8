@@ -1,2 +1,3 @@
+type bluetooth_device, dev_type;
 type cir_device, dev_type;
 type time_helper_device, dev_type;

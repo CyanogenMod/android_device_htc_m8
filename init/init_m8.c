@@ -91,8 +91,8 @@ void vendor_load_properties()
         property_set("ro.ril.set.mtusize", "1422");
     } else {
         /* m8 */
-        property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:5.0.1/LRX22C.H5/434277:user/release-keys");
-        property_set("ro.build.description", "3.11.1700.5 CL434277 release-keys");
+        property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:5.1/LMY47O.H4/519376:user/release-keys");
+        property_set("ro.build.description", "4.04.1700.4 CL519376 release-keys");
         property_set("ro.product.device", "htc_m8");
         property_set("ro.telephony.default_network", "9");
         property_set("telephony.lteOnGsmDevice", "1");

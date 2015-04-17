@@ -186,7 +186,8 @@ BOARD_SEPOLICY_UNION += \
     thermal-engine.te \
     ueventd.te \
     vibe_dev.te \
-    vold.te
+    vold.te \
+    wpa.te
 
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true

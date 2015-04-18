@@ -106,6 +106,8 @@ on fs
     setprop ro.crypto.fuse_sdcard true
 
 on post-fs-data
+    symlink /sys/kernel/debug /data/d
+
     mkdir /data/tombstones 0771 system system
     symlink /data/tombstones /tombstones
     mkdir /tombstones/modem 0771 system system

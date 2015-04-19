@@ -480,10 +480,13 @@ service rmt_storage /system/bin/rmt_storage modem_st1 modem_st2 fsc recovery rad
     class core
     user root
 
-service thermal-engine /system/bin/thermal-engine
+service thermal-engine /system/bin/thermal-engine -c /system/etc/thermal-engine.conf
    class main
    user root
    group root
+   socket thermal-send-client stream 0666 system system
+   socket thermal-recv-client stream 0660 system system
+   socket thermal-recv-passive-client stream 0666 system system
 
 service time_daemon /system/bin/time_daemon
    class late_start

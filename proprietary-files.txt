@@ -364,6 +364,7 @@ vendor/lib/libscve.so
 vendor/lib/libscve_stub.so
 vendor/lib/libssd.so
 vendor/lib/libthermalclient.so
+vendor/lib/libthermalioctl.so
 -lib/libtime_genoff.so:vendor/lib/libtime_genoff.so
 vendor/lib/libwvdrm_L1.so
 vendor/lib/libwvm.so

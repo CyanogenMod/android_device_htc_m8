@@ -615,7 +615,6 @@ on property:init.svc.bootanim=stopped
 # CM Performance Profiles
 on property:sys.perf.profile=0
     stop mpdecision
-    stop thermal-engine
     write /sys/devices/system/cpu/cpu1/online 1
     write /sys/devices/system/cpu/cpu2/online 1
     write /sys/devices/system/cpu/cpu3/online 1
@@ -626,11 +625,9 @@ on property:sys.perf.profile=0
     write /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor conservative
     write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
     start mpdecision
-    start thermal-engine
 
 on property:sys.perf.profile=1
     stop mpdecision
-    stop thermal-engine
     write /sys/devices/system/cpu/cpu1/online 1
     write /sys/devices/system/cpu/cpu2/online 1
     write /sys/devices/system/cpu/cpu3/online 1
@@ -655,11 +652,9 @@ on property:sys.perf.profile=1
 
     write /sys/class/kgsl/kgsl-3d0/devfreq/governor msm-adreno-tz
     start mpdecision
-    start thermal-engine
 
 on property:sys.perf.profile=2
     stop mpdecision
-    stop thermal-engine
     write /sys/devices/system/cpu/cpu1/online 1
     write /sys/devices/system/cpu/cpu2/online 1
     write /sys/devices/system/cpu/cpu3/online 1
@@ -669,4 +664,3 @@ on property:sys.perf.profile=2
     write /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor performance
     write /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor performance
     write /sys/class/kgsl/kgsl-3d0/devfreq/governor performance
-    start thermal-engine

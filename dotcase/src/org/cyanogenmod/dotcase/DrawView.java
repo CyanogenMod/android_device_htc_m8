@@ -41,12 +41,13 @@ public class DrawView extends View {
     private final Context mContext;
     private final IntentFilter mFilter = new IntentFilter();
     private int mHeartbeat = 0;
+    private Paint mPaint;
 
     public DrawView(Context context) {
         super(context);
-        Paint paint = new Paint();
         mContext = context;
-        paint.setAntiAlias(true);
+        mPaint = new Paint();
+        mPaint.setAntiAlias(true);
     }
 
     @Override
@@ -327,7 +328,7 @@ public class DrawView extends View {
                                  int bottom, int color, Canvas canvas) {
         for (int x=left; x < right; x++) {
             for (int y=top; y < bottom; y++) {
-                dotcaseDrawPixel(x, y, DotcaseConstants.getPaintFromNumber(color), canvas);
+                dotcaseDrawPixel(x, y, DotcaseConstants.getPaintFromNumber(mPaint, color), canvas);
             }
         }
     }
@@ -336,7 +337,7 @@ public class DrawView extends View {
         for (int i=0; i < sprite.length; i++) {
             for (int j=0; j < sprite[0].length; j++) {
                 dotcaseDrawPixel(x + j, y + i,
-                        DotcaseConstants.getPaintFromNumber(sprite[i][j]), canvas);
+                        DotcaseConstants.getPaintFromNumber(mPaint, sprite[i][j]), canvas);
             }
         }
     }

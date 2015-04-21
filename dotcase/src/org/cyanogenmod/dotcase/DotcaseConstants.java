@@ -20,6 +20,7 @@
 
 package org.cyanogenmod.dotcase;
 
+import android.graphics.Color;
 import android.graphics.Paint;
 
 import java.util.HashMap;
@@ -57,126 +58,41 @@ public class DotcaseConstants {
     }
 
     /**
-     * Paints
+     * Colors
      */
+    static final int[] paintColors = {
+        Color.TRANSPARENT,
+        Color.BLACK,
+        Color.WHITE,
+        Color.RED,
+        Color.GREEN,
+        Color.BLUE,
+        0xffffa500, // Orange
+        0xffa020f0, // Purple
+        Color.YELLOW,
+        Color.DKGRAY,
+        0xff33b5e5, // Cyan
+        0xff008000, // Dark Green
+        0xff800000, // Dark Red
+        0xffffff99, // Alarm Yellow
+        0xff55acee, // Twitter Blue
+        0xff3b5998, // Facebook Blue
+        0xffff64c8, // Couples Pink
+        0xff00aff0, // GroupMe Blue
+        0xff325ccc, // Inbox Blue
+        0xff22b7fb, // Inbox Teal
+        0xff80d3fd, // Inbox Sea Foam
+        0xff11a9f9, // LMMS Green
+        0xffe4e2e6, // LMMS Grey
+        0xffebe3d8, // Instagram Cream
+        0xff935b48, // Instagram Brown
+        0xff35b024, // Whatsapp Green
+        0xfff86901, // Tapatalk Orange
+    };
 
-    static final Paint pTrans = new Paint();
-    static final Paint pBlack = new Paint();
-    static final Paint pWhite = new Paint();
-    static final Paint pRed = new Paint();
-    static final Paint pGreen = new Paint();
-    static final Paint pBlue = new Paint();
-    static final Paint pOrange = new Paint();
-    static final Paint pPurple = new Paint();
-    static final Paint pYellow = new Paint();
-    static final Paint pGrey = new Paint();
-    static final Paint pCyan = new Paint();
-    static final Paint pDGreen = new Paint();
-    static final Paint pDRed = new Paint();
-    static final Paint pFYellow = new Paint();
-    static final Paint pTBlue = new Paint();
-    static final Paint pFbBlue = new Paint();
-    static final Paint pPink = new Paint();
-    static final Paint pGmBlue = new Paint();
-    static final Paint pInBlue = new Paint();
-    static final Paint pInTeal = new Paint();
-    static final Paint pInSeaFoam = new Paint();
-    static final Paint pLmmsGreen = new Paint();
-    static final Paint pLmmsGrey = new Paint();
-    static final Paint pCream = new Paint();
-    static final Paint pBrown = new Paint();
-    static final Paint pWaGreen = new Paint();
-    static final Paint pTOrange = new Paint();
-
-    static {
-        pTrans.setARGB(0, 0, 0, 0);
-        pBlack.setARGB(255, 0, 0, 0);
-        pWhite.setARGB(255, 255, 255, 255);
-        pRed.setARGB(255, 255, 0, 0);
-        pGreen.setARGB(255, 0, 255, 0);
-        pBlue.setARGB(255, 0, 0, 255);
-        pOrange.setARGB(255, 255, 165, 0);
-        pPurple.setARGB(255, 160, 32, 240);
-        pYellow.setARGB(255, 255, 255, 0);
-        pGrey.setARGB(255, 69, 69, 69);
-        pCyan.setARGB(255, 51, 181, 229);
-        pDGreen.setARGB(255, 0, 128, 0);
-        pDRed.setARGB(255, 128, 0, 0);
-        pFYellow.setARGB(255, 255, 255, 153);
-        pTBlue.setARGB(255, 85, 172, 238);
-        pFbBlue.setARGB(255, 59, 89, 152);
-        pPink.setARGB(255, 255, 100, 200);
-        pGmBlue.setARGB(255, 0, 175, 240);
-        pInBlue.setARGB(255, 50, 92, 204);
-        pInTeal.setARGB(255, 34, 183, 251);
-        pInSeaFoam.setARGB(255, 128, 211, 253);
-        pLmmsGreen.setARGB(255, 17, 169, 249);
-        pLmmsGrey.setARGB(255, 228, 226, 230);
-        pCream.setARGB(255, 235, 227, 216);
-        pBrown.setARGB(255, 147, 91, 72);
-        pWaGreen.setARGB(255, 53, 176, 36);
-        pTOrange.setARGB(255, 248, 105, 1);
-    }
-
-    static Paint getPaintFromNumber(int color) {
-        switch (color) {
-            case -1:
-                return pTrans;
-            case 0:
-                return pBlack;
-            case 1:
-                return pWhite;
-            case 2:
-                return pRed;
-            case 3:
-                return pGreen;
-            case 4:
-                return pBlue;
-            case 5:
-                return pOrange;
-            case 6:
-                return pPurple;
-            case 7:
-                return pYellow;
-            case 8:
-                return pGrey;
-            case 9:
-                return pCyan;
-            case 10:
-                return pDGreen;
-            case 11:
-                return pDRed;
-            case 12:
-                return pFYellow;
-            case 13:
-                return pTBlue;
-            case 14:
-                return pFbBlue;
-            case 15:
-                return pPink;
-            case 16:
-                return pGmBlue;
-            case 17:
-                return pInBlue;
-            case 18:
-                return pInTeal;
-            case 19:
-                return pInSeaFoam;
-            case 20:
-                return pLmmsGreen;
-            case 21:
-                return pLmmsGrey;
-            case 22:
-                return pCream;
-            case 23:
-                return pBrown;
-            case 24:
-                return pWaGreen;
-            case 25:
-                return pTOrange;
-            default:
-                return pBlack;
-        }
+    static Paint getPaintFromNumber(Paint paint, final int color) {
+        paint.setColor(paintColors[color + 1]);
+        return paint;
     }
 
     /**

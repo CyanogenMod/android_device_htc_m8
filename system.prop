@@ -56,6 +56,9 @@ mm.enable.smoothstreaming=true
 # Camera
 persist.camera.maxopen=3
 
+# Dotcase autostart
+ro.dotcase.start_on_boot=true
+
 # GPS
 persist.gps.qc_nlp_in_use=0
 ro.gps.agps_provider=1

@@ -23,11 +23,16 @@ package org.cyanogenmod.dotcase;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.SystemProperties;
 import android.provider.Settings;
 
 public class BootCompletedReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
+
+        if (!SystemProperties.getBoolean("ro.dotcase.start_on_boot", false))
+            return;
+
         Settings.Secure.putString(context.getContentResolver(),
                                   Settings.Secure.IMMERSIVE_MODE_CONFIRMATIONS,
                                   "org.cyanogenmod.dotcase");

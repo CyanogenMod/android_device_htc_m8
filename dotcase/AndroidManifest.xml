@@ -35,5 +35,13 @@
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
+        <activity
+                  android:excludeFromRecents="true"
+                  android:name="DotcaseDemo"
+                  android:label="Dotcase Demo"
+                  android:launchMode="singleInstance"
+                  android:screenOrientation="portrait"
+                  android:theme="@style/DotcaseTheme"
+                  android:windowAnimationStyle="@null" />
     </application>
 </manifest>

@@ -169,6 +169,11 @@ public class DotcaseStatus {
         return mNotifications;
     }
 
+    synchronized void setNotifications(List<Notification> artificialNotifications) {
+        mNotifications.clear();
+        mNotifications = artificialNotifications;
+    }
+
     synchronized void checkNotifications(Context context) {
         StatusBarNotification[] statusNotes = null;
         mNotifications.clear();

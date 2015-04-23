@@ -61,7 +61,7 @@ public class DrawView extends View {
             drawTime(canvas);
 
             // Check notifications each cycle before displaying them
-            if (mHeartbeat == 0) {
+            if (mHeartbeat == 0 && !DotcaseDemo.inDemoMode) {
                 Dotcase.sStatus.checkNotifications(mContext);
             }
 

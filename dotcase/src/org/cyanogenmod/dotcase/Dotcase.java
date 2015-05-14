@@ -42,7 +42,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
-import com.android.internal.telephony.ITelephony;
+import android.telecom.TelecomManager;
 
 import java.lang.Math;
 import java.io.BufferedReader;
@@ -214,20 +214,11 @@ public class Dotcase extends Activity implements SensorEventListener
             if (Math.abs(distanceY) > 60) {
                 if (sStatus.isRinging()) {
                     sStatus.setOnTop(false);
-                    ITelephony telephonyService = ITelephony.Stub.asInterface(
-                            ServiceManager.checkService(Context.TELEPHONY_SERVICE));
+                    TelecomManager telecomManager = (TelecomManager) mContext.getSystemService(Context.TELECOM_SERVICE);
                     if (distanceY < 60) {
-                        try {
-                            telephonyService.endCall();
-                        } catch (RemoteException e) {
-                            Log.e(TAG, "Error ignoring call", e);
-                        }
+                        telecomManager.endCall();
                     } else if (distanceY > 60) {
-                        try {
-                            telephonyService.answerRingingCall();
-                        } catch (RemoteException e) {
-                            Log.e(TAG, "Error answering call", e);
-                        }
+                        telecomManager.acceptRingingCall();
                     }
                 } else if (sStatus.isAlarm()) {
                     Intent i = new Intent();

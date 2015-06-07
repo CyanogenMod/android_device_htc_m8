@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef _TFA9887_H_
+#define _TFA9887_H_
+
 #define TFA9887_DEVICE "/dev/tfa9887"
 #define TFA9887L_DEVICE "/dev/tfa9887l"
 
@@ -68,42 +71,6 @@ typedef enum Tfa9887_Mode {
     Tfa9887_Mode_Voice,
     Tfa9887_Num_Modes,
 } Tfa9887_Mode_t;
-
-const struct mode_config Tfa9887_Right_Mode_Configs[Tfa9887_Num_Modes] = {
-    {   /* Playback */
-        .config = CONFIG_PLAYBACK_R,
-        .preset = PRESET_PLAYBACK_R,
-        .eq = EQ_PLAYBACK_R
-    },
-    {   /* Ring */
-        .config = CONFIG_RING_R,
-        .preset = PRESET_RING_R,
-        .eq = EQ_RING_R
-    },
-    {   /* Voice */
-        .config = CONFIG_VOICE_R,
-        .preset = PRESET_VOICE_R,
-        .eq = EQ_VOICE_R
-    }
-};
-
-const struct mode_config Tfa9887_Left_Mode_Configs[Tfa9887_Num_Modes] = {
-    {   /* Playback */
-        .config = CONFIG_PLAYBACK_L,
-        .preset = PRESET_PLAYBACK_L,
-        .eq = EQ_PLAYBACK_L,
-    },
-    {   /* Ring */
-        .config = CONFIG_RING_L,
-        .preset = PRESET_RING_L,
-        .eq = EQ_RING_L
-    },
-    {   /* Voice */
-        .config = CONFIG_VOICE_L,
-        .preset = PRESET_VOICE_L,
-        .eq = EQ_VOICE_L
-    }
-};
 
 typedef enum Tfa9887_Mute {
     Tfa9887_Mute_Off,
@@ -223,5 +190,6 @@ typedef enum {
 #define TFA9887_CF_STATUS (0x73)
 #define TFA9887_MTP (0x80)
 
-int tfa9887_init(void);
 int tfa9887_set_mode(audio_mode_t mode);
+
+#endif

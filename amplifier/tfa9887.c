@@ -31,6 +31,42 @@
 
 /* Module variables */
 
+const struct mode_config Tfa9887_Right_Mode_Configs[Tfa9887_Num_Modes] = {
+    {   /* Playback */
+        .config = CONFIG_PLAYBACK_R,
+        .preset = PRESET_PLAYBACK_R,
+        .eq = EQ_PLAYBACK_R
+    },
+    {   /* Ring */
+        .config = CONFIG_RING_R,
+        .preset = PRESET_RING_R,
+        .eq = EQ_RING_R
+    },
+    {   /* Voice */
+        .config = CONFIG_VOICE_R,
+        .preset = PRESET_VOICE_R,
+        .eq = EQ_VOICE_R
+    }
+};
+
+const struct mode_config Tfa9887_Left_Mode_Configs[Tfa9887_Num_Modes] = {
+    {   /* Playback */
+        .config = CONFIG_PLAYBACK_L,
+        .preset = PRESET_PLAYBACK_L,
+        .eq = EQ_PLAYBACK_L,
+    },
+    {   /* Ring */
+        .config = CONFIG_RING_L,
+        .preset = PRESET_RING_L,
+        .eq = EQ_RING_L
+    },
+    {   /* Voice */
+        .config = CONFIG_VOICE_L,
+        .preset = PRESET_VOICE_L,
+        .eq = EQ_VOICE_L
+    }
+};
+
 static bool tfa9887_initialized = false;
 static bool tfa9887l_initialized = false;
 static Tfa9887_Mode_t tfa9887_mode = Tfa9887_Num_Modes;

@@ -18,6 +18,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 
+#include <hardware/audio_amplifier.h>
 #include <system/audio.h>
 
 //#define LOG_NDEBUG 0
@@ -26,7 +27,6 @@
 
 #include "tfa9887.h"
 #include "rt5501.h"
-#include "audio_amplifier.h"
 
 int mDevices = AUDIO_DEVICE_NONE;
 audio_mode_t mMode = AUDIO_MODE_NORMAL;
@@ -59,6 +59,14 @@ int amplifier_set_mode(audio_mode_t mode) {
     }
 
     return ret;
+}
+
+void amplifier_stream_start(struct audio_stream_out *stream, bool offload) {
+    // Do nothing
+}
+
+void amplifier_stream_standby(struct audio_stream_out *stream) {
+    // Do nothing
 }
 
 int amplifier_close(void) {

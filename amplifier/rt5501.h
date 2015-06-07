@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef _RT5501_H_
+#define _RT5501_H_
+
 #define RT5501_DEVICE "/dev/rt5501"
 #define RT5501_MAX_REG_DATA 15
 
@@ -30,49 +33,6 @@ struct rt5501_config {
 struct rt5501_comm_data {
     unsigned int out_mode;
     struct rt5501_config config;
-};
-
-static struct rt5501_reg_data rt5501_playback_data[] = {
-    { 0x00, 0xC0, },
-    { 0x01, 0x1B, }, // gain -1dB
-    { 0x02, 0x80, }, // noise gate on
-    { 0x08, 0x37, }, // noise gate on
-    { 0x07, 0x7F, }, // noise gate setting
-    { 0x09, 0x02, }, // noise gate setting
-    { 0x0A, 0x03, }, // noise gate setting
-    { 0x0B, 0xD9, }, // noise gate setting
-};
-
-static struct rt5501_reg_data rt5501_playback_128_data[] = {
-    { 0x00, 0xC0, },
-    { 0x01, 0x20, }, // gain 4dB
-    { 0x02, 0x80, }, // noise gate on
-    { 0x08, 0x37, }, // noise gate on
-    { 0x07, 0x7F, }, // noise gate setting
-    { 0x09, 0x02, }, // noise gate setting
-    { 0x0A, 0x03, }, // noise gate setting
-    { 0x0B, 0xD9, }, // noise gate setting
-};
-
-static struct rt5501_reg_data rt5501_ring_data[] = {
-    { 0x00, 0xC0, },
-    { 0x01, 0x1C, }, // gain 0dB
-    { 0x02, 0x81, }, // noise gate on
-    { 0x08, 0x01, }, // noise gate on
-    { 0x07, 0x7F, }, // noise gate setting
-    { 0x09, 0x01, }, // noise gate setting
-    { 0x0A, 0x00, }, // noise gate setting
-    { 0x0B, 0xC7, }, // noise gate setting
-};
-
-static struct rt5501_reg_data rt5501_voice_data[] = {
-    { 0x00, 0xC0, },
-    { 0x01, 0x1C, }, // gain 0dB
-    { 0x02, 0x00, }, // noise gate off
-    { 0x07, 0x7F, }, // noise gate setting
-    { 0x09, 0x01, }, // noise gate setting
-    { 0x0A, 0x00, }, // noise gate setting
-    { 0x0B, 0xC7, }, // noise gate setting
 };
 
 enum {
@@ -126,3 +86,5 @@ enum HEADSET_OM {
 #define RT5501_QUERY_OM       _IOW(RT5501_IOCTL_MAGIC, 0x08,  unsigned)
 
 int rt5501_set_mode(audio_mode_t mode);
+
+#endif

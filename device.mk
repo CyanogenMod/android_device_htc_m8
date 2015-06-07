@@ -78,6 +78,7 @@ PRODUCT_COPY_FILES += \
 # Audio
 PRODUCT_PACKAGES += \
     audio.a2dp.default \
+    audio_amplifier.msm8974 \
     audio_policy.msm8974 \
     audio.primary.msm8974 \
     audio.r_submix.default \
@@ -87,9 +88,6 @@ PRODUCT_PACKAGES += \
     libqcomvisualizer \
     libqcomvoiceprocessing \
     tinymix
-
-PRODUCT_PACKAGES += \
-    libaudioamp
 
 # Audio configuration
 PRODUCT_COPY_FILES += \

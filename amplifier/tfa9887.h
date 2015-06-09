@@ -59,32 +59,43 @@
 #define EQ_VOICE_R "/system/etc/tfa/voice.eq"
 #define EQ_VOICE_L "/system/etc/tfa/voice_l.eq"
 
-struct mode_config {
+struct mode_config_t {
     const char *config;
     const char *preset;
     const char *eq;
 };
 
-typedef enum Tfa9887_Mode {
-    Tfa9887_Mode_Playback = 0,
-    Tfa9887_Mode_Ring,
-    Tfa9887_Mode_Voice,
-    Tfa9887_Num_Modes,
-} Tfa9887_Mode_t;
+enum {
+    TFA9887_MODE_PLAYBACK = 0,
+    TFA9887_MODE_RING,
+    TFA9887_MODE_VOICE,
+    TFA9887_MODE_MAX,
+};
 
-typedef enum Tfa9887_Mute {
-    Tfa9887_Mute_Off,
-    Tfa9887_Mute_Digital,
-    Tfa9887_Mute_Amplifier
-} Tfa9887_Mute_t;
+enum {
+    TFA9887_MUTE_OFF = 0,
+    TFA9887_MUTE_DIGITAL,
+    TFA9887_MUTE_AMPLIFIER,
+};
 
 /* possible memory values for DMEM in CF_CONTROLs */
-typedef enum {
-    Tfa9887_DMEM_PMEM = 0,
-    Tfa9887_DMEM_XMEM,
-    Tfa9887_DMEM_YMEM,
-    Tfa9887_DMEM_IOMEM,
-} Tfa9887_DMEM_e;
+enum {
+    TFA9887_DMEM_PMEM = 0,
+    TFA9887_DMEM_XMEM,
+    TFA9887_DMEM_YMEM,
+    TFA9887_DMEM_IOMEM,
+};
+
+struct tfa9887_amp_t {
+    int fd;
+    bool is_right;
+    uint32_t mode;
+    bool initializing;
+    bool writing;
+    pthread_t write_thread;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+};
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define ROUND_DOWN(a,n) (((a)/(n))*(n))
@@ -183,6 +194,7 @@ typedef enum {
 #define TFA9887_CURRENTSENSE3 (0x48)
 #define TFA9887_CURRENTSENSE4 (0x49)
 #define TFA9887_ABISTTEST (0x4c)
+#define TFA9887_HIDDEN_DFT3 (0x52)
 #define TFA9887_MTP_COPY (0x62)
 #define TFA9887_CF_CONTROLS (0x70)
 #define TFA9887_CF_MAD (0x71)
@@ -190,6 +202,10 @@ typedef enum {
 #define TFA9887_CF_STATUS (0x73)
 #define TFA9887_MTP (0x80)
 
+#define I2S_MIXER_CTL "MI2S_RX Audio Mixer MultiMedia1"
+
+int tfa9887_open(void);
 int tfa9887_set_mode(audio_mode_t mode);
+int tfa9887_close(void);
 
 #endif

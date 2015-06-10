@@ -84,6 +84,10 @@ public class Dotcase extends Activity implements SensorEventListener
                     View.SYSTEM_UI_FLAG_FULLSCREEN |
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
 
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL;
+        getWindow().setAttributes(lp);
+
         final DrawView drawView = new DrawView(mContext);
         setContentView(drawView);
 

@@ -51,9 +51,6 @@ class CoverObserver extends UEventObserver {
     private final IntentFilter mFilter = new IntentFilter();
     private PowerManager mPowerManager;
 
-    private int mOldBrightness = -1;
-    private int mOldBrightnessMode = -1;
-    private boolean mStoreOldBrightness = true;
     private int mSwitchState = 0;
 
     public CoverObserver(Context context) {
@@ -164,7 +161,6 @@ class CoverObserver extends UEventObserver {
                 Dotcase.sStatus.setOnTop(true);
                 new Thread(new ensureTopActivity()).start();
             } else if (intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
-                crankUpBrightness();
                 Dotcase.sStatus.resetTimer();
                 intent.setAction(DotcaseConstants.ACTION_REDRAW);
                 mContext.sendBroadcast(intent);
@@ -189,40 +185,10 @@ class CoverObserver extends UEventObserver {
                 .replaceAll("œ", "oe");
     }
 
-    private void crankUpBrightness() {
-        if (mStoreOldBrightness) {
-            try {
-                mOldBrightness = Settings.System.getInt(mContext.getContentResolver(),
-                        Settings.System.SCREEN_BRIGHTNESS);
-                mOldBrightnessMode = Settings.System.getInt(mContext.getContentResolver(),
-                        Settings.System.SCREEN_BRIGHTNESS_MODE);
-            } catch (Settings.SettingNotFoundException e) {
-                Log.e(TAG, "Error retrieving brightness settings", e);
-            }
-
-            mStoreOldBrightness = false;
-        }
-
-        Settings.System.putInt(mContext.getContentResolver(),
-                Settings.System.SCREEN_BRIGHTNESS_MODE,
-                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL);
-        Settings.System.putInt(mContext.getContentResolver(),
-                Settings.System.SCREEN_BRIGHTNESS, 255);
-    }
-
     public void killActivity() {
         Dotcase.sStatus.stopRinging();
         Dotcase.sStatus.stopAlarm();
         Dotcase.sStatus.setOnTop(false);
-        if (mOldBrightnessMode != -1 && mOldBrightness != -1 && !mStoreOldBrightness) {
-            Settings.System.putInt(mContext.getContentResolver(),
-                    Settings.System.SCREEN_BRIGHTNESS_MODE,
-                    mOldBrightnessMode);
-            Settings.System.putInt(mContext.getContentResolver(),
-                    Settings.System.SCREEN_BRIGHTNESS,
-                    mOldBrightness);
-            mStoreOldBrightness = true;
-        }
 
         Intent i = new Intent();
         i.setAction(DotcaseConstants.ACTION_KILL_ACTIVITY);

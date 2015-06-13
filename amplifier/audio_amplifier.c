@@ -32,19 +32,19 @@
 
 #define UNUSED __attribute__((unused))
 
-typedef struct tfa9887_device {
+typedef struct m8_device {
     amplifier_device_t amp_dev;
     uint32_t current_input_devices;
     uint32_t current_output_devices;
     audio_mode_t current_mode;
-} tfa9887_device_t;
+} m8_device_t;
 
-static tfa9887_device_t *tfa9887_dev = NULL;
+static m8_device_t *m8_dev = NULL;
 
 static int amp_set_mode(amplifier_device_t *device, audio_mode_t mode)
 {
     int ret = 0;
-    tfa9887_device_t *tfa9887 = (tfa9887_device_t *) device;
+    m8_device_t *tfa9887 = (m8_device_t *) device;
 
     tfa9887->current_mode = mode;
 
@@ -72,7 +72,7 @@ static int amp_set_mode(amplifier_device_t *device, audio_mode_t mode)
 
 static int amp_set_input_devices(amplifier_device_t *device, uint32_t devices)
 {
-    tfa9887_device_t *tfa9887 = (tfa9887_device_t *) device;
+    m8_device_t *tfa9887 = (m8_device_t *) device;
 
     if (devices != 0) {
         if (tfa9887->current_input_devices != devices) {
@@ -87,7 +87,7 @@ static int amp_set_input_devices(amplifier_device_t *device, uint32_t devices)
 
 static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
 {
-    tfa9887_device_t *tfa9887 = (tfa9887_device_t *) device;
+    m8_device_t *tfa9887 = (m8_device_t *) device;
 
     if (devices != 0) {
         if (tfa9887->current_output_devices != devices) {
@@ -102,7 +102,7 @@ static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
 
 static int amp_dev_close(hw_device_t *device)
 {
-    tfa9887_device_t *tfa9887 = (tfa9887_device_t *) device;
+    m8_device_t *tfa9887 = (m8_device_t *) device;
 
     tfa9887_close();
 
@@ -114,37 +114,37 @@ static int amp_dev_close(hw_device_t *device)
 static int amp_module_open(const hw_module_t *module, UNUSED const char *name,
         hw_device_t **device)
 {
-    if (tfa9887_dev) {
+    if (m8_dev) {
         ALOGE("%s:%d: Unable to open second instance of TFA9887 amplifier\n",
                 __func__, __LINE__);
         return -EBUSY;
     }
 
-    tfa9887_dev = calloc(1, sizeof(tfa9887_device_t));
-    if (!tfa9887_dev) {
+    m8_dev = calloc(1, sizeof(m8_device_t));
+    if (!m8_dev) {
         ALOGE("%s:%d: Unable to allocate memory for amplifier device\n",
                 __func__, __LINE__);
         return -ENOMEM;
     }
 
-    tfa9887_dev->amp_dev.common.tag = HARDWARE_DEVICE_TAG;
-    tfa9887_dev->amp_dev.common.module = (hw_module_t *) module;
-    tfa9887_dev->amp_dev.common.version = HARDWARE_DEVICE_API_VERSION(1, 0);
-    tfa9887_dev->amp_dev.common.close = amp_dev_close;
+    m8_dev->amp_dev.common.tag = HARDWARE_DEVICE_TAG;
+    m8_dev->amp_dev.common.module = (hw_module_t *) module;
+    m8_dev->amp_dev.common.version = HARDWARE_DEVICE_API_VERSION(1, 0);
+    m8_dev->amp_dev.common.close = amp_dev_close;
 
-    tfa9887_dev->amp_dev.set_input_devices = amp_set_input_devices;
-    tfa9887_dev->amp_dev.set_output_devices = amp_set_output_devices;
-    tfa9887_dev->amp_dev.set_mode = amp_set_mode;
-    tfa9887_dev->amp_dev.output_stream_start = NULL;
-    tfa9887_dev->amp_dev.input_stream_start = NULL;
-    tfa9887_dev->amp_dev.output_stream_standby = NULL;
-    tfa9887_dev->amp_dev.input_stream_standby = NULL;
+    m8_dev->amp_dev.set_input_devices = amp_set_input_devices;
+    m8_dev->amp_dev.set_output_devices = amp_set_output_devices;
+    m8_dev->amp_dev.set_mode = amp_set_mode;
+    m8_dev->amp_dev.output_stream_start = NULL;
+    m8_dev->amp_dev.input_stream_start = NULL;
+    m8_dev->amp_dev.output_stream_standby = NULL;
+    m8_dev->amp_dev.input_stream_standby = NULL;
 
-    tfa9887_dev->current_input_devices = SND_DEVICE_NONE;
-    tfa9887_dev->current_output_devices = SND_DEVICE_NONE;
-    tfa9887_dev->current_mode = AUDIO_MODE_NORMAL;
+    m8_dev->current_input_devices = SND_DEVICE_NONE;
+    m8_dev->current_output_devices = SND_DEVICE_NONE;
+    m8_dev->current_mode = AUDIO_MODE_NORMAL;
 
-    *device = (hw_device_t *) tfa9887_dev;
+    *device = (hw_device_t *) m8_dev;
 
     tfa9887_open();
 
@@ -161,7 +161,7 @@ amplifier_module_t HAL_MODULE_INFO_SYM = {
         .module_api_version = AMPLIFIER_MODULE_API_VERSION_0_1,
         .hal_api_version = HARDWARE_HAL_API_VERSION,
         .id = AMPLIFIER_HARDWARE_MODULE_ID,
-        .name = "M7 audio amplifier HAL",
+        .name = "M8 audio amplifier HAL",
         .author = "The CyanogenMod Open Source Project",
         .methods = &hal_module_methods,
     },

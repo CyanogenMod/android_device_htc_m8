@@ -33,13 +33,14 @@
 #define MAX_PATCH_SIZE 3072
 #define MAX_PARAM_SIZE 768
 
-#define PATCH_R "/system/etc/tfa/tfa9887.patch"
-#define PATCH_L "/system/etc/tfa/tfa9887_l.patch"
-#define SPKR_R "/system/etc/tfa/deftcoefA.speaker"
-#define SPKR_L "/system/etc/tfa/deftcoefA_l.speaker"
+#define CONFIG_TFA9887 "/system/etc/tfa/tfa9895.config"
+#define PATCH_TFA9887 "/system/etc/tfa/tfa9895.patch"
 
-#define CONFIG_PLAYBACK_R "/system/etc/tfa/playback.config"
-#define CONFIG_PLAYBACK_L "/system/etc/tfa/playback_l.config"
+#define SPKR_R "/system/etc/tfa/tfa9895.speaker"
+#define SPKR_L "/system/etc/tfa/tfa9895_l.speaker"
+
+#define CONFIG_PLAYBACK_R "/system/etc/tfa/playbackwoofer.preset"
+#define CONFIG_PLAYBACK_L "/system/etc/tfa/playbackwoofer_l.preset"
 #define CONFIG_RING_R "/system/etc/tfa/ring.config"
 #define CONFIG_RING_L "/system/etc/tfa/ring_l.config"
 #define CONFIG_VOICE_R "/system/etc/tfa/voice.config"
@@ -52,17 +53,25 @@
 #define PRESET_VOICE_R "/system/etc/tfa/voice.preset"
 #define PRESET_VOICE_L "/system/etc/tfa/voice_l.preset"
 
-#define EQ_PLAYBACK_R "/system/etc/tfa/playback.eq"
-#define EQ_PLAYBACK_L "/system/etc/tfa/playback_l.eq"
+#define EQ_PLAYBACK_R "/system/etc/tfa/playbackwoofer.eq"
+#define EQ_PLAYBACK_L "/system/etc/tfa/playbackwoofer_l.eq"
 #define EQ_RING_R "/system/etc/tfa/ring.eq"
 #define EQ_RING_L "/system/etc/tfa/ring_l.eq"
 #define EQ_VOICE_R "/system/etc/tfa/voice.eq"
 #define EQ_VOICE_L "/system/etc/tfa/voice_l.eq"
 
+#define DRC_PLAYBACK_R "/system/etc/tfa/playbackwoofer.drc"
+#define DRC_PLAYBACK_L "/system/etc/tfa/playbackwoofer_l.drc"
+#define DRC_RING_R "/system/etc/tfa/ring.drc"
+#define DRC_RING_L "/system/etc/tfa/ring_l.drc"
+#define DRC_VOICE_R "/system/etc/tfa/voice.drc"
+#define DRC_VOICE_L "/system/etc/tfa/voice_l.drc"
+
 struct mode_config_t {
     const char *config;
     const char *preset;
     const char *eq;
+    const char *drc;
 };
 
 enum {
@@ -110,6 +119,7 @@ struct tfa9887_amp_t {
 #define PARAM_SET_EQ             0x0A  // 2 Equaliser Filters.
 #define PARAM_SET_PRESET         0x0D  // Load a preset
 #define PARAM_SET_CONFIG         0x0E  // Load a config
+#define PARAM_SET_DRC            0x0F  // Load DRC file
 #define PARAM_GET_RE0            0x85  /* gets the speaker calibration impedance (@25 degrees celsius) */
 #define PARAM_GET_LSMODEL        0x86  // Gets current LoudSpeaker Model.
 #define PARAM_GET_STATE          0xC0

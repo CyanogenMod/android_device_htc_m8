@@ -38,37 +38,43 @@
 
 const struct mode_config_t right_mode_configs[TFA9887_MODE_MAX] = {
     {   /* Playback */
-        .config = CONFIG_PLAYBACK_R,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_PLAYBACK_R,
-        .eq = EQ_PLAYBACK_R
+        .eq = EQ_PLAYBACK_R,
+        .drc = DRC_PLAYBACK_R
     },
     {   /* Ring */
-        .config = CONFIG_RING_R,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_RING_R,
-        .eq = EQ_RING_R
+        .eq = EQ_RING_R,
+        .drc = DRC_RING_R
     },
     {   /* Voice */
-        .config = CONFIG_VOICE_R,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_VOICE_R,
-        .eq = EQ_VOICE_R
+        .eq = EQ_VOICE_R,
+        .drc = DRC_VOICE_R
     }
 };
 
 const struct mode_config_t left_mode_configs[TFA9887_MODE_MAX] = {
     {   /* Playback */
-        .config = CONFIG_PLAYBACK_L,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_PLAYBACK_L,
         .eq = EQ_PLAYBACK_L,
+        .drc = DRC_PLAYBACK_L
     },
     {   /* Ring */
-        .config = CONFIG_RING_L,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_RING_L,
-        .eq = EQ_RING_L
+        .eq = EQ_RING_L,
+        .drc = DRC_RING_L
     },
     {   /* Voice */
-        .config = CONFIG_VOICE_L,
+        .config = CONFIG_TFA9887,
         .preset = PRESET_VOICE_L,
-        .eq = EQ_VOICE_L
+        .eq = EQ_VOICE_L,
+        .drc = DRC_VOICE_L
     }
 };
 
@@ -188,6 +194,9 @@ static int get_file_info(const char *file_name, bool get_type)
     } else if (strcmp(suffix, ".eq") == 0) {
         type = PARAM_SET_EQ;
         module = MODULE_BIQUADFILTERBANK;
+    } else if (strcmp(suffix, ".drc") == 0) {
+        type = PARAM_SET_DRC;
+        module = MODULE_SPEAKERBOOST;
     } else {
         ALOGE("%s: Invalid DSP param file %s", __func__, file_name);
         return -EINVAL;
@@ -941,11 +950,11 @@ static int tfa9887_hw_init(struct tfa9887_amp_t *amp, int sample_rate)
 
     if (amp->is_right) {
         channel = 1;
-        patch_file = PATCH_R;
+        patch_file = PATCH_TFA9887;
         speaker_file = SPKR_R;
     } else {
         channel = 0;
-        patch_file = PATCH_L;
+        patch_file = PATCH_TFA9887;
         speaker_file = SPKR_L;
     }
 
@@ -1043,6 +1052,12 @@ static int tfa9887_set_dsp_mode(struct tfa9887_amp_t *amp, uint32_t mode)
     error = tfa9887_load_dsp(amp, config[mode].eq);
     if (error != 0) {
         ALOGE("Unable to load EQ data");
+        goto set_dsp_err;
+    }
+
+    error = tfa9887_load_dsp(amp, config[mode].drc);
+    if (error != 0) {
+        ALOGE("Unable to load DRC data");
         goto set_dsp_err;
     }
 

@@ -581,6 +581,89 @@ static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
     return error;
 }
 
+static int htc_init9887(struct tfa9887_amp_t *amp)
+{
+    int error;
+    uint16_t value;
+
+    error = tfa9887_read_reg(amp, 0x7, &value);
+    if (error != 0) {
+        ALOGE("%s: right: unable to read 0x7", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_write_reg(amp, 0x7, 0x5);
+    if (error != 0) {
+        ALOGE("%s: right: unable to write 0x7", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_read_reg(amp, 0x9, &value);
+    if (error != 0) {
+        ALOGE("%s: right: unable to read 0x9", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_write_reg(amp, 0x9, value | 0x200);
+    if (error != 0) {
+        ALOGE("%s: right: unable to write 0x9", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_read_reg(amp, 0xa, &value);
+    if (error != 0) {
+        ALOGE("%s: right: unable to read 0xa", __func__);
+        goto htc_err;
+    }
+
+    value = value & 0xf9fe;
+    error = tfa9887_write_reg(amp, 0xa, value | 0x10);
+    if (error != 0) {
+        ALOGE("%s: right: unable to write 0xa", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_read_reg(amp, 0x7, &value);
+    if (error != 0) {
+        ALOGE("%s: left: unable to read 0x7", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_write_reg(amp, 0x7, value | 6);
+    if (error != 0) {
+        ALOGE("%s: left: unable to write 0x7", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_read_reg(amp, 0x9, &value);
+    if (error != 0) {
+        ALOGE("%s: left: unable to read 0x9", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_write_reg(amp, 0x9, value | 0x200);
+    if (error != 0) {
+        ALOGE("%s: left: unable to write 0x9", __func__);
+        goto htc_err;
+    }
+
+    error = tfa9887_read_reg(amp, 0xa, &value);
+    if (error != 0) {
+        ALOGE("%s: left: unable to read 0xa", __func__);
+        goto htc_err;
+    }
+
+    value = value & 0xf9fe;
+    error = tfa9887_write_reg(amp, 0x9, value | 0x10);
+    if (error != 0) {
+        ALOGE("%s: left: unable to write 0x9", __func__);
+        goto htc_err;
+    }
+
+htc_err:
+    return error;
+}
+
 static int tfa9887_power(struct tfa9887_amp_t *amp, bool on)
 {
     int error;
@@ -969,6 +1052,11 @@ static int tfa9887_hw_init(struct tfa9887_amp_t *amp, int sample_rate)
     error = tfa9887_startup(amp);
     if (error != 0) {
         ALOGE("Unable to cold boot");
+        goto priv_init_err;
+    }
+    error = htc_init9887(amp);
+    if (error != 0) {
+        ALOGE("Failed to execute HTC amp init");
         goto priv_init_err;
     }
     error = tfa9887_set_sample_rate(amp, sample_rate);

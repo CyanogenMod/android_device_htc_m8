@@ -880,12 +880,22 @@ static int tfa9887_startup(struct tfa9887_amp_t *amp)
 {
     int error;
     uint16_t value;
+    uint16_t value2 = 0x12;
 
     if (!amp) {
         return -ENODEV;
     }
 
-    error = tfa9887_write_reg(amp, TFA9887_SYSTEM_CONTROL, 0x0002);
+    tfa9887_write_reg(amp, TFA9887_SYSTEM_CONTROL, 0x2);
+
+    tfa9887_read_reg(amp, 0x8, &value2);
+    if ( value2 & 0x400 ) {
+        tfa9887_write_reg(amp, 0x8, value2 & 0xFBFF);
+        tfa9887_read_reg(amp, 0x8, &value2);
+        tfa9887_write_reg(amp, 0x8, value2);
+    }
+
+    error = tfa9887_write_reg(amp, TFA9887_SYSTEM_CONTROL, 0x2);
     if (0 == error) {
         error = tfa9887_read_reg(amp, TFA9887_SYSTEM_CONTROL, &value);
     }
@@ -897,37 +907,22 @@ static int tfa9887_startup(struct tfa9887_amp_t *amp)
 
     /* some other registers must be set for optimal amplifier behaviour */
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_HIDE_UNHIDE_KEY, 0x5A6B);
-    }
-    if (0 == error) {
         error = tfa9887_write_reg(amp, TFA9887_BAT_PROT, 0x13AB);
     }
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_AUDIO_CONTROL, 0x001F);
+        error = tfa9887_write_reg(amp, TFA9887_AUDIO_CONTROL, 0x1F);
     }
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_SPKR_CALIBRATION, 0x0C4E);
+        error = tfa9887_write_reg(amp, TFA9887_SPKR_CALIBRATION, 0x3C4E);
     }
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_SYSTEM_CONTROL, 0x025D);
+        error = tfa9887_write_reg(amp, TFA9887_SYSTEM_CONTROL, 0x24D);
     }
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_I2S_SEL, 0x3EC3);
+        error = tfa9887_write_reg(amp, TFA9887_PWM_CONTROL, 0x308);
     }
     if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_PWM_CONTROL, 0x0308);
-    }
-    if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_CURRENTSENSE3, 0x0180);
-    }
-    if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_CURRENTSENSE4, 0x0E82);
-    }
-    if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_HIDDEN_DFT3, 0x0000);
-    }
-    if (0 == error) {
-        error = tfa9887_write_reg(amp, TFA9887_HIDE_UNHIDE_KEY, 0x0000);
+        error = tfa9887_write_reg(amp, TFA9887_CURRENTSENSE4, 0xE82);
     }
 
     return error;

@@ -59,6 +59,15 @@ blobs/spr/vendor/lib/libril-qc-qmi-1.so
 blobs/spr/vendor/lib/libril-qcril-hook-oem.so
 blobs/vzw/bin/netmgrd
 blobs/vzw/bin/qmuxd
+blobs/vzw/vendor/firmware/wcnss.b00
+blobs/vzw/vendor/firmware/wcnss.b01
+blobs/vzw/vendor/firmware/wcnss.b02
+blobs/vzw/vendor/firmware/wcnss.b04
+blobs/vzw/vendor/firmware/wcnss.b06
+blobs/vzw/vendor/firmware/wcnss.b07
+blobs/vzw/vendor/firmware/wcnss.b08
+blobs/vzw/vendor/firmware/wcnss.b09
+blobs/vzw/vendor/firmware/wcnss.mdt
 blobs/vzw/vendor/lib/libdiag.so
 blobs/vzw/vendor/lib/libdsi_netctrl.so
 blobs/vzw/vendor/lib/libdsnetutils.so

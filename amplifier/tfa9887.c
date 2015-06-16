@@ -1228,7 +1228,7 @@ int tfa9887_set_mode(audio_mode_t mode)
     for (i = 0; i < AMP_MAX; i++) {
         amp = &amps[i];
         if (dsp_mode == amp->mode) {
-            ALOGI("No mode change needed, already mode %d", dsp_mode);
+            ALOGV("No mode change needed, already mode %d", dsp_mode);
             continue;
         }
         rc = tfa9887_lock(amp, true);
@@ -1246,7 +1246,7 @@ int tfa9887_set_mode(audio_mode_t mode)
         rc = tfa9887_lock(amp, false);
     }
 
-    ALOGI("%s: Set amplifier audio mode to %d\n", __func__, mode);
+    ALOGV("%s: Set amplifier audio mode to %d\n", __func__, mode);
 
     return 0;
 }

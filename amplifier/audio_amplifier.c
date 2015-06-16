@@ -34,7 +34,6 @@
 
 typedef struct m8_device {
     amplifier_device_t amp_dev;
-    uint32_t current_input_devices;
     uint32_t current_output_devices;
     audio_mode_t current_mode;
 } m8_device_t;
@@ -44,42 +43,45 @@ static m8_device_t *m8_dev = NULL;
 static int amp_set_mode(amplifier_device_t *device, audio_mode_t mode)
 {
     int ret = 0;
-    m8_device_t *tfa9887 = (m8_device_t *) device;
+    m8_device_t *dev = (m8_device_t *) device;
 
-    tfa9887->current_mode = mode;
-
-    switch (tfa9887->current_output_devices) {
-        case SND_DEVICE_OUT_HEADPHONES:
-        case SND_DEVICE_OUT_VOICE_HEADPHONES:
-        case SND_DEVICE_OUT_VOIP_HEADPHONES:
-            ret = rt5501_set_mode(mode);
-            break;
-        case SND_DEVICE_OUT_SPEAKER:
-        case SND_DEVICE_OUT_SPEAKER_REVERSE:
-        case SND_DEVICE_OUT_VOICE_SPEAKER:
-        case SND_DEVICE_OUT_SPEAKER_PROTECTED:
-        case SND_DEVICE_OUT_VOIP_SPEAKER:
-            ret = tfa9887_set_mode(mode);
-            break;
-        case SND_DEVICE_OUT_SPEAKER_AND_HEADPHONES:
-            ret = rt5501_set_mode(mode);
-            ret = tfa9887_set_mode(mode);
-            break;
-    }
+    dev->current_mode = mode;
 
     return ret;
 }
 
 static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
 {
-    m8_device_t *tfa9887 = (m8_device_t *) device;
+    m8_device_t *dev = (m8_device_t *) device;
 
-    if (devices != 0) {
-        if (tfa9887->current_output_devices != devices) {
-            tfa9887->current_output_devices = devices;
-            /* Set amplifier mode when device changes */
-            amp_set_mode(device, tfa9887->current_mode);
-        }
+    dev->current_output_devices = devices;
+
+    switch (dev->current_output_devices) {
+        case SND_DEVICE_OUT_HEADPHONES:
+        case SND_DEVICE_OUT_VOICE_HEADPHONES:
+        case SND_DEVICE_OUT_VOIP_HEADPHONES:
+        case SND_DEVICE_OUT_SPEAKER_AND_HEADPHONES:
+            rt5501_set_mode(dev->current_mode);
+            break;
+    }
+    return 0;
+}
+
+static int amp_output_stream_start(amplifier_device_t *device,
+        UNUSED struct audio_stream_out *stream, UNUSED bool offload)
+{
+    m8_device_t *dev = (m8_device_t *) device;
+
+    switch (dev->current_output_devices) {
+        case SND_DEVICE_OUT_SPEAKER:
+        case SND_DEVICE_OUT_SPEAKER_REVERSE:
+        case SND_DEVICE_OUT_VOICE_SPEAKER:
+        case SND_DEVICE_OUT_SPEAKER_PROTECTED:
+        case SND_DEVICE_OUT_VOIP_SPEAKER:
+        case SND_DEVICE_OUT_SPEAKER_AND_HEADPHONES:
+            /* TFA9887 requires I2S to be active in order to change mode */
+            tfa9887_set_mode(dev->current_mode);
+            break;
     }
 
     return 0;
@@ -87,11 +89,11 @@ static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
 
 static int amp_dev_close(hw_device_t *device)
 {
-    m8_device_t *tfa9887 = (m8_device_t *) device;
+    m8_device_t *dev = (m8_device_t *) device;
 
     tfa9887_close();
 
-    free(tfa9887);
+    free(dev);
 
     return 0;
 }
@@ -120,12 +122,11 @@ static int amp_module_open(const hw_module_t *module, UNUSED const char *name,
     m8_dev->amp_dev.set_input_devices = NULL;
     m8_dev->amp_dev.set_output_devices = amp_set_output_devices;
     m8_dev->amp_dev.set_mode = amp_set_mode;
-    m8_dev->amp_dev.output_stream_start = NULL;
+    m8_dev->amp_dev.output_stream_start = amp_output_stream_start;
     m8_dev->amp_dev.input_stream_start = NULL;
     m8_dev->amp_dev.output_stream_standby = NULL;
     m8_dev->amp_dev.input_stream_standby = NULL;
 
-    m8_dev->current_input_devices = SND_DEVICE_NONE;
     m8_dev->current_output_devices = SND_DEVICE_NONE;
     m8_dev->current_mode = AUDIO_MODE_NORMAL;
 

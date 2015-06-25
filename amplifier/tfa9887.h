@@ -34,10 +34,11 @@
 #define MAX_PARAM_SIZE 768
 
 #define CONFIG_TFA9887 "/system/etc/tfa/tfa9895.config"
-#define PATCH_TFA9887 "/system/etc/tfa/tfa9895.patch"
+#define PATCH_TFA9887 "/system/etc/tfa/tfa9887.patch"
+#define PATCH_TFA9887_L "/system/etc/tfa/tfa9887_l.patch"
 
-#define SPKR_R "/system/etc/tfa/tfa9895.speaker"
-#define SPKR_L "/system/etc/tfa/tfa9895_l.speaker"
+#define SPKR_R "/system/etc/tfa/deftcoefA.speaker"
+#define SPKR_L "/system/etc/tfa/deftcoefA_l.speaker"
 
 #define CONFIG_PLAYBACK_R "/system/etc/tfa/playbackwoofer.preset"
 #define CONFIG_PLAYBACK_L "/system/etc/tfa/playbackwoofer_l.preset"

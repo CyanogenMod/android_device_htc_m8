@@ -1195,6 +1195,31 @@ static int tfa9887_lock(struct tfa9887_amp_t *amp, bool lock)
     return rc;
 }
 
+int tfa9887_set_mute()
+{
+    int rc, i;
+    struct tfa9887_amp_t *amp = NULL;
+
+    if (!amps) {
+        ALOGE("%s: TFA9887 not opened\n", __func__);
+        return -ENODEV;
+    }
+
+    for (i = 0; i < AMP_MAX; i++) {
+        amp = &amps[i];
+
+        rc = tfa9887_lock(amp, true);
+        if (rc) {
+            /* Try next amp */
+            continue;
+        }
+        rc = tfa9887_mute(amp, TFA9887_MUTE_DIGITAL);
+        rc = tfa9887_lock(amp, false);
+    }
+
+    return 0;
+}
+
 static int tfa9887_enable_dsp(struct tfa9887_amp_t *amp, bool enable)
 {
     int rc;

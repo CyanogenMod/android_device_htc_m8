@@ -87,6 +87,14 @@ static int amp_output_stream_start(amplifier_device_t *device,
     return 0;
 }
 
+static int amp_output_stream_standby(UNUSED amplifier_device_t *device,
+        UNUSED struct audio_stream_out *stream)
+{
+    tfa9887_set_mute();
+
+    return 0;
+}
+
 static int amp_dev_close(hw_device_t *device)
 {
     m8_device_t *dev = (m8_device_t *) device;
@@ -124,7 +132,7 @@ static int amp_module_open(const hw_module_t *module, UNUSED const char *name,
     m8_dev->amp_dev.set_mode = amp_set_mode;
     m8_dev->amp_dev.output_stream_start = amp_output_stream_start;
     m8_dev->amp_dev.input_stream_start = NULL;
-    m8_dev->amp_dev.output_stream_standby = NULL;
+    m8_dev->amp_dev.output_stream_standby = amp_output_stream_standby;
     m8_dev->amp_dev.input_stream_standby = NULL;
 
     m8_dev->current_output_devices = SND_DEVICE_NONE;

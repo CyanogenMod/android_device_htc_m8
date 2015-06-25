@@ -217,5 +217,6 @@ struct tfa9887_amp_t {
 int tfa9887_open(void);
 int tfa9887_set_mode(audio_mode_t mode);
 int tfa9887_close(void);
+int tfa9887_set_mute(void);
 
 #endif

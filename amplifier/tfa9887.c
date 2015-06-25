@@ -1037,7 +1037,7 @@ static int tfa9887_hw_init(struct tfa9887_amp_t *amp, int sample_rate)
         speaker_file = SPKR_R;
     } else {
         channel = 0;
-        patch_file = PATCH_TFA9887;
+        patch_file = PATCH_TFA9887_L;
         speaker_file = SPKR_L;
     }
 

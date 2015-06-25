@@ -160,6 +160,8 @@ etc/tfa/Rec_Video_l.eq
 etc/tfa/Rec_Video_l.preset
 etc/tfa/Rec_Video.preset
 etc/tfa/tfa9887.config
+etc/tfa/tfa9887.patch
+etc/tfa/tfa9887_l.patch
 etc/tfa/tfa9887MFG.patch
 etc/tfa/tfa9887n.patch
 etc/tfa/tfa9895.config

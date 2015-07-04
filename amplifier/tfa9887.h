@@ -111,6 +111,7 @@ enum {
 struct tfa9887_amp_t {
     int fd;
     bool is_right;
+    bool is_on;
     uint32_t mode;
     bool initializing;
     bool writing;
@@ -228,6 +229,7 @@ struct tfa9887_amp_t {
 #define I2S_MIXER_CTL "MI2S_RX Audio Mixer MultiMedia1"
 
 int tfa9887_open(void);
+int tfa9887_power(bool on);
 int tfa9887_set_mode(audio_mode_t mode);
 int tfa9887_close(void);
 

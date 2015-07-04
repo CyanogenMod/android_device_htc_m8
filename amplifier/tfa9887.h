@@ -58,6 +58,8 @@ typedef struct uint24 {
 #define PRESET_RING_L "/system/etc/tfa/ring_l.preset"
 #define PRESET_VOICE_R "/system/etc/tfa/voice.preset"
 #define PRESET_VOICE_L "/system/etc/tfa/voice_l.preset"
+#define PRESET_VOIP_R "/system/etc/tfa/voip.preset"
+#define PRESET_VOIP_L "/system/etc/tfa/voip_l.preset"
 
 #define EQ_PLAYBACK_R "/system/etc/tfa/playback.eq"
 #define EQ_PLAYBACK_L "/system/etc/tfa/playback_l.eq"
@@ -65,6 +67,8 @@ typedef struct uint24 {
 #define EQ_RING_L "/system/etc/tfa/ring_l.eq"
 #define EQ_VOICE_R "/system/etc/tfa/voice.eq"
 #define EQ_VOICE_L "/system/etc/tfa/voice_l.eq"
+#define EQ_VOIP_R "/system/etc/tfa/voip.eq"
+#define EQ_VOIP_L "/system/etc/tfa/voip_l.eq"
 
 #define DRC_PLAYBACK_R "/system/etc/tfa/playback.drc"
 #define DRC_PLAYBACK_L "/system/etc/tfa/playback_l.drc"
@@ -72,6 +76,8 @@ typedef struct uint24 {
 #define DRC_RING_L "/system/etc/tfa/ring_l.drc"
 #define DRC_VOICE_R "/system/etc/tfa/voice.drc"
 #define DRC_VOICE_L "/system/etc/tfa/voice_l.drc"
+#define DRC_VOIP_R "/system/etc/tfa/voip.drc"
+#define DRC_VOIP_L "/system/etc/tfa/voip_l.drc"
 
 struct mode_config_t {
     const char *config;
@@ -84,6 +90,7 @@ enum {
     TFA9887_MODE_PLAYBACK = 0,
     TFA9887_MODE_RING,
     TFA9887_MODE_VOICE,
+    TFA9887_MODE_VOIP,
     TFA9887_MODE_MAX,
 };
 

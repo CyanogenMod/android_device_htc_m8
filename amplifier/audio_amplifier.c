@@ -67,6 +67,16 @@ static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
     return 0;
 }
 
+static int amp_enable_output_devices(UNUSED amplifier_device_t *device,
+        uint32_t devices, bool enable)
+{
+    if (devices & DEVICE_OUT_SPEAKER) {
+        tfa9887_power(enable);
+    }
+
+    return 0;
+}
+
 static int amp_output_stream_start(amplifier_device_t *device,
         UNUSED struct audio_stream_out *stream, UNUSED bool offload)
 {
@@ -91,6 +101,7 @@ static int amp_dev_close(hw_device_t *device)
 {
     m8_device_t *dev = (m8_device_t *) device;
 
+    tfa9887_power(false);
     tfa9887_close();
 
     free(dev);
@@ -121,6 +132,8 @@ static int amp_module_open(const hw_module_t *module, UNUSED const char *name,
 
     m8_dev->amp_dev.set_input_devices = NULL;
     m8_dev->amp_dev.set_output_devices = amp_set_output_devices;
+    m8_dev->amp_dev.enable_input_devices = NULL;
+    m8_dev->amp_dev.enable_output_devices = amp_enable_output_devices;
     m8_dev->amp_dev.set_mode = amp_set_mode;
     m8_dev->amp_dev.output_stream_start = amp_output_stream_start;
     m8_dev->amp_dev.input_stream_start = NULL;

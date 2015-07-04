@@ -67,31 +67,25 @@ static int amp_set_output_devices(amplifier_device_t *device, uint32_t devices)
     return 0;
 }
 
-static int amp_enable_output_devices(UNUSED amplifier_device_t *device,
+static int amp_enable_output_devices(amplifier_device_t *device,
         uint32_t devices, bool enable)
-{
-    if (devices & DEVICE_OUT_SPEAKER) {
-        tfa9887_power(enable);
-    }
-
-    return 0;
-}
-
-static int amp_output_stream_start(amplifier_device_t *device,
-        UNUSED struct audio_stream_out *stream, UNUSED bool offload)
 {
     m8_device_t *dev = (m8_device_t *) device;
 
-    switch (dev->current_output_devices) {
-        case SND_DEVICE_OUT_SPEAKER:
-        case SND_DEVICE_OUT_SPEAKER_REVERSE:
-        case SND_DEVICE_OUT_VOICE_SPEAKER:
-        case SND_DEVICE_OUT_SPEAKER_PROTECTED:
-        case SND_DEVICE_OUT_VOIP_SPEAKER:
-        case SND_DEVICE_OUT_SPEAKER_AND_HEADPHONES:
-            /* TFA9887 requires I2S to be active in order to change mode */
-            tfa9887_set_mode(dev->current_mode);
-            break;
+    if (devices) {
+        switch (dev->current_output_devices) {
+            case SND_DEVICE_OUT_SPEAKER:
+            case SND_DEVICE_OUT_SPEAKER_REVERSE:
+            case SND_DEVICE_OUT_VOICE_SPEAKER:
+            case SND_DEVICE_OUT_SPEAKER_PROTECTED:
+            case SND_DEVICE_OUT_VOIP_SPEAKER:
+            case SND_DEVICE_OUT_SPEAKER_AND_HEADPHONES:
+                tfa9887_power(enable);
+                if (enable)
+                    /* FIXME: This may fail because I2S is not active */
+                    tfa9887_set_mode(dev->current_mode);
+                break;
+        }
     }
 
     return 0;
@@ -135,7 +129,7 @@ static int amp_module_open(const hw_module_t *module, UNUSED const char *name,
     m8_dev->amp_dev.enable_input_devices = NULL;
     m8_dev->amp_dev.enable_output_devices = amp_enable_output_devices;
     m8_dev->amp_dev.set_mode = amp_set_mode;
-    m8_dev->amp_dev.output_stream_start = amp_output_stream_start;
+    m8_dev->amp_dev.output_stream_start = NULL;
     m8_dev->amp_dev.input_stream_start = NULL;
     m8_dev->amp_dev.output_stream_standby = NULL;
     m8_dev->amp_dev.input_stream_standby = NULL;

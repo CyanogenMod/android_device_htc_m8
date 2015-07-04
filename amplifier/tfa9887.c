@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -172,39 +173,6 @@ err_disable_i2s:
     return NULL;
 }
 
-static int get_file_info(const char *file_name, bool get_type)
-{
-    /* Return type or module of the corresponding file based on name */
-    char *suffix;
-    int type, module;
-
-    suffix = strrchr(file_name, '.');
-    if (suffix == NULL) {
-        ALOGE("%s: Failed to determine parameter file type", __func__);
-        return -EINVAL;
-    } else if (strcmp(suffix, ".speaker") == 0) {
-        type = PARAM_SET_LSMODEL;
-        module = MODULE_SPEAKERBOOST;
-    } else if (strcmp(suffix, ".config") == 0) {
-        type = PARAM_SET_CONFIG;
-        module = MODULE_SPEAKERBOOST;
-    } else if (strcmp(suffix, ".preset") == 0) {
-        type = PARAM_SET_PRESET;
-        module = MODULE_SPEAKERBOOST;
-    } else if (strcmp(suffix, ".eq") == 0) {
-        type = PARAM_SET_EQ;
-        module = MODULE_BIQUADFILTERBANK;
-    } else if (strcmp(suffix, ".drc") == 0) {
-        type = PARAM_SET_DRC;
-        module = MODULE_SPEAKERBOOST;
-    } else {
-        ALOGE("%s: Invalid DSP param file %s", __func__, file_name);
-        return -EINVAL;
-    }
-
-    return get_type ? type : module;
-}
-
 static uint32_t get_mode(audio_mode_t mode)
 {
     switch (mode) {
@@ -256,6 +224,24 @@ static void bytes2data(const uint8_t bytes[], int num_bytes,
             d = - ((1 << 24) - d);
         }
         data[i] = d;
+    }
+}
+
+static void data2bytes(const int32_t data[], int num_data, uint8_t bytes[])
+{
+    int i; /* index for data */
+    int k; /* index for bytes */
+    uint32_t d;
+
+    for (i = 0, k = 0; i < num_data; i++, k += 3) {
+        if (data[i] >= 0) {
+            d = MIN(data[i], (1 << 23) - 1);
+        } else {
+            d = (1 << 24) - MIN(-data[i], 1 << 23);
+        }
+        bytes[k] = (d >> 16) & 0xff;
+        bytes[k + 1] = (d >> 8) & 0xff;
+        bytes[k + 2] = d & 0xff;
     }
 }
 
@@ -497,7 +483,8 @@ static int tfa9887_load_patch(struct tfa9887_amp_t *amp, const char *file_name)
     return error;
 }
 
-static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
+static int tfa9887_load_data(struct tfa9887_amp_t *amp, int param_id,
+        int module_id, uint8_t *data, int num_bytes)
 {
     int error;
     uint16_t cf_ctrl = 0x0002; /* the value to be sent to the CF_CONTROLS register: cf_req=00000000, cf_int=0, cf_aif=0, cf_dmem=XMEM=01, cf_rst_dsp=0 */
@@ -505,23 +492,11 @@ static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
     uint16_t cf_status; /* the contents of the CF_STATUS register */
     uint8_t mem[3];
     uint8_t id[3];
-    uint8_t data[MAX_PARAM_SIZE];
     uint32_t rpc_status = 0;
     int tries = 0;
-    int num_bytes, param_id, module_id;
 
     if (!amp) {
         return -ENODEV;
-    }
-
-    param_id = get_file_info(param_file, true);
-    module_id = get_file_info(param_file, false);
-
-    num_bytes = read_file(param_file, data, MAX_PARAM_SIZE);
-    if (num_bytes < 0) {
-        error = num_bytes;
-        ALOGE("%s: Failed to load file %s: %d", __func__, param_file, error);
-        return -EIO;
     }
 
     error = tfa9887_write_reg(amp, TFA9887_CF_CONTROLS, cf_ctrl);
@@ -579,6 +554,120 @@ static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
         }
     }
     return error;
+}
+
+static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
+{
+    int param_id, module_id;
+    uint8_t data[MAX_PARAM_SIZE];
+    int num_bytes, error;
+    char *suffix;
+
+    suffix = strrchr(param_file, '.');
+    if (suffix == NULL) {
+        ALOGE("%s: Failed to determine parameter file type", __func__);
+        return -EINVAL;
+    } else if (strcmp(suffix, ".speaker") == 0) {
+        param_id = PARAM_SET_LSMODEL;
+        module_id = MODULE_SPEAKERBOOST;
+    } else if (strcmp(suffix, ".config") == 0) {
+        param_id = PARAM_SET_CONFIG;
+        module_id = MODULE_SPEAKERBOOST;
+    } else if (strcmp(suffix, ".preset") == 0) {
+        param_id = PARAM_SET_PRESET;
+        module_id = MODULE_SPEAKERBOOST;
+    } else if (strcmp(suffix, ".drc") == 0) {
+        param_id = PARAM_SET_DRC;
+        module_id = MODULE_SPEAKERBOOST;
+    } else {
+        ALOGE("%s: Invalid DSP param file %s", __func__, param_file);
+        return -EINVAL;
+    }
+
+    num_bytes = read_file(param_file, data, MAX_PARAM_SIZE);
+    if (num_bytes < 0) {
+        error = num_bytes;
+        ALOGE("%s: Failed to load file %s: %d", __func__, param_file, error);
+        return -EIO;
+    }
+
+    return tfa9887_load_data(amp, param_id, module_id, data, num_bytes);
+}
+
+static int tfa9887_load_eq(struct tfa9887_amp_t *amp, const char *eq_file)
+{
+    uint8_t data[MAX_EQ_SIZE];
+    const float disabled[5] = { 1.0, 0.0, 0.0, 0.0, 0.0 };
+    float line[5];
+    int32_t line_data[6];
+    float max;
+    FILE *f;
+    int i, j;
+    int idx, space, rc;
+
+    memset(data, 0, MAX_EQ_SIZE);
+
+    f = fopen(eq_file, "r");
+    if (!f) {
+        rc = errno;
+        ALOGE("%s: Unable to open file %s: %d", __func__, eq_file, rc);
+        return -EIO;
+    }
+
+    for (i = 0; i < MAX_EQ_LINES; i++) {
+        rc = fscanf(f, "%d %f %f %f %f %f", &idx, &line[0], &line[1],
+                &line[2], &line[3], &line[4]);
+        if (rc != 6) {
+            ALOGE("%s: %s has bad format: line must be 6 values\n",
+                    __func__, eq_file);
+            fclose(f);
+            return -EINVAL;
+        }
+
+        if (idx != i + 1) {
+            ALOGE("%s: %s has bad format: index mismatch\n",
+                    __func__, eq_file);
+            fclose(f);
+            return -EINVAL;
+        }
+
+        if (!memcmp(disabled, line, 5)) {
+            /* skip */
+            continue;
+        } else {
+            max = (float) fabs(line[0]);
+            /* Find the max */
+            for (j = 1; j < 5; j++) {
+                if (fabs(line[j]) > max) {
+                    max = (float) fabs(line[j]);
+                }
+            }
+            space = (int) ceil(log(max + pow(2.0, -23)) / log(2.0));
+            if (space > 8) {
+                fclose(f);
+                ALOGE("%s: Invalid value encountered\n", __func__);
+                return -EINVAL;
+            }
+            if (space < 0) {
+                space = 0;
+            }
+
+            /* Pack line into bytes */
+            line_data[0] = space;
+            line_data[1] = (int32_t) (-line[4] * (1 << (23 - space)));
+            line_data[2] = (int32_t) (-line[3] * (1 << (23 - space)));
+            line_data[3] = (int32_t) (line[2] * (1 << (23 - space)));
+            line_data[4] = (int32_t) (line[1] * (1 << (23 - space)));
+            line_data[5] = (int32_t) (line[0] * (1 << (23 - space)));
+            data2bytes(line_data, MAX_EQ_LINE_SIZE,
+                    &data[i * MAX_EQ_LINE_SIZE * MAX_EQ_ITEM_SIZE]);
+        }
+    }
+
+    fclose(f);
+
+    return tfa9887_load_data(amp, PARAM_SET_EQ, MODULE_BIQUADFILTERBANK, data,
+            MAX_EQ_SIZE);
 }
 
 static int htc_init9887(struct tfa9887_amp_t *amp)
@@ -1137,7 +1226,7 @@ static int tfa9887_set_dsp_mode(struct tfa9887_amp_t *amp, uint32_t mode)
         ALOGE("Unable to load preset data");
         goto set_dsp_err;
     }
-    error = tfa9887_load_dsp(amp, config[mode].eq);
+    error = tfa9887_load_eq(amp, config[mode].eq);
     if (error != 0) {
         ALOGE("Unable to load EQ data");
         goto set_dsp_err;

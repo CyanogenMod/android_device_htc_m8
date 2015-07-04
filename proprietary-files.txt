@@ -167,7 +167,9 @@ etc/tfa/tfa9895_l.speaker
 etc/tfa/tfa9895MFG.patch
 etc/tfa/tfa9895.patch
 etc/tfa/tfa9895.speaker
+etc/tfa/voice_l.drc
 etc/tfa/voice.drc
+etc/tfa/voice_l.eq
 etc/tfa/voice.eq
 etc/tfa/voice_l.preset
 etc/tfa/voice.preset

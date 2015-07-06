@@ -64,8 +64,8 @@ typedef struct uint24 {
 #define PRESET_VOICE_R "/system/etc/tfa/voice.preset"
 #define PRESET_VOICE_L "/system/etc/tfa/voice_l.preset"
 
-#define EQ_PLAYBACK_R "/system/etc/tfa/playbackwoofer.eq"
-#define EQ_PLAYBACK_L "/system/etc/tfa/playbackwoofer_l.eq"
+#define EQ_PLAYBACK_R "/system/etc/tfa/playback.eq"
+#define EQ_PLAYBACK_L "/system/etc/tfa/playback_l.eq"
 #define EQ_RING_R "/system/etc/tfa/ring.eq"
 #define EQ_RING_L "/system/etc/tfa/ring_l.eq"
 #define EQ_VOICE_R "/system/etc/tfa/voice.eq"

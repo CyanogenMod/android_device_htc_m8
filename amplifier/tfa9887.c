@@ -187,7 +187,7 @@ static uint32_t get_mode(audio_mode_t mode)
     }
 }
 
-static int read_file(const char *file_name, uint8_t *buf, int sz)
+static int read_file(const char *file_name, uint8_t *buf, int sz, int seek)
 {
     int ret;
     int fd;
@@ -198,6 +198,8 @@ static int read_file(const char *file_name, uint8_t *buf, int sz)
         ALOGE("%s: unable to open file %s: %d", __func__, file_name, ret);
         return ret;
     }
+
+    lseek(fd, seek, SEEK_SET);
 
     ret = read(fd, buf, sz);
     if (ret < 0) {
@@ -446,7 +448,7 @@ static int tfa9887_load_patch(struct tfa9887_amp_t *amp, const char *file_name)
         return -ENODEV;
     }
 
-    length = read_file(file_name, bytes, MAX_PATCH_SIZE);
+    length = read_file(file_name, bytes, MAX_PATCH_SIZE, PATCH_HEADER_LENGTH);
     if (length < 0) {
         ALOGE("Unable to read patch file");
         return -EIO;
@@ -584,7 +586,7 @@ static int tfa9887_load_dsp(struct tfa9887_amp_t *amp, const char *param_file)
         return -EINVAL;
     }
 
-    num_bytes = read_file(param_file, data, MAX_PARAM_SIZE);
+    num_bytes = read_file(param_file, data, MAX_PARAM_SIZE, 0);
     if (num_bytes < 0) {
         error = num_bytes;
         ALOGE("%s: Failed to load file %s: %d", __func__, param_file, error);

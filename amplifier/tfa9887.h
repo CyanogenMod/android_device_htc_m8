@@ -35,6 +35,8 @@
 #define MAX_PATCH_SIZE 3072
 #define MAX_PARAM_SIZE 768
 
+#define PATCH_HEADER_LENGTH 6
+
 typedef struct uint24 {
     uint8_t bytes[3];
 } uint24_t;

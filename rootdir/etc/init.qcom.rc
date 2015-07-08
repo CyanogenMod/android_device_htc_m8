@@ -508,6 +508,20 @@ service wpa_supplicant /system/bin/wpa_supplicant \
     disabled
     oneshot
 
+service ril-daemon2 /system/bin/rild -c 2
+    class main
+    socket rild2 stream 660 root radio
+    socket rild-debug2 stream 660 radio system
+    user root
+    disabled
+    group radio cache inet misc audio sdcard_r sdcard_rw diag qcom_diag log
+
+service rild2-wrapper /system/bin/sh /system/etc/init.qcom.ril.sh
+    class late_start
+    user root
+    group root
+    oneshot
+
 ## Properties start here
 on property:bluetooth.hciattach=true
     start hciattach

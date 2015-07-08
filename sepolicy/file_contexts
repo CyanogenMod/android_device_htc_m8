@@ -3,6 +3,8 @@
 
 /system/blobs/gsm/bin/netmgrd	u:object_r:netmgrd_exec:s0
 /system/blobs/gsm/bin/qmuxd	u:object_r:qmuxd_exec:s0
+/system/blobs/dug/bin/netmgrd	u:object_r:netmgrd_exec:s0
+/system/blobs/dug/bin/qmuxd	u:object_r:qmuxd_exec:s0
 /system/blobs/spr/bin/netmgrd	u:object_r:netmgrd_exec:s0
 /system/blobs/spr/bin/qmuxd	u:object_r:qmuxd_exec:s0
 /system/blobs/vzw/bin/netmgrd	u:object_r:netmgrd_exec:s0

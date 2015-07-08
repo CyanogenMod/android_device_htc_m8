@@ -27,8 +27,9 @@
 # 0P6B16000 - Telus/Rogers (Canada)
 # 0P6B20000 - Verizon
 # 0P6B70000 - Sprint
+# 0P6B64000 - Dual SIM variant (European version)
 
-TARGET_OTA_ASSERT_DEVICE := htc_m8,htc_m8whl,htc_m8wl,m8,m8wl,m8wlv,m8vzw,m8whl,m8spr
+TARGET_OTA_ASSERT_DEVICE := htc_m8,htc_m8whl,htc_m8wl,htc_m8dug,m8,m8wl,m8wlv,m8vzw,m8whl,m8spr,m8dugl
 TARGET_BOARD_INFO_FILE ?= device/htc/m8/board-info.txt
 
 BOARD_VENDOR := htc

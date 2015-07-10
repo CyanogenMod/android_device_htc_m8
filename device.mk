@@ -215,7 +215,7 @@ PRODUCT_PACKAGES += \
 
 # Variant linking script
 PRODUCT_COPY_FILES += \
-    device/htc/m8/releasetools/makelinks.sh:install/bin/makelinks.sh
+    device/htc/m8/releasetools/variant_script.sh:install/bin/variant_script.sh
 
 # Wifi firmware
 PRODUCT_PACKAGES += \

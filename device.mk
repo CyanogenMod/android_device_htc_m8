@@ -112,6 +112,10 @@ PRODUCT_PACKAGES += \
     FM2 \
     FMRecord
 
+# GPS
+PRODUCT_COPY_FILES += \
+    device/htc/m8/configs/gps.conf:system/etc/gps.conf
+
 # Graphics
 PRODUCT_PACKAGES += \
     copybit.msm8974 \

@@ -116,7 +116,6 @@ etc/firmware/widevine.b03
 etc/firmware/widevine.mdt
 etc/General_cal.acdb
 etc/Global_cal.acdb
-etc/gps.conf
 etc/Handset_cal.acdb
 etc/Hdmi_cal.acdb
 etc/Headset_cal.acdb

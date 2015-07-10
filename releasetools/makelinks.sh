@@ -12,6 +12,11 @@ case $modelid in
     *)           variant="gsm" ;;
 esac
 
+# CDMA variants need a slight change to their gps.conf
+if [ "$variant" == "vzw" ] || [ "$variant" == "spr" ]; then
+  sed -i "s|PHONE_TYPE=UMTS|PHONE_TYPE=CDMA|g" /system/etc/gps.conf
+fi
+
 basedir="/system/blobs/$variant/"
 cd $basedir
 chmod 755 bin/*

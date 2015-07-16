@@ -96,7 +96,7 @@ static int check_vendor_module()
     return rv;
 }
 
-static char *camera_fixup_getparams(int id, const char *settings)
+static char *camera_fixup_getparams(const char *settings)
 {
     int rotation = 0;
 
@@ -423,7 +423,7 @@ static char *camera_get_parameters(struct camera_device *device)
 
     char *params = VENDOR_CALL(device, get_parameters);
 
-    char *tmp = camera_fixup_getparams(CAMERA_ID(device), params);
+    char *tmp = camera_fixup_getparams(params);
     VENDOR_CALL(device, put_parameters, params);
     params = tmp;
 

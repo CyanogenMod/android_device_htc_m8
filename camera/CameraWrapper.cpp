@@ -96,7 +96,7 @@ static int check_vendor_module()
     return rv;
 }
 
-static char *camera_fixup_getparams(int id, const char *settings)
+static char *camera_fixup_getparams(__attribute__((unused)) int id, const char *settings)
 {
     int rotation = 0;
 

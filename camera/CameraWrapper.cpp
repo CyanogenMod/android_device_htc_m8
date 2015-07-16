@@ -34,6 +34,8 @@
 #include <camera/Camera.h>
 #include <camera/CameraParameters.h>
 
+#define UNUSED __attribute__((unused))
+
 static android::Mutex gCameraWrapperLock;
 static camera_module_t *gVendorModule = 0;
 
@@ -96,7 +98,7 @@ static int check_vendor_module()
     return rv;
 }
 
-static char *camera_fixup_getparams(int id, const char *settings)
+static char *camera_fixup_getparams(UNUSED int id, const char *settings)
 {
     int rotation = 0;
 

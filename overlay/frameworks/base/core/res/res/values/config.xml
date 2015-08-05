@@ -320,4 +320,8 @@
         <item>evdo_b:4094,87380,262144,4096,16384,262144</item>
     </string-array>
 
+    <!-- Default values for display color temperature -->
+    <integer name="config_dayColorTemperature">7000</integer>
+    <integer name="config_nightColorTemperature">4000</integer>
+
 </resources>

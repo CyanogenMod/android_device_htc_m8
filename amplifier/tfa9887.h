@@ -226,7 +226,7 @@ struct tfa9887_amp_t {
 #define TFA9887_CF_STATUS (0x73)
 #define TFA9887_MTP (0x80)
 
-#define I2S_MIXER_CTL "MI2S_RX Audio Mixer MultiMedia1"
+#define I2S_MIXER_CTL "QUAT_MI2S_RX Audio Mixer MultiMedia1"
 
 int tfa9887_open(void);
 int tfa9887_power(bool on);

@@ -1,3 +1,0 @@
-allow ueventd camera_socket:chr_file { create setattr };
-allow ueventd tap2wake_dev:file { getattr relabelto };
-allow ueventd vibe_dev:file getattr;

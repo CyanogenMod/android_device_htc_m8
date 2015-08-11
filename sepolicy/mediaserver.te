@@ -1,4 +1,0 @@
-allow mediaserver default_prop:property_service set;
-allow mediaserver system_server:unix_stream_socket { read write };
-
-allow mediaserver time_helper_device:chr_file rw_file_perms;

@@ -1,3 +1,0 @@
-allow kernel labeledfs:filesystem unmount;
-allow kernel tap2wake_dev:file relabelto;
-allow kernel vibe_dev:file relabelto;

@@ -1,7 +1,0 @@
-type_transition mm-qcamerad system_data_file:sock_file camera_socket "cam_socket3";
-
-allow mm-qcamerad camera_socket:chr_file rw_file_perms;
-allow mm-qcamerad camera_socket:sock_file { create unlink write };
-allow mm-qcamerad default_prop:property_service set;
-allow mm-qcamerad init:unix_stream_socket connectto;
-allow mm-qcamerad property_socket:sock_file write;

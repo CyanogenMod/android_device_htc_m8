@@ -1,2 +1,0 @@
-allow init camera_socket:sock_file relabelto;
-allow init su_exec:file execute_no_trans;

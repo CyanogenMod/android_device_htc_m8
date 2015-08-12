@@ -96,6 +96,12 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/audio/audio_policy.conf:system/etc/audio_policy.conf \
     $(LOCAL_PATH)/audio/mixer_paths.xml:system/etc/mixer_paths.xml
 
+ifeq ($(TARGET_DEVICE),m8dug)
+# MultiSIM audio property
+PRODUCT_PROPERTIES += \
+    ro.multisim.set_audio_params=true
+endif
+
 # Camera
 PRODUCT_PACKAGES += \
     camera.msm8974

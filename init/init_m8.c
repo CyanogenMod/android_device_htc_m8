@@ -35,9 +35,7 @@
 #include "util.h"
 
 void cdma_properties(char cdma_subscription[],
-                     char default_network[],
-                     char operator_numeric[],
-                     char operator_alpha[]);
+                     char default_network[]);
 
 void vendor_load_properties()
 {
@@ -55,7 +53,7 @@ void vendor_load_properties()
 
     if (strstr(bootmid, "0P6B20000")) {
         /* m8vzw (m8wl) */
-        cdma_properties("0", "10", "310012", "Verizon");
+        cdma_properties("0", "10");
         property_set("ro.product.model", "m8wl");
         property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.4/KTU84P/390638.4:user/release-keys");
         property_set("ro.build.description", "3.28.605.4 CL390638 release-keys");
@@ -82,7 +80,7 @@ void vendor_load_properties()
     } else if (strstr(bootmid, "0P6B70000")) {
         /* m8spr (m8whl) */
         property_set("ro.product.model", "m8whl");
-        cdma_properties("1", "8", "310120", "Sprint");
+        cdma_properties("1", "8");
         property_set("ro.build.fingerprint", "htc/sprint_wwe/htc_m8whl:5.0.1/LRX22C/476182.10:user/release-keys");
         property_set("ro.build.description", "4.20.651.10 CL476182 release-keys");
         property_set("ro.product.device", "htc_m8whl");
@@ -91,6 +89,12 @@ void vendor_load_properties()
         property_set("ro.ril.enable.pre_r8fd=1", "1");
         property_set("ro.ril.oem.ecclist", "911");
         property_set("ro.ril.set.mtusize", "1422");
+        property_set("ro.cdma.home.operator.numeric", "310120");
+        property_set("gsm.sim.operator.numeric", "310120");
+        property_set("gsm.operator.numeric", "310120");
+        property_set("ro.cdma.home.operator.alpha", "Sprint");
+        property_set("gsm.sim.operator.alpha", "Sprint");
+        property_set("gsm.operator.alpha", "310120");
         property_set("ro.telephony.ril_class", "m8sprRIL");
     } else {
         /* m8 */
@@ -106,17 +110,10 @@ void vendor_load_properties()
     ERROR("Found bootmid %s setting build properties for %s device\n", bootmid, device);
 }
 
-void cdma_properties(char default_cdma_sub[], char default_network[],
-                     char operator_numeric[], char operator_alpha[])
+void cdma_properties(char default_cdma_sub[], char default_network[])
 {
     property_set("ro.telephony.default_cdma_sub", default_cdma_sub);
     property_set("ro.telephony.default_network", default_network);
-    property_set("ro.cdma.home.operator.numeric", operator_numeric);
-    property_set("gsm.sim.operator.numeric", operator_numeric);
-    property_set("gsm.operator.numeric", operator_numeric);
-    property_set("ro.cdma.home.operator.alpha", operator_alpha);
-    property_set("gsm.sim.operator.alpha", operator_alpha);
-    property_set("gsm.operator.alpha", operator_numeric);
 
     property_set("telephony.lteOnCdmaDevice", "1");
     property_set("ro.ril.svdo", "true");

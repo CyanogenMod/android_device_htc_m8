@@ -1,3 +1,0 @@
-# RIL
-rild.libargs=-d /dev/smd0
-ro.ril.hsdpa.category=14

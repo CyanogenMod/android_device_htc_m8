@@ -8,7 +8,7 @@ PERL = perl
 ## Imported from the original makefile...
 KERNEL_CONFIG := $(KERNEL_OUT)/.config
 
-M8_DTS_FILES = $(wildcard $(TOP)/$(TARGET_KERNEL_SOURCE)/arch/arm/boot/dts/msm8974pro-ab-pm8941-m8*.dts)
+M8_DTS_FILES = $(wildcard $(TOP)/$(TARGET_KERNEL_SOURCE)/arch/arm/boot/dts/msm8974pro-ab-pm8941-m8[!dug]*.dts)
 M8_DTS_FILE = $(lastword $(subst /, ,$(1)))
 DTB_FILE = $(addprefix $(KERNEL_OUT)/arch/arm/boot/,$(patsubst %.dts,%.dtb,$(call M8_DTS_FILE,$(1))))
 ZIMG_FILE = $(addprefix $(KERNEL_OUT)/arch/arm/boot/,$(patsubst %.dts,%-zImage,$(call M8_DTS_FILE,$(1))))

@@ -64,7 +64,7 @@ void gsm_properties(char default_network[])
     property_set("telephony.lteOnGsmDevice", "1");
 }
 
-void vendor_load_properties()
+void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *board_type)
 {
     char platform[PROP_VALUE_MAX];
     char bootmid[PROP_VALUE_MAX];

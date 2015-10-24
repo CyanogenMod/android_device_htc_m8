@@ -56,8 +56,8 @@ BOARD_USERDATAIMAGE_PARTITION_SIZE := 13153337344
 
 # Vendor Init
 TARGET_UNIFIED_DEVICE := true
-TARGET_INIT_VENDOR_LIB := libinit_m8
-TARGET_LIBINIT_DEFINES_FILE := device/htc/m8/init/init_m8.c
+TARGET_INIT_VENDOR_LIB := libinit_msm
+TARGET_LIBINIT_DEFINES_FILE := device/htc/m8/init/init_m8.cpp
 
 # Inherit from the proprietary version
 -include vendor/htc/m8/BoardConfigVendor.mk

@@ -69,7 +69,6 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
     char platform[PROP_VALUE_MAX];
     char bootmid[PROP_VALUE_MAX];
     char device[PROP_VALUE_MAX];
-    char devicename[PROP_VALUE_MAX];
     int rc;
 
     rc = property_get("ro.board.platform", platform);

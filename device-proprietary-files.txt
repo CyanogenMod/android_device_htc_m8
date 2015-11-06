@@ -11,7 +11,6 @@ blobs/vzw/bin/qmuxd
 # Qualcomm / HTC common libs
 blobs/gsm/vendor/lib/libdiag.so
 blobs/gsm/vendor/lib/libdsi_netctrl.so
-blobs/gsm/vendor/lib/libdsnetutils.so
 blobs/gsm/vendor/lib/libdsutils.so
 blobs/gsm/vendor/lib/libidl.so
 blobs/gsm/vendor/lib/libqcci_legacy.so

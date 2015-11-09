@@ -11,7 +11,6 @@ blobs/vzw/bin/qmuxd
 # Qualcomm / HTC common libs
 blobs/gsm/vendor/lib/libdiag.so
 blobs/gsm/vendor/lib/libdsi_netctrl.so
-blobs/gsm/vendor/lib/libdsnetutils.so
 blobs/gsm/vendor/lib/libdsutils.so
 blobs/gsm/vendor/lib/libidl.so
 blobs/gsm/vendor/lib/libqcci_legacy.so
@@ -24,6 +23,8 @@ blobs/gsm/vendor/lib/libqmi_common_so.so
 blobs/gsm/vendor/lib/libqmi_csi.so
 blobs/gsm/vendor/lib/libqmi_encdec.so
 blobs/gsm/vendor/lib/libqmiservices.so
+blobs/gsm/vendor/lib/libsmemlog.so
+blobs/gsm/vendor/lib/libsystem_health_mon.so
 blobs/spr/vendor/lib/libdiag.so
 blobs/spr/vendor/lib/libdsi_netctrl.so
 blobs/spr/vendor/lib/libdsnetutils.so
@@ -61,8 +62,6 @@ blobs/vzw/vendor/lib/libqmiservices.so
 blobs/gsm/vendor/lib/libnetmgr.so
 blobs/gsm/vendor/lib/libril-qc-qmi-1.so
 blobs/gsm/vendor/lib/libril-qcril-hook-oem.so
-blobs/gsm/vendor/lib/libsmemlog.so
-blobs/gsm/vendor/lib/libsystem_health_mon.so
 blobs/spr/vendor/lib/libnetmgr.so
 blobs/spr/vendor/lib/libril-qc-qmi-1.so
 blobs/spr/vendor/lib/libril-qcril-hook-oem.so

@@ -24,6 +24,8 @@ blobs/gsm/vendor/lib/libqmi_common_so.so
 blobs/gsm/vendor/lib/libqmi_csi.so
 blobs/gsm/vendor/lib/libqmi_encdec.so
 blobs/gsm/vendor/lib/libqmiservices.so
+blobs/gsm/vendor/lib/libsmemlog.so
+blobs/gsm/vendor/lib/libsystem_health_mon.so
 blobs/spr/vendor/lib/libdiag.so
 blobs/spr/vendor/lib/libdsi_netctrl.so
 blobs/spr/vendor/lib/libdsnetutils.so

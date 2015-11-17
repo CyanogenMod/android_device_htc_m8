@@ -8,11 +8,6 @@ blobs/spr/bin/qmuxd
 blobs/vzw/bin/netmgrd
 blobs/vzw/bin/qmuxd
 
-# GPS
-blobs/gsm/lib/libgps.utils.so
-blobs/spr/lib/libgps.utils.so
-blobs/vzw/lib/libgps.utils.so
-
 # Qualcomm / HTC common libs
 blobs/gsm/vendor/lib/libdiag.so
 blobs/gsm/vendor/lib/libdsi_netctrl.so

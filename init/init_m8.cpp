@@ -129,8 +129,8 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         common_properties();
         gsm_properties("9");
         property_set("ro.product.model", "m8");
-        property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:5.1/LMY47O.H4/519376:user/release-keys");
-        property_set("ro.build.description", "4.04.1700.4 CL519376 release-keys");
+        property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:6.0/MRA58K.H6/648564:user/release-keys");
+        property_set("ro.build.description", "5.07.1700.6 CL648564 release-keys");
         property_set("ro.product.device", "htc_m8");
     }
 

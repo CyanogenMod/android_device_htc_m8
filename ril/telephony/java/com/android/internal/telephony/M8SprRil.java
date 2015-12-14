@@ -27,13 +27,13 @@ import com.android.internal.telephony.uicc.IccCardStatus;
  *
  * {@hide}
  */
-public class m8sprRIL extends RIL {
+public class M8SprRIL extends M8RIL {
 
-    public m8sprRIL(Context context, int networkMode, int cdmaSubscription) {
+    public M8SprRIL(Context context, int networkMode, int cdmaSubscription) {
         super(context, networkMode, cdmaSubscription, null);
     }
 
-    public m8sprRIL(Context context, int preferredNetworkType,
+    public M8SprRIL(Context context, int preferredNetworkType,
             int cdmaSubscription, Integer instanceId) {
         super(context, preferredNetworkType, cdmaSubscription, instanceId);
     }

@@ -104,6 +104,7 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         property_set("ro.config.svlte1x", "true");
         property_set("ro.ril.def.agps.mode", "6");
         property_set("ro.telephony.get_imsi_from_sim", "true");
+        property_set("ro.telephony.ril_class", "M8RIL");
     } else if (strstr(bootmid, "0P6B70000")) {
         /* m8spr (m8whl) */
         common_properties();
@@ -123,7 +124,7 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         property_set("ro.cdma.home.operator.alpha", "Sprint");
         property_set("gsm.sim.operator.alpha", "Sprint");
         property_set("gsm.operator.alpha", "310120");
-        property_set("ro.telephony.ril_class", "m8sprRIL");
+        property_set("ro.telephony.ril_class", "M8SprRIL");
     } else {
         /* m8 */
         common_properties();
@@ -132,6 +133,7 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:6.0/MRA58K.H6/648564:user/release-keys");
         property_set("ro.build.description", "5.07.1700.6 CL648564 release-keys");
         property_set("ro.product.device", "htc_m8");
+        property_set("ro.telephony.ril_class", "M8RIL");
     }
 
     property_get("ro.product.device", device);

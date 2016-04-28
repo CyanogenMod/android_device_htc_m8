@@ -1,17 +1,22 @@
 # Device-specific proprietary files
 
-# Radio binaries
-blobs/gsm/bin/netmgrd
-blobs/gsm/bin/qmuxd
-blobs/spr/bin/netmgrd
-blobs/spr/bin/qmuxd
-blobs/vzw/bin/netmgrd
-blobs/vzw/bin/qmuxd
+# GPS
+lib/hw/gps.default.so
+lib/libgps.utils.so
+lib/libloc_api_v02.so
+lib/libloc_core.so
+lib/libloc_ds_api.so
+lib/libloc_eng.so
+vendor/lib/hw/flp.default.so
+vendor/lib/libflp.so
+vendor/lib/libgeofence.so
+vendor/lib/libizat_core.so
+vendor/lib/liblbs_core.so
 
-# Qualcomm / HTC common libs
+# QMI
+bin/irsc_util
 blobs/gsm/vendor/lib/libdiag.so
 blobs/gsm/vendor/lib/libdsi_netctrl.so
-blobs/gsm/vendor/lib/libdsnetutils.so
 blobs/gsm/vendor/lib/libdsutils.so
 blobs/gsm/vendor/lib/libidl.so
 blobs/gsm/vendor/lib/libqcci_legacy.so
@@ -20,13 +25,14 @@ blobs/gsm/vendor/lib/libqdp.so
 blobs/gsm/vendor/lib/libqmi.so
 blobs/gsm/vendor/lib/libqmi_cci.so
 blobs/gsm/vendor/lib/libqmi_client_qmux.so
+blobs/gsm/vendor/lib/libqmi_client_helper.so
 blobs/gsm/vendor/lib/libqmi_common_so.so
 blobs/gsm/vendor/lib/libqmi_csi.so
 blobs/gsm/vendor/lib/libqmi_encdec.so
 blobs/gsm/vendor/lib/libqmiservices.so
+blobs/gsm/vendor/lib/libsmemlog.so
 blobs/spr/vendor/lib/libdiag.so
 blobs/spr/vendor/lib/libdsi_netctrl.so
-blobs/spr/vendor/lib/libdsnetutils.so
 blobs/spr/vendor/lib/libdsutils.so
 blobs/spr/vendor/lib/libidl.so
 blobs/spr/vendor/lib/libqcci_legacy.so
@@ -35,14 +41,15 @@ blobs/spr/vendor/lib/libqdp.so
 blobs/spr/vendor/lib/libqmi.so
 blobs/spr/vendor/lib/libqmi_cci.so
 blobs/spr/vendor/lib/libqmi_client_qmux.so
+blobs/spr/vendor/lib/libqmi_client_helper.so
 blobs/spr/vendor/lib/libqmi_common_so.so
 blobs/spr/vendor/lib/libqmi_csi.so
 blobs/spr/vendor/lib/libqmi_csvt_srvc.so
 blobs/spr/vendor/lib/libqmi_encdec.so
 blobs/spr/vendor/lib/libqmiservices.so
+blobs/spr/vendor/lib/libsmemlog.so
 blobs/vzw/vendor/lib/libdiag.so
 blobs/vzw/vendor/lib/libdsi_netctrl.so
-blobs/vzw/vendor/lib/libdsnetutils.so
 blobs/vzw/vendor/lib/libdsutils.so
 blobs/vzw/vendor/lib/libidl.so
 blobs/vzw/vendor/lib/libqcci_legacy.so
@@ -51,21 +58,48 @@ blobs/vzw/vendor/lib/libqdp.so
 blobs/vzw/vendor/lib/libqmi.so
 blobs/vzw/vendor/lib/libqmi_cci.so
 blobs/vzw/vendor/lib/libqmi_client_qmux.so
+blobs/vzw/vendor/lib/libqmi_client_helper.so
 blobs/vzw/vendor/lib/libqmi_common_so.so
 blobs/vzw/vendor/lib/libqmi_csi.so
 blobs/vzw/vendor/lib/libqmi_csvt_srvc.so
 blobs/vzw/vendor/lib/libqmi_encdec.so
 blobs/vzw/vendor/lib/libqmiservices.so
+blobs/vzw/vendor/lib/libsmemlog.so
 
-# Radio
+# RIL
+blobs/gsm/bin/netmgrd
+blobs/gsm/bin/qmuxd
+blobs/spr/bin/netmgrd
+blobs/spr/bin/qmuxd
+blobs/vzw/bin/netmgrd
+blobs/vzw/bin/qmuxd
+bin/radish
+bin/rmt_storage
+blobs/gsm/lib/libmdmdetect.so
+blobs/spr/lib/libmdmdetect.so
+blobs/vzw/lib/libmdmdetect.so
+-lib/libril.so
+blobs/gsm/vendor/lib/libcneapiclient.so
+blobs/gsm/vendor/lib/libconfigdb.so
 blobs/gsm/vendor/lib/libnetmgr.so
+blobs/gsm/vendor/lib/libperipheral_client.so
 blobs/gsm/vendor/lib/libril-qc-qmi-1.so
 blobs/gsm/vendor/lib/libril-qcril-hook-oem.so
-blobs/gsm/vendor/lib/libsmemlog.so
 blobs/gsm/vendor/lib/libsystem_health_mon.so
+blobs/gsm/vendor/lib/libxml.so
+blobs/spr/vendor/lib/libcneapiclient.so
+blobs/spr/vendor/lib/libconfigdb.so
 blobs/spr/vendor/lib/libnetmgr.so
+blobs/spr/vendor/lib/libperipheral_client.so
 blobs/spr/vendor/lib/libril-qc-qmi-1.so
 blobs/spr/vendor/lib/libril-qcril-hook-oem.so
+blobs/spr/vendor/lib/libsystem_health_mon.so
+blobs/spr/vendor/lib/libxml.so
+blobs/vzw/vendor/lib/libcneapiclient.so
+blobs/vzw/vendor/lib/libconfigdb.so
 blobs/vzw/vendor/lib/libnetmgr.so
+blobs/vzw/vendor/lib/libperipheral_client.so
 blobs/vzw/vendor/lib/libril-qc-qmi-1.so
 blobs/vzw/vendor/lib/libril-qcril-hook-oem.so
+blobs/vzw/vendor/lib/libsystem_health_mon.so
+blobs/vzw/vendor/lib/libxml.so

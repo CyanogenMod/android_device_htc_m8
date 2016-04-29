@@ -82,8 +82,8 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         common_properties();
         cdma_properties("0", "10");
         property_set("ro.product.model", "m8wl");
-        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:4.4.4/KTU84P/390638.4:user/release-keys");
-        property_set("ro.build.description", "3.28.605.4 CL390638 release-keys");
+        property_set("ro.build.fingerprint", "htc/HTCOneM8vzw/htc_m8wl:6.0/MRA58K/708002.3:user/release-keys");
+        property_set("ro.build.description", "6.21.605.3 CL708002 release-keys");
         property_set("ro.product.device", "htc_m8wl");
         property_set("ro.build.product", "htc_m8wl");
         property_set("ro.ril.vzw.feature", "1");
@@ -110,8 +110,8 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         common_properties();
         cdma_properties("1", "8");
         property_set("ro.product.model", "m8whl");
-        property_set("ro.build.fingerprint", "htc/sprint_wwe/htc_m8whl:5.0.1/LRX22C/476182.10:user/release-keys");
-        property_set("ro.build.description", "4.20.651.10 CL476182 release-keys");
+        property_set("ro.build.fingerprint", "htc/sprint_wwe/htc_m8whl:6.0/MRA58K/682910.3:user/release-keys");
+        property_set("ro.build.description", "6.20.651.3 CL682910 release-keys");
         property_set("ro.product.device", "htc_m8whl");
         property_set("ro.build.product", "htc_m8whl");
         property_set("telephony.sms.pseudo_multipart", "1");

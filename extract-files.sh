@@ -3,6 +3,7 @@
 set -e
 
 export DEVICE=m8
+export DEVICE_COMMON=m8-common
 export VENDOR=htc
 
-./../m8-common/extract-files.sh $@
+./../$DEVICE_COMMON/extract-files.sh $@

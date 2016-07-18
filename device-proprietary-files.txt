@@ -1,17 +1,51 @@
 # Device-specific proprietary files
 
 # GPS
-lib/hw/gps.default.so
-lib/libgps.utils.so
-lib/libloc_api_v02.so
-lib/libloc_core.so
-lib/libloc_ds_api.so
-lib/libloc_eng.so
-vendor/lib/hw/flp.default.so
-vendor/lib/libflp.so
-vendor/lib/libgeofence.so
-vendor/lib/libizat_core.so
-vendor/lib/liblbs_core.so
+blobs/gsm/etc/flp.conf
+blobs/gsm/etc/gps.conf
+blobs/gsm/etc/izat.conf
+blobs/gsm/etc/sap.conf
+blobs/gsm/lib/hw/gps.default.so
+blobs/gsm/lib/libgps.utils.so
+blobs/gsm/lib/libloc_api_v02.so
+blobs/gsm/lib/libloc_core.so
+blobs/gsm/lib/libloc_ds_api.so
+blobs/gsm/lib/libloc_eng.so
+blobs/gsm/vendor/lib/hw/flp.default.so
+blobs/gsm/vendor/lib/libflp.so
+blobs/gsm/vendor/lib/libgeofence.so
+blobs/gsm/vendor/lib/libizat_core.so
+blobs/gsm/vendor/lib/liblbs_core.so
+blobs/spr/etc/flp.conf
+blobs/spr/etc/gps.conf
+blobs/spr/etc/izat.conf
+blobs/spr/etc/sap.conf
+blobs/spr/lib/hw/gps.default.so
+blobs/spr/lib/libgps.utils.so
+blobs/spr/lib/libloc_api_v02.so
+blobs/spr/lib/libloc_core.so
+blobs/spr/lib/libloc_ds_api.so
+blobs/spr/lib/libloc_eng.so
+blobs/spr/vendor/lib/hw/flp.default.so
+blobs/spr/vendor/lib/libflp.so
+blobs/spr/vendor/lib/libgeofence.so
+blobs/spr/vendor/lib/libizat_core.so
+blobs/spr/vendor/lib/liblbs_core.so
+blobs/vzw/etc/flp.conf
+blobs/vzw/etc/gps.conf
+blobs/vzw/etc/izat.conf
+blobs/vzw/etc/sap.conf
+blobs/vzw/lib/hw/gps.default.so
+blobs/vzw/lib/libgps.utils.so
+blobs/vzw/lib/libloc_api_v02.so
+blobs/vzw/lib/libloc_core.so
+blobs/vzw/lib/libloc_ds_api.so
+blobs/vzw/lib/libloc_eng.so
+blobs/vzw/vendor/lib/hw/flp.default.so
+blobs/vzw/vendor/lib/libflp.so
+blobs/vzw/vendor/lib/libgeofence.so
+blobs/vzw/vendor/lib/libizat_core.so
+blobs/vzw/vendor/lib/liblbs_core.so
 
 # QMI
 bin/irsc_util

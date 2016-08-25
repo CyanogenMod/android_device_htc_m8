@@ -61,18 +61,17 @@ void gsm_properties(char const default_network[])
 
 void vendor_load_properties()
 {
-    char platform[PROP_VALUE_MAX];
-    char bootmid[PROP_VALUE_MAX];
-    char device[PROP_VALUE_MAX];
-    int rc;
+    std::string platform;
+    std::string bootmid;
+    std::string device;
 
-    rc = property_get("ro.board.platform", platform);
-    if (!rc || strncmp(platform, ANDROID_TARGET, PROP_VALUE_MAX))
+    platform = property_get("ro.board.platform");
+    if (strncmp(platform.c_str(), ANDROID_TARGET, PROP_VALUE_MAX))
         return;
 
-    property_get("ro.boot.mid", bootmid);
+    bootmid = property_get("ro.boot.mid");
 
-    if (strstr(bootmid, "0P6B20000")) {
+    if (strstr(bootmid.c_str(), "0P6B20000")) {
         /* m8vzw (m8wl) */
         common_properties();
         cdma_properties("0", "10");
@@ -104,7 +103,7 @@ void vendor_load_properties()
         property_set("ro.ril.gsm.to.lte.blind.redir", "0");
         property_set("ro.config.svlte1x", "true");
         property_set("ro.telephony.get_imsi_from_sim", "true");
-    } else if (strstr(bootmid, "0P6B70000")) {
+    } else if (strstr(bootmid.c_str(), "0P6B70000")) {
         /* m8spr (m8whl) */
         common_properties();
         cdma_properties("1", "8");
@@ -133,6 +132,6 @@ void vendor_load_properties()
         property_set("ro.product.device", "htc_m8");
     }
 
-    property_get("ro.product.device", device);
-    ERROR("Found bootmid %s setting build properties for %s device\n", bootmid, device);
+    device = property_get("ro.product.device");
+    ERROR("Found bootmid %s setting build properties for %s device\n", bootmid.c_str(), device.c_str());
 }

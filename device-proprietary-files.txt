@@ -108,6 +108,7 @@ blobs/spr/bin/qmuxd
 blobs/vzw/bin/netmgrd
 blobs/vzw/bin/qmuxd
 bin/radish
+bin/rild
 bin/rmt_storage
 blobs/gsm/lib/libmdmdetect.so
 blobs/spr/lib/libmdmdetect.so

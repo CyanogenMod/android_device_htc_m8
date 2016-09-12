@@ -49,4 +49,11 @@
         <item>"mms"</item>
         <item>"supl"</item>
     </string-array>
+
+    <!-- MMS user agent string -->
+    <string name="config_mms_user_agent" translatable="false">831C SPRINT</string>
+
+    <!-- MMS user agent prolfile url -->
+    <string name="config_mms_user_agent_profile_url" translatable="false">http://device.sprintpcs.com/HTC/831CH-Chameleon/3306542.rdf</string>
+
 </resources>

@@ -46,7 +46,7 @@ void cdma_properties(char const default_cdma_sub[], char const default_network[]
 {
     property_set("ro.telephony.default_cdma_sub", default_cdma_sub);
     property_set("ro.telephony.default_network", default_network);
-    property_set("telephony.lteOnCdmaDevice", "1");
+//    property_set("telephony.lteOnCdmaDevice", "1");
     property_set("ro.ril.enable.sdr", "0");
     property_set("persist.radio.snapshot_enabled", "1");
     property_set("persist.radio.snapshot_timer", "22");

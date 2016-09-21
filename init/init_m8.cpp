@@ -130,6 +130,8 @@ void vendor_load_properties()
         property_set("ro.build.fingerprint", "htc/m8_google/htc_m8:6.0/MRA58K.H6/648564:user/release-keys");
         property_set("ro.build.description", "5.07.1700.6 CL648564 release-keys");
         property_set("ro.product.device", "htc_m8");
+        property_set("ro.ril.oem.ecclist", "110,112,119,120,911,999");
+        property_set("ro.ril.oem.nosim.ecclist", "110,112,119,120,911,999,08,000,118,122");
     }
 
     device = property_get("ro.product.device");

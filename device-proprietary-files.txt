@@ -112,7 +112,6 @@ bin/rmt_storage
 blobs/gsm/lib/libmdmdetect.so
 blobs/spr/lib/libmdmdetect.so
 blobs/vzw/lib/libmdmdetect.so
--lib/libril.so
 blobs/gsm/vendor/lib/libcneapiclient.so
 blobs/gsm/vendor/lib/libconfigdb.so
 blobs/gsm/vendor/lib/libnetmgr.so

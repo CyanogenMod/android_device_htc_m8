@@ -14,15 +14,6 @@
 # limitations under the License.
 #
 
-#
-# This file is the build configuration for a full Android
-# build for maguro hardware. This cleanly combines a set of
-# device-specific aspects (drivers) with a device-agnostic
-# product configuration (apps). Except for a few implementation
-# details, it only fundamentally contains two inherit-product
-# lines, full and maguro, hence its name.
-#
-
 # Inherit m8-specific vendor tree
 $(call inherit-product-if-exists, vendor/htc/m8/m8-vendor.mk)
 

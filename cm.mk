@@ -14,12 +14,18 @@
 # limitations under the License.
 #
 
-$(call inherit-product, device/htc/m8/full_m8.mk)
-
-# Enhanced NFC
-$(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
+# Inherit from m8 device
+$(call inherit-product, device/htc/m8/device.mk)
 
 # Inherit some common CM stuff.
 $(call inherit-product, vendor/cm/config/common_full_phone.mk)
 
+# Enhanced NFC
+$(call inherit-product, vendor/cm/config/nfc_enhanced.mk)
+
+# Device identifier. This must come after all inclusions.
 PRODUCT_NAME := cm_m8
+PRODUCT_DEVICE := m8
+PRODUCT_BRAND := htc
+PRODUCT_MANUFACTURER := htc
+PRODUCT_MODEL := One M8
